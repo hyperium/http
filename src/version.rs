@@ -29,24 +29,6 @@ enum Http {
 }
 
 impl Version {
-    /// Returns a number indicating the major version number.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use http::version;
-    ///
-    /// assert_eq!(version::HTTP_11.major(), 1);
-    /// ```
-    pub fn major(&self) -> u8 {
-        match self.0 {
-            Http::Http09 => 0,
-            Http::Http10 |
-            Http::Http11 => 1,
-            Http::H2     |
-            Http::H2c    => 2,
-        }
-    }
 }
 
 impl fmt::Display for Version {
