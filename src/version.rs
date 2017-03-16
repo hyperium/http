@@ -34,7 +34,9 @@ impl Version {
     /// # Example
     ///
     /// ```rust
-    /// assert_eq!(http::Version::http_11().major(), 1);
+    /// use http::version;
+    ///
+    /// assert_eq!(version::HTTP_11.major(), 1);
     /// ```
     pub fn major(&self) -> u8 {
         match self.0 {
