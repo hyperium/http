@@ -1,6 +1,7 @@
 //! HTTP status codes
 
 use std::fmt;
+use std::error::Error;
 
 /// An HTTP status code (`status-code` in RFC 7230 et al.).
 ///
@@ -17,12 +18,24 @@ use std::fmt;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StatusCode(u16);
 
+/// A possible error value when converting a `StatusCode` from a `u16`.
+///
+/// This type is returned from `StatusCode::from_u16` when the supplied input is
+/// less than 100 or greater than 599.
+#[derive(Debug)]
+pub struct FromU16Error;
+
 impl StatusCode {
     /// Converts a u16 to a status code.
     ///
     /// The function validates the correctness of the supplied u16. It must be
     /// greater or equal to 100 but less than 600.
-    pub fn from_u16(src: u16) -> Result<> {
+    pub fn from_u16(src: u16) -> Result<StatusCode, FromU16Error> {
+        if src < 100 || src >= 600 {
+            return Err(FromU16Error);
+        }
+
+        Ok(StatusCode(src))
     }
 
     /// Check if class is Informational.
@@ -54,8 +67,8 @@ impl StatusCode {
 /// Formats the status code, *including* the canonical reason.
 ///
 /// ```rust
-/// # use http::StatusCode;
-/// assert_eq!(format!("{}", StatusCode::ok()), "200 OK");
+/// # use http::status;
+/// assert_eq!(format!("{}", status::OK), "200 OK");
 /// ```
 impl fmt::Display for StatusCode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -303,4 +316,20 @@ status_codes! {
     /// 511 Network Authentication Required
     /// [[RFC6585](https://tools.ietf.org/html/rfc6585)]
     (511, NETWORK_AUTHENTICATION_REQUIRED, "Network Authentication Required");
+}
+
+impl fmt::Display for FromU16Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.description())
+    }
+}
+
+impl Error for FromU16Error {
+    fn description(&self) -> &str {
+        "invalid status code"
+    }
+
+    fn cause(&self) -> Option<&Error> {
+        None
+    }
 }
