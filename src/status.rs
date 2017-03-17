@@ -23,7 +23,9 @@ pub struct StatusCode(u16);
 /// This type is returned from `StatusCode::from_u16` when the supplied input is
 /// less than 100 or greater than 599.
 #[derive(Debug)]
-pub struct FromU16Error;
+pub struct FromU16Error {
+    _priv: (),
+}
 
 impl StatusCode {
     /// Converts a u16 to a status code.
@@ -32,7 +34,7 @@ impl StatusCode {
     /// greater or equal to 100 but less than 600.
     pub fn from_u16(src: u16) -> Result<StatusCode, FromU16Error> {
         if src < 100 || src >= 600 {
-            return Err(FromU16Error);
+            return Err(FromU16Error::new());
         }
 
         Ok(StatusCode(src))
@@ -86,6 +88,14 @@ impl Default for StatusCode {
 impl From<StatusCode> for u16 {
     fn from(status: StatusCode) -> u16 {
         status.0
+    }
+}
+
+impl FromU16Error {
+    fn new() -> FromU16Error {
+        FromU16Error {
+            _priv: (),
+        }
     }
 }
 
