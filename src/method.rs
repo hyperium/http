@@ -113,83 +113,56 @@ impl Method {
                 match src {
                     b"GET" => Ok(Method(Get)),
                     b"PUT" => Ok(Method(Put)),
-                    _ => Method::extension_inline_checked(src),
+                    _ => Method::extension_inline(src),
                 }
             }
             4 => {
                 match src {
                     b"POST" => Ok(Method(Post)),
                     b"HEAD" => Ok(Method(Head)),
-                    _ => Method::extension_inline_checked(src),
+                    _ => Method::extension_inline(src),
                 }
             }
             5 => {
                 match src {
                     b"PATCH" => Ok(Method(Patch)),
                     b"TRACE" => Ok(Method(Trace)),
-                    _ => Method::extension_inline_checked(src),
+                    _ => Method::extension_inline(src),
                 }
             }
             6 => {
                 match src {
                     b"DELETE" => Ok(Method(Delete)),
-                    _ => Method::extension_inline_checked(src),
+                    _ => Method::extension_inline(src),
                 }
             }
             7 => {
                 match src {
                     b"OPTIONS" => Ok(Method(Options)),
                     b"CONNECT" => Ok(Method(Connect)),
-                    _ => Method::extension_inline_checked(src),
+                    _ => Method::extension_inline(src),
                 }
             }
             _ => {
                 if src.len() < MAX_INLINE {
-                    Method::extension_inline_checked(src)
+                    Method::extension_inline(src)
                 } else {
-                    Method::extension_allocated_checked(src)
+                    let mut data: Vec<u8> = vec![0; src.len()];
+
+                    try!(write_checked(src, &mut data));
+
+                    Ok(Method(ExtensionAllocated(data.into_boxed_slice())))
                 }
             }
         }
     }
 
-    /// Converts a slice of bytes to an HTTP method without validating the input
-    /// data.
-    ///
-    /// The caller must ensure that the input is a valid HTTP method (see HTTP
-    /// spec section 5.1.1) and that the method is **not** a standard HTTP
-    /// method, i.e. one that is defined as a constant in this module.
-    ///
-    /// The function is unsafe as the input is not checked as valid UTF-8.
-    pub unsafe fn from_bytes_unchecked(src: &[u8]) -> Method {
-        if src.len() < MAX_INLINE {
-            let mut data: [u8; MAX_INLINE] = Default::default();
-
-            data[0..src.len()].copy_from_slice(src);
-
-            Method(ExtensionInline(data, src.len() as u8))
-        } else {
-            let mut data = vec![];
-            data.extend(src);
-
-            Method(ExtensionAllocated(data.into_boxed_slice()))
-        }
-    }
-
-    fn extension_inline_checked(src: &[u8]) -> Result<Method, FromBytesError> {
+    fn extension_inline(src: &[u8]) -> Result<Method, FromBytesError> {
         let mut data: [u8; MAX_INLINE] = Default::default();
 
         try!(write_checked(src, &mut data));
 
         Ok(Method(ExtensionInline(data, src.len() as u8)))
-    }
-
-    fn extension_allocated_checked(src: &[u8]) -> Result<Method, FromBytesError> {
-        let mut data: Vec<u8> = vec![0; src.len()];
-
-        try!(write_checked(src, &mut data));
-
-        Ok(Method(ExtensionAllocated(data.into_boxed_slice())))
     }
 
     /// Whether a method is considered "safe", meaning the request is
