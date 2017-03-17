@@ -194,24 +194,9 @@ impl Method {
             }
         }
     }
-}
 
-fn write_checked(src: &[u8], dst: &mut [u8]) -> Result<(), FromBytesError> {
-    for (i, &b) in src.iter().enumerate() {
-        let b = METHOD_CHARS[b as usize];
-
-        if b == 0 {
-            return Err(FromBytesError::new());
-        }
-
-        dst[i] = b;
-    }
-
-    Ok(())
-}
-
-impl AsRef<str> for Method {
-    fn as_ref(&self) -> &str {
+    /// Return a &str representation of the HTTP method
+    pub fn as_str(&self) -> &str {
         match self.0 {
             Options => "OPTIONS",
             Get => "GET",
@@ -233,6 +218,26 @@ impl AsRef<str> for Method {
                 }
             }
         }
+    }
+}
+
+fn write_checked(src: &[u8], dst: &mut [u8]) -> Result<(), FromBytesError> {
+    for (i, &b) in src.iter().enumerate() {
+        let b = METHOD_CHARS[b as usize];
+
+        if b == 0 {
+            return Err(FromBytesError::new());
+        }
+
+        dst[i] = b;
+    }
+
+    Ok(())
+}
+
+impl AsRef<str> for Method {
+    fn as_ref(&self) -> &str {
+        self.as_str()
     }
 }
 
