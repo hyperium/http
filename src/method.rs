@@ -15,7 +15,9 @@ use std::error::Error;
 pub struct Method(Inner);
 
 #[derive(Debug)]
-pub struct FromBytesError;
+pub struct FromBytesError {
+    _priv: (),
+}
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 enum Inner {
@@ -199,7 +201,7 @@ fn write_checked(src: &[u8], dst: &mut [u8]) -> Result<(), FromBytesError> {
         let b = METHOD_CHARS[b as usize];
 
         if b == 0 {
-            return Err(FromBytesError);
+            return Err(FromBytesError::new());
         }
 
         dst[i] = b;
@@ -255,6 +257,14 @@ impl fmt::Display for Method {
 impl Default for Method {
     fn default() -> Method {
         GET
+    }
+}
+
+impl FromBytesError {
+    fn new() -> FromBytesError {
+        FromBytesError {
+            _priv: (),
+        }
     }
 }
 
