@@ -18,6 +18,13 @@ use std::fmt;
 pub struct StatusCode(u16);
 
 impl StatusCode {
+    /// Converts a u16 to a status code.
+    ///
+    /// The function validates the correctness of the supplied u16. It must be
+    /// greater or equal to 100 but less than 600.
+    pub fn from_u16(src: u16) -> Result<> {
+    }
+
     /// Check if class is Informational.
     pub fn is_informational(&self) -> bool {
         200 > self.0 && self.0 >= 100
@@ -59,19 +66,13 @@ impl fmt::Display for StatusCode {
 
 impl Default for StatusCode {
     fn default() -> StatusCode {
-        StatusCode(200)
+        OK
     }
 }
 
 impl From<StatusCode> for u16 {
     fn from(status: StatusCode) -> u16 {
         status.0
-    }
-}
-
-impl From<u16> for StatusCode {
-    fn from(status: u16) -> StatusCode {
-        StatusCode(status)
     }
 }
 
