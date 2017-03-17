@@ -268,8 +268,4 @@ impl Error for FromBytesError {
     fn description(&self) -> &str {
         "invalid HTTP method"
     }
-
-    fn cause(&self) -> Option<&Error> {
-        None
-    }
 }
