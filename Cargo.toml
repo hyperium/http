@@ -16,4 +16,3 @@ A set of types for representing HTTP requests and responses.
 """
 
 [dependencies]
-bytes = "0.4"
