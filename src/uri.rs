@@ -1,4 +1,4 @@
-use bytes::Bytes;
+use byte_str::ByteStr;
 
 use std::{fmt, u8, u16};
 use std::ascii::AsciiExt;
@@ -35,7 +35,7 @@ use std::str::{self, FromStr};
 /// For HTTP 2.0, the URI is encoded using pseudoheaders.
 #[derive(Clone)]
 pub struct Uri {
-    data: Bytes,
+    data: ByteStr,
     marks: Marks,
 }
 
@@ -145,9 +145,7 @@ impl Uri {
 
         debug_assert!(end >= start);
 
-        let ret = unsafe {
-            str::from_utf8_unchecked(&self.data[start..end])
-        };
+        let ret = &self.data[start..end];
 
         if ret.is_empty() {
             if self.scheme().is_some() {
@@ -164,11 +162,7 @@ impl Uri {
             Scheme::Http => Some("http"),
             Scheme::Https => Some("https"),
             Scheme::None => None,
-            Scheme::Other(end) => {
-                unsafe {
-                    Some(str::from_utf8_unchecked(&self.data[..end as usize]))
-                }
-            }
+            Scheme::Other(end) => Some(&self.data[..end as usize]),
         }
     }
 
@@ -180,11 +174,7 @@ impl Uri {
                 _ => 0,
             };
 
-            let ret = unsafe {
-                str::from_utf8_unchecked(&self.data[start..end])
-            };
-
-            Some(ret)
+            Some(&self.data[start..end])
         } else {
             None
         }
@@ -220,11 +210,7 @@ impl Uri {
             end = self.data.len();
         }
 
-        let ret = unsafe {
-            str::from_utf8_unchecked(&self.data[(start+1) as usize..end])
-        };
-
-        Some(ret)
+        Some(&self.data[(start+1) as usize..end])
     }
 
     fn fragment(&self) -> Option<&str> {
@@ -234,11 +220,7 @@ impl Uri {
             return None;
         }
 
-        let ret = unsafe {
-            str::from_utf8_unchecked(&self.data[(start+1) as usize..])
-        };
-
-        Some(ret)
+        Some(&self.data[(start+1) as usize..])
     }
 }
 
@@ -456,9 +438,9 @@ impl FromStr for Uri {
         let marks = try!(parse(s.as_bytes()));
 
         let data = match marks.scheme {
-            Scheme::None | Scheme::Other(..) => Bytes::from(s),
-            Scheme::Http => Bytes::from(&s.as_bytes()[7..]),
-            Scheme::Https => Bytes::from(&s.as_bytes()[8..]),
+            Scheme::None | Scheme::Other(..) => ByteStr::from(s),
+            Scheme::Http => ByteStr::from(&s[7..]),
+            Scheme::Https => ByteStr::from(&s[8..]),
         };
 
         Ok(Uri {
@@ -602,7 +584,7 @@ impl Eq for Uri {}
 impl Default for Uri {
     fn default() -> Uri {
         Uri {
-            data: Bytes::from_static(b"/"),
+            data: ByteStr::from_static("/"),
             marks: Marks {
                 scheme: Scheme::None,
                 authority_end: NONE,
