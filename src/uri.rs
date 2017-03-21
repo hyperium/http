@@ -326,7 +326,8 @@ impl Uri {
     ///
     /// The port subcomponent of authority is designated by an optional port
     /// number in decimal following the host and delimited from it by a single
-    /// colon (":") character.
+    /// colon (":") character. A value is only returned if one is specified in
+    /// the URI string, i.e., default port values are **not** returned.
     ///
     /// ```notrust
     /// abc://username:password@example.com:123/path/data?key=value&key2=value2#fragid1
