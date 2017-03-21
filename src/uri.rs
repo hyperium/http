@@ -194,9 +194,9 @@ impl Uri {
     /// Get the scheme of this `Uri`.
     ///
     /// The URI scheme refers to a specification for assigning identifiers
-    /// within that scheme. Only absolute URIs contain a scheme component.
-    /// Although scheme names are case-insensitive, the canonical form is
-    /// lowercase.
+    /// within that scheme. Only absolute URIs contain a scheme component, but
+    /// not all absolute URIs will contain a scheme component.  Although scheme
+    /// names are case-insensitive, the canonical form is lowercase.
     ///
     /// ```notrust
     /// abc://username:password@example.com:123/path/data?key=value&key2=value2#fragid1
