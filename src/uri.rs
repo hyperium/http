@@ -486,10 +486,6 @@ fn parse(s: &[u8]) -> Result<Marks, ErrorKind> {
         return Err(TooLong);
     }
 
-    if s.len() == 0 {
-        return Err(Empty);
-    }
-
     match s.len() {
         0 => {
             return Err(Empty);
@@ -542,8 +538,7 @@ fn parse_scheme(s: &[u8]) -> Result<(Scheme, usize, &[u8]), ErrorKind> {
 
     if s.len() >= 8 {
         // Check for HTTPs
-        // Check for HTTP
-        if s[..8].eq_ignore_ascii_case(b"http://") {
+        if s[..8].eq_ignore_ascii_case(b"https://") {
             return Ok((Scheme::Https, 0, &s[8..]));
         }
     }
@@ -670,24 +665,24 @@ impl FromStr for Uri {
 
 impl PartialEq for Uri {
     fn eq(&self, other: &Uri) -> bool {
-        let m = match (self.scheme(), other.scheme()) {
-            (Some(a), Some(b)) => a.eq_ignore_ascii_case(b),
-            (None, None) => true,
-            _ => false,
+        match (self.scheme(), other.scheme()) {
+            (Some(a), Some(b)) => {
+                if !a.eq_ignore_ascii_case(b) {
+                    return false;
+                }
+            }
+            (None, None) => {}
+            _ => return false,
         };
 
-        if !m {
-            return false;
-        }
-
-        let m = match (self.authority(), other.authority()) {
-            (Some(a), Some(b)) => a.eq_ignore_ascii_case(b),
-            (None, None) => true,
-            _ => false,
-        };
-
-        if !m {
-            return false;
+        match (self.authority(), other.authority()) {
+            (Some(a), Some(b)) => {
+                if !a.eq_ignore_ascii_case(b) {
+                    return false;
+                }
+            }
+            (None, None) => {}
+            _ => return false,
         }
 
         if self.path() != other.path() {
