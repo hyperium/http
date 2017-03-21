@@ -500,7 +500,11 @@ fn parse(s: &[u8]) -> Result<Marks, ErrorKind> {
                         fragment: NONE,
                     });
                 }
-                _ => {
+                b => {
+                    if URI_CHARS[b as usize] == 0 {
+                        return Err(ErrorKind::InvalidUriChar.into());
+                    }
+
                     return Ok(Marks {
                         scheme: Scheme::None,
                         authority_end: 1,
@@ -1045,4 +1049,10 @@ fn test_long_scheme() {
     let res: Result<Uri, FromStrError> = uri.parse();
 
     assert_eq!(res.unwrap_err().0, ErrorKind::SchemeTooLong);
+}
+
+#[test]
+fn test_one_invalid_char() {
+    let res: Result<Uri, FromStrError> = "\0".parse();
+    assert!(res.is_err());
 }
