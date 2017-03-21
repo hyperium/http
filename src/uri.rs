@@ -1,3 +1,5 @@
+//! URI component of request and response lines
+
 use byte_str::ByteStr;
 
 use std::{fmt, u8, u16};
@@ -136,6 +138,39 @@ const SCHEME_CHARS: [u8; 256] = [
 
 impl Uri {
     /// Get the path of this `Uri`.
+    ///
+    /// Both relative and absolute URIs contain a path component, though it
+    /// might be the empty string. The path component is **case sensitive**.
+    ///
+    /// ```notrust
+    /// abc://username:password@example.com:123/path/data?key=value&key2=value2#fragid1
+    ///                                        |--------|
+    ///                                             |
+    ///                                           path
+    /// ```
+    ///
+    /// If the URI is `*` then the path component is equal to `*`.
+    ///
+    /// # Examples
+    ///
+    /// A relative URI
+    ///
+    /// ```
+    /// # use http::Uri;
+    ///
+    /// let uri: Uri = "/hello/world".parse().unwrap();
+    ///
+    /// assert_eq!(uri.path(), "/hello/world");
+    /// ```
+    ///
+    /// An absolute URI
+    ///
+    /// ```
+    /// # use http::Uri;
+    /// let uri: Uri = "http://example.org/hello/world".parse().unwrap();
+    ///
+    /// assert_eq!(uri.path(), "/hello/world");
+    /// ```
     pub fn path(&self) -> &str {
         let start = self.marks.path_start();
 
@@ -157,6 +192,39 @@ impl Uri {
     }
 
     /// Get the scheme of this `Uri`.
+    ///
+    /// The URI scheme refers to a specification for assigning identifiers
+    /// within that scheme. Only absolute URIs contain a scheme component.
+    /// Although scheme names are case-insensitive, the canonical form is
+    /// lowercase.
+    ///
+    /// ```notrust
+    /// abc://username:password@example.com:123/path/data?key=value&key2=value2#fragid1
+    /// |-|
+    ///  |
+    /// scheme
+    /// ```
+    ///
+    /// # Examples
+    ///
+    /// Absolute URI
+    ///
+    /// ```
+    /// # use http::Uri;
+    /// let uri: Uri = "http://example.org/hello/world".parse().unwrap();
+    ///
+    /// assert_eq!(uri.scheme(), Some("http"));
+    /// ```
+    ///
+    ///
+    /// Relative URI
+    ///
+    /// ```
+    /// # use http::Uri;
+    /// let uri: Uri = "/hello/world".parse().unwrap();
+    ///
+    /// assert!(uri.scheme().is_none());
+    /// ```
     pub fn scheme(&self) -> Option<&str> {
         match self.marks.scheme {
             Scheme::Http => Some("http"),
@@ -167,6 +235,42 @@ impl Uri {
     }
 
     /// Get the authority of this `Uri`.
+    ///
+    /// The authority is a hierarchical element for naming authority such that
+    /// the remainder of the URI is delegated to that authority. For HTTP, the
+    /// authority consists of the host and port. The host portion of the
+    /// authority is **case-insensitive**.
+    ///
+    /// The authority also includes a `username:password` component, however
+    /// the use of this is deprecated and should be avoided.
+    ///
+    /// ```notrust
+    /// abc://username:password@example.com:123/path/data?key=value&key2=value2#fragid1
+    ///       |-------------------------------|
+    ///                     |
+    ///                 authority
+    /// ```
+    ///
+    /// # Examples
+    ///
+    /// Absolute URI
+    ///
+    /// ```
+    /// # use http::Uri;
+    /// let uri: Uri = "http://example.org:80/hello/world".parse().unwrap();
+    ///
+    /// assert_eq!(uri.authority(), Some("example.org:80"));
+    /// ```
+    ///
+    ///
+    /// Relative URI
+    ///
+    /// ```
+    /// # use http::Uri;
+    /// let uri: Uri = "/hello/world".parse().unwrap();
+    ///
+    /// assert!(uri.authority().is_none());
+    /// ```
     pub fn authority(&self) -> Option<&str> {
         if let Some(end) = self.marks.authority_end() {
             let start = match self.marks.scheme {
@@ -181,12 +285,84 @@ impl Uri {
     }
 
     /// Get the host of this `Uri`.
+    ///
+    /// The host subcomponent of authority is identified by an IP literal
+    /// encapsulated within square brackets, an IPv4 address in dotted- decimal
+    /// form, or a registered name.  The host subcomponent is **case-insensitive**.
+    ///
+    /// ```notrust
+    /// abc://username:password@example.com:123/path/data?key=value&key2=value2#fragid1
+    ///                         |---------|
+    ///                              |
+    ///                             host
+    /// ```
+    ///
+    /// # Examples
+    ///
+    /// Absolute URI
+    ///
+    /// ```
+    /// # use http::Uri;
+    /// let uri: Uri = "http://example.org:80/hello/world".parse().unwrap();
+    ///
+    /// assert_eq!(uri.host(), Some("example.org"));
+    /// ```
+    ///
+    ///
+    /// Relative URI
+    ///
+    /// ```
+    /// # use http::Uri;
+    /// let uri: Uri = "/hello/world".parse().unwrap();
+    ///
+    /// assert!(uri.host().is_none());
+    /// ```
     pub fn host(&self) -> Option<&str> {
         self.authority()
             .and_then(|a| a.split(":").next())
     }
 
     /// Get the port of this `Uri`.
+    ///
+    /// The port subcomponent of authority is designated by an optional port
+    /// number in decimal following the host and delimited from it by a single
+    /// colon (":") character.
+    ///
+    /// ```notrust
+    /// abc://username:password@example.com:123/path/data?key=value&key2=value2#fragid1
+    ///                                     |-|
+    ///                                      |
+    ///                                     port
+    /// ```
+    ///
+    /// # Examples
+    ///
+    /// Absolute URI with port
+    ///
+    /// ```
+    /// # use http::Uri;
+    /// let uri: Uri = "http://example.org:80/hello/world".parse().unwrap();
+    ///
+    /// assert_eq!(uri.port(), Some(80));
+    /// ```
+    ///
+    /// Absolute URI without port
+    ///
+    /// ```
+    /// # use http::Uri;
+    /// let uri: Uri = "http://example.org/hello/world".parse().unwrap();
+    ///
+    /// assert!(uri.port().is_none());
+    /// ```
+    ///
+    /// Relative URI
+    ///
+    /// ```
+    /// # use http::Uri;
+    /// let uri: Uri = "/hello/world".parse().unwrap();
+    ///
+    /// assert!(uri.port().is_none());
+    /// ```
     pub fn port(&self) -> Option<u16> {
         self.authority()
             .and_then(|a| {
@@ -197,6 +373,48 @@ impl Uri {
     }
 
     /// Get the query string of this `Uri`, starting after the `?`.
+    ///
+    /// The query component contains non-hierarchical data that, along with data
+    /// in the path component, serves to identify a resource within the scope of
+    /// the URI's scheme and naming authority (if any). The query component is
+    /// indicated by the first question mark ("?") character and terminated by a
+    /// number sign ("#") character or by the end of the URI.
+    ///
+    /// ```notrust
+    /// abc://username:password@example.com:123/path/data?key=value&key2=value2#fragid1
+    ///                                                   |-------------------|
+    ///                                                             |
+    ///                                                           query
+    /// ```
+    ///
+    /// # Examples
+    ///
+    /// Absolute URI
+    ///
+    /// ```
+    /// # use http::Uri;
+    /// let uri: Uri = "http://example.org/hello/world?key=value".parse().unwrap();
+    ///
+    /// assert_eq!(uri.query(), Some("key=value"));
+    /// ```
+    ///
+    /// Relative URI with a query string component
+    ///
+    /// ```
+    /// # use http::Uri;
+    /// let uri: Uri = "/hello/world?key=value&foo=bar".parse().unwrap();
+    ///
+    /// assert_eq!(uri.query(), Some("key=value&foo=bar"));
+    /// ```
+    ///
+    /// Relative URI without a query string component
+    ///
+    /// ```
+    /// # use http::Uri;
+    /// let uri: Uri = "/hello/world".parse().unwrap();
+    ///
+    /// assert!(uri.query().is_none());
+    /// ```
     pub fn query(&self) -> Option<&str> {
         let start = self.marks.query;
 
