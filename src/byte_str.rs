@@ -11,6 +11,10 @@ impl ByteStr {
     pub fn from_static(val: &'static str) -> ByteStr {
         ByteStr { bytes: Bytes::from_static(val.as_bytes()) }
     }
+
+    pub unsafe fn from_utf8_unchecked(bytes: Bytes) -> ByteStr {
+        ByteStr { bytes: bytes }
+    }
 }
 
 impl ops::Deref for ByteStr {
