@@ -1,6 +1,24 @@
+mod fast_hash;
+mod map;
 mod name;
+mod value;
 
 pub use self::name::HeaderName;
+pub use self::value::HeaderValue;
+pub use self::map::{
+    HeaderMap,
+    Iter,
+    Names,
+    Values,
+    Drain,
+    ValueSet,
+    ValueSetMut,
+    Entry,
+    VacantEntry,
+    OccupiedEntry,
+    EntryIter,
+    DrainEntry,
+};
 
 // Use header name constants
 pub use self::name::{

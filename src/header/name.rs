@@ -1,18 +1,25 @@
+use super::fast_hash::FastHash;
 use byte_str::ByteStr;
-
 use bytes::{Bytes, BytesMut};
 
 use std::{fmt, mem};
+use std::hash::{Hash, Hasher};
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Hash)]
 pub struct HeaderName {
-    inner: Repr,
+    inner: Repr<ByteStr>,
 }
 
-#[derive(Clone, Eq, PartialEq)]
-enum Repr {
+/// Almost a full `HeaderName`
+pub struct HdrName<'a> {
+    repr: Repr<&'a [u8]>,
+    lower: bool,
+}
+
+#[derive(Clone, Eq, PartialEq, Hash)]
+enum Repr<T> {
     Standard(StandardHeader),
-    Custom(ByteStr),
+    Custom(T),
 }
 
 #[derive(Debug)]
@@ -27,7 +34,7 @@ macro_rules! standard_headers {
             ($konst:ident, $upcase:ident, $name:expr);
         )+
     ) => {
-        #[derive(Debug, Clone, Copy, Eq, PartialEq)]
+        #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
         enum StandardHeader {
             $(
                 $konst,
@@ -1606,9 +1613,35 @@ impl HeaderName {
     }
 }
 
+impl FastHash for HeaderName {
+    #[inline]
+    fn fast_hash(&self) -> u64 {
+        unimplemented!();
+    }
+}
+
+impl<'a> FastHash for &'a HeaderName {
+    #[inline]
+    fn fast_hash(&self) -> u64 {
+        (**self).fast_hash()
+    }
+}
+
+impl AsRef<str> for HeaderName {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl AsRef<[u8]> for HeaderName {
+    fn as_ref(&self) -> &[u8] {
+        self.as_str().as_bytes()
+    }
+}
+
 impl fmt::Debug for HeaderName {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{}", self.as_str())
+        fmt::Debug::fmt(self.as_str(), fmt)
     }
 }
 
@@ -1618,15 +1651,85 @@ impl FromBytesError {
     }
 }
 
+impl<'a> From<&'a HeaderName> for HeaderName {
+    fn from(src: &'a HeaderName) -> HeaderName {
+        src.clone()
+    }
+}
+
 impl From<StandardHeader> for HeaderName {
     fn from(src: StandardHeader) -> HeaderName {
         Repr::Standard(src).into()
     }
 }
 
-impl From<Repr> for HeaderName {
-    fn from(src: Repr) -> HeaderName {
+impl From<Repr<ByteStr>> for HeaderName {
+    fn from(src: Repr<ByteStr>) -> HeaderName {
         HeaderName { inner: src }
+    }
+}
+
+impl<'a> PartialEq<&'a HeaderName> for HeaderName {
+    #[inline]
+    fn eq(&self, other: &&'a HeaderName) -> bool {
+        unimplemented!();
+    }
+}
+
+// ===== HdrName =====
+
+impl<'a> HdrName<'a> {
+    pub fn from_bytes<F, U>(hdr: &[u8], f: F) -> Result<U, FromBytesError>
+        where F: FnOnce(HdrName) -> U,
+    {
+        parse_hdr!(
+            hdr,
+            res,
+            {
+                Ok(f(HdrName {
+                    repr: Repr::Standard(res),
+                    lower: true,
+                }))
+            },
+            {
+                Ok(f(HdrName {
+                    repr: Repr::Custom(res),
+                    lower: true,
+                }))
+            },
+            {
+                Ok(f(HdrName {
+                    repr: Repr::Custom(res),
+                    lower: false,
+                }))
+            })
+    }
+}
+
+impl<'a> Hash for HdrName<'a> {
+    #[inline]
+    fn hash<H: Hasher>(&self, hasher: &mut H) {
+        unimplemented!();
+    }
+}
+
+impl<'a> FastHash for HdrName<'a> {
+    #[inline]
+    fn fast_hash(&self) -> u64 {
+        unimplemented!();
+    }
+}
+
+impl<'a> From<HdrName<'a>> for HeaderName {
+    fn from(src: HdrName<'a>) -> HeaderName {
+        unimplemented!();
+    }
+}
+
+impl<'a> PartialEq<HdrName<'a>> for HeaderName {
+    #[inline]
+    fn eq(&self, other: &HdrName<'a>) -> bool {
+        unimplemented!();
     }
 }
 
