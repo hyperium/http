@@ -18,6 +18,7 @@ pub use self::map::{
     OccupiedEntry,
     EntryIter,
     DrainEntry,
+    IntoHeaderName,
 };
 
 // Use header name constants

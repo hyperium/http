@@ -473,7 +473,7 @@ impl HeaderMap {
 
     #[inline]
     pub fn entry<K>(&mut self, key: K) -> Entry
-        where K: IntoHeaderName + Into<HeaderName>,
+        where K: IntoHeaderName,
     {
         key.entry(self)
     }
@@ -1912,31 +1912,37 @@ pub trait IntoHeaderName {
 }
 
 impl IntoHeaderName for HeaderName {
+    #[doc(hidden)]
     #[inline]
     fn set(self, map: &mut HeaderMap, val: HeaderValue) -> DrainEntry {
         map.set2(self, val)
     }
 
+    #[doc(hidden)]
     #[inline]
     fn insert(self, map: &mut HeaderMap, val: HeaderValue) -> bool {
         map.insert2(self, val)
     }
 
+    #[doc(hidden)]
     #[inline]
     fn insert_ref(&self, map: &mut HeaderMap, val: HeaderValue) {
         map.insert2(self, val);
     }
 
+    #[doc(hidden)]
     #[inline]
     fn entry(self, map: &mut HeaderMap) -> Entry {
         map.entry2(self)
     }
 
+    #[doc(hidden)]
     #[inline]
     fn find_scan(&self, map: &HeaderMap) -> Option<usize> {
         map.find_scan(self)
     }
 
+    #[doc(hidden)]
     #[inline]
     fn find_hashed(&self, map: &HeaderMap) -> Option<(usize, usize)> {
         map.find_hashed(self)
@@ -1944,31 +1950,37 @@ impl IntoHeaderName for HeaderName {
 }
 
 impl<'a> IntoHeaderName for &'a HeaderName {
+    #[doc(hidden)]
     #[inline]
     fn set(self, map: &mut HeaderMap, val: HeaderValue) -> DrainEntry {
         map.set2(self, val)
     }
 
+    #[doc(hidden)]
     #[inline]
     fn insert(self, map: &mut HeaderMap, val: HeaderValue) -> bool {
         map.insert2(self, val)
     }
 
+    #[doc(hidden)]
     #[inline]
     fn insert_ref(&self, map: &mut HeaderMap, val: HeaderValue) {
         map.insert2(*self, val);
     }
 
+    #[doc(hidden)]
     #[inline]
     fn entry(self, map: &mut HeaderMap) -> Entry {
         map.entry2(self)
     }
 
+    #[doc(hidden)]
     #[inline]
     fn find_scan(&self, map: &HeaderMap) -> Option<usize> {
         map.find_scan(*self)
     }
 
+    #[doc(hidden)]
     #[inline]
     fn find_hashed(&self, map: &HeaderMap) -> Option<(usize, usize)> {
         map.find_hashed(*self)
@@ -1976,16 +1988,19 @@ impl<'a> IntoHeaderName for &'a HeaderName {
 }
 
 impl IntoHeaderName for str {
+    #[doc(hidden)]
     #[inline]
     fn insert_ref(&self, map: &mut HeaderMap, val: HeaderValue) {
         HdrName::from_bytes(self.as_bytes(), move |hdr| map.insert2(hdr, val)).unwrap();
     }
 
+    #[doc(hidden)]
     #[inline]
     fn find_scan(&self, map: &HeaderMap) -> Option<usize> {
         HdrName::from_bytes(self.as_bytes(), |hdr| map.find_scan(&hdr)).unwrap()
     }
 
+    #[doc(hidden)]
     #[inline]
     fn find_hashed(&self, map: &HeaderMap) -> Option<(usize, usize)> {
         HdrName::from_bytes(self.as_bytes(), |hdr| map.find_hashed(&hdr)).unwrap()
@@ -1993,31 +2008,37 @@ impl IntoHeaderName for str {
 }
 
 impl<'a> IntoHeaderName for &'a str {
+    #[doc(hidden)]
     #[inline]
     fn set(self, map: &mut HeaderMap, val: HeaderValue) -> DrainEntry {
         HdrName::from_bytes(self.as_bytes(), move |hdr| map.set2(hdr, val)).unwrap()
     }
 
+    #[doc(hidden)]
     #[inline]
     fn insert(self, map: &mut HeaderMap, val: HeaderValue) -> bool {
         HdrName::from_bytes(self.as_bytes(), move |hdr| map.insert2(hdr, val)).unwrap()
     }
 
+    #[doc(hidden)]
     #[inline]
     fn insert_ref(&self, map: &mut HeaderMap, val: HeaderValue) {
         HdrName::from_bytes(self.as_bytes(), move |hdr| map.insert2(hdr, val)).unwrap();
     }
 
+    #[doc(hidden)]
     #[inline]
     fn entry(self, map: &mut HeaderMap) -> Entry {
         HdrName::from_bytes(self.as_bytes(), move |hdr| map.entry2(hdr)).unwrap()
     }
 
+    #[doc(hidden)]
     #[inline]
     fn find_scan(&self, map: &HeaderMap) -> Option<usize> {
         HdrName::from_bytes(self.as_bytes(), |hdr| map.find_scan(&hdr)).unwrap()
     }
 
+    #[doc(hidden)]
     #[inline]
     fn find_hashed(&self, map: &HeaderMap) -> Option<(usize, usize)> {
         HdrName::from_bytes(self.as_bytes(), |hdr| map.find_hashed(&hdr)).unwrap()
@@ -2025,31 +2046,37 @@ impl<'a> IntoHeaderName for &'a str {
 }
 
 impl IntoHeaderName for String {
+    #[doc(hidden)]
     #[inline]
     fn set(self, map: &mut HeaderMap, val: HeaderValue) -> DrainEntry {
         HdrName::from_bytes(self.as_bytes(), move |hdr| map.set2(hdr, val)).unwrap()
     }
 
+    #[doc(hidden)]
     #[inline]
     fn insert(self, map: &mut HeaderMap, val: HeaderValue) -> bool {
         HdrName::from_bytes(self.as_bytes(), move |hdr| map.insert2(hdr, val)).unwrap()
     }
 
+    #[doc(hidden)]
     #[inline]
     fn insert_ref(&self, map: &mut HeaderMap, val: HeaderValue) {
         HdrName::from_bytes(self.as_bytes(), move |hdr| map.insert2(hdr, val)).unwrap();
     }
 
+    #[doc(hidden)]
     #[inline]
     fn entry(self, map: &mut HeaderMap) -> Entry {
         HdrName::from_bytes(self.as_bytes(), move |hdr| map.entry2(hdr)).unwrap()
     }
 
+    #[doc(hidden)]
     #[inline]
     fn find_scan(&self, map: &HeaderMap) -> Option<usize> {
         HdrName::from_bytes(self.as_bytes(), |hdr| map.find_scan(&hdr)).unwrap()
     }
 
+    #[doc(hidden)]
     #[inline]
     fn find_hashed(&self, map: &HeaderMap) -> Option<(usize, usize)> {
         HdrName::from_bytes(self.as_bytes(), |hdr| map.find_hashed(&hdr)).unwrap()
@@ -2057,31 +2084,37 @@ impl IntoHeaderName for String {
 }
 
 impl<'a> IntoHeaderName for &'a String {
+    #[doc(hidden)]
     #[inline]
     fn set(self, map: &mut HeaderMap, val: HeaderValue) -> DrainEntry {
         HdrName::from_bytes(self.as_bytes(), move |hdr| map.set2(hdr, val)).unwrap()
     }
 
+    #[doc(hidden)]
     #[inline]
     fn insert(self, map: &mut HeaderMap, val: HeaderValue) -> bool {
         HdrName::from_bytes(self.as_bytes(), move |hdr| map.insert2(hdr, val)).unwrap()
     }
 
+    #[doc(hidden)]
     #[inline]
     fn insert_ref(&self, map: &mut HeaderMap, val: HeaderValue) {
         HdrName::from_bytes(self.as_bytes(), move |hdr| map.insert2(hdr, val)).unwrap();
     }
 
+    #[doc(hidden)]
     #[inline]
     fn entry(self, map: &mut HeaderMap) -> Entry {
         HdrName::from_bytes(self.as_bytes(), move |hdr| map.entry2(hdr)).unwrap()
     }
 
+    #[doc(hidden)]
     #[inline]
     fn find_scan(&self, map: &HeaderMap) -> Option<usize> {
         HdrName::from_bytes(self.as_bytes(), |hdr| map.find_scan(&hdr)).unwrap()
     }
 
+    #[doc(hidden)]
     #[inline]
     fn find_hashed(&self, map: &HeaderMap) -> Option<(usize, usize)> {
         HdrName::from_bytes(self.as_bytes(), |hdr| map.find_hashed(&hdr)).unwrap()
