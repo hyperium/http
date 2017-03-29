@@ -1,0 +1,1 @@
+Generates standard header code

@@ -2121,6 +2121,7 @@ impl<'a> IntoHeaderName for &'a String {
     }
 }
 
+/*
 #[cfg(test)]
 mod test {
     use super::*;
@@ -2152,3 +2153,4 @@ mod test {
         assert_eq!(128, map.entries.capacity());
     }
 }
+*/
