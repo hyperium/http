@@ -1,8 +1,9 @@
 use bytes::Bytes;
 
 use std::{ops, str};
+use std::hash::{Hash, Hasher};
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct ByteStr {
     bytes: Bytes,
 }
@@ -14,6 +15,10 @@ impl ByteStr {
 
     pub unsafe fn from_utf8_unchecked(bytes: Bytes) -> ByteStr {
         ByteStr { bytes: bytes }
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        self.bytes.as_ref()
     }
 }
 
@@ -35,5 +40,12 @@ impl From<String> for ByteStr {
 impl<'a> From<&'a str> for ByteStr {
     fn from(src: &'a str) -> ByteStr {
         ByteStr { bytes: Bytes::from(src) }
+    }
+}
+
+impl Hash for ByteStr {
+    #[inline]
+    fn hash<H: Hasher>(&self, hasher: &mut H) {
+        self.as_bytes().hash(hasher)
     }
 }

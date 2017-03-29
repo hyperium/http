@@ -1,4 +1,4 @@
-use super::fast_hash::FastHash;
+use super::fast_hash::{self, FastHash, FastHasher};
 use byte_str::ByteStr;
 use bytes::{Bytes, BytesMut};
 
@@ -7,19 +7,29 @@ use std::hash::{Hash, Hasher};
 
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub struct HeaderName {
-    inner: Repr<ByteStr>,
+    inner: Repr<Custom>,
 }
 
 /// Almost a full `HeaderName`
+#[derive(Hash)]
 pub struct HdrName<'a> {
-    repr: Repr<&'a [u8]>,
-    lower: bool,
+    repr: Repr<MaybeLower<'a>>,
 }
 
 #[derive(Clone, Eq, PartialEq, Hash)]
 enum Repr<T> {
     Standard(StandardHeader),
     Custom(T),
+}
+
+// Used to hijack the Hash impl
+#[derive(Clone, Eq, PartialEq)]
+struct Custom(ByteStr);
+
+#[derive(Clone)]
+struct MaybeLower<'a> {
+    buf: &'a [u8],
+    lower: bool,
 }
 
 #[derive(Debug)]
@@ -1588,7 +1598,7 @@ impl HeaderName {
             {
                 let buf = Bytes::from(&res[..]);
                 let val = unsafe { ByteStr::from_utf8_unchecked(buf) };
-                Ok(Repr::Custom(val).into())
+                Ok(Custom(val).into())
             },
             {
                 use bytes::{BufMut};
@@ -1606,7 +1616,7 @@ impl HeaderName {
 
                 let val = unsafe { ByteStr::from_utf8_unchecked(dst.freeze()) };
 
-                Ok(Repr::Custom(val).into())
+                Ok(Custom(val).into())
             })
     }
 
@@ -1616,7 +1626,7 @@ impl HeaderName {
     pub fn as_str(&self) -> &str {
         match self.inner {
             Repr::Standard(v) => v.as_str(),
-            Repr::Custom(ref v) => &**v,
+            Repr::Custom(ref v) => &*v.0,
         }
     }
 }
@@ -1624,7 +1634,10 @@ impl HeaderName {
 impl FastHash for HeaderName {
     #[inline]
     fn fast_hash(&self) -> u64 {
-        unimplemented!();
+        match self.inner {
+            Repr::Standard(s) => s.fast_hash(),
+            Repr::Custom(ref b) => fast_hash::fast_hash(b.0.as_bytes()),
+        }
     }
 }
 
@@ -1667,13 +1680,15 @@ impl<'a> From<&'a HeaderName> for HeaderName {
 
 impl From<StandardHeader> for HeaderName {
     fn from(src: StandardHeader) -> HeaderName {
-        Repr::Standard(src).into()
+        HeaderName {
+            inner: Repr::Standard(src),
+        }
     }
 }
 
-impl From<Repr<ByteStr>> for HeaderName {
-    fn from(src: Repr<ByteStr>) -> HeaderName {
-        HeaderName { inner: src }
+impl From<Custom> for HeaderName {
+    fn from(src: Custom) -> HeaderName {
+        HeaderName { inner: Repr::Custom(src) }
     }
 }
 
@@ -1687,6 +1702,15 @@ impl<'a> PartialEq<&'a HeaderName> for HeaderName {
 // ===== HdrName =====
 
 impl<'a> HdrName<'a> {
+    fn custom(buf: &'a [u8], lower: bool) -> HdrName<'a> {
+        HdrName {
+            repr: Repr::Custom(MaybeLower {
+                buf: buf,
+                lower: lower,
+            }),
+        }
+    }
+
     pub fn from_bytes<F, U>(hdr: &[u8], f: F) -> Result<U, FromBytesError>
         where F: FnOnce(HdrName) -> U,
     {
@@ -1696,28 +1720,14 @@ impl<'a> HdrName<'a> {
             {
                 Ok(f(HdrName {
                     repr: Repr::Standard(res),
-                    lower: true,
                 }))
             },
             {
-                Ok(f(HdrName {
-                    repr: Repr::Custom(res),
-                    lower: true,
-                }))
+                Ok(f(HdrName::custom(res, true)))
             },
             {
-                Ok(f(HdrName {
-                    repr: Repr::Custom(res),
-                    lower: false,
-                }))
+                Ok(f(HdrName::custom(res, false)))
             })
-    }
-}
-
-impl<'a> Hash for HdrName<'a> {
-    #[inline]
-    fn hash<H: Hasher>(&self, hasher: &mut H) {
-        unimplemented!();
     }
 }
 
@@ -1725,6 +1735,19 @@ impl<'a> FastHash for HdrName<'a> {
     #[inline]
     fn fast_hash(&self) -> u64 {
         unimplemented!();
+        /*
+        match self.inner {
+            Repr::Standard(s) => s.fast_hash(),
+            Repr::Custom(bytes) => {
+                if self.is_lower {
+                    // Custom header already verified to be lower case
+                    fast_hash::fast_hash(bytes)
+                } else {
+                    unimplemented!();
+                }
+            }
+        }
+        */
     }
 }
 
@@ -1737,6 +1760,24 @@ impl<'a> From<HdrName<'a>> for HeaderName {
 impl<'a> PartialEq<HdrName<'a>> for HeaderName {
     #[inline]
     fn eq(&self, other: &HdrName<'a>) -> bool {
+        unimplemented!();
+    }
+}
+
+// ===== Custom =====
+
+impl Hash for Custom {
+    #[inline]
+    fn hash<H: Hasher>(&self, hasher: &mut H) {
+        unimplemented!();
+    }
+}
+
+// ===== MaybeLower =====
+
+impl<'a> Hash for MaybeLower<'a> {
+    #[inline]
+    fn hash<H: Hasher>(&self, hasher: &mut H) {
         unimplemented!();
     }
 }
