@@ -1295,17 +1295,17 @@ impl<'a> VacantEntry<'a> {
         self.key
     }
 
-    pub fn set(self, value: HeaderValue) -> &'a mut HeaderValue {
+    pub fn set<T: Into<HeaderValue>>(self, value: T) -> &'a mut HeaderValue {
         let index = if self.map.is_scan() {
             let index = self.map.entries.len();
-            self.map.insert_entry(self.hash, self.key, value);
+            self.map.insert_entry(self.hash, self.key, value.into());
 
             self.map.maybe_promote();
             index
         } else {
             self.map.insert_phase_two(
                 self.key,
-                value,
+                value.into(),
                 self.hash,
                 self.probe,
                 self.danger)
@@ -1501,13 +1501,13 @@ impl<'a> ValueSetMut<'a> {
 
     /// Replaces all values for this entry with the provided value.
     #[inline]
-    pub fn set(&mut self, value: HeaderValue) -> DrainEntry {
-        self.map.set_occupied(self.index, value)
+    pub fn set<T: Into<HeaderValue>>(&mut self, value: T) -> DrainEntry {
+        self.map.set_occupied(self.index, value.into())
     }
 
-    pub fn insert(&mut self, value: HeaderValue) {
+    pub fn insert<T: Into<HeaderValue>>(&mut self, value: T) {
         let entry = &mut self.map.entries[self.index as usize];
-        insert_value(entry, &mut self.map.values, value);
+        insert_value(entry, &mut self.map.values, value.into());
     }
 
     #[inline]
@@ -1585,11 +1585,11 @@ impl<'a> OccupiedEntry<'a> {
 
     /// Replaces all values for this entry with the provided value.
     #[inline]
-    pub fn set(&mut self, value: HeaderValue) -> DrainEntry {
+    pub fn set<T: Into<HeaderValue>>(&mut self, value: T) -> DrainEntry {
         self.inner.set(value)
     }
 
-    pub fn insert(&mut self, value: HeaderValue) {
+    pub fn insert<T: Into<HeaderValue>>(&mut self, value: T) {
         self.inner.insert(value)
     }
 

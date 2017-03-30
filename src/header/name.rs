@@ -4,6 +4,7 @@ use bytes::{Bytes, BytesMut};
 
 use std::{fmt, mem};
 use std::hash::{Hash, Hasher};
+use std::str::FromStr;
 
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub struct HeaderName {
@@ -34,6 +35,11 @@ struct MaybeLower<'a> {
 
 #[derive(Debug)]
 pub struct FromBytesError {
+    _priv: (),
+}
+
+#[derive(Debug)]
+pub struct FromStrError {
     _priv: (),
 }
 
@@ -1628,6 +1634,17 @@ impl HeaderName {
             Repr::Standard(v) => v.as_str(),
             Repr::Custom(ref v) => &*v.0,
         }
+    }
+}
+
+impl FromStr for HeaderName {
+    type Err = FromStrError;
+
+    fn from_str(s: &str) -> Result<HeaderName, FromStrError> {
+        HeaderName::from_bytes(s.as_bytes())
+            .map_err(|_| FromStrError {
+                _priv: (),
+            })
     }
 }
 

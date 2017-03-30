@@ -3,7 +3,6 @@ mod map;
 mod name;
 mod value;
 
-pub use self::name::HeaderName;
 pub use self::value::HeaderValue;
 pub use self::map::{
     HeaderMap,
@@ -20,6 +19,7 @@ pub use self::map::{
     DrainEntry,
     IntoHeaderName,
 };
+pub use self::name::HeaderName;
 
 // Use header name constants
 pub use self::name::{
