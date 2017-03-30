@@ -14,7 +14,7 @@ pub struct HeaderName {
 /// Almost a full `HeaderName`
 #[derive(Debug, Hash)]
 pub struct HdrName<'a> {
-    repr: Repr<MaybeLower<'a>>,
+    inner: Repr<MaybeLower<'a>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -1721,7 +1721,7 @@ impl<'a> PartialEq<&'a HeaderName> for HeaderName {
 impl<'a> HdrName<'a> {
     fn custom(buf: &'a [u8], lower: bool) -> HdrName<'a> {
         HdrName {
-            repr: Repr::Custom(MaybeLower {
+            inner: Repr::Custom(MaybeLower {
                 buf: buf,
                 lower: lower,
             }),
@@ -1736,7 +1736,7 @@ impl<'a> HdrName<'a> {
             res,
             {
                 Ok(f(HdrName {
-                    repr: Repr::Standard(res),
+                    inner: Repr::Standard(res),
                 }))
             },
             {
@@ -1751,7 +1751,7 @@ impl<'a> HdrName<'a> {
 impl<'a> FastHash for HdrName<'a> {
     #[inline]
     fn fast_hash(&self) -> u64 {
-        match self.repr {
+        match self.inner {
             Repr::Standard(s) => s.fast_hash(),
             Repr::Custom(ref maybe_lower) => {
                 if maybe_lower.lower {
@@ -1783,7 +1783,7 @@ impl<'a> FastHash for HdrName<'a> {
 
 impl<'a> From<HdrName<'a>> for HeaderName {
     fn from(src: HdrName<'a>) -> HeaderName {
-        match src.repr {
+        match src.inner {
             Repr::Standard(s) => {
                 HeaderName {
                     inner: Repr::Standard(s),
@@ -1821,13 +1821,13 @@ impl<'a> PartialEq<HdrName<'a>> for HeaderName {
     fn eq(&self, other: &HdrName<'a>) -> bool {
         match self.inner {
             Repr::Standard(a) => {
-                match other.repr {
+                match other.inner {
                     Repr::Standard(b) => a == b,
                     _ => false,
                 }
             }
             Repr::Custom(Custom(ref a)) => {
-                match other.repr {
+                match other.inner {
                     Repr::Custom(ref b) => {
                         if b.lower {
                             a.as_bytes() == b.buf
@@ -1991,13 +1991,13 @@ fn test_from_hdr_name() {
     use self::StandardHeader::Vary;
 
     let name = HeaderName::from(HdrName {
-        repr: Repr::Standard(Vary),
+        inner: Repr::Standard(Vary),
     });
 
     assert_eq!(name.inner, Repr::Standard(Vary));
 
     let name = HeaderName::from(HdrName {
-        repr: Repr::Custom(MaybeLower {
+        inner: Repr::Custom(MaybeLower {
             buf: b"hello-world",
             lower: true,
         }),
@@ -2006,7 +2006,7 @@ fn test_from_hdr_name() {
     assert_eq!(name.inner, Repr::Custom(Custom(ByteStr::from_static("hello-world"))));
 
     let name = HeaderName::from(HdrName {
-        repr: Repr::Custom(MaybeLower {
+        inner: Repr::Custom(MaybeLower {
             buf: b"Hello-World",
             lower: false,
         }),
@@ -2020,28 +2020,28 @@ fn test_eq_hdr_name() {
     use self::StandardHeader::Vary;
 
     let a = HeaderName { inner: Repr::Standard(Vary) };
-    let b = HdrName { repr: Repr::Standard(Vary) };
+    let b = HdrName { inner: Repr::Standard(Vary) };
 
     assert_eq!(a, b);
 
     let a = HeaderName { inner: Repr::Custom(Custom(ByteStr::from_static("vaary"))) };
     assert_ne!(a, b);
 
-    let b = HdrName { repr: Repr::Custom(MaybeLower {
+    let b = HdrName { inner: Repr::Custom(MaybeLower {
         buf: b"vaary",
         lower: true,
     })};
 
     assert_eq!(a, b);
 
-    let b = HdrName { repr: Repr::Custom(MaybeLower {
+    let b = HdrName { inner: Repr::Custom(MaybeLower {
         buf: b"vaary",
         lower: false,
     })};
 
     assert_eq!(a, b);
 
-    let b = HdrName { repr: Repr::Custom(MaybeLower {
+    let b = HdrName { inner: Repr::Custom(MaybeLower {
         buf: b"VAARY",
         lower: false,
     })};
@@ -2050,4 +2050,77 @@ fn test_eq_hdr_name() {
 
     let a = HeaderName { inner: Repr::Standard(Vary) };
     assert_ne!(a, b);
+}
+
+#[test]
+fn test_hashing() {
+    use self::StandardHeader::*;
+    use std::collections::hash_map::DefaultHasher;
+
+    fn hash<T: Hash>(v: &T) -> u64 {
+        let mut h = DefaultHasher::new();
+        v.hash(&mut h);
+        h.finish()
+    }
+
+    for &hdr in &[Accept, Age, Allow, Expect] {
+        let a = HeaderName { inner: Repr::Standard(hdr) };
+        let b = HdrName { inner: Repr::Standard(hdr) };
+
+        assert_eq!(a.fast_hash(), b.fast_hash());
+        assert_eq!(hash(&a), hash(&b));
+
+        for &hdr2 in &[AcceptRanges, Connection, Etag] {
+            let a2 = HeaderName { inner: Repr::Standard(hdr2) };
+            let b2 = HdrName { inner: Repr::Standard(hdr2) };
+
+            assert_ne!(a2.fast_hash(), b.fast_hash());
+            assert_ne!(hash(&a2), hash(&b));
+
+            assert_ne!(a.fast_hash(), b2.fast_hash());
+            assert_ne!(hash(&a), hash(&b2));
+        }
+    }
+
+    // Case insensitive hashing
+    let a: HeaderName = "hello-world".parse().unwrap();
+    let b = HdrName {
+        inner: Repr::Custom(MaybeLower {
+            buf: b"Hello-World",
+            lower: false,
+        }),
+    };
+
+    assert_eq!(a.fast_hash(), b.fast_hash());
+    assert_eq!(hash(&a), hash(&b));
+
+    let b = HdrName {
+        inner: Repr::Custom(MaybeLower {
+            buf: b"hello-waldo",
+            lower: false,
+        }),
+    };
+
+    assert_ne!(a.fast_hash(), b.fast_hash());
+    assert_ne!(hash(&a), hash(&b));
+
+    let b = HdrName {
+        inner: Repr::Custom(MaybeLower {
+            buf: b"hello-world",
+            lower: false,
+        }),
+    };
+
+    assert_eq!(a.fast_hash(), b.fast_hash());
+    assert_eq!(hash(&a), hash(&b));
+
+    let b = HdrName {
+        inner: Repr::Custom(MaybeLower {
+            buf: b"hello-world",
+            lower: true,
+        }),
+    };
+
+    assert_eq!(a.fast_hash(), b.fast_hash());
+    assert_eq!(hash(&a), hash(&b));
 }
