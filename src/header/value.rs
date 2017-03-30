@@ -8,6 +8,12 @@ pub struct HeaderValue {
 }
 
 impl HeaderValue {
+    pub fn from_static(src: &'static str) -> HeaderValue {
+        HeaderValue {
+            inner: ByteStr::from_static(src),
+        }
+    }
+
     pub fn as_str(&self) -> &str {
         self.inner.as_ref()
     }
