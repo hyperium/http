@@ -1695,7 +1695,7 @@ impl From<Custom> for HeaderName {
 impl<'a> PartialEq<&'a HeaderName> for HeaderName {
     #[inline]
     fn eq(&self, other: &&'a HeaderName) -> bool {
-        unimplemented!();
+        *self == **other
     }
 }
 
@@ -1734,33 +1734,94 @@ impl<'a> HdrName<'a> {
 impl<'a> FastHash for HdrName<'a> {
     #[inline]
     fn fast_hash(&self) -> u64 {
-        unimplemented!();
-        /*
-        match self.inner {
+        match self.repr {
             Repr::Standard(s) => s.fast_hash(),
-            Repr::Custom(bytes) => {
-                if self.is_lower {
-                    // Custom header already verified to be lower case
-                    fast_hash::fast_hash(bytes)
+            Repr::Custom(ref maybe_lower) => {
+                if maybe_lower.lower {
+                    fast_hash::fast_hash(maybe_lower.buf)
                 } else {
-                    unimplemented!();
+                    let mut buf = [0u8; 8];
+                    let mut src = maybe_lower.buf;
+
+                    let mut hasher = FastHasher::new();
+
+                    while src.len() >= 8 {
+                        to_lower!(buf, src, 8);
+
+                        hasher.hash(&buf);
+
+                        src = &src[8..];
+                    }
+
+                    for (i, &b) in src.iter().enumerate() {
+                        buf[i] = HEADER_CHARS[b as usize];
+                    }
+
+                    hasher.finish(&buf[..src.len()])
                 }
             }
         }
-        */
     }
 }
 
 impl<'a> From<HdrName<'a>> for HeaderName {
     fn from(src: HdrName<'a>) -> HeaderName {
-        unimplemented!();
+        match src.repr {
+            Repr::Standard(s) => {
+                HeaderName {
+                    inner: Repr::Standard(s),
+                }
+            }
+            Repr::Custom(maybe_lower) => {
+                if maybe_lower.lower {
+                    let buf = Bytes::from(&maybe_lower.buf[..]);
+                    let byte_str = unsafe { ByteStr::from_utf8_unchecked(buf) };
+
+                    HeaderName {
+                        inner: Repr::Custom(Custom(byte_str)),
+                    }
+                } else {
+                    use bytes::{BufMut};
+                    let mut dst = BytesMut::with_capacity(maybe_lower.buf.len());
+
+                    for b in maybe_lower.buf.iter() {
+                        dst.put(HEADER_CHARS[*b as usize]);
+                    }
+
+                    let buf = unsafe { ByteStr::from_utf8_unchecked(dst.freeze()) };
+
+                    HeaderName {
+                        inner: Repr::Custom(Custom(buf)),
+                    }
+                }
+            }
+        }
     }
 }
 
 impl<'a> PartialEq<HdrName<'a>> for HeaderName {
     #[inline]
     fn eq(&self, other: &HdrName<'a>) -> bool {
-        unimplemented!();
+        match self.inner {
+            Repr::Standard(a) => {
+                match other.repr {
+                    Repr::Standard(b) => a == b,
+                    _ => false,
+                }
+            }
+            Repr::Custom(Custom(ref a)) => {
+                match other.repr {
+                    Repr::Custom(ref b) => {
+                        if b.lower {
+                            a.as_bytes() == b.buf
+                        } else {
+                            eq_ignore_ascii_case(a.as_bytes(), b.buf)
+                        }
+                    }
+                    _ => false,
+                }
+            }
+        }
     }
 }
 
@@ -1769,7 +1830,9 @@ impl<'a> PartialEq<HdrName<'a>> for HeaderName {
 impl Hash for Custom {
     #[inline]
     fn hash<H: Hasher>(&self, hasher: &mut H) {
-        unimplemented!();
+        for b in self.0.as_bytes() {
+            b.hash(hasher);
+        }
     }
 }
 
@@ -1778,8 +1841,28 @@ impl Hash for Custom {
 impl<'a> Hash for MaybeLower<'a> {
     #[inline]
     fn hash<H: Hasher>(&self, hasher: &mut H) {
-        unimplemented!();
+        if self.lower {
+            for &b in self.buf {
+                b.hash(hasher);
+            }
+        } else {
+            for &b in self.buf {
+                HEADER_CHARS[b as usize].hash(hasher);
+            }
+        }
     }
+}
+
+// Assumes that the left hand side is already lower case
+#[inline]
+fn eq_ignore_ascii_case(lower: &[u8], s: &[u8]) -> bool {
+    if lower.len() != s.len() {
+        return false;
+    }
+
+    lower.iter().zip(s).all(|(a, b)| {
+        *a == HEADER_CHARS[*b as usize]
+    })
 }
 
 #[test]

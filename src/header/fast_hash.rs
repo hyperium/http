@@ -46,8 +46,6 @@ pub fn fast_hash(buf: &[u8]) -> u64 {
             ptr = ptr.offset(8);
         }
 
-        let rem = buf.len() & 7;
-
         finish(ptr, buf.len() & 7, hash, mult)
     }
 }
