@@ -56,17 +56,6 @@ fn set_10_get_1_custom(b: &mut Bencher) {
     })
 }
 
-/*
-#[bench]
-fn bench_headers_from_raw(b: &mut Bencher) {
-    b.iter(|| {
-        let mut h = HeaderMap::new();
-        let name = HeaderName::parse(&"Content-Length");
-        h.set(name, HeaderValue::from("10"));
-    })
-}
-*/
-
 #[bench]
 fn misc_set_11_get_many(b: &mut Bencher) {
     let hdrs: &[(&'static str, &'static str)] = &[

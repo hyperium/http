@@ -12,22 +12,22 @@ pub struct HeaderName {
 }
 
 /// Almost a full `HeaderName`
-#[derive(Hash)]
+#[derive(Debug, Hash)]
 pub struct HdrName<'a> {
     repr: Repr<MaybeLower<'a>>,
 }
 
-#[derive(Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 enum Repr<T> {
     Standard(StandardHeader),
     Custom(T),
 }
 
 // Used to hijack the Hash impl
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 struct Custom(ByteStr);
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct MaybeLower<'a> {
     buf: &'a [u8],
     lower: bool,
@@ -1984,4 +1984,70 @@ fn test_parse_invalid_headers() {
         let hdr = vec![1u8; i];
         assert!(HeaderName::from_bytes(&hdr).is_err(), "{} invalid header chars did not fail", i);
     }
+}
+
+#[test]
+fn test_from_hdr_name() {
+    use self::StandardHeader::Vary;
+
+    let name = HeaderName::from(HdrName {
+        repr: Repr::Standard(Vary),
+    });
+
+    assert_eq!(name.inner, Repr::Standard(Vary));
+
+    let name = HeaderName::from(HdrName {
+        repr: Repr::Custom(MaybeLower {
+            buf: b"hello-world",
+            lower: true,
+        }),
+    });
+
+    assert_eq!(name.inner, Repr::Custom(Custom(ByteStr::from_static("hello-world"))));
+
+    let name = HeaderName::from(HdrName {
+        repr: Repr::Custom(MaybeLower {
+            buf: b"Hello-World",
+            lower: false,
+        }),
+    });
+
+    assert_eq!(name.inner, Repr::Custom(Custom(ByteStr::from_static("hello-world"))));
+}
+
+#[test]
+fn test_eq_hdr_name() {
+    use self::StandardHeader::Vary;
+
+    let a = HeaderName { inner: Repr::Standard(Vary) };
+    let b = HdrName { repr: Repr::Standard(Vary) };
+
+    assert_eq!(a, b);
+
+    let a = HeaderName { inner: Repr::Custom(Custom(ByteStr::from_static("vaary"))) };
+    assert_ne!(a, b);
+
+    let b = HdrName { repr: Repr::Custom(MaybeLower {
+        buf: b"vaary",
+        lower: true,
+    })};
+
+    assert_eq!(a, b);
+
+    let b = HdrName { repr: Repr::Custom(MaybeLower {
+        buf: b"vaary",
+        lower: false,
+    })};
+
+    assert_eq!(a, b);
+
+    let b = HdrName { repr: Repr::Custom(MaybeLower {
+        buf: b"VAARY",
+        lower: false,
+    })};
+
+    assert_eq!(a, b);
+
+    let a = HeaderName { inner: Repr::Standard(Vary) };
+    assert_ne!(a, b);
 }
