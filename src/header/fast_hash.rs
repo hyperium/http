@@ -7,6 +7,7 @@
 //! not terrible. In a DOS attack, `HeaderMap` will switch to a safe hash
 //! function.
 
+use std::ptr;
 use std::hash::Hash;
 
 /// A fast hashable type
@@ -44,7 +45,7 @@ pub fn fast_hash(buf: &[u8]) -> u64 {
         let end_ptr = buf.as_ptr().offset(buf.len() as isize & ROUND_TO_8);
 
         while end_ptr > ptr {
-            let curr = *(ptr as *const u64);
+            let curr = ptr::read_unaligned(ptr as *const u64);
 
             hash = hash.wrapping_add(curr).wrapping_mul(mult);
             mult = (mult << 5).wrapping_sub(mult);
@@ -67,7 +68,7 @@ impl FastHasher {
     pub fn hash(&mut self, buf: &[u8]) {
         assert_eq!(8, buf.len());
 
-        let val = unsafe { *(buf.as_ptr() as *const u64) };
+        let val = unsafe { ptr::read_unaligned(buf.as_ptr() as *const u64) };
 
         self.hash = self.hash.wrapping_add(val).wrapping_mul(self.mult);
         self.mult = (self.mult << 5).wrapping_sub(self.mult);
@@ -90,58 +91,58 @@ unsafe fn finish(mut ptr: *const u8, rem: usize, mut hash: u64, mut mult: u64) -
     match rem {
         0 => {}
         1 => {
-            let curr = *(ptr as *const u8);
+            let curr = ptr::read_unaligned(ptr as *const u8);
             hash = hash.wrapping_add(curr as u64).wrapping_mul(mult);
         }
         2 => {
-            let curr = *(ptr as *const u16);
+            let curr = ptr::read_unaligned(ptr as *const u16);
             hash = hash.wrapping_add(curr as u64).wrapping_mul(mult);
         }
         3 => {
-            let curr = *(ptr as *const u16);
+            let curr = ptr::read_unaligned(ptr as *const u16);
             hash = hash.wrapping_add(curr as u64).wrapping_mul(mult);
             mult = (mult << 5).wrapping_sub(mult);
 
             ptr = ptr.offset(2);
 
-            let curr = *(ptr as *const u8);
+            let curr = ptr::read_unaligned(ptr as *const u8);
             hash = hash.wrapping_add(curr as u64).wrapping_mul(mult);
         }
         4 => {
-            let curr = *(ptr as *const u32);
+            let curr = ptr::read_unaligned(ptr as *const u32);
             hash = hash.wrapping_add(curr as u64).wrapping_mul(mult);
         }
         5 => {
-            let curr = *(ptr as *const u32);
+            let curr = ptr::read_unaligned(ptr as *const u32);
             hash = hash.wrapping_add(curr as u64).wrapping_mul(mult);
 
             ptr = ptr.offset(4);
 
-            let curr = *(ptr as *const u8);
+            let curr = ptr::read_unaligned(ptr as *const u8);
             hash = hash.wrapping_add(curr as u64).wrapping_mul(mult);
         }
         6 => {
-            let curr = *(ptr as *const u32);
+            let curr = ptr::read_unaligned(ptr as *const u32);
             hash = hash.wrapping_add(curr as u64).wrapping_mul(mult);
 
             ptr = ptr.offset(4);
 
-            let curr = *(ptr as *const u16);
+            let curr = ptr::read_unaligned(ptr as *const u16);
             hash = hash.wrapping_add(curr as u64).wrapping_mul(mult);
         }
         7 => {
-            let curr = *(ptr as *const u32);
+            let curr = ptr::read_unaligned(ptr as *const u32);
             hash = hash.wrapping_add(curr as u64).wrapping_mul(mult);
 
             ptr = ptr.offset(4);
 
-            let curr = *(ptr as *const u16);
+            let curr = ptr::read_unaligned(ptr as *const u16);
             hash = hash.wrapping_add(curr as u64).wrapping_mul(mult);
             mult = (mult << 5).wrapping_sub(mult);
 
             ptr = ptr.offset(2);
 
-            let curr = *(ptr as *const u8);
+            let curr = ptr::read_unaligned(ptr as *const u8);
             hash = hash.wrapping_add(curr as u64).wrapping_mul(mult);
         }
         _ => unreachable!(),
