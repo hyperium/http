@@ -31,6 +31,11 @@ const ROUND_TO_8: isize = !7;
 /// Return a hash code for the input buffer
 #[inline]
 pub fn fast_hash(buf: &[u8]) -> u64 {
+    // This function requires that the size of the given buffer is less than
+    // uszie::MAX >> 1. We don't check for this in the function, but `fast_hash`
+    // is a private function and is only used with header names, which are
+    // limited to 64kb.
+
     let mut hash = HASH_INIT;
     let mut mult = MULT_INIT;
 

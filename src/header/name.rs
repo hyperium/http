@@ -1009,6 +1009,8 @@ macro_rules! parse_hdr {
 
         let len = $data.len();
 
+        assert!(len < super::MAX_HEADER_NAME_LEN, "header name too long -- max length is {}", super::MAX_HEADER_NAME_LEN);
+
         match len {
             0 => {
                 return Err(FromBytesError::new());
