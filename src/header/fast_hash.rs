@@ -26,6 +26,7 @@ pub struct FastHasher {
 
 const HASH_INIT: u64 = 0;
 const MULT_INIT: u64 = 1;
+const ROUND_TO_8: isize = !7;
 
 /// Return a hash code for the input buffer
 #[inline]
@@ -35,7 +36,7 @@ pub fn fast_hash(buf: &[u8]) -> u64 {
 
     unsafe {
         let mut ptr = buf.as_ptr() as *const u8;
-        let end_ptr = buf.as_ptr().offset(buf.len() as isize & !7);
+        let end_ptr = buf.as_ptr().offset(buf.len() as isize & ROUND_TO_8);
 
         while end_ptr > ptr {
             let curr = *(ptr as *const u64);
