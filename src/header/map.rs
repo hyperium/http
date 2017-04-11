@@ -17,7 +17,7 @@ pub struct HeaderMap {
     mask: Size,
     indices: Vec<Pos>,
     entries: Vec<Bucket>,
-    values: ValueSlab,
+    extra_values: ValueSlab,
     danger: Danger,
 }
 
@@ -275,7 +275,7 @@ impl HeaderMap {
                 mask: 0,
                 indices: Vec::new(),
                 entries: Vec::new(),
-                values: ValueSlab {
+                extra_values: ValueSlab {
                     buffer: Vec::new(),
                     len: 0,
                     next_value_idx: 0,
@@ -294,7 +294,7 @@ impl HeaderMap {
                 mask: entries_cap.wrapping_sub(1) as Size,
                 indices: vec![Pos::none(); indices_cap],
                 entries: Vec::with_capacity(entries_cap),
-                values: ValueSlab {
+                extra_values: ValueSlab {
                     buffer: Vec::new(),
                     len: 0,
                     next_value_idx: 0,
@@ -307,7 +307,7 @@ impl HeaderMap {
     /// Returns the number of headers stored in the map.
     #[inline]
     pub fn len(&self) -> usize {
-        self.entries.len() + self.values.len()
+        self.entries.len() + self.extra_values.len()
     }
 
     #[inline]
@@ -445,7 +445,7 @@ impl HeaderMap {
     }
 
     pub fn drain(&mut self) -> Drain {
-        let values = &mut self.values as *mut _;
+        let values = &mut self.extra_values as *mut _;
         Drain {
             entries: self.entries.drain(..),
             values: values,
@@ -595,14 +595,14 @@ impl HeaderMap {
             self.maybe_promote();
 
             return DrainEntry {
-                values: &mut self.values,
+                values: &mut self.extra_values,
                 first: None,
                 next: None,
             };
         }
 
         DrainEntry {
-            values: &mut self.values,
+            values: &mut self.extra_values,
             first: Some(old),
             next: links.map(|l| l.next),
         }
@@ -623,7 +623,7 @@ impl HeaderMap {
         }
 
         DrainEntry {
-            values: &mut self.values,
+            values: &mut self.extra_values,
             first: Some(old),
             next: links.map(|l| l.next),
         }
@@ -646,7 +646,7 @@ impl HeaderMap {
                 self.indices[probe] = Pos::new(index as Size, hash);
 
                 DrainEntry {
-                    values: &mut self.values,
+                    values: &mut self.extra_values,
                     first: None,
                     next: None,
                 }
@@ -663,7 +663,7 @@ impl HeaderMap {
                     danger);
 
                 DrainEntry {
-                    values: &mut self.values,
+                    values: &mut self.extra_values,
                     first: None,
                     next: None,
                 }
@@ -702,7 +702,7 @@ impl HeaderMap {
         // Try to find the slot for the requested key
         for (_, entry) in self.entries.iter_mut().enumerate() {
             if entry.key == key {
-                insert_value(entry, &mut self.values, value);
+                insert_value(entry, &mut self.extra_values, value);
                 return true;
             }
         }
@@ -732,7 +732,7 @@ impl HeaderMap {
             },
             // Occupied
             {
-                insert_value(&mut self.entries[pos], &mut self.values, value);
+                insert_value(&mut self.entries[pos], &mut self.extra_values, value);
                 true
             },
             // Robinhood
@@ -834,7 +834,7 @@ impl HeaderMap {
         let entry = self.entries.swap_remove(index);
 
         let drain = DrainEntry {
-            values: &mut self.values,
+            values: &mut self.extra_values,
             first: Some(entry.value),
             next: entry.links.map(|l| l.next),
         };
@@ -891,7 +891,7 @@ impl HeaderMap {
         }
 
         let drain = DrainEntry {
-            values: &mut self.values,
+            values: &mut self.extra_values,
             first: Some(entry.value),
             next: entry.links.map(|l| l.next),
         };
@@ -1233,7 +1233,7 @@ impl<'a> Iterator for Iter<'a> {
             }
             Values(idx) => {
                 let idx = idx as usize;
-                let (value, next, _) = self.map.values.get(idx);
+                let (value, next, _) = self.map.extra_values.get(idx);
                 self.cursor = next.map(Values);
 
                 Some((&entry.key, value))
@@ -1338,7 +1338,7 @@ impl<'a> ValueSet<'a> {
 
         match entry.links {
             Some(links) => {
-                let (value, ..) = self.map.values.get(links.tail as usize);
+                let (value, ..) = self.map.extra_values.get(links.tail as usize);
                 value
             }
             None => &entry.value
@@ -1400,7 +1400,7 @@ impl<'a> Iterator for EntryIter<'a> {
             }
             Some(Values(idx)) => {
                 let idx = idx as usize;
-                let (value, next, _) = self.map.values.get(idx);
+                let (value, next, _) = self.map.extra_values.get(idx);
 
                 if self.front == self.back {
                     self.front = None;
@@ -1430,7 +1430,7 @@ impl<'a> DoubleEndedIterator for EntryIter<'a> {
             }
             Some(Values(idx)) => {
                 let idx = idx as usize;
-                let (value, _, prev) = self.map.values.get(idx);
+                let (value, _, prev) = self.map.extra_values.get(idx);
 
                 if self.front == self.back {
                     self.front = None;
@@ -1478,7 +1478,7 @@ impl<'a> ValueSetMut<'a> {
 
         match entry.links {
             Some(links) => {
-                let (value, ..) = self.map.values.get(links.tail as usize);
+                let (value, ..) = self.map.extra_values.get(links.tail as usize);
                 value
             }
             None => &entry.value
@@ -1492,7 +1492,7 @@ impl<'a> ValueSetMut<'a> {
 
         match entry.links {
             Some(links) => {
-                let (value, ..) = self.map.values.get_mut(links.tail as usize);
+                let (value, ..) = self.map.extra_values.get_mut(links.tail as usize);
                 value
             }
             None => &mut entry.value
@@ -1507,7 +1507,7 @@ impl<'a> ValueSetMut<'a> {
 
     pub fn insert<T: Into<HeaderValue>>(&mut self, value: T) {
         let entry = &mut self.map.entries[self.index as usize];
-        insert_value(entry, &mut self.map.values, value.into());
+        insert_value(entry, &mut self.map.extra_values, value.into());
     }
 
     #[inline]
