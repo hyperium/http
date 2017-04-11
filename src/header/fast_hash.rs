@@ -7,7 +7,7 @@
 //! not terrible. In a DOS attack, `HeaderMap` will switch to a safe hash
 //! function.
 
-use std::ptr;
+use std::{mem, ptr};
 use std::hash::Hash;
 
 /// A fast hashable type
@@ -29,6 +29,33 @@ const HASH_INIT: u64 = 0;
 const MULT_INIT: u64 = 1;
 const ROUND_TO_8: isize = !7;
 
+macro_rules! hash_num {
+    ($hash:expr, $mult:expr, $num:expr) => {
+        $hash = $hash.wrapping_add($num as u64).wrapping_mul($mult);
+    };
+}
+
+macro_rules! diffuse {
+    ($mult:expr) => {
+        $mult = ($mult << 5).wrapping_sub($mult);
+    }
+}
+
+macro_rules! hash_final_chunk {
+    ($hash:ident, $mult:ident, $ptr:ident, $ty:ty) => {{
+        hash_num!($hash, $mult, ptr::read_unaligned($ptr as *const $ty));
+    }};
+}
+
+macro_rules! hash_chunk {
+    ($hash:ident, $mult:ident, $ptr:ident, $ty:ty) => {{
+        hash_final_chunk!($hash, $mult, $ptr, $ty);
+
+        diffuse!($mult);
+        $ptr = $ptr.offset(mem::size_of::<$ty>() as isize);
+    }};
+}
+
 /// Return a hash code for the input buffer
 #[inline]
 pub fn fast_hash(buf: &[u8]) -> u64 {
@@ -45,12 +72,7 @@ pub fn fast_hash(buf: &[u8]) -> u64 {
         let end_ptr = buf.as_ptr().offset(buf.len() as isize & ROUND_TO_8);
 
         while end_ptr > ptr {
-            let curr = ptr::read_unaligned(ptr as *const u64);
-
-            hash = hash.wrapping_add(curr).wrapping_mul(mult);
-            mult = (mult << 5).wrapping_sub(mult);
-
-            ptr = ptr.offset(8);
+            hash_chunk!(hash, mult, ptr, u64);
         }
 
         finish(ptr, buf.len() & 7, hash, mult)
@@ -68,10 +90,10 @@ impl FastHasher {
     pub fn hash(&mut self, buf: &[u8]) {
         assert_eq!(8, buf.len());
 
-        let val = unsafe { ptr::read_unaligned(buf.as_ptr() as *const u64) };
+        let num = unsafe { ptr::read_unaligned(buf.as_ptr() as *const u64) };
 
-        self.hash = self.hash.wrapping_add(val).wrapping_mul(self.mult);
-        self.mult = (self.mult << 5).wrapping_sub(self.mult);
+        hash_num!(self.hash, self.mult, num);
+        diffuse!(self.mult);
     }
 
     pub fn finish(&mut self, buf: &[u8]) -> u64{
@@ -90,60 +112,25 @@ impl FastHasher {
 unsafe fn finish(mut ptr: *const u8, rem: usize, mut hash: u64, mut mult: u64) -> u64 {
     match rem {
         0 => {}
-        1 => {
-            let curr = ptr::read_unaligned(ptr as *const u8);
-            hash = hash.wrapping_add(curr as u64).wrapping_mul(mult);
-        }
-        2 => {
-            let curr = ptr::read_unaligned(ptr as *const u16);
-            hash = hash.wrapping_add(curr as u64).wrapping_mul(mult);
-        }
+        1 => hash_final_chunk!(hash, mult, ptr, u8),
+        2 => hash_final_chunk!(hash, mult, ptr, u16),
         3 => {
-            let curr = ptr::read_unaligned(ptr as *const u16);
-            hash = hash.wrapping_add(curr as u64).wrapping_mul(mult);
-            mult = (mult << 5).wrapping_sub(mult);
-
-            ptr = ptr.offset(2);
-
-            let curr = ptr::read_unaligned(ptr as *const u8);
-            hash = hash.wrapping_add(curr as u64).wrapping_mul(mult);
+            hash_chunk!(hash, mult,ptr, u16);
+            hash_final_chunk!(hash, mult,ptr, u8);
         }
-        4 => {
-            let curr = ptr::read_unaligned(ptr as *const u32);
-            hash = hash.wrapping_add(curr as u64).wrapping_mul(mult);
-        }
+        4 => hash_final_chunk!(hash, mult,ptr, u32),
         5 => {
-            let curr = ptr::read_unaligned(ptr as *const u32);
-            hash = hash.wrapping_add(curr as u64).wrapping_mul(mult);
-
-            ptr = ptr.offset(4);
-
-            let curr = ptr::read_unaligned(ptr as *const u8);
-            hash = hash.wrapping_add(curr as u64).wrapping_mul(mult);
+            hash_chunk!(hash, mult,ptr, u32);
+            hash_final_chunk!(hash, mult,ptr, u8);
         }
         6 => {
-            let curr = ptr::read_unaligned(ptr as *const u32);
-            hash = hash.wrapping_add(curr as u64).wrapping_mul(mult);
-
-            ptr = ptr.offset(4);
-
-            let curr = ptr::read_unaligned(ptr as *const u16);
-            hash = hash.wrapping_add(curr as u64).wrapping_mul(mult);
+            hash_chunk!(hash, mult,ptr, u32);
+            hash_final_chunk!(hash, mult,ptr, u16);
         }
         7 => {
-            let curr = ptr::read_unaligned(ptr as *const u32);
-            hash = hash.wrapping_add(curr as u64).wrapping_mul(mult);
-
-            ptr = ptr.offset(4);
-
-            let curr = ptr::read_unaligned(ptr as *const u16);
-            hash = hash.wrapping_add(curr as u64).wrapping_mul(mult);
-            mult = (mult << 5).wrapping_sub(mult);
-
-            ptr = ptr.offset(2);
-
-            let curr = ptr::read_unaligned(ptr as *const u8);
-            hash = hash.wrapping_add(curr as u64).wrapping_mul(mult);
+            hash_chunk!(hash, mult,ptr, u32);
+            hash_chunk!(hash, mult,ptr, u16);
+            hash_final_chunk!(hash, mult,ptr, u8);
         }
         _ => unreachable!(),
     }
