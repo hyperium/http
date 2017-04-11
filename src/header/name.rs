@@ -909,12 +909,14 @@ standard_headers! {
 
 /// Valid header name characters
 ///
+/// ```not_rust
 ///       field-name     = token
 ///       token          = 1*<any CHAR except CTLs or separators>
 ///       separators     = "(" | ")" | "<" | ">" | "@"
 ///                      | "," | ";" | ":" | "\" | <">
 ///                      | "/" | "[" | "]" | "?" | "="
 ///                      | "{" | "}" | SP | HT
+/// ```
 const HEADER_CHARS: [u8; 256] = [
     //  0      1      2      3      4      5      6      7      8      9
         0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //   x

@@ -347,7 +347,7 @@ impl HeaderMap {
     /// # Examples
     ///
     /// ```
-    /// use tower::http::HeaderMap;
+    /// use http::HeaderMap;
     ///
     /// let mut map = HeaderMap::new();
     /// map.reserve(10);
