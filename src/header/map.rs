@@ -1876,7 +1876,7 @@ fn hash_elem_using<K: ?Sized>(danger: &Danger, k: &K) -> HashValue
 
 /// A marker trait used to identify values that can be used as keys to a
 /// `HeaderMap`.
-pub trait IntoHeaderName {
+pub trait IntoHeaderName: Sealed {
     #[doc(hidden)]
     fn set(self, map: &mut HeaderMap, val: HeaderValue) -> DrainEntry
         where Self: Sized
@@ -1910,6 +1910,9 @@ pub trait IntoHeaderName {
     #[doc(hidden)]
     fn find_hashed(&self, map: &HeaderMap) -> Option<(usize, usize)>;
 }
+
+// Prevent users from implementing the `IntoHeaderName` trait.
+pub trait Sealed {}
 
 impl IntoHeaderName for HeaderName {
     #[doc(hidden)]
@@ -1949,6 +1952,8 @@ impl IntoHeaderName for HeaderName {
     }
 }
 
+impl Sealed for HeaderName {}
+
 impl<'a> IntoHeaderName for &'a HeaderName {
     #[doc(hidden)]
     #[inline]
@@ -1987,6 +1992,8 @@ impl<'a> IntoHeaderName for &'a HeaderName {
     }
 }
 
+impl<'a> Sealed for &'a HeaderName {}
+
 impl IntoHeaderName for str {
     #[doc(hidden)]
     #[inline]
@@ -2006,6 +2013,8 @@ impl IntoHeaderName for str {
         HdrName::from_bytes(self.as_bytes(), |hdr| map.find_hashed(&hdr)).unwrap()
     }
 }
+
+impl Sealed for str {}
 
 impl<'a> IntoHeaderName for &'a str {
     #[doc(hidden)]
@@ -2045,6 +2054,8 @@ impl<'a> IntoHeaderName for &'a str {
     }
 }
 
+impl<'a> Sealed for &'a str {}
+
 impl IntoHeaderName for String {
     #[doc(hidden)]
     #[inline]
@@ -2083,6 +2094,8 @@ impl IntoHeaderName for String {
     }
 }
 
+impl Sealed for String {}
+
 impl<'a> IntoHeaderName for &'a String {
     #[doc(hidden)]
     #[inline]
@@ -2120,6 +2133,8 @@ impl<'a> IntoHeaderName for &'a String {
         HdrName::from_bytes(self.as_bytes(), |hdr| map.find_hashed(&hdr)).unwrap()
     }
 }
+
+impl<'a> Sealed for &'a String {}
 
 /*
 #[cfg(test)]
