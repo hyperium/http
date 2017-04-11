@@ -16,10 +16,6 @@ impl ByteStr {
     pub unsafe fn from_utf8_unchecked(bytes: Bytes) -> ByteStr {
         ByteStr { bytes: bytes }
     }
-
-    pub fn as_bytes(&self) -> &[u8] {
-        self.bytes.as_ref()
-    }
 }
 
 impl ops::Deref for ByteStr {
