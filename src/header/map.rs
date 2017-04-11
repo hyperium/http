@@ -2135,37 +2135,3 @@ impl<'a> IntoHeaderName for &'a String {
 }
 
 impl<'a> Sealed for &'a String {}
-
-/*
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn reserve_scan() {
-        let mut map = HeaderMap::new();
-        assert_eq!(0, map.indices.len());
-        assert_eq!(0, map.entries.capacity());
-
-        map.reserve(4);
-        assert_eq!(0, map.indices.len());
-        assert_eq!(4, map.entries.capacity());
-    }
-
-    #[test]
-    fn reserve_above_promotion_threshold() {
-        let mut map = HeaderMap::new();
-        map.reserve(128);
-        assert_eq!(0, map.indices.len());
-        assert_eq!(128, map.entries.capacity());
-
-        for i in 0..32 {
-            let key = format!("foo-{}", i);
-            map.set(key, "bar");
-        }
-
-        assert_eq!(128, map.indices.len());
-        assert_eq!(128, map.entries.capacity());
-    }
-}
-*/
