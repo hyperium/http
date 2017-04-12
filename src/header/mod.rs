@@ -23,7 +23,7 @@
 //!
 //! ## Limitations
 //!
-//! `HeaderName` has a max length of 65,536 for header names. Attempting to
+//! `HeaderName` has a max length of 32,768 for header names. Attempting to
 //! parse longer names will result in a panic.
 //!
 //! # `HeaderMap`
@@ -61,7 +61,7 @@
 //!
 //! ## Limitations
 //!
-//! `HeaderMap` can store a maximum of 65,536 headers (header name / value
+//! `HeaderMap` can store a maximum of 32,768 headers (header name / value
 //! pairs). Attempting to insert more will result in a panic.
 //!
 //! [`HeaderName`]: #

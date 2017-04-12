@@ -135,16 +135,20 @@ enum Cursor {
 
 /// Type used for representing the size of a HeaderMap value.
 ///
-/// 65,536 is more than enough entries for a single header map. Setting this
+/// 32,768 is more than enough entries for a single header map. Setting this
 /// limit enables using `u16` to represent all offsets, which takes 2 bytes
 /// instead of 8 on 64 bit processors.
 ///
 /// Setting this limit is especially benificial for `indices`, making it more
 /// cache friendly. More hash codes can fit in a cache line.
+///
+/// You may notice that `u16` may represent more than 32,768 values. This is
+/// true, but 32,768 should be plenty and it allows us to reserve the top bit
+/// for future usage.
 type Size = u16;
 
-/// This limit falls out from using `u16` as the representation above.
-const MAX_SIZE: usize = u16::MAX as usize;
+/// This limit falls out from above.
+const MAX_SIZE: usize = (1 << 15);
 
 /// An entry in the hash table. This represents the full hash code for an entry
 /// as well as the position of the entry in the `entries` vector.
