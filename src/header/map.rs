@@ -1,7 +1,6 @@
 use super::HeaderValue;
 use super::fast_hash::FastHash;
 use super::name::{HeaderName, HdrName};
-// use super::header_name::{HdrName, FastHash};
 
 use std::{cmp, mem, vec, u16};
 use std::cell::Cell;
@@ -21,41 +20,81 @@ pub struct HeaderMap {
     danger: Danger,
 }
 
+// # Implementation notes
+//
+// Below, you will find a fairly large amount of code. Most of this is to
+// provide the necessary functions to efficiently manipulate the header
+// multimap. The core hashing table is based on robin hood hashing [1]. While
+// this is the same hashing algorithm used as part of Rust's `HashMap` in
+// stdlib, many implementation details are different. The two primary reasons
+// for this divergence are that `HeaderMap` is a multimap and the structure has
+// been optimized to take advantage of the characteristics of HTTP headers.
+//
+// ## Structure Layout
+//
+// Most of the data contained by `HeaderMap` is *not* stored in the hash table.
+// Instead, pairs of header name and *first* associated header value are stored
+// in the `entries` vector. If the header name has more than one associated
+// header value, then additional values are stored in `extra_values`. The actual
+// hash table (`indices`) only maps hash codes to indices in `entries`. This
+// means that, when an eviction happens, the actual header name and value stay
+// put and only a tiny amount of memory has to be copied.
+//
+// Extra values associated with a header name are tracked using a linked list.
+// Links are formed with offsets into `ValueSlab` and not pointers.
+//
+// [1]: ???
+
+/// A `HeaderMap` iterator.
+///
+/// Yields `(HeaderName, value)` tuples. The same header name may be yielded
+/// more than once if it has more than one associated value.
 pub struct Iter<'a> {
     map: &'a HeaderMap,
     entry: Size,
     cursor: Option<Cursor>,
 }
 
+/// An iterator over `HeaderMap` keys.
+///
+/// Each header name is yielded only once, even if it has more than one
+/// associated value.
 pub struct Names<'a> {
     inner: Iter<'a>,
 }
 
+/// An iterator over `HeaderMap` values.
 pub struct Values<'a> {
     inner: Iter<'a>,
 }
 
+/// A drain iterator for `HeaderMap`.
 pub struct Drain<'a> {
     entries: vec::Drain<'a, Bucket>,
     values: *mut ValueSlab,
 }
 
+/// A view to all values associated with a single header name.
 pub struct ValueSet<'a> {
     map: &'a HeaderMap,
     index: Size,
 }
 
+/// A mutable view to all values associated with a single header name.
 pub struct ValueSetMut<'a> {
     map: &'a mut HeaderMap,
     index: Size,
 }
 
-/// A view into a single location in the map, which may be vaccant or occupied.
+/// A view into a single location in a `HeaderMap`, which may be vaccant or occupied.
 pub enum Entry<'a> {
     Occupied(OccupiedEntry<'a>),
     Vacant(VacantEntry<'a>),
 }
 
+/// A view into a single empty location in a `HeaderMap`.
+///
+/// This struct is returned as part of the `Entry` enum.
 pub struct VacantEntry<'a> {
     map: &'a mut HeaderMap,
     key: HeaderName,
@@ -64,12 +103,15 @@ pub struct VacantEntry<'a> {
     danger: bool,
 }
 
+/// A view into a single occupied location in a `HeaderMap`.
+///
+/// This struct is returned as part of the `Entry` enum.
 pub struct OccupiedEntry<'a> {
     inner: ValueSetMut<'a>,
     probe: Size,
 }
 
-/// Double ended iterator
+/// An iterator of all values associated with a single header name.
 pub struct EntryIter<'a> {
     map: &'a HeaderMap,
     index: Size,
@@ -77,7 +119,7 @@ pub struct EntryIter<'a> {
     back: Option<Cursor>,
 }
 
-/// Header value drain iterator
+/// An drain iterator of all values associated with a single header name.
 pub struct DrainEntry<'a> {
     values: &'a mut ValueSlab,
     first: Option<HeaderValue>,
@@ -91,12 +133,21 @@ enum Cursor {
     Values(Size),
 }
 
-/// Type used for representing the size of a HeaderMap value
+/// Type used for representing the size of a HeaderMap value.
+///
+/// 65,536 is more than enough entries for a single header map. Setting this
+/// limit enables using `u16` to represent all offsets, which takes 2 bytes
+/// instead of 8 on 64 bit processors.
+///
+/// Setting this limit is especially benificial for `indices`, making it more
+/// cache friendly. More hash codes can fit in a cache line.
 type Size = u16;
 
-/// Maximum number of header entries that can be contained by `HeaderMap`
+/// This limit falls out from using `u16` as the representation above.
 const MAX_SIZE: usize = u16::MAX as usize;
 
+/// An entry in the hash table. This represents the full hash code for an entry
+/// as well as the position of the entry in the `entries` vector.
 #[derive(Copy, Clone)]
 struct Pos {
     // Index in the `entries` vec
@@ -105,9 +156,19 @@ struct Pos {
     hash: HashValue,
 }
 
+/// Hash values are limited to u16 as well. While `fast_hash` and `Hasher`
+/// return `usize` hash codes, limiting the effective hash code to the lower 16
+/// bits is fine since we know that the `indices` vector will never grow beyond
+/// that size.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 struct HashValue(Size);
 
+/// Stores the data associated with a `HeaderMap` entry. Only the first value is
+/// included in this struct. If a header name has more than one associated
+/// value, all extra values are stored in the `extra_values` vector. A doubly
+/// linked list of entries is maintained. The doubly linked list is used so that
+/// removing a value is constant time. This also has the nice property of
+/// enabling double ended iteration.
 struct Bucket {
     hash: Cell<HashValue>,
     key: HeaderName,
@@ -115,6 +176,7 @@ struct Bucket {
     links: Option<Links>,
 }
 
+/// The head and tail of the value linked list.
 #[derive(Debug, Copy, Clone)]
 struct Links {
     next: Size,
@@ -160,35 +222,6 @@ const FORWARD_SHIFT_THRESHOLD: usize = 512;
 // When the map's load factor is below this threshold, we switch to safe hashing.
 // Otherwise, we grow the table.
 const LOAD_FACTOR_THRESHOLD: f32 = 0.2;
-
-// The displacement threshold should be high enough so that even with the
-// maximal load factor, it's very rarely exceeded.  As the load approaches 90%,
-// displacements larger than ~ 20 are much more probable.  On the other hand,
-// the threshold should be low enough so that the same number of hashes easily
-// fits in the cache and takes a reasonable time to iterate through.
-
-// The load factor threshold should be relatively low, but high enough so that
-// its half is not very low (~ 20%). We choose 62.5%, because it's a simple
-// fraction (5/8), and its half is 31.25%.  (When a map is grown, the load
-// factor is halved.)
-
-// At a load factor of α, the odds of finding the target bucket after exactly n
-// unsuccesful probes[1] are
-//
-// Pr_α{displacement = n} = (1 - α) / α * ∑_{k≥1} e^(-kα) * (kα)^(k+n) / (k +
-// n)! * (1 - kα / (k + n + 1))
-//
-// We use this formula to find the probability of loading half of a cache line,
-// as well as the probability of triggering the DoS safeguard with an insertion:
-//
-// Pr_0.625{displacement > 3} = 0.036
-// Pr_0.625{displacement > 128} = 2.284 * 10^-49
-
-// Pr_0.909{displacement > 3} = 0.487
-// Pr_0.909{displacement > 128} = 1.601 * 10^-11
-//
-// 1. Alfredo Viola (2005). Distributional analysis of Robin Hood linear probing
-//    hashing with buckets.
 
 macro_rules! probe_loop {
     ($label:tt: $probe_var: ident < $len: expr, $body: expr) => {
