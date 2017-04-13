@@ -338,6 +338,16 @@ impl HeaderMap {
         self.entries.len() == 0
     }
 
+    pub fn clear(&mut self) {
+        self.entries.clear();
+        self.extra_values.clear();
+        self.danger = Danger::Green;
+
+        for e in self.indices.iter_mut() {
+            *e = Pos::none();
+        }
+    }
+
     /// Returns the number of headers the map can hold without reallocating.
     #[inline]
     pub fn capacity(&self) -> usize {
