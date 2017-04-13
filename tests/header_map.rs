@@ -100,3 +100,34 @@ fn drain_entry() {
         assert_eq!(vals[1].as_str(), "world2");
     }
 }
+
+#[test]
+fn eq() {
+    let mut a = HeaderMap::new();
+    let mut b = HeaderMap::new();
+
+    assert_eq!(a, b);
+
+    a.set("hello", "world");
+    assert_ne!(a, b);
+
+    b.set("hello", "world");
+    assert_eq!(a, b);
+
+    a.insert("foo", "bar");
+    a.insert("foo", "baz");
+    assert_ne!(a, b);
+
+    b.insert("foo", "bar");
+    assert_ne!(a, b);
+
+    b.insert("foo", "baz");
+    assert_eq!(a, b);
+
+    a.insert("a", "a");
+    a.insert("a", "b");
+    b.insert("a", "b");
+    b.insert("a", "a");
+
+    assert_ne!(a, b);
+}

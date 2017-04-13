@@ -1325,10 +1325,8 @@ impl PartialEq for HeaderMap {
             return false;
         }
 
-        self.iter().all(|(key, value)| {
-            other.get(key).map_or(false, |other| {
-                value.eq(other)
-            })
+        self.keys().all(|key| {
+            self.get_all(key) == other.get_all(key)
         })
     }
 }
@@ -1595,6 +1593,12 @@ impl<'a> ValueSet<'a> {
     #[inline]
     pub fn iter(&self) -> EntryIter {
         self.into_iter()
+    }
+}
+
+impl<'a> PartialEq for ValueSet<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.iter().eq(other.iter())
     }
 }
 
