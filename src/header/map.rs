@@ -2,7 +2,7 @@ use super::HeaderValue;
 use super::fast_hash::FastHash;
 use super::name::{HeaderName, HdrName};
 
-use std::{cmp, mem, ptr, u16};
+use std::{cmp, fmt, mem, ops, ptr, u16};
 use std::cell::Cell;
 use std::collections::hash_map::RandomState;
 use std::hash::{BuildHasher, Hasher};
@@ -12,6 +12,7 @@ use std::marker::PhantomData;
 /// A set of HTTP headers
 ///
 /// `HeaderMap` is an map of `HeaderName` to `HeaderValue`.
+#[derive(Clone)]
 pub struct HeaderMap {
     // Used to mask values to get an index
     mask: Size,
@@ -176,6 +177,7 @@ struct HashValue(Size);
 /// linked list of entries is maintained. The doubly linked list is used so that
 /// removing a value is constant time. This also has the nice property of
 /// enabling double ended iteration.
+#[derive(Clone)]
 struct Bucket {
     hash: Cell<HashValue>,
     key: HeaderName,
@@ -191,6 +193,7 @@ struct Links {
 }
 
 /// Node in doubly-linked list of header value entries
+#[derive(Clone)]
 struct ExtraValue {
     value: HeaderValue,
     prev: Cell<Link>,
@@ -203,6 +206,7 @@ enum Link {
     Extra(Size),
 }
 
+#[derive(Clone)]
 enum Danger {
     Green,
     Yellow,
@@ -1228,6 +1232,15 @@ impl HeaderMap {
     }
 }
 
+impl<'a> IntoIterator for &'a HeaderMap {
+    type Item = (&'a HeaderName, &'a HeaderValue);
+    type IntoIter = Iter<'a>;
+
+    fn into_iter(self) -> Iter<'a> {
+        self.iter()
+    }
+}
+
 impl<K, V> FromIterator<(K, V)> for HeaderMap
     where K: IntoHeaderName,
           V: Into<HeaderValue>,
@@ -1303,6 +1316,45 @@ impl<'a, K, V> Extend<&'a (K, V)> for HeaderMap
         for &(ref k, ref v) in iter {
             k.insert_ref(self, v.into());
         }
+    }
+}
+
+impl PartialEq for HeaderMap {
+    fn eq(&self, other: &HeaderMap) -> bool {
+        if self.len() != other.len() {
+            return false;
+        }
+
+        self.iter().all(|(key, value)| {
+            other.get(key).map_or(false, |other| {
+                value.eq(other)
+            })
+        })
+    }
+}
+
+impl Eq for HeaderMap {}
+
+impl fmt::Debug for HeaderMap {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_map().entries(self.iter()).finish()
+    }
+}
+
+impl Default for HeaderMap {
+    fn default() -> Self {
+        HeaderMap::new()
+    }
+}
+
+impl<'a, K> ops::Index<&'a K> for HeaderMap
+    where K: IntoHeaderName,
+{
+    type Output = HeaderValue;
+
+    #[inline]
+    fn index(&self, index: &K) -> &HeaderValue {
+        self.get(index).expect("no entry found for key")
     }
 }
 
