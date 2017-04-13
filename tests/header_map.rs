@@ -94,7 +94,7 @@ fn drain_entry() {
 
     // Using set
     {
-        let vals: Vec<_> = headers.set("hello", "wat").collect();
+        let vals: Vec<_> = headers.set("hello", "wat").unwrap().collect();
         assert_eq!(2, vals.len());
         assert_eq!(vals[0].as_str(), "world");
         assert_eq!(vals[1].as_str(), "world2");

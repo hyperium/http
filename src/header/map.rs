@@ -572,14 +572,14 @@ impl HeaderMap {
             }))
     }
 
-    pub fn set<K, V>(&mut self, key: K, val: V) -> DrainEntry
+    pub fn set<K, V>(&mut self, key: K, val: V) -> Option<DrainEntry>
         where K: IntoHeaderName,
               V: Into<HeaderValue>,
     {
         key.set(self, val.into())
     }
 
-    fn set2<K>(&mut self, key: K, val: HeaderValue) -> DrainEntry
+    fn set2<K>(&mut self, key: K, val: HeaderValue) -> Option<DrainEntry>
         where K: FastHash + Into<HeaderName>,
               HeaderName: PartialEq<K>,
     {
@@ -591,7 +591,7 @@ impl HeaderMap {
     }
 
     #[inline]
-    fn set_scan<K>(&mut self, key: K, value: HeaderValue) -> DrainEntry
+    fn set_scan<K>(&mut self, key: K, value: HeaderValue) -> Option<DrainEntry>
         where K: FastHash + Into<HeaderName>,
               HeaderName: PartialEq<K>,
     {
@@ -617,20 +617,15 @@ impl HeaderMap {
             self.insert_entry(HashValue(0), key.into(), value);
             self.maybe_promote();
 
-            return DrainEntry {
-                map: self as *mut _,
-                first: None,
-                next: None,
-                lt: PhantomData,
-            };
+            return None;
         }
 
-        DrainEntry {
+        Some(DrainEntry {
             map: self as *mut _,
             first: Some(old),
             next: links.map(|l| l.next),
             lt: PhantomData,
-        }
+        })
     }
 
     /// Set an occupied bucket to the given value
@@ -656,7 +651,7 @@ impl HeaderMap {
     }
 
     #[inline]
-    fn set_hashed<K>(&mut self, key: K, value: HeaderValue) -> DrainEntry
+    fn set_hashed<K>(&mut self, key: K, value: HeaderValue) -> Option<DrainEntry>
         where K: FastHash + Into<HeaderName>,
               HeaderName: PartialEq<K>,
     {
@@ -670,16 +665,10 @@ impl HeaderMap {
                 let index = self.entries.len();
                 self.insert_entry(hash, key.into(), value);
                 self.indices[probe] = Pos::new(index as Size, hash);
-
-                DrainEntry {
-                    map: self as *mut _,
-                    first: None,
-                    next: None,
-                    lt: PhantomData,
-                }
+                None
             },
             // Occupied
-            self.set_occupied(pos as Size, value),
+            Some(self.set_occupied(pos as Size, value)),
             // Robinhood
             {
                 self.insert_phase_two(
@@ -688,13 +677,7 @@ impl HeaderMap {
                     hash,
                     probe as Size,
                     danger);
-
-                DrainEntry {
-                    map: self as *mut _,
-                    first: None,
-                    next: None,
-                    lt: PhantomData,
-                }
+                None
             })
     }
 
@@ -854,6 +837,32 @@ impl HeaderMap {
         }
 
         index
+    }
+
+    pub fn remove<K>(&mut self, key: &K) -> Option<DrainEntry>
+        where K: IntoHeaderName
+    {
+        self.remove_entry(key).map(|e| e.1)
+    }
+
+    pub fn remove_entry<K>(&mut self, key: &K) -> Option<(HeaderName, DrainEntry)>
+        where K: IntoHeaderName
+    {
+        if self.is_scan() {
+            match key.find_scan(self) {
+                Some(idx) => {
+                    Some(self.remove_found_scan(idx))
+                }
+                None => None,
+            }
+        } else {
+            match key.find_hashed(self) {
+                Some((probe, idx)) => {
+                    Some(self.remove_found_hashed(probe, idx))
+                }
+                None => None,
+            }
+        }
     }
 
     /// Remove an entry from the map while in sequential mode
@@ -1948,7 +1957,7 @@ fn hash_elem_using<K: ?Sized>(danger: &Danger, k: &K) -> HashValue
 /// `HeaderMap`.
 pub trait IntoHeaderName: Sealed {
     #[doc(hidden)]
-    fn set(self, map: &mut HeaderMap, val: HeaderValue) -> DrainEntry
+    fn set(self, map: &mut HeaderMap, val: HeaderValue) -> Option<DrainEntry>
         where Self: Sized
     {
         drop(map);
@@ -1987,7 +1996,7 @@ pub trait Sealed {}
 impl IntoHeaderName for HeaderName {
     #[doc(hidden)]
     #[inline]
-    fn set(self, map: &mut HeaderMap, val: HeaderValue) -> DrainEntry {
+    fn set(self, map: &mut HeaderMap, val: HeaderValue) -> Option<DrainEntry> {
         map.set2(self, val)
     }
 
@@ -2027,7 +2036,7 @@ impl Sealed for HeaderName {}
 impl<'a> IntoHeaderName for &'a HeaderName {
     #[doc(hidden)]
     #[inline]
-    fn set(self, map: &mut HeaderMap, val: HeaderValue) -> DrainEntry {
+    fn set(self, map: &mut HeaderMap, val: HeaderValue) -> Option<DrainEntry> {
         map.set2(self, val)
     }
 
@@ -2089,7 +2098,7 @@ impl Sealed for str {}
 impl<'a> IntoHeaderName for &'a str {
     #[doc(hidden)]
     #[inline]
-    fn set(self, map: &mut HeaderMap, val: HeaderValue) -> DrainEntry {
+    fn set(self, map: &mut HeaderMap, val: HeaderValue) -> Option<DrainEntry> {
         HdrName::from_bytes(self.as_bytes(), move |hdr| map.set2(hdr, val)).unwrap()
     }
 
@@ -2129,7 +2138,7 @@ impl<'a> Sealed for &'a str {}
 impl IntoHeaderName for String {
     #[doc(hidden)]
     #[inline]
-    fn set(self, map: &mut HeaderMap, val: HeaderValue) -> DrainEntry {
+    fn set(self, map: &mut HeaderMap, val: HeaderValue) -> Option<DrainEntry> {
         HdrName::from_bytes(self.as_bytes(), move |hdr| map.set2(hdr, val)).unwrap()
     }
 
@@ -2169,7 +2178,7 @@ impl Sealed for String {}
 impl<'a> IntoHeaderName for &'a String {
     #[doc(hidden)]
     #[inline]
-    fn set(self, map: &mut HeaderMap, val: HeaderValue) -> DrainEntry {
+    fn set(self, map: &mut HeaderMap, val: HeaderValue) -> Option<DrainEntry> {
         HdrName::from_bytes(self.as_bytes(), move |hdr| map.set2(hdr, val)).unwrap()
     }
 
