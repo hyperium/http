@@ -60,7 +60,7 @@ pub struct Iter<'a> {
 ///
 /// Each header name is yielded only once, even if it has more than one
 /// associated value.
-pub struct Names<'a> {
+pub struct Keys<'a> {
     inner: Iter<'a>,
 }
 
@@ -479,8 +479,8 @@ impl HeaderMap {
         }
     }
 
-    pub fn names(&self) -> Names {
-        Names { inner: self.iter() }
+    pub fn keys(&self) -> Keys {
+        Keys { inner: self.iter() }
     }
 
     pub fn values(&self) -> Values {
@@ -1409,9 +1409,9 @@ impl<'a> Iterator for Iter<'a> {
     }
 }
 
-// ===== impl Names =====
+// ===== impl Keys =====
 
-impl<'a> Iterator for Names<'a> {
+impl<'a> Iterator for Keys<'a> {
     type Item = &'a HeaderName;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -1443,7 +1443,7 @@ impl<'a> Iterator for Drain<'a> {
 
         self.idx += 1;
 
-        let name;
+        let key;
         let value;
         let next;
 
@@ -1451,7 +1451,7 @@ impl<'a> Iterator for Drain<'a> {
             let entry = &(*self.map).entries[idx];
 
             // Read the header name
-            name = ptr::read(&entry.key as *const _);
+            key = ptr::read(&entry.key as *const _);
             value = ptr::read(&entry.value as *const _);
             next = entry.links.map(|l| l.next);
         };
@@ -1463,7 +1463,7 @@ impl<'a> Iterator for Drain<'a> {
             lt: PhantomData,
         };
 
-        Some((name, values))
+        Some((key, values))
     }
 }
 
@@ -1481,12 +1481,12 @@ impl<'a> Drop for Drain<'a> {
 
 impl<'a> VacantEntry<'a> {
     #[inline]
-    pub fn name(&self) -> &HeaderName {
+    pub fn key(&self) -> &HeaderName {
         &self.key
     }
 
     #[inline]
-    pub fn into_name(self) -> HeaderName {
+    pub fn into_key(self) -> HeaderName {
         self.key
     }
 
@@ -1516,7 +1516,7 @@ impl<'a> VacantEntry<'a> {
 impl<'a> ValueSet<'a> {
     /// Get a reference to the header name.
     #[inline]
-    pub fn name(&self) -> &HeaderName {
+    pub fn key(&self) -> &HeaderName {
         &self.map.entries[self.index as usize].key
     }
 
@@ -1650,7 +1650,7 @@ impl<'a> DoubleEndedIterator for EntryIter<'a> {
 impl<'a> ValueSetMut<'a> {
     /// Get a reference to the header name.
     #[inline]
-    pub fn name(&self) -> &HeaderName {
+    pub fn key(&self) -> &HeaderName {
         &self.map.entries[self.index as usize].key
     }
 
@@ -1751,8 +1751,8 @@ impl<'a, 'b: 'a> IntoIterator for &'b mut ValueSetMut<'a> {
 impl<'a> OccupiedEntry<'a> {
     /// Get a reference to the header name in the entry.
     #[inline]
-    pub fn name(&self) -> &HeaderName {
-        self.inner.name()
+    pub fn key(&self) -> &HeaderName {
+        self.inner.key()
     }
 
     /// Get a reference to the first header value in the entry.

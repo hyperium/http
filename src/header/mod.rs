@@ -80,7 +80,7 @@ pub use self::value::HeaderValue;
 pub use self::map::{
     HeaderMap,
     Iter,
-    Names,
+    Keys,
     Values,
     Drain,
     ValueSet,
