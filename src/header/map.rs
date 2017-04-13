@@ -461,6 +461,16 @@ impl HeaderMap {
         }
     }
 
+    pub fn contains_key<K: ?Sized>(&self, key: &K) -> bool
+        where K: IntoHeaderName
+    {
+        if self.is_scan() {
+            key.find_scan(self).is_some()
+        } else {
+            key.find_hashed(self).is_some()
+        }
+    }
+
     pub fn iter(&self) -> Iter {
         Iter {
             map: self,
@@ -849,13 +859,13 @@ impl HeaderMap {
         index
     }
 
-    pub fn remove<K>(&mut self, key: &K) -> Option<DrainEntry>
+    pub fn remove<K: ?Sized>(&mut self, key: &K) -> Option<DrainEntry>
         where K: IntoHeaderName
     {
         self.remove_entry(key).map(|e| e.1)
     }
 
-    pub fn remove_entry<K>(&mut self, key: &K) -> Option<(HeaderName, DrainEntry)>
+    pub fn remove_entry<K: ?Sized>(&mut self, key: &K) -> Option<(HeaderName, DrainEntry)>
         where K: IntoHeaderName
     {
         if self.is_scan() {
