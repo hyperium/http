@@ -2,11 +2,12 @@ use super::HeaderValue;
 use super::fast_hash::FastHash;
 use super::name::{HeaderName, HdrName};
 
-use std::{cmp, mem, vec, u16};
+use std::{cmp, mem, ptr, u16};
 use std::cell::Cell;
 use std::collections::hash_map::RandomState;
 use std::hash::{BuildHasher, Hasher};
 use std::iter::FromIterator;
+use std::marker::PhantomData;
 
 /// A set of HTTP headers
 ///
@@ -16,7 +17,7 @@ pub struct HeaderMap {
     mask: Size,
     indices: Vec<Pos>,
     entries: Vec<Bucket>,
-    extra_values: ValueSlab,
+    extra_values: Vec<ExtraValue>,
     danger: Danger,
 }
 
@@ -70,8 +71,9 @@ pub struct Values<'a> {
 
 /// A drain iterator for `HeaderMap`.
 pub struct Drain<'a> {
-    entries: vec::Drain<'a, Bucket>,
-    values: *mut ValueSlab,
+    idx: usize,
+    map: *mut HeaderMap,
+    lt: PhantomData<&'a ()>,
 }
 
 /// A view to all values associated with a single header name.
@@ -121,9 +123,10 @@ pub struct EntryIter<'a> {
 
 /// An drain iterator of all values associated with a single header name.
 pub struct DrainEntry<'a> {
-    values: &'a mut ValueSlab,
+    map: *mut HeaderMap,
     first: Option<HeaderValue>,
     next: Option<Size>,
+    lt: PhantomData<&'a ()>,
 }
 
 /// Tracks the value iterator state
@@ -187,26 +190,17 @@ struct Links {
     tail: Size,
 }
 
-/// Stores extended header values.
-///
-/// The header map `Bucket` stores the first value associated with a header
-/// name. All further values get stored in `ValueSlab`.
-struct ValueSlab {
-    buffer: Vec<ValueSlot>,
-    len: Size,
-    next_value_idx: Size,
+/// Node in doubly-linked list of header value entries
+struct ExtraValue {
+    value: HeaderValue,
+    prev: Cell<Link>,
+    next: Cell<Link>,
 }
 
-/// Node in doubly-linked list of header value entries
-enum ValueSlot {
-    Occupied {
-        value: HeaderValue,
-        prev: Option<Size>,
-        next: Option<Size>,
-    },
-    Empty {
-        next: Size,
-    }
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+enum Link {
+    Entry(Size),
+    Extra(Size),
 }
 
 enum Danger {
@@ -312,11 +306,7 @@ impl HeaderMap {
                 mask: 0,
                 indices: Vec::new(),
                 entries: Vec::new(),
-                extra_values: ValueSlab {
-                    buffer: Vec::new(),
-                    len: 0,
-                    next_value_idx: 0,
-                },
+                extra_values: Vec::new(),
                 danger: Danger::Green,
             }
         } else {
@@ -331,11 +321,7 @@ impl HeaderMap {
                 mask: entries_cap.wrapping_sub(1) as Size,
                 indices: vec![Pos::none(); indices_cap],
                 entries: Vec::with_capacity(entries_cap),
-                extra_values: ValueSlab {
-                    buffer: Vec::new(),
-                    len: 0,
-                    next_value_idx: 0,
-                },
+                extra_values: Vec::new(),
                 danger: Danger::Green,
             }
         }
@@ -482,10 +468,10 @@ impl HeaderMap {
     }
 
     pub fn drain(&mut self) -> Drain {
-        let values = &mut self.extra_values as *mut _;
         Drain {
-            entries: self.entries.drain(..),
-            values: values,
+            idx: 0,
+            map: self as *mut _,
+            lt: PhantomData,
         }
     }
 
@@ -632,16 +618,18 @@ impl HeaderMap {
             self.maybe_promote();
 
             return DrainEntry {
-                values: &mut self.extra_values,
+                map: self as *mut _,
                 first: None,
                 next: None,
+                lt: PhantomData,
             };
         }
 
         DrainEntry {
-            values: &mut self.extra_values,
+            map: self as *mut _,
             first: Some(old),
             next: links.map(|l| l.next),
+            lt: PhantomData,
         }
     }
 
@@ -660,9 +648,10 @@ impl HeaderMap {
         }
 
         DrainEntry {
-            values: &mut self.extra_values,
+            map: self as *mut _,
             first: Some(old),
             next: links.map(|l| l.next),
+            lt: PhantomData,
         }
     }
 
@@ -683,9 +672,10 @@ impl HeaderMap {
                 self.indices[probe] = Pos::new(index as Size, hash);
 
                 DrainEntry {
-                    values: &mut self.extra_values,
+                    map: self as *mut _,
                     first: None,
                     next: None,
+                    lt: PhantomData,
                 }
             },
             // Occupied
@@ -700,9 +690,10 @@ impl HeaderMap {
                     danger);
 
                 DrainEntry {
-                    values: &mut self.extra_values,
+                    map: self as *mut _,
                     first: None,
                     next: None,
+                    lt: PhantomData,
                 }
             })
     }
@@ -737,9 +728,9 @@ impl HeaderMap {
         self.reserve_one_scan();
 
         // Try to find the slot for the requested key
-        for (_, entry) in self.entries.iter_mut().enumerate() {
+        for (idx, entry) in self.entries.iter_mut().enumerate() {
             if entry.key == key {
-                insert_value(entry, &mut self.extra_values, value);
+                insert_value(idx, entry, &mut self.extra_values, value);
                 return true;
             }
         }
@@ -769,7 +760,7 @@ impl HeaderMap {
             },
             // Occupied
             {
-                insert_value(&mut self.entries[pos], &mut self.extra_values, value);
+                insert_value(pos, &mut self.entries[pos], &mut self.extra_values, value);
                 true
             },
             // Robinhood
@@ -871,9 +862,10 @@ impl HeaderMap {
         let entry = self.entries.swap_remove(index);
 
         let drain = DrainEntry {
-            values: &mut self.extra_values,
+            map: self as *mut _,
             first: Some(entry.value),
             next: entry.links.map(|l| l.next),
+            lt: PhantomData,
         };
 
         (entry.key, drain)
@@ -928,12 +920,103 @@ impl HeaderMap {
         }
 
         let drain = DrainEntry {
-            values: &mut self.extra_values,
+            map: self as *mut _,
             first: Some(entry.value),
             next: entry.links.map(|l| l.next),
+            lt: PhantomData,
         };
 
         (entry.key, drain)
+    }
+
+    /// Removes the `ExtraValue` at the given index.
+    #[inline]
+    fn remove_extra_value(&mut self, idx: usize) -> ExtraValue {
+        {
+            let extra = &self.extra_values[idx];
+
+            // First unlink the extra value
+            match extra.prev.get() {
+                Link::Entry(entry_idx) => {
+                    // Set the link head to the next value
+                    match extra.next.get() {
+                        Link::Entry(_) => {
+                            // This is the only extra value, so unset the entry
+                            // links
+                            self.entries[entry_idx as usize].links = None;
+                        }
+                        Link::Extra(extra_idx) => {
+                            self.entries[entry_idx as usize].links.as_mut().unwrap()
+                                .next = extra_idx;
+                        }
+                    }
+                }
+                Link::Extra(extra_idx) => {
+                    self.extra_values[extra_idx as usize].next.set(extra.next.get());
+                }
+            }
+
+            match extra.next.get() {
+                Link::Entry(entry_idx) => {
+                    match extra.prev.get() {
+                        // Nothing to do, this was already handled above
+                        Link::Entry(_) => {}
+                        Link::Extra(extra_idx) => {
+                            self.entries[entry_idx as usize].links.as_mut().unwrap()
+                                .tail = extra_idx;
+                        }
+                    }
+                }
+                Link::Extra(extra_idx) => {
+                    self.extra_values[extra_idx as usize].prev.set(extra.prev.get());
+                }
+            }
+        }
+
+        // Remove the extra value
+        let extra = self.extra_values.swap_remove(idx);
+
+        // This is the index of the value that was moved (possibly `extra`)
+        let old_idx = self.extra_values.len() as Size;
+
+        // Check if another entry was displaced. If it was, then the links
+        // need to be fixed.
+        if let Some(moved) = self.extra_values.get(idx) {
+            // An entry was moved, we have to the links
+            match moved.prev.get() {
+                Link::Entry(entry_idx) => {
+                    // It is critical that we do not attempt to read the
+                    // header name or value as that memory may have been
+                    // "released" already.
+                    let links = self.entries[entry_idx as usize].links.as_mut().unwrap();
+                    links.next = idx as Size;
+                }
+                Link::Extra(extra_idx) => {
+                    self.extra_values[extra_idx as usize].next.set(Link::Extra(idx as Size));
+                }
+            }
+
+            match moved.next.get() {
+                Link::Entry(entry_idx) => {
+                    let links = self.entries[entry_idx as usize].links.as_mut().unwrap();
+                    links.tail = idx as Size;
+                }
+                Link::Extra(extra_idx) => {
+                    self.extra_values[extra_idx as usize].prev.set(Link::Extra(idx as Size));
+                }
+            }
+        }
+
+        // Finally, update the links in `extra`
+        if extra.prev.get() == Link::Extra(old_idx) {
+            extra.prev.set(Link::Extra(idx as Size));
+        }
+
+        if extra.next.get() == Link::Extra(old_idx) {
+            extra.next.set(Link::Extra(idx as Size));
+        }
+
+        extra
     }
 
     #[inline]
@@ -1223,10 +1306,19 @@ fn do_insert_phase_two(indices: &mut Vec<Pos>,
 }
 
 #[inline]
-fn insert_value(entry: &mut Bucket, slab: &mut ValueSlab, value: HeaderValue) {
+fn insert_value(entry_idx: usize,
+                entry: &mut Bucket,
+                extra: &mut Vec<ExtraValue>,
+                value: HeaderValue)
+{
     match entry.links {
         Some(links) => {
-            let idx = slab.store_value(value, Some(links.tail));
+            let idx = extra.len() as Size;
+            extra.push(ExtraValue {
+                value: value,
+                prev: Cell::new(Link::Extra(links.tail)),
+                next: Cell::new(Link::Entry(entry_idx as Size)),
+            });
 
             entry.links = Some(Links {
                 tail: idx,
@@ -1234,7 +1326,12 @@ fn insert_value(entry: &mut Bucket, slab: &mut ValueSlab, value: HeaderValue) {
             });
         }
         None => {
-            let idx = slab.store_value(value, None);
+            let idx = extra.len() as Size;
+            extra.push(ExtraValue {
+                value: value,
+                prev: Cell::new(Link::Entry(entry_idx as Size)),
+                next: Cell::new(Link::Entry(entry_idx as Size)),
+            });
 
             entry.links = Some(Links {
                 next: idx,
@@ -1270,10 +1367,14 @@ impl<'a> Iterator for Iter<'a> {
             }
             Values(idx) => {
                 let idx = idx as usize;
-                let (value, next, _) = self.map.extra_values.get(idx);
-                self.cursor = next.map(Values);
+                let extra = &self.map.extra_values[idx as usize];
 
-                Some((&entry.key, value))
+                match extra.next.get() {
+                    Link::Entry(_) => self.cursor = None,
+                    Link::Extra(i) => self.cursor = Some(Values(i)),
+                }
+
+                Some((&entry.key, &extra.value))
             }
         }
     }
@@ -1305,17 +1406,45 @@ impl<'a> Iterator for Drain<'a> {
     type Item = (HeaderName, DrainEntry<'a>);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.entries.next().map(|e| {
-            let name = e.key;
+        let idx = self.idx;
 
-            let values = DrainEntry {
-                values: unsafe { &mut *self.values },
-                first: Some(e.value),
-                next: e.links.map(|l| l.next),
-            };
+        if idx == unsafe { (*self.map).entries.len() } {
+            return None;
+        }
 
-            (name, values)
-        })
+        self.idx += 1;
+
+        let name;
+        let value;
+        let next;
+
+        unsafe {
+            let entry = &(*self.map).entries[idx];
+
+            // Read the header name
+            name = ptr::read(&entry.key as *const _);
+            value = ptr::read(&entry.value as *const _);
+            next = entry.links.map(|l| l.next);
+        };
+
+        let values = DrainEntry {
+            map: self.map,
+            first: Some(value),
+            next: next,
+            lt: PhantomData,
+        };
+
+        Some((name, values))
+    }
+}
+
+impl<'a> Drop for Drain<'a> {
+    fn drop(&mut self) {
+        unsafe {
+            let map = &mut *self.map;
+            debug_assert!(map.extra_values.is_empty());
+            map.entries.set_len(0);
+        }
     }
 }
 
@@ -1375,8 +1504,8 @@ impl<'a> ValueSet<'a> {
 
         match entry.links {
             Some(links) => {
-                let (value, ..) = self.map.extra_values.get(links.tail as usize);
-                value
+                let extra = &self.map.extra_values[links.tail as usize];
+                &extra.value
             }
             None => &entry.value
         }
@@ -1436,17 +1565,19 @@ impl<'a> Iterator for EntryIter<'a> {
                 Some(&entry.value)
             }
             Some(Values(idx)) => {
-                let idx = idx as usize;
-                let (value, next, _) = self.map.extra_values.get(idx);
+                let extra = &self.map.extra_values[idx as usize];
 
                 if self.front == self.back {
                     self.front = None;
                     self.back = None;
                 } else {
-                    self.front = next.map(Values);
+                    match extra.next.get() {
+                        Link::Entry(_) => self.front = None,
+                        Link::Extra(i) => self.front = Some(Values(i)),
+                    }
                 }
 
-                Some(value)
+                Some(&extra.value)
             }
             None => None,
         }
@@ -1466,17 +1597,19 @@ impl<'a> DoubleEndedIterator for EntryIter<'a> {
                 Some(&entry.value)
             }
             Some(Values(idx)) => {
-                let idx = idx as usize;
-                let (value, _, prev) = self.map.extra_values.get(idx);
+                let extra = &self.map.extra_values[idx as usize];
 
                 if self.front == self.back {
                     self.front = None;
                     self.back = None;
                 } else {
-                    self.back = Some(prev.map(Values).unwrap_or(Head));
+                    match extra.prev.get() {
+                        Link::Entry(_) => self.back = Some(Head),
+                        Link::Extra(idx) => self.back = Some(Values(idx)),
+                    }
                 }
 
-                Some(value)
+                Some(&extra.value)
             }
             None => None,
         }
@@ -1515,8 +1648,8 @@ impl<'a> ValueSetMut<'a> {
 
         match entry.links {
             Some(links) => {
-                let (value, ..) = self.map.extra_values.get(links.tail as usize);
-                value
+                let extra = &self.map.extra_values[links.tail as usize];
+                &extra.value
             }
             None => &entry.value
         }
@@ -1529,8 +1662,8 @@ impl<'a> ValueSetMut<'a> {
 
         match entry.links {
             Some(links) => {
-                let (value, ..) = self.map.extra_values.get_mut(links.tail as usize);
-                value
+                let extra = &mut self.map.extra_values[links.tail as usize];
+                &mut extra.value
             }
             None => &mut entry.value
         }
@@ -1543,8 +1676,9 @@ impl<'a> ValueSetMut<'a> {
     }
 
     pub fn insert<T: Into<HeaderValue>>(&mut self, value: T) {
-        let entry = &mut self.map.entries[self.index as usize];
-        insert_value(entry, &mut self.map.extra_values, value.into());
+        let idx = self.index as usize;
+        let entry = &mut self.map.entries[idx];
+        insert_value(idx, entry, &mut self.map.extra_values, value.into());
     }
 
     #[inline]
@@ -1656,9 +1790,15 @@ impl<'a> Iterator for DrainEntry<'a> {
         if self.first.is_some() {
             self.first.take()
         } else if let Some(next) = self.next {
-            let (value, next) = self.values.take(next as usize);
-            self.next = next;
-            Some(value)
+            // Remove the extra value
+            let extra = unsafe { &mut (*self.map) }.remove_extra_value(next as usize);
+
+            match extra.next.get() {
+                Link::Extra(idx) => self.next = Some(idx),
+                Link::Entry(_) => self.next = None,
+            }
+
+            Some(extra.value)
         } else {
             None
         }
@@ -1707,113 +1847,6 @@ impl Pos {
             Some((self.index as usize, self.hash))
         } else {
             None
-        }
-    }
-}
-
-// ===== impl ValueSlab =====
-
-impl ValueSlab {
-    /// Returns the number of elements in the value slab
-    fn len(&self) -> usize {
-        self.len as usize
-    }
-
-    fn get(&self, idx: usize) -> (&HeaderValue, Option<Size>, Option<Size>) {
-        use self::ValueSlot::*;
-
-        match self.buffer[idx as usize] {
-            Occupied { ref value, next, prev } => (value, next, prev),
-            _ => unreachable!(),
-        }
-    }
-
-    fn get_mut(&mut self, idx: usize) -> (&mut HeaderValue, Option<Size>, Option<Size>) {
-        use self::ValueSlot::*;
-
-        match self.buffer[idx as usize] {
-            Occupied { ref mut value, next, prev } => (value, next, prev),
-            _ => unreachable!(),
-        }
-    }
-
-    fn take(&mut self, idx: usize) -> (HeaderValue, Option<Size>) {
-        use self::ValueSlot::*;
-
-        let prev = mem::replace(&mut self.buffer[idx], Empty {
-            next: self.next_value_idx,
-        });
-
-        // Update the vacant slot pointer
-        self.next_value_idx = idx as Size;
-
-        // Decrement length
-        self.len -= 1;
-
-        match prev {
-            Occupied { value, next, .. } => {
-                (value, next)
-            }
-            _ => unreachable!(),
-        }
-    }
-
-    fn store_value(&mut self, value: HeaderValue, prev: Option<Size>) -> Size {
-        use self::ValueSlot::*;
-
-        assert!(self.next_value_idx < MAX_SIZE as Size);
-
-        let idx = self.next_value_idx as usize;
-
-        // Increment the length
-        self.len += 1;
-
-        if self.buffer.len() == idx {
-            self.next_value_idx += 1;
-
-            self.buffer.push(Occupied {
-                value: value,
-                next: None,
-                prev: prev,
-            });
-        } else {
-            self.next_value_idx = self.buffer[idx].store(Occupied {
-                value: value,
-                next: None,
-                prev: prev,
-            });
-        }
-
-        let idx = idx as Size;
-
-        if let Some(prev) = prev {
-            self.buffer[prev as usize].set_next(idx);
-        }
-
-        idx
-    }
-}
-
-// ===== impl ValueSlot =====
-
-impl ValueSlot {
-    fn store(&mut self, slot: ValueSlot) -> Size {
-        match *self {
-            ValueSlot::Empty { next } => {
-                *self = slot;
-                next
-            }
-            _ => unreachable!(),
-        }
-    }
-
-    fn set_next(&mut self, idx: Size) {
-        match *self {
-            ValueSlot::Occupied { ref mut next, .. } => {
-                debug_assert!(next.is_none());
-                *next = Some(idx);
-            }
-            _ => unreachable!(),
         }
     }
 }
