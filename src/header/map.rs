@@ -432,7 +432,7 @@ impl HeaderMap {
     ///
     /// This number represents the total number of **values** stored in the map.
     /// This number can be greater than or equal to the number of **keys**
-    /// stored given that a single key may have more than one associated values.
+    /// stored given that a single key may have more than one associated value.
     ///
     /// # Examples
     ///
@@ -456,6 +456,33 @@ impl HeaderMap {
         self.entries.len() + self.extra_values.len()
     }
 
+    /// Returns the number of keys stored in the map.
+    ///
+    /// This number will be less than or equal to `len()` as each key may have
+    /// more than one associated value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    ///
+    /// assert_eq!(0, map.keys_len());
+    ///
+    /// map.insert("x-header-one", "1");
+    /// map.insert("x-header-two", "2");
+    ///
+    /// assert_eq!(2, map.keys_len());
+    ///
+    /// map.insert("x-header-two", "deux");
+    ///
+    /// assert_eq!(2, map.keys_len());
+    /// ```
+    #[inline]
+    pub fn keys_len(&self) -> usize {
+        self.entries.len()
+    }
+
     /// Returns true if the map contains no elements.
     ///
     /// # Examples
@@ -475,6 +502,20 @@ impl HeaderMap {
         self.entries.len() == 0
     }
 
+    /// Clears the map, removing all key-value pairs. Keeps the allocated memory
+    /// for reuse.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    /// map.insert("x-hello", "world");
+    ///
+    /// map.clear();
+    /// assert!(map.is_empty());
+    /// assert!(map.capacity() > 0);
+    /// ```
     pub fn clear(&mut self) {
         self.entries.clear();
         self.extra_values.clear();
@@ -542,6 +583,12 @@ impl HeaderMap {
     /// ```
     pub fn reserve(&mut self, additional: usize) {
         if self.is_scan() {
+            // If in "scan" mode, then the hash table is unallocated. All we
+            // have to do is grow the entries table.
+            //
+            // The new size of the entries table *may* be above the sequential
+            // scan threshold, but we don't transition hashing until the number
+            // of inserted elements passes the threshold.
             self.entries.reserve(additional);
         } else {
             let cap = self.entries.len()
