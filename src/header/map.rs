@@ -142,6 +142,15 @@ pub struct EntryIter<'a, T: 'a> {
     back: Option<Cursor>,
 }
 
+/// A mutable iterator of all values associated with a single header name.
+pub struct EntryIterMut<'a, T: 'a> {
+    map: *mut HeaderMap<T>,
+    index: Size,
+    front: Option<Cursor>,
+    back: Option<Cursor>,
+    lt: PhantomData<&'a ()>,
+}
+
 /// An drain iterator of all values associated with a single header name.
 pub struct DrainEntry<'a, T> {
     map: *mut HeaderMap<T>,
@@ -644,6 +653,8 @@ impl<T> HeaderMap<T> {
     /// the values associated with the key.  See [`ValueSet`] for more details.
     /// Returns `None` if there are no values associated with the key.
     ///
+    /// [`ValueSet`]: struct.ValueSet.html
+    ///
     /// # Examples
     ///
     /// ```
@@ -681,6 +692,35 @@ impl<T> HeaderMap<T> {
         }
     }
 
+    /// Returns a mutable view of all values associated with a key.
+    ///
+    /// The returned view does not incur any allocations and allows iterating
+    /// the values associated with the key. See [`ValueSetMut`] for more
+    /// details.
+    ///
+    /// [`ValueSetMut`]: struct.ValueSetMut.html
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    ///
+    /// map.insert("x-hello", "hello".to_string());
+    /// map.insert("x-hello", "goodbye".to_string());
+    ///
+    /// {
+    ///     let mut view = map.get_all_mut("x-hello").unwrap();
+    ///     assert_eq!(view.first(), &"hello");
+    ///
+    ///     let mut iter = view.iter_mut();
+    ///     iter.next().unwrap().push_str("-hello");
+    ///     iter.next().unwrap().push_str("-goodbye");
+    ///     assert!(iter.next().is_none());
+    /// }
+    ///
+    /// assert_eq!(map["x-hello"], "hello-hello");
+    /// ```
     pub fn get_all_mut<K: ?Sized>(&mut self, key: &K) -> Option<ValueSetMut<T>>
         where K: IntoHeaderName
     {
@@ -751,6 +791,26 @@ impl<T> HeaderMap<T> {
             index: idx,
             front: Some(Head),
             back: Some(back),
+        }
+    }
+
+    fn entry_iter_mut(&mut self, idx: Size) -> EntryIterMut<T> {
+        use self::Cursor::*;
+
+        let back = {
+            let entry = &self.entries[idx as usize];
+
+            entry.links
+                .map(|l| Values(l.tail))
+                .unwrap_or(Head)
+        };
+
+        EntryIterMut {
+            map: self as *mut _,
+            index: idx,
+            front: Some(Head),
+            back: Some(back),
+            lt: PhantomData,
         }
     }
 
@@ -1896,6 +1956,85 @@ impl<'a, T: 'a> DoubleEndedIterator for EntryIter<'a, T> {
     }
 }
 
+// ===== impl EntryIterMut =====
+
+impl<'a, T: 'a> Iterator for EntryIterMut<'a, T> {
+    type Item = &'a mut T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        use self::Cursor::*;
+
+        let entry = unsafe { &mut (*self.map).entries[self.index as usize] };
+
+        match self.front {
+            Some(Head) => {
+                if self.back == Some(Head) {
+                    self.front = None;
+                    self.back = None;
+                } else {
+                    // Update the iterator state
+                    match entry.links {
+                        Some(links) => {
+                            self.front = Some(Values(links.next));
+                        }
+                        None => unreachable!(),
+                    }
+                }
+
+                Some(&mut entry.value)
+            }
+            Some(Values(idx)) => {
+                let extra = unsafe { &mut (*self.map).extra_values[idx as usize] };
+
+                if self.front == self.back {
+                    self.front = None;
+                    self.back = None;
+                } else {
+                    match extra.next.get() {
+                        Link::Entry(_) => self.front = None,
+                        Link::Extra(i) => self.front = Some(Values(i)),
+                    }
+                }
+
+                Some(&mut extra.value)
+            }
+            None => None,
+        }
+    }
+}
+
+impl<'a, T: 'a> DoubleEndedIterator for EntryIterMut<'a, T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        use self::Cursor::*;
+
+        let entry = unsafe { &mut (*self.map).entries[self.index as usize] };
+
+        match self.back {
+            Some(Head) => {
+                self.front = None;
+                self.back = None;
+                Some(&mut entry.value)
+            }
+            Some(Values(idx)) => {
+                let extra = unsafe { &mut (*self.map).extra_values[idx as usize] };
+
+                if self.front == self.back {
+                    self.front = None;
+                    self.back = None;
+                } else {
+                    match extra.prev.get() {
+                        Link::Entry(_) => self.back = Some(Head),
+                        Link::Extra(idx) => self.back = Some(Values(idx)),
+                    }
+                }
+
+                Some(&mut extra.value)
+            }
+            None => None,
+        }
+    }
+}
+
 // ===== impl ValueSetMut =====
 
 impl<'a, T: 'a> ValueSetMut<'a, T> {
@@ -1963,17 +2102,22 @@ impl<'a, T: 'a> ValueSetMut<'a, T> {
 
     #[inline]
     pub fn iter(&self) -> EntryIter<T> {
-        self.into_iter()
+        self.map.entry_iter(self.index)
+    }
+
+    #[inline]
+    pub fn iter_mut(&mut self) -> EntryIterMut<T> {
+        self.map.entry_iter_mut(self.index)
     }
 }
 
 impl<'a, T> IntoIterator for ValueSetMut<'a, T> {
-    type Item = &'a T;
-    type IntoIter = EntryIter<'a, T>;
+    type Item = &'a mut T;
+    type IntoIter = EntryIterMut<'a, T>;
 
     #[inline]
-    fn into_iter(self) -> EntryIter<'a, T> {
-        self.map.entry_iter(self.index)
+    fn into_iter(self) -> EntryIterMut<'a, T> {
+        self.map.entry_iter_mut(self.index)
     }
 }
 
@@ -1983,17 +2127,17 @@ impl<'a, 'b: 'a, T> IntoIterator for &'b ValueSetMut<'a, T> {
 
     #[inline]
     fn into_iter(self) -> EntryIter<'a, T> {
-        self.map.entry_iter(self.index)
+        self.iter()
     }
 }
 
 impl<'a, 'b: 'a, T> IntoIterator for &'b mut ValueSetMut<'a, T> {
-    type Item = &'a T;
-    type IntoIter = EntryIter<'a, T>;
+    type Item = &'a mut T;
+    type IntoIter = EntryIterMut<'a, T>;
 
     #[inline]
-    fn into_iter(self) -> EntryIter<'a, T> {
-        self.map.entry_iter(self.index)
+    fn into_iter(self) -> EntryIterMut<'a, T> {
+        self.iter_mut()
     }
 }
 
