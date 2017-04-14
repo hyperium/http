@@ -1,4 +1,3 @@
-use super::HeaderValue;
 use super::fast_hash::FastHash;
 use super::name::{HeaderName, HdrName};
 
@@ -11,7 +10,7 @@ use std::marker::PhantomData;
 
 /// A set of HTTP headers
 ///
-/// `HeaderMap` is an multimap of `HeaderName` to `HeaderValue`.
+/// `HeaderMap` is an multimap of `HeaderName` to values.
 ///
 /// # Examples
 ///
@@ -34,12 +33,12 @@ use std::marker::PhantomData;
 /// assert!(!headers.contains_key("host"));
 /// ```
 #[derive(Clone)]
-pub struct HeaderMap {
+pub struct HeaderMap<T> {
     // Used to mask values to get an index
     mask: Size,
     indices: Vec<Pos>,
-    entries: Vec<Bucket>,
-    extra_values: Vec<ExtraValue>,
+    entries: Vec<Bucket<T>>,
+    extra_values: Vec<ExtraValue<T>>,
     danger: Danger,
 }
 
@@ -72,8 +71,8 @@ pub struct HeaderMap {
 ///
 /// Yields `(HeaderName, value)` tuples. The same header name may be yielded
 /// more than once if it has more than one associated value.
-pub struct Iter<'a> {
-    map: &'a HeaderMap,
+pub struct Iter<'a, T: 'a> {
+    map: &'a HeaderMap<T>,
     entry: Size,
     cursor: Option<Cursor>,
 }
@@ -82,45 +81,45 @@ pub struct Iter<'a> {
 ///
 /// Each header name is yielded only once, even if it has more than one
 /// associated value.
-pub struct Keys<'a> {
-    inner: Iter<'a>,
+pub struct Keys<'a, T: 'a> {
+    inner: Iter<'a, T>,
 }
 
 /// An iterator over `HeaderMap` values.
-pub struct Values<'a> {
-    inner: Iter<'a>,
+pub struct Values<'a, T: 'a> {
+    inner: Iter<'a, T>,
 }
 
 /// A drain iterator for `HeaderMap`.
-pub struct Drain<'a> {
+pub struct Drain<'a, T> {
     idx: usize,
-    map: *mut HeaderMap,
+    map: *mut HeaderMap<T>,
     lt: PhantomData<&'a ()>,
 }
 
 /// A view to all values associated with a single header name.
-pub struct ValueSet<'a> {
-    map: &'a HeaderMap,
+pub struct ValueSet<'a, T: 'a> {
+    map: &'a HeaderMap<T>,
     index: Size,
 }
 
 /// A mutable view to all values associated with a single header name.
-pub struct ValueSetMut<'a> {
-    map: &'a mut HeaderMap,
+pub struct ValueSetMut<'a, T: 'a> {
+    map: &'a mut HeaderMap<T>,
     index: Size,
 }
 
 /// A view into a single location in a `HeaderMap`, which may be vaccant or occupied.
-pub enum Entry<'a> {
-    Occupied(OccupiedEntry<'a>),
-    Vacant(VacantEntry<'a>),
+pub enum Entry<'a, T: 'a> {
+    Occupied(OccupiedEntry<'a, T>),
+    Vacant(VacantEntry<'a, T>),
 }
 
 /// A view into a single empty location in a `HeaderMap`.
 ///
 /// This struct is returned as part of the `Entry` enum.
-pub struct VacantEntry<'a> {
-    map: &'a mut HeaderMap,
+pub struct VacantEntry<'a, T: 'a> {
+    map: &'a mut HeaderMap<T>,
     key: HeaderName,
     hash: HashValue,
     probe: Size,
@@ -130,23 +129,23 @@ pub struct VacantEntry<'a> {
 /// A view into a single occupied location in a `HeaderMap`.
 ///
 /// This struct is returned as part of the `Entry` enum.
-pub struct OccupiedEntry<'a> {
-    inner: ValueSetMut<'a>,
+pub struct OccupiedEntry<'a, T: 'a> {
+    inner: ValueSetMut<'a, T>,
     probe: Size,
 }
 
 /// An iterator of all values associated with a single header name.
-pub struct EntryIter<'a> {
-    map: &'a HeaderMap,
+pub struct EntryIter<'a, T: 'a> {
+    map: &'a HeaderMap<T>,
     index: Size,
     front: Option<Cursor>,
     back: Option<Cursor>,
 }
 
 /// An drain iterator of all values associated with a single header name.
-pub struct DrainEntry<'a> {
-    map: *mut HeaderMap,
-    first: Option<HeaderValue>,
+pub struct DrainEntry<'a, T> {
+    map: *mut HeaderMap<T>,
+    first: Option<T>,
     next: Option<Size>,
     lt: PhantomData<&'a ()>,
 }
@@ -199,10 +198,10 @@ struct HashValue(Size);
 /// removing a value is constant time. This also has the nice property of
 /// enabling double ended iteration.
 #[derive(Clone)]
-struct Bucket {
+struct Bucket<T> {
     hash: Cell<HashValue>,
     key: HeaderName,
-    value: HeaderValue,
+    value: T,
     links: Option<Links>,
 }
 
@@ -215,8 +214,8 @@ struct Links {
 
 /// Node in doubly-linked list of header value entries
 #[derive(Clone)]
-struct ExtraValue {
-    value: HeaderValue,
+struct ExtraValue<T> {
+    value: T,
     prev: Cell<Link>,
     next: Cell<Link>,
 }
@@ -359,7 +358,7 @@ macro_rules! insert_phase_one {
 
 // ===== impl HeaderMap =====
 
-impl HeaderMap {
+impl<T> HeaderMap<T> {
     /// Create an empty `HeaderMap`.
     ///
     /// The map will be created without any capacity. This function will not
@@ -369,12 +368,12 @@ impl HeaderMap {
     ///
     /// ```
     /// # use http::HeaderMap;
-    /// let map = HeaderMap::new();
+    /// let map: HeaderMap<u32> = HeaderMap::new();
     ///
     /// assert!(map.is_empty());
     /// assert_eq!(0, map.capacity());
     /// ```
-    pub fn new() -> HeaderMap {
+    pub fn new() -> HeaderMap<T> {
         HeaderMap::with_capacity(0)
     }
 
@@ -391,12 +390,12 @@ impl HeaderMap {
     ///
     /// ```
     /// # use http::HeaderMap;
-    /// let map = HeaderMap::with_capacity(10);
+    /// let map: HeaderMap<u32> = HeaderMap::with_capacity(10);
     ///
     /// assert!(map.is_empty());
     /// assert_eq!(12, map.capacity());
     /// ```
-    pub fn with_capacity(capacity: usize) -> HeaderMap {
+    pub fn with_capacity(capacity: usize) -> HeaderMap<T> {
         assert!(capacity <= MAX_SIZE, "requested capacity too large");
 
         if capacity == 0 {
@@ -580,6 +579,7 @@ impl HeaderMap {
     /// # use http::HeaderMap;
     /// let mut map = HeaderMap::new();
     /// map.reserve(10);
+    /// # map.insert("foo", "bar");
     /// ```
     pub fn reserve(&mut self, additional: usize) {
         if self.is_scan() {
@@ -615,12 +615,12 @@ impl HeaderMap {
     /// assert!(map.get("x-hello").is_none());
     ///
     /// map.insert("x-hello", "hello");
-    /// assert_eq!(map.get("x-hello").unwrap(), "hello");
+    /// assert_eq!(map.get("x-hello").unwrap(), &"hello");
     ///
     /// map.insert("x-hello", "world");
-    /// assert_eq!(map.get("x-hello").unwrap(), "hello");
+    /// assert_eq!(map.get("x-hello").unwrap(), &"hello");
     /// ```
-    pub fn get<K: ?Sized>(&self, key: &K) -> Option<&HeaderValue>
+    pub fn get<K: ?Sized>(&self, key: &K) -> Option<&T>
         where K: IntoHeaderName
     {
         let res = if self.is_scan() {
@@ -654,14 +654,14 @@ impl HeaderMap {
     /// map.insert("x-hello", "goodbye");
     ///
     /// let view = map.get_all("x-hello").unwrap();
-    /// assert_eq!(view.first(), "hello");
+    /// assert_eq!(view.first(), &"hello");
     ///
     /// let mut iter = view.iter();
-    /// assert_eq!("hello", iter.next().unwrap());
-    /// assert_eq!("goodbye", iter.next().unwrap());
+    /// assert_eq!(&"hello", iter.next().unwrap());
+    /// assert_eq!(&"goodbye", iter.next().unwrap());
     /// assert!(iter.next().is_none());
     /// ```
-    pub fn get_all<K: ?Sized>(&self, key: &K) -> Option<ValueSet>
+    pub fn get_all<K: ?Sized>(&self, key: &K) -> Option<ValueSet<T>>
         where K: IntoHeaderName
     {
         let res = if self.is_scan() {
@@ -681,7 +681,7 @@ impl HeaderMap {
         }
     }
 
-    pub fn get_all_mut<K: ?Sized>(&mut self, key: &K) -> Option<ValueSetMut>
+    pub fn get_all_mut<K: ?Sized>(&mut self, key: &K) -> Option<ValueSetMut<T>>
         where K: IntoHeaderName
     {
         let res = if self.is_scan() {
@@ -711,7 +711,7 @@ impl HeaderMap {
         }
     }
 
-    pub fn iter(&self) -> Iter {
+    pub fn iter(&self) -> Iter<T> {
         Iter {
             map: self,
             entry: 0,
@@ -719,15 +719,15 @@ impl HeaderMap {
         }
     }
 
-    pub fn keys(&self) -> Keys {
+    pub fn keys(&self) -> Keys<T> {
         Keys { inner: self.iter() }
     }
 
-    pub fn values(&self) -> Values {
+    pub fn values(&self) -> Values<T> {
         Values { inner: self.iter() }
     }
 
-    pub fn drain(&mut self) -> Drain {
+    pub fn drain(&mut self) -> Drain<T> {
         Drain {
             idx: 0,
             map: self as *mut _,
@@ -735,7 +735,7 @@ impl HeaderMap {
         }
     }
 
-    fn entry_iter(&self, idx: Size) -> EntryIter {
+    fn entry_iter(&self, idx: Size) -> EntryIter<T> {
         use self::Cursor::*;
 
         let back = {
@@ -755,13 +755,13 @@ impl HeaderMap {
     }
 
     #[inline]
-    pub fn entry<K>(&mut self, key: K) -> Entry
+    pub fn entry<K>(&mut self, key: K) -> Entry<T>
         where K: IntoHeaderName,
     {
         key.entry(self)
     }
 
-    fn entry2<K>(&mut self, key: K) -> Entry
+    fn entry2<K>(&mut self, key: K) -> Entry<T>
         where K: FastHash + Into<HeaderName>,
               HeaderName: PartialEq<K>,
     {
@@ -772,7 +772,7 @@ impl HeaderMap {
         }
     }
 
-    fn entry_scan<K>(&mut self, key: K) -> Entry
+    fn entry_scan<K>(&mut self, key: K) -> Entry<T>
         where K: FastHash + Into<HeaderName>,
               HeaderName: PartialEq<K>,
     {
@@ -798,7 +798,7 @@ impl HeaderMap {
         }
     }
 
-    fn entry_hashed<K>(&mut self, key: K) -> Entry
+    fn entry_hashed<K>(&mut self, key: K) -> Entry<T>
         where K: FastHash + Into<HeaderName>,
               HeaderName: PartialEq<K>,
     {
@@ -832,14 +832,13 @@ impl HeaderMap {
             }))
     }
 
-    pub fn set<K, V>(&mut self, key: K, val: V) -> Option<DrainEntry>
+    pub fn set<K>(&mut self, key: K, val: T) -> Option<DrainEntry<T>>
         where K: IntoHeaderName,
-              V: Into<HeaderValue>,
     {
         key.set(self, val.into())
     }
 
-    fn set2<K>(&mut self, key: K, val: HeaderValue) -> Option<DrainEntry>
+    fn set2<K>(&mut self, key: K, val: T) -> Option<DrainEntry<T>>
         where K: FastHash + Into<HeaderName>,
               HeaderName: PartialEq<K>,
     {
@@ -851,7 +850,7 @@ impl HeaderMap {
     }
 
     #[inline]
-    fn set_scan<K>(&mut self, key: K, value: HeaderValue) -> Option<DrainEntry>
+    fn set_scan<K>(&mut self, key: K, value: T) -> Option<DrainEntry<T>>
         where K: FastHash + Into<HeaderName>,
               HeaderName: PartialEq<K>,
     {
@@ -890,7 +889,7 @@ impl HeaderMap {
 
     /// Set an occupied bucket to the given value
     #[inline]
-    fn set_occupied(&mut self, index: Size, value: HeaderValue) -> DrainEntry {
+    fn set_occupied(&mut self, index: Size, value: T) -> DrainEntry<T> {
         // TODO: Looks like this is repeated code
         let old;
         let links;
@@ -911,7 +910,7 @@ impl HeaderMap {
     }
 
     #[inline]
-    fn set_hashed<K>(&mut self, key: K, value: HeaderValue) -> Option<DrainEntry>
+    fn set_hashed<K>(&mut self, key: K, value: T) -> Option<DrainEntry<T>>
         where K: FastHash + Into<HeaderName>,
               HeaderName: PartialEq<K>,
     {
@@ -944,15 +943,14 @@ impl HeaderMap {
     /// Inserts a header into the map without removing any values
     ///
     /// Returns `true` if `key` has not previously been stored in the map
-    pub fn insert<K, V>(&mut self, key: K, val: V) -> bool
+    pub fn insert<K>(&mut self, key: K, val: T) -> bool
         where K: IntoHeaderName,
-              V: Into<HeaderValue>,
     {
         key.insert(self, val.into())
     }
 
     #[inline]
-    fn insert2<K>(&mut self, key: K, val: HeaderValue) -> bool
+    fn insert2<K>(&mut self, key: K, val: T) -> bool
         where K: FastHash + Into<HeaderName>,
               HeaderName: PartialEq<K>,
     {
@@ -964,7 +962,7 @@ impl HeaderMap {
     }
 
     #[inline]
-    fn insert_scan<K>(&mut self, key: K, value: HeaderValue) -> bool
+    fn insert_scan<K>(&mut self, key: K, value: T) -> bool
         where K: FastHash + Into<HeaderName>,
               HeaderName: PartialEq<K>,
     {
@@ -985,7 +983,7 @@ impl HeaderMap {
     }
 
     #[inline]
-    fn insert_hashed<K>(&mut self, key: K, value: HeaderValue) -> bool
+    fn insert_hashed<K>(&mut self, key: K, value: T) -> bool
         where K: FastHash + Into<HeaderName>,
               HeaderName: PartialEq<K>,
     {
@@ -1045,7 +1043,7 @@ impl HeaderMap {
 
     #[inline]
     fn find_using<F>(&self, hash: HashValue, key_eq: F) -> Option<(usize, usize)>
-        where F: Fn(&Bucket) -> bool,
+        where F: Fn(&Bucket<T>) -> bool,
     {
         debug_assert!(self.entries.len() > 0);
 
@@ -1075,7 +1073,7 @@ impl HeaderMap {
     #[inline]
     fn insert_phase_two(&mut self,
                         key: HeaderName,
-                        value: HeaderValue,
+                        value: T,
                         hash: HashValue,
                         probe: Size,
                         danger: bool) -> usize
@@ -1099,13 +1097,13 @@ impl HeaderMap {
         index
     }
 
-    pub fn remove<K: ?Sized>(&mut self, key: &K) -> Option<DrainEntry>
+    pub fn remove<K: ?Sized>(&mut self, key: &K) -> Option<DrainEntry<T>>
         where K: IntoHeaderName
     {
         self.remove_entry(key).map(|e| e.1)
     }
 
-    pub fn remove_entry<K: ?Sized>(&mut self, key: &K) -> Option<(HeaderName, DrainEntry)>
+    pub fn remove_entry<K: ?Sized>(&mut self, key: &K) -> Option<(HeaderName, DrainEntry<T>)>
         where K: IntoHeaderName
     {
         if self.is_scan() {
@@ -1127,7 +1125,7 @@ impl HeaderMap {
 
     /// Remove an entry from the map while in sequential mode
     #[inline]
-    fn remove_found_scan(&mut self, index: usize) -> (HeaderName, DrainEntry) {
+    fn remove_found_scan(&mut self, index: usize) -> (HeaderName, DrainEntry<T>) {
         let entry = self.entries.swap_remove(index);
 
         let drain = DrainEntry {
@@ -1142,7 +1140,10 @@ impl HeaderMap {
 
     /// Remove an entry from the map while in hashed mode
     #[inline]
-    fn remove_found_hashed(&mut self, probe: usize, found: usize) -> (HeaderName, DrainEntry) {
+    fn remove_found_hashed(&mut self,
+                           probe: usize,
+                           found: usize) -> (HeaderName, DrainEntry<T>)
+    {
         // index `probe` and entry `found` is to be removed
         // use swap_remove, but then we need to update the index that points
         // to the other entry that has to move
@@ -1200,7 +1201,7 @@ impl HeaderMap {
 
     /// Removes the `ExtraValue` at the given index.
     #[inline]
-    fn remove_extra_value(&mut self, idx: usize) -> ExtraValue {
+    fn remove_extra_value(&mut self, idx: usize) -> ExtraValue<T> {
         {
             let extra = &self.extra_values[idx];
 
@@ -1289,7 +1290,7 @@ impl HeaderMap {
     }
 
     #[inline]
-    fn insert_entry(&mut self, hash: HashValue, key: HeaderName, value: HeaderValue) {
+    fn insert_entry(&mut self, hash: HashValue, key: HeaderName, value: T) {
         assert!(self.entries.len() < MAX_SIZE as usize, "header map at capacity");
 
         self.entries.push(Bucket {
@@ -1468,21 +1469,20 @@ impl HeaderMap {
     }
 }
 
-impl<'a> IntoIterator for &'a HeaderMap {
-    type Item = (&'a HeaderName, &'a HeaderValue);
-    type IntoIter = Iter<'a>;
+impl<'a, T> IntoIterator for &'a HeaderMap<T> {
+    type Item = (&'a HeaderName, &'a T);
+    type IntoIter = Iter<'a, T>;
 
-    fn into_iter(self) -> Iter<'a> {
+    fn into_iter(self) -> Iter<'a, T> {
         self.iter()
     }
 }
 
-impl<K, V> FromIterator<(K, V)> for HeaderMap
+impl<K, T> FromIterator<(K, T)> for HeaderMap<T>
     where K: IntoHeaderName,
-          V: Into<HeaderValue>,
 {
-    fn from_iter<T>(iter: T) -> Self
-        where T: IntoIterator<Item = (K, V)>
+    fn from_iter<I>(iter: I) -> Self
+        where I: IntoIterator<Item = (K, T)>
     {
        let mut map = HeaderMap::new();
        map.extend(iter);
@@ -1490,25 +1490,10 @@ impl<K, V> FromIterator<(K, V)> for HeaderMap
     }
 }
 
-impl<'a, K, V> FromIterator<&'a (K, V)> for HeaderMap
-    where K: 'a + IntoHeaderName,
-          V: 'a,
-          for<'b> &'b V: Into<HeaderValue>,
-{
-    fn from_iter<T>(iter: T) -> Self
-        where T: IntoIterator<Item = &'a (K, V)>
-    {
-       let mut map = HeaderMap::new();
-       map.extend(iter);
-       map
-    }
-}
-
-impl<K, V> Extend<(K, V)> for HeaderMap
+impl<K, T> Extend<(K, T)> for HeaderMap<T>
     where K: IntoHeaderName,
-          V: Into<HeaderValue>,
 {
-    fn extend<T: IntoIterator<Item = (K, V)>>(&mut self, iter: T) {
+    fn extend<I: IntoIterator<Item = (K, T)>>(&mut self, iter: I) {
         // Keys may be already present or show multiple times in the iterator.
         // Reserve the entire hint lower bound if the map is empty.
         // Otherwise reserve half the hint (rounded up), so the map
@@ -1529,34 +1514,8 @@ impl<K, V> Extend<(K, V)> for HeaderMap
     }
 }
 
-impl<'a, K, V> Extend<&'a (K, V)> for HeaderMap
-    where K: 'a + IntoHeaderName,
-          V: 'a,
-          for<'b> &'b V: Into<HeaderValue>,
-{
-    fn extend<T: IntoIterator<Item = &'a (K, V)>>(&mut self, iter: T) {
-        // Keys may be already present or show multiple times in the iterator.
-        // Reserve the entire hint lower bound if the map is empty.
-        // Otherwise reserve half the hint (rounded up), so the map
-        // will only resize twice in the worst case.
-        let iter = iter.into_iter();
-
-        let reserve = if self.is_empty() {
-            iter.size_hint().0
-        } else {
-            (iter.size_hint().0 + 1) / 2
-        };
-
-        self.reserve(reserve);
-
-        for &(ref k, ref v) in iter {
-            k.insert_ref(self, v.into());
-        }
-    }
-}
-
-impl PartialEq for HeaderMap {
-    fn eq(&self, other: &HeaderMap) -> bool {
+impl<T: PartialEq> PartialEq for HeaderMap<T> {
+    fn eq(&self, other: &HeaderMap<T>) -> bool {
         if self.len() != other.len() {
             return false;
         }
@@ -1567,27 +1526,27 @@ impl PartialEq for HeaderMap {
     }
 }
 
-impl Eq for HeaderMap {}
+impl<T: Eq> Eq for HeaderMap<T> {}
 
-impl fmt::Debug for HeaderMap {
+impl<T: fmt::Debug> fmt::Debug for HeaderMap<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_map().entries(self.iter()).finish()
     }
 }
 
-impl Default for HeaderMap {
+impl<T: Default> Default for HeaderMap<T> {
     fn default() -> Self {
         HeaderMap::new()
     }
 }
 
-impl<'a, K: ?Sized> ops::Index<&'a K> for HeaderMap
+impl<'a, K: ?Sized, T> ops::Index<&'a K> for HeaderMap<T>
     where K: IntoHeaderName,
 {
-    type Output = HeaderValue;
+    type Output = T;
 
     #[inline]
-    fn index(&self, index: &K) -> &HeaderValue {
+    fn index(&self, index: &K) -> &T {
         self.get(index).expect("no entry found for key")
     }
 }
@@ -1621,10 +1580,10 @@ fn do_insert_phase_two(indices: &mut Vec<Pos>,
 }
 
 #[inline]
-fn insert_value(entry_idx: usize,
-                entry: &mut Bucket,
-                extra: &mut Vec<ExtraValue>,
-                value: HeaderValue)
+fn insert_value<T>(entry_idx: usize,
+                   entry: &mut Bucket<T>,
+                   extra: &mut Vec<ExtraValue<T>>,
+                   value: T)
 {
     match entry.links {
         Some(links) => {
@@ -1658,8 +1617,8 @@ fn insert_value(entry_idx: usize,
 
 // ===== impl Iter =====
 
-impl<'a> Iterator for Iter<'a> {
-    type Item = (&'a HeaderName, &'a HeaderValue);
+impl<'a, T> Iterator for Iter<'a, T> {
+    type Item = (&'a HeaderName, &'a T);
 
     fn next(&mut self) -> Option<Self::Item> {
         use self::Cursor::*;
@@ -1697,7 +1656,7 @@ impl<'a> Iterator for Iter<'a> {
 
 // ===== impl Keys =====
 
-impl<'a> Iterator for Keys<'a> {
+impl<'a, T> Iterator for Keys<'a, T> {
     type Item = &'a HeaderName;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -1707,8 +1666,8 @@ impl<'a> Iterator for Keys<'a> {
 
 // ===== impl Values ====
 
-impl<'a> Iterator for Values<'a> {
-    type Item = &'a HeaderValue;
+impl<'a, T> Iterator for Values<'a, T> {
+    type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next().map(|(_, v)| v)
@@ -1717,8 +1676,8 @@ impl<'a> Iterator for Values<'a> {
 
 // ===== impl Drain =====
 
-impl<'a> Iterator for Drain<'a> {
-    type Item = (HeaderName, DrainEntry<'a>);
+impl<'a, T> Iterator for Drain<'a, T> {
+    type Item = (HeaderName, DrainEntry<'a, T>);
 
     fn next(&mut self) -> Option<Self::Item> {
         let idx = self.idx;
@@ -1753,7 +1712,7 @@ impl<'a> Iterator for Drain<'a> {
     }
 }
 
-impl<'a> Drop for Drain<'a> {
+impl<'a, T> Drop for Drain<'a, T> {
     fn drop(&mut self) {
         unsafe {
             let map = &mut *self.map;
@@ -1765,7 +1724,7 @@ impl<'a> Drop for Drain<'a> {
 
 // ===== impl VacantEntry =====
 
-impl<'a> VacantEntry<'a> {
+impl<'a, T> VacantEntry<'a, T> {
     #[inline]
     pub fn key(&self) -> &HeaderName {
         &self.key
@@ -1776,7 +1735,7 @@ impl<'a> VacantEntry<'a> {
         self.key
     }
 
-    pub fn set<T: Into<HeaderValue>>(self, value: T) -> &'a mut HeaderValue {
+    pub fn set(self, value: T) -> &'a mut T {
         let index = if self.map.is_scan() {
             let index = self.map.entries.len();
             self.map.insert_entry(self.hash, self.key, value.into());
@@ -1799,7 +1758,7 @@ impl<'a> VacantEntry<'a> {
 
 // ===== impl ValueSet =====
 
-impl<'a> ValueSet<'a> {
+impl<'a, T> ValueSet<'a, T> {
     /// Get a reference to the header name.
     #[inline]
     pub fn key(&self) -> &HeaderName {
@@ -1808,13 +1767,13 @@ impl<'a> ValueSet<'a> {
 
     /// Get a reference to the first value in the set.
     #[inline]
-    pub fn first(&self) -> &HeaderValue {
+    pub fn first(&self) -> &T {
         &self.map.entries[self.index as usize].value
     }
 
     /// Get a reference to the last value in the set.
     #[inline]
-    pub fn last(&self) -> &HeaderValue {
+    pub fn last(&self) -> &T {
         let entry = &self.map.entries[self.index as usize];
 
         match entry.links {
@@ -1827,41 +1786,41 @@ impl<'a> ValueSet<'a> {
     }
 
     #[inline]
-    pub fn iter(&self) -> EntryIter {
+    pub fn iter(&self) -> EntryIter<T> {
         self.into_iter()
     }
 }
 
-impl<'a> PartialEq for ValueSet<'a> {
+impl<'a, T: PartialEq> PartialEq for ValueSet<'a, T> {
     fn eq(&self, other: &Self) -> bool {
         self.iter().eq(other.iter())
     }
 }
 
-impl<'a> IntoIterator for ValueSet<'a> {
-    type Item = &'a HeaderValue;
-    type IntoIter = EntryIter<'a>;
+impl<'a, T> IntoIterator for ValueSet<'a, T> {
+    type Item = &'a T;
+    type IntoIter = EntryIter<'a, T>;
 
     #[inline]
-    fn into_iter(self) -> EntryIter<'a> {
+    fn into_iter(self) -> EntryIter<'a, T> {
         self.map.entry_iter(self.index)
     }
 }
 
-impl<'a, 'b: 'a> IntoIterator for &'b ValueSet<'a> {
-    type Item = &'a HeaderValue;
-    type IntoIter = EntryIter<'a>;
+impl<'a, 'b: 'a, T> IntoIterator for &'b ValueSet<'a, T> {
+    type Item = &'a T;
+    type IntoIter = EntryIter<'a, T>;
 
     #[inline]
-    fn into_iter(self) -> EntryIter<'a> {
+    fn into_iter(self) -> EntryIter<'a, T> {
         self.map.entry_iter(self.index)
     }
 }
 
 // ===== impl EntryIter =====
 
-impl<'a> Iterator for EntryIter<'a> {
-    type Item = &'a HeaderValue;
+impl<'a, T: 'a> Iterator for EntryIter<'a, T> {
+    type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
         use self::Cursor::*;
@@ -1905,7 +1864,7 @@ impl<'a> Iterator for EntryIter<'a> {
     }
 }
 
-impl<'a> DoubleEndedIterator for EntryIter<'a> {
+impl<'a, T: 'a> DoubleEndedIterator for EntryIter<'a, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
         use self::Cursor::*;
 
@@ -1939,7 +1898,7 @@ impl<'a> DoubleEndedIterator for EntryIter<'a> {
 
 // ===== impl ValueSetMut =====
 
-impl<'a> ValueSetMut<'a> {
+impl<'a, T: 'a> ValueSetMut<'a, T> {
     /// Get a reference to the header name.
     #[inline]
     pub fn key(&self) -> &HeaderName {
@@ -1952,19 +1911,19 @@ impl<'a> ValueSetMut<'a> {
     ///
     /// Panics if there are no values for the entry.
     #[inline]
-    pub fn first(&self) -> &HeaderValue {
+    pub fn first(&self) -> &T {
         &self.map.entries[self.index as usize].value
     }
 
     /// Get a mutable reference to the first header value in the entry.
     #[inline]
-    pub fn first_mut(&mut self) -> &mut HeaderValue {
+    pub fn first_mut(&mut self) -> &mut T {
         &mut self.map.entries[self.index as usize].value
     }
 
     /// Get a reference to the last header value in this entry.
     #[inline]
-    pub fn last(&self) -> &HeaderValue {
+    pub fn last(&self) -> &T {
         let entry = &self.map.entries[self.index as usize];
 
         match entry.links {
@@ -1978,7 +1937,7 @@ impl<'a> ValueSetMut<'a> {
 
     /// Get a mutable reference to the last header value in this entry.
     #[inline]
-    pub fn last_mut(&mut self) -> &mut HeaderValue {
+    pub fn last_mut(&mut self) -> &mut T {
         let entry = &mut self.map.entries[self.index as usize];
 
         match entry.links {
@@ -1992,55 +1951,55 @@ impl<'a> ValueSetMut<'a> {
 
     /// Replaces all values for this entry with the provided value.
     #[inline]
-    pub fn set<T: Into<HeaderValue>>(&mut self, value: T) -> DrainEntry {
+    pub fn set(&mut self, value: T) -> DrainEntry<T> {
         self.map.set_occupied(self.index, value.into())
     }
 
-    pub fn insert<T: Into<HeaderValue>>(&mut self, value: T) {
+    pub fn insert(&mut self, value: T) {
         let idx = self.index as usize;
         let entry = &mut self.map.entries[idx];
         insert_value(idx, entry, &mut self.map.extra_values, value.into());
     }
 
     #[inline]
-    pub fn iter(&self) -> EntryIter {
+    pub fn iter(&self) -> EntryIter<T> {
         self.into_iter()
     }
 }
 
-impl<'a> IntoIterator for ValueSetMut<'a> {
-    type Item = &'a HeaderValue;
-    type IntoIter = EntryIter<'a>;
+impl<'a, T> IntoIterator for ValueSetMut<'a, T> {
+    type Item = &'a T;
+    type IntoIter = EntryIter<'a, T>;
 
     #[inline]
-    fn into_iter(self) -> EntryIter<'a> {
+    fn into_iter(self) -> EntryIter<'a, T> {
         self.map.entry_iter(self.index)
     }
 }
 
-impl<'a, 'b: 'a> IntoIterator for &'b ValueSetMut<'a> {
-    type Item = &'a HeaderValue;
-    type IntoIter = EntryIter<'a>;
+impl<'a, 'b: 'a, T> IntoIterator for &'b ValueSetMut<'a, T> {
+    type Item = &'a T;
+    type IntoIter = EntryIter<'a, T>;
 
     #[inline]
-    fn into_iter(self) -> EntryIter<'a> {
+    fn into_iter(self) -> EntryIter<'a, T> {
         self.map.entry_iter(self.index)
     }
 }
 
-impl<'a, 'b: 'a> IntoIterator for &'b mut ValueSetMut<'a> {
-    type Item = &'a HeaderValue;
-    type IntoIter = EntryIter<'a>;
+impl<'a, 'b: 'a, T> IntoIterator for &'b mut ValueSetMut<'a, T> {
+    type Item = &'a T;
+    type IntoIter = EntryIter<'a, T>;
 
     #[inline]
-    fn into_iter(self) -> EntryIter<'a> {
+    fn into_iter(self) -> EntryIter<'a, T> {
         self.map.entry_iter(self.index)
     }
 }
 
 // ===== impl OccupiedEntry =====
 
-impl<'a> OccupiedEntry<'a> {
+impl<'a, T> OccupiedEntry<'a, T> {
     /// Get a reference to the header name in the entry.
     #[inline]
     pub fn key(&self) -> &HeaderName {
@@ -2053,43 +2012,43 @@ impl<'a> OccupiedEntry<'a> {
     ///
     /// Panics if there are no values for the entry.
     #[inline]
-    pub fn first(&self) -> &HeaderValue {
+    pub fn first(&self) -> &T {
         self.inner.first()
     }
 
     /// Get a mutable reference to the first header value in the entry.
     #[inline]
-    pub fn first_mut(&mut self) -> &mut HeaderValue {
+    pub fn first_mut(&mut self) -> &mut T {
         self.inner.first_mut()
     }
 
     /// Get a reference to the last header value in this entry.
     #[inline]
-    pub fn last(&self) -> &HeaderValue {
+    pub fn last(&self) -> &T {
         self.inner.last()
     }
 
     /// Get a mutable reference to the last header value in this entry.
     #[inline]
-    pub fn last_mut(&mut self) -> &mut HeaderValue {
+    pub fn last_mut(&mut self) -> &mut T {
         self.inner.last_mut()
     }
 
     /// Replaces all values for this entry with the provided value.
     #[inline]
-    pub fn set<T: Into<HeaderValue>>(&mut self, value: T) -> DrainEntry {
+    pub fn set(&mut self, value: T) -> DrainEntry<T> {
         self.inner.set(value)
     }
 
-    pub fn insert<T: Into<HeaderValue>>(&mut self, value: T) {
+    pub fn insert(&mut self, value: T) {
         self.inner.insert(value)
     }
 
-    pub fn remove(self) -> DrainEntry<'a> {
+    pub fn remove(self) -> DrainEntry<'a, T> {
         self.remove_entry().1
     }
 
-    pub fn remove_entry(self) -> (HeaderName, DrainEntry<'a>) {
+    pub fn remove_entry(self) -> (HeaderName, DrainEntry<'a, T>) {
         if self.inner.map.is_scan() {
             self.inner.map.remove_found_scan(
                 self.inner.index as usize)
@@ -2103,11 +2062,11 @@ impl<'a> OccupiedEntry<'a> {
 
 // ===== impl DrainEntry =====
 
-impl<'a> Iterator for DrainEntry<'a> {
-    type Item = HeaderValue;
+impl<'a, T> Iterator for DrainEntry<'a, T> {
+    type Item = T;
 
     #[inline]
-    fn next(&mut self) -> Option<HeaderValue> {
+    fn next(&mut self) -> Option<T> {
         if self.first.is_some() {
             self.first.take()
         } else if let Some(next) = self.next {
@@ -2126,7 +2085,7 @@ impl<'a> Iterator for DrainEntry<'a> {
     }
 }
 
-impl<'a> Drop for DrainEntry<'a> {
+impl<'a, T> Drop for DrainEntry<'a, T> {
     fn drop(&mut self) {
         while let Some(_) = self.next() {
         }
@@ -2269,7 +2228,7 @@ fn hash_elem_using<K: ?Sized>(danger: &Danger, k: &K) -> HashValue
 /// `HeaderMap`.
 pub trait IntoHeaderName: Sealed {
     #[doc(hidden)]
-    fn set(self, map: &mut HeaderMap, val: HeaderValue) -> Option<DrainEntry>
+    fn set<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<DrainEntry<T>>
         where Self: Sized
     {
         drop(map);
@@ -2278,7 +2237,7 @@ pub trait IntoHeaderName: Sealed {
     }
 
     #[doc(hidden)]
-    fn insert(self, map: &mut HeaderMap, val: HeaderValue) -> bool
+    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> bool
         where Self: Sized
     {
         drop(map);
@@ -2287,19 +2246,19 @@ pub trait IntoHeaderName: Sealed {
     }
 
     #[doc(hidden)]
-    fn insert_ref(&self, map: &mut HeaderMap, val: HeaderValue);
+    fn insert_ref<T>(&self, map: &mut HeaderMap<T>, val: T);
 
     #[doc(hidden)]
-    fn entry(self, map: &mut HeaderMap) -> Entry where Self: Sized {
+    fn entry<T>(self, map: &mut HeaderMap<T>) -> Entry<T> where Self: Sized {
         drop(map);
         unimplemented!();
     }
 
     #[doc(hidden)]
-    fn find_scan(&self, map: &HeaderMap) -> Option<usize>;
+    fn find_scan<T>(&self, map: &HeaderMap<T>) -> Option<usize>;
 
     #[doc(hidden)]
-    fn find_hashed(&self, map: &HeaderMap) -> Option<(usize, usize)>;
+    fn find_hashed<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)>;
 }
 
 // Prevent users from implementing the `IntoHeaderName` trait.
@@ -2308,37 +2267,37 @@ pub trait Sealed {}
 impl IntoHeaderName for HeaderName {
     #[doc(hidden)]
     #[inline]
-    fn set(self, map: &mut HeaderMap, val: HeaderValue) -> Option<DrainEntry> {
+    fn set<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<DrainEntry<T>> {
         map.set2(self, val)
     }
 
     #[doc(hidden)]
     #[inline]
-    fn insert(self, map: &mut HeaderMap, val: HeaderValue) -> bool {
+    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> bool {
         map.insert2(self, val)
     }
 
     #[doc(hidden)]
     #[inline]
-    fn insert_ref(&self, map: &mut HeaderMap, val: HeaderValue) {
+    fn insert_ref<T>(&self, map: &mut HeaderMap<T>, val: T) {
         map.insert2(self, val);
     }
 
     #[doc(hidden)]
     #[inline]
-    fn entry(self, map: &mut HeaderMap) -> Entry {
+    fn entry<T>(self, map: &mut HeaderMap<T>) -> Entry<T> {
         map.entry2(self)
     }
 
     #[doc(hidden)]
     #[inline]
-    fn find_scan(&self, map: &HeaderMap) -> Option<usize> {
+    fn find_scan<T>(&self, map: &HeaderMap<T>) -> Option<usize> {
         map.find_scan(self)
     }
 
     #[doc(hidden)]
     #[inline]
-    fn find_hashed(&self, map: &HeaderMap) -> Option<(usize, usize)> {
+    fn find_hashed<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)> {
         map.find_hashed(self)
     }
 }
@@ -2348,37 +2307,37 @@ impl Sealed for HeaderName {}
 impl<'a> IntoHeaderName for &'a HeaderName {
     #[doc(hidden)]
     #[inline]
-    fn set(self, map: &mut HeaderMap, val: HeaderValue) -> Option<DrainEntry> {
+    fn set<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<DrainEntry<T>> {
         map.set2(self, val)
     }
 
     #[doc(hidden)]
     #[inline]
-    fn insert(self, map: &mut HeaderMap, val: HeaderValue) -> bool {
+    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> bool {
         map.insert2(self, val)
     }
 
     #[doc(hidden)]
     #[inline]
-    fn insert_ref(&self, map: &mut HeaderMap, val: HeaderValue) {
+    fn insert_ref<T>(&self, map: &mut HeaderMap<T>, val: T) {
         map.insert2(*self, val);
     }
 
     #[doc(hidden)]
     #[inline]
-    fn entry(self, map: &mut HeaderMap) -> Entry {
+    fn entry<T>(self, map: &mut HeaderMap<T>) -> Entry<T> {
         map.entry2(self)
     }
 
     #[doc(hidden)]
     #[inline]
-    fn find_scan(&self, map: &HeaderMap) -> Option<usize> {
+    fn find_scan<T>(&self, map: &HeaderMap<T>) -> Option<usize> {
         map.find_scan(*self)
     }
 
     #[doc(hidden)]
     #[inline]
-    fn find_hashed(&self, map: &HeaderMap) -> Option<(usize, usize)> {
+    fn find_hashed<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)> {
         map.find_hashed(*self)
     }
 }
@@ -2388,19 +2347,19 @@ impl<'a> Sealed for &'a HeaderName {}
 impl IntoHeaderName for str {
     #[doc(hidden)]
     #[inline]
-    fn insert_ref(&self, map: &mut HeaderMap, val: HeaderValue) {
+    fn insert_ref<T>(&self, map: &mut HeaderMap<T>, val: T) {
         HdrName::from_bytes(self.as_bytes(), move |hdr| map.insert2(hdr, val)).unwrap();
     }
 
     #[doc(hidden)]
     #[inline]
-    fn find_scan(&self, map: &HeaderMap) -> Option<usize> {
+    fn find_scan<T>(&self, map: &HeaderMap<T>) -> Option<usize> {
         HdrName::from_bytes(self.as_bytes(), |hdr| map.find_scan(&hdr)).unwrap()
     }
 
     #[doc(hidden)]
     #[inline]
-    fn find_hashed(&self, map: &HeaderMap) -> Option<(usize, usize)> {
+    fn find_hashed<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)> {
         HdrName::from_bytes(self.as_bytes(), |hdr| map.find_hashed(&hdr)).unwrap()
     }
 }
@@ -2410,37 +2369,37 @@ impl Sealed for str {}
 impl<'a> IntoHeaderName for &'a str {
     #[doc(hidden)]
     #[inline]
-    fn set(self, map: &mut HeaderMap, val: HeaderValue) -> Option<DrainEntry> {
+    fn set<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<DrainEntry<T>> {
         HdrName::from_bytes(self.as_bytes(), move |hdr| map.set2(hdr, val)).unwrap()
     }
 
     #[doc(hidden)]
     #[inline]
-    fn insert(self, map: &mut HeaderMap, val: HeaderValue) -> bool {
+    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> bool {
         HdrName::from_bytes(self.as_bytes(), move |hdr| map.insert2(hdr, val)).unwrap()
     }
 
     #[doc(hidden)]
     #[inline]
-    fn insert_ref(&self, map: &mut HeaderMap, val: HeaderValue) {
+    fn insert_ref<T>(&self, map: &mut HeaderMap<T>, val: T) {
         HdrName::from_bytes(self.as_bytes(), move |hdr| map.insert2(hdr, val)).unwrap();
     }
 
     #[doc(hidden)]
     #[inline]
-    fn entry(self, map: &mut HeaderMap) -> Entry {
+    fn entry<T>(self, map: &mut HeaderMap<T>) -> Entry<T> {
         HdrName::from_bytes(self.as_bytes(), move |hdr| map.entry2(hdr)).unwrap()
     }
 
     #[doc(hidden)]
     #[inline]
-    fn find_scan(&self, map: &HeaderMap) -> Option<usize> {
+    fn find_scan<T>(&self, map: &HeaderMap<T>) -> Option<usize> {
         HdrName::from_bytes(self.as_bytes(), |hdr| map.find_scan(&hdr)).unwrap()
     }
 
     #[doc(hidden)]
     #[inline]
-    fn find_hashed(&self, map: &HeaderMap) -> Option<(usize, usize)> {
+    fn find_hashed<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)> {
         HdrName::from_bytes(self.as_bytes(), |hdr| map.find_hashed(&hdr)).unwrap()
     }
 }
@@ -2450,37 +2409,37 @@ impl<'a> Sealed for &'a str {}
 impl IntoHeaderName for String {
     #[doc(hidden)]
     #[inline]
-    fn set(self, map: &mut HeaderMap, val: HeaderValue) -> Option<DrainEntry> {
+    fn set<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<DrainEntry<T>> {
         HdrName::from_bytes(self.as_bytes(), move |hdr| map.set2(hdr, val)).unwrap()
     }
 
     #[doc(hidden)]
     #[inline]
-    fn insert(self, map: &mut HeaderMap, val: HeaderValue) -> bool {
+    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> bool {
         HdrName::from_bytes(self.as_bytes(), move |hdr| map.insert2(hdr, val)).unwrap()
     }
 
     #[doc(hidden)]
     #[inline]
-    fn insert_ref(&self, map: &mut HeaderMap, val: HeaderValue) {
+    fn insert_ref<T>(&self, map: &mut HeaderMap<T>, val: T) {
         HdrName::from_bytes(self.as_bytes(), move |hdr| map.insert2(hdr, val)).unwrap();
     }
 
     #[doc(hidden)]
     #[inline]
-    fn entry(self, map: &mut HeaderMap) -> Entry {
+    fn entry<T>(self, map: &mut HeaderMap<T>) -> Entry<T> {
         HdrName::from_bytes(self.as_bytes(), move |hdr| map.entry2(hdr)).unwrap()
     }
 
     #[doc(hidden)]
     #[inline]
-    fn find_scan(&self, map: &HeaderMap) -> Option<usize> {
+    fn find_scan<T>(&self, map: &HeaderMap<T>) -> Option<usize> {
         HdrName::from_bytes(self.as_bytes(), |hdr| map.find_scan(&hdr)).unwrap()
     }
 
     #[doc(hidden)]
     #[inline]
-    fn find_hashed(&self, map: &HeaderMap) -> Option<(usize, usize)> {
+    fn find_hashed<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)> {
         HdrName::from_bytes(self.as_bytes(), |hdr| map.find_hashed(&hdr)).unwrap()
     }
 }
@@ -2490,37 +2449,37 @@ impl Sealed for String {}
 impl<'a> IntoHeaderName for &'a String {
     #[doc(hidden)]
     #[inline]
-    fn set(self, map: &mut HeaderMap, val: HeaderValue) -> Option<DrainEntry> {
+    fn set<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<DrainEntry<T>> {
         HdrName::from_bytes(self.as_bytes(), move |hdr| map.set2(hdr, val)).unwrap()
     }
 
     #[doc(hidden)]
     #[inline]
-    fn insert(self, map: &mut HeaderMap, val: HeaderValue) -> bool {
+    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> bool {
         HdrName::from_bytes(self.as_bytes(), move |hdr| map.insert2(hdr, val)).unwrap()
     }
 
     #[doc(hidden)]
     #[inline]
-    fn insert_ref(&self, map: &mut HeaderMap, val: HeaderValue) {
+    fn insert_ref<T>(&self, map: &mut HeaderMap<T>, val: T) {
         HdrName::from_bytes(self.as_bytes(), move |hdr| map.insert2(hdr, val)).unwrap();
     }
 
     #[doc(hidden)]
     #[inline]
-    fn entry(self, map: &mut HeaderMap) -> Entry {
+    fn entry<T>(self, map: &mut HeaderMap<T>) -> Entry<T> {
         HdrName::from_bytes(self.as_bytes(), move |hdr| map.entry2(hdr)).unwrap()
     }
 
     #[doc(hidden)]
     #[inline]
-    fn find_scan(&self, map: &HeaderMap) -> Option<usize> {
+    fn find_scan<T>(&self, map: &HeaderMap<T>) -> Option<usize> {
         HdrName::from_bytes(self.as_bytes(), |hdr| map.find_scan(&hdr)).unwrap()
     }
 
     #[doc(hidden)]
     #[inline]
-    fn find_hashed(&self, map: &HeaderMap) -> Option<(usize, usize)> {
+    fn find_hashed<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)> {
         HdrName::from_bytes(self.as_bytes(), |hdr| map.find_hashed(&hdr)).unwrap()
     }
 }

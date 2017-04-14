@@ -22,7 +22,7 @@ fn smoke() {
 
     match headers.entry(&name) {
         Entry::Occupied(mut e) => {
-            assert_eq!(e.first(), "world");
+            assert_eq!(e.first(), &"world");
 
             // Push another value
             e.insert("zomg");
@@ -48,7 +48,7 @@ fn drain() {
 
         let values: Vec<_> = values.collect();
         assert_eq!(values.len(), 1);
-        assert_eq!(values[0].as_str(), "world");
+        assert_eq!(values[0], "world");
 
         assert!(iter.next().is_none());
     }
@@ -68,15 +68,15 @@ fn drain() {
 
         let values: Vec<_> = values.collect();
         assert_eq!(values.len(), 2);
-        assert_eq!(values[0].as_str(), "world");
-        assert_eq!(values[1].as_str(), "world2");
+        assert_eq!(values[0], "world");
+        assert_eq!(values[1], "world2");
 
         let (name, values) = iter.next().unwrap();
         assert_eq!(name.as_str(), "zomg");
 
         let values: Vec<_> = values.collect();
         assert_eq!(values.len(), 1);
-        assert_eq!(values[0].as_str(), "bar");
+        assert_eq!(values[0], "bar");
 
         assert!(iter.next().is_none());
     }
@@ -96,8 +96,8 @@ fn drain_entry() {
     {
         let vals: Vec<_> = headers.set("hello", "wat").unwrap().collect();
         assert_eq!(2, vals.len());
-        assert_eq!(vals[0].as_str(), "world");
-        assert_eq!(vals[1].as_str(), "world2");
+        assert_eq!(vals[0], "world");
+        assert_eq!(vals[1], "world2");
     }
 }
 
