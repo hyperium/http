@@ -11,7 +11,28 @@ use std::marker::PhantomData;
 
 /// A set of HTTP headers
 ///
-/// `HeaderMap` is an map of `HeaderName` to `HeaderValue`.
+/// `HeaderMap` is an multimap of `HeaderName` to `HeaderValue`.
+///
+/// # Examples
+///
+/// Basic usage
+///
+/// ```
+/// # use http::HeaderMap;
+/// let mut headers = HeaderMap::new();
+///
+/// headers.insert("Host", "example.com");
+/// headers.insert("Content-Length", "123");
+///
+/// assert!(headers.contains_key("host"));
+/// assert!(!headers.contains_key("Location"));
+///
+/// assert_eq!(headers["host"], "example.com");
+///
+/// headers.remove("host");
+///
+/// assert!(!headers.contains_key("host"));
+/// ```
 #[derive(Clone)]
 pub struct HeaderMap {
     // Used to mask values to get an index
@@ -43,9 +64,9 @@ pub struct HeaderMap {
 // put and only a tiny amount of memory has to be copied.
 //
 // Extra values associated with a header name are tracked using a linked list.
-// Links are formed with offsets into `ValueSlab` and not pointers.
+// Links are formed with offsets into `extra_values` and not pointers.
 //
-// [1]: ???
+// [1]: https://en.wikipedia.org/wiki/Hash_table#Robin_Hood_hashing
 
 /// A `HeaderMap` iterator.
 ///
@@ -160,7 +181,7 @@ const MAX_SIZE: usize = (1 << 15);
 struct Pos {
     // Index in the `entries` vec
     index: Size,
-    // Hash value
+    // Full hash value for the entry.
     hash: HashValue,
 }
 
@@ -200,12 +221,23 @@ struct ExtraValue {
     next: Cell<Link>,
 }
 
+/// A header value node is either linked to another node in the `extra_values`
+/// list or it points to an entry in `entries`. The entry in `entries` is the
+/// start of the list and holds the associated header name.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 enum Link {
     Entry(Size),
     Extra(Size),
 }
 
+/// Tracks the header map danger level! This relates to the adaptive hashing
+/// algorithm. A HeaderMap starts in the "green" state, when a large number of
+/// collisions are detected, it transitions to the yellow state. At this point,
+/// the header map will either grow and switch back to the green state OR it
+/// will transition to the red state.
+///
+/// When in the red state, a safe hashing algorithm is used and all values in
+/// the header map have to be rehashed.
 #[derive(Clone)]
 enum Danger {
     Green,
@@ -214,17 +246,30 @@ enum Danger {
 }
 
 // The HeaderMap will use a sequential search strategy until the size of the map
-// exceeds this threshold.
+// exceeds this threshold. This tends to be faster for very small header maps.
+// This way all hashing logic can be skipped.
 const SEQ_SEARCH_THRESHOLD: usize = 8;
 
-// Beyond this displacement, we switch to safe hashing or grow the table.
+// Constants related to detecting DOS attacks.
+//
+// Displacement is the number of entries that get shifted when inserting a new
+// value. Forward shift is how far the entry gets stored from the ideal
+// position.
+//
+// The current constant values were picked from another implementation. It could
+// be that there are different values better suited to the header map case.
 const DISPLACEMENT_THRESHOLD: usize = 128;
 const FORWARD_SHIFT_THRESHOLD: usize = 512;
 
-// When the map's load factor is below this threshold, we switch to safe hashing.
-// Otherwise, we grow the table.
+// The default strategy for handling the yellow danger state is to increase the
+// header map capacity in order to (hopefully) reduce the number of collisions.
+// If growing the hash map would cause the load factor to drop bellow this
+// threshold, then instead of growing, the headermap is switched to the red
+// danger state and safe hashing is used instead.
 const LOAD_FACTOR_THRESHOLD: f32 = 0.2;
 
+// Macro used to iterate the hash table starting at a given point, looping when
+// the end is hit.
 macro_rules! probe_loop {
     ($label:tt: $probe_var: ident < $len: expr, $body: expr) => {
         $label:
@@ -249,6 +294,15 @@ macro_rules! probe_loop {
     };
 }
 
+// First part of the robinhood algorithm. Given a key, find the slot in which it
+// will be inserted. This is done by starting at the "ideal" spot. Then scanning
+// until the destination slot is found. A destination slot is either the next
+// empty slot or the next slot that is occupied by an entry that has a lower
+// displacement (displacement is the distance from the ideal spot).
+//
+// This is implemented as a macro instead of a function that takes a closure in
+// order to guarantee that it is "inlined". There is no way to annotate closures
+// to guarantee inlining.
 macro_rules! insert_phase_one {
     ($map:ident,
      $key:expr,
@@ -265,23 +319,31 @@ macro_rules! insert_phase_one {
         let mut dist = 0;
         let len = $map.indices.len();
         let ret;
-        // This is the probe loop
+
+        // Start at the ideal position, checking all slots
         probe_loop!('probe: $probe < len, {
             if let Some(($pos, entry_hash)) = $map.indices[$probe].resolve() {
-                // if existing element probed less than us, swap
+                // The slot is already occupied, but check if it has a lower
+                // displacement.
                 let their_dist = probe_distance($map.mask as usize, entry_hash, $probe);
 
                 if their_dist < dist {
+                    // The new key's distance is larger, so claim this spot and
+                    // displace the current entry.
+                    //
+                    // Check if this insertion is above the danger threshold.
                     let $danger =
                         dist >= FORWARD_SHIFT_THRESHOLD && !$map.danger.is_red();
 
                     ret = $robinhood;
                     break 'probe;
                 } else if entry_hash == $hash && $map.entries[$pos].key == $key {
+                    // There already is an entry with the same key.
                     ret = $occupied;
                     break 'probe;
                 }
             } else {
+                // The entry is vacant, use it for this key.
                 let $danger =
                     dist >= FORWARD_SHIFT_THRESHOLD && !$map.danger.is_red();
 
@@ -298,14 +360,46 @@ macro_rules! insert_phase_one {
 // ===== impl HeaderMap =====
 
 impl HeaderMap {
+    /// Create an empty `HeaderMap`.
+    ///
+    /// The map will be created without any capacity. This function will not
+    /// allocate.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let map = HeaderMap::new();
+    ///
+    /// assert!(map.is_empty());
+    /// assert_eq!(0, map.capacity());
+    /// ```
     pub fn new() -> HeaderMap {
         HeaderMap::with_capacity(0)
     }
 
-    pub fn with_capacity(n: usize) -> HeaderMap {
-        assert!(n <= MAX_SIZE, "requested capacity too large");
+    /// Create an empty `HeaderMap` with the specified capacity.
+    ///
+    /// The returned map will allocate internal storage in order to hold about
+    /// `capacity` elements without reallocating. However, this is a "best
+    /// effort" as there are usage patterns that could cause additional
+    /// allocations before `capacity` headers are stored in the map.
+    ///
+    /// More capacity than requested may be allocated.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let map = HeaderMap::with_capacity(10);
+    ///
+    /// assert!(map.is_empty());
+    /// assert_eq!(12, map.capacity());
+    /// ```
+    pub fn with_capacity(capacity: usize) -> HeaderMap {
+        assert!(capacity <= MAX_SIZE, "requested capacity too large");
 
-        if n == 0 {
+        if capacity == 0 {
             HeaderMap {
                 mask: 0,
                 indices: Vec::new(),
@@ -314,7 +408,10 @@ impl HeaderMap {
                 danger: Danger::Green,
             }
         } else {
-            let entries_cap = to_raw_capacity(n).next_power_of_two();
+            // Avoid allocating storage for the hash table if the requested
+            // capacity is below the threshold at which the hash map algorithm
+            // is used.
+            let entries_cap = to_raw_capacity(capacity).next_power_of_two();
             let indices_cap = if entries_cap > SEQ_SEARCH_THRESHOLD {
                 entries_cap
             } else {
@@ -332,11 +429,47 @@ impl HeaderMap {
     }
 
     /// Returns the number of headers stored in the map.
+    ///
+    /// This number represents the total number of **values** stored in the map.
+    /// This number can be greater than or equal to the number of **keys**
+    /// stored given that a single key may have more than one associated values.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    ///
+    /// assert_eq!(0, map.len());
+    ///
+    /// map.insert("x-header-one", "1");
+    /// map.insert("x-header-two", "2");
+    ///
+    /// assert_eq!(2, map.len());
+    ///
+    /// map.insert("x-header-two", "deux");
+    ///
+    /// assert_eq!(3, map.len());
+    /// ```
     #[inline]
     pub fn len(&self) -> usize {
         self.entries.len() + self.extra_values.len()
     }
 
+    /// Returns true if the map contains no elements.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    ///
+    /// assert!(map.is_empty());
+    ///
+    /// map.insert("x-hello", "world");
+    ///
+    /// assert!(!map.is_empty());
+    /// ```
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.entries.len() == 0
@@ -353,6 +486,21 @@ impl HeaderMap {
     }
 
     /// Returns the number of headers the map can hold without reallocating.
+    ///
+    /// This number is an approximation as certain usage patterns could cause
+    /// additional allocations before the returned capacity is filled.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    ///
+    /// assert_eq!(0, map.capacity());
+    ///
+    /// map.insert("x-hello", "world");
+    /// assert_eq!(8, map.capacity());
+    /// ```
     #[inline]
     pub fn capacity(&self) -> usize {
         if self.is_scan() {
@@ -376,6 +524,10 @@ impl HeaderMap {
     /// into the `HeaderMap`.
     ///
     /// The header map may reserve more space to avoid frequent reallocations.
+    /// Like with `with_capacity`, this will be a "best effort" to avoid
+    /// allocations until `additional` more headers are inserted. Certain usage
+    /// patterns could cause additional allocations before the number is
+    /// reached.
     ///
     /// # Panics
     ///
@@ -384,8 +536,7 @@ impl HeaderMap {
     /// # Examples
     ///
     /// ```
-    /// use http::HeaderMap;
-    ///
+    /// # use http::HeaderMap;
     /// let mut map = HeaderMap::new();
     /// map.reserve(10);
     /// ```
@@ -406,7 +557,22 @@ impl HeaderMap {
     /// Returns a reference to the value associated with the key.
     ///
     /// If there are multiple values associated with the key, then the first one
-    /// is returned.
+    /// is returned. Use `get_all` to get all values associated with a given
+    /// key. Returns `None` if there are no values associated with the key.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    /// assert!(map.get("x-hello").is_none());
+    ///
+    /// map.insert("x-hello", "hello");
+    /// assert_eq!(map.get("x-hello").unwrap(), "hello");
+    ///
+    /// map.insert("x-hello", "world");
+    /// assert_eq!(map.get("x-hello").unwrap(), "hello");
+    /// ```
     pub fn get<K: ?Sized>(&self, key: &K) -> Option<&HeaderValue>
         where K: IntoHeaderName
     {
@@ -425,6 +591,29 @@ impl HeaderMap {
         }
     }
 
+    /// Returns a view of all values associated with a key.
+    ///
+    /// The returned view does not incur any allocations and allows iterating
+    /// the values associated with the key.  See [`ValueSet`] for more details.
+    /// Returns `None` if there are no values associated with the key.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    ///
+    /// map.insert("x-hello", "hello");
+    /// map.insert("x-hello", "goodbye");
+    ///
+    /// let view = map.get_all("x-hello").unwrap();
+    /// assert_eq!(view.first(), "hello");
+    ///
+    /// let mut iter = view.iter();
+    /// assert_eq!("hello", iter.next().unwrap());
+    /// assert_eq!("goodbye", iter.next().unwrap());
+    /// assert!(iter.next().is_none());
+    /// ```
     pub fn get_all<K: ?Sized>(&self, key: &K) -> Option<ValueSet>
         where K: IntoHeaderName
     {
@@ -1345,7 +1534,7 @@ impl Default for HeaderMap {
     }
 }
 
-impl<'a, K> ops::Index<&'a K> for HeaderMap
+impl<'a, K: ?Sized> ops::Index<&'a K> for HeaderMap
     where K: IntoHeaderName,
 {
     type Output = HeaderValue;
