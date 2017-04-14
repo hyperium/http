@@ -741,6 +741,18 @@ impl<T> HeaderMap<T> {
         }
     }
 
+    /// Returns true if the map contains a value for the specified key.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    /// assert!(!map.contains_key("x-hello"));
+    ///
+    /// map.insert("x-hello", "world");
+    /// assert!(map.contains_key("x-hello"));
+    /// ```
     pub fn contains_key<K: ?Sized>(&self, key: &K) -> bool
         where K: IntoHeaderName
     {
@@ -751,6 +763,26 @@ impl<T> HeaderMap<T> {
         }
     }
 
+    /// An iterator visiting all key-value pairs.
+    ///
+    /// The iteration order is arbitrary, but consistent across platforms for
+    /// the same crate version. Each key will be yielded once per associated
+    /// value. So, if a key has 3 associated values, it will be yielded 3 times.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    ///
+    /// map.insert("x-hello", "hello");
+    /// map.insert("x-hello", "goodbye");
+    /// map.insert("Content-Length", "123");
+    ///
+    /// for (key, value) in map.iter() {
+    ///     println!("{:?}: {}", key, value);
+    /// }
+    /// ```
     pub fn iter(&self) -> Iter<T> {
         Iter {
             map: self,
@@ -759,10 +791,49 @@ impl<T> HeaderMap<T> {
         }
     }
 
+    /// An iterator visiting all keys.
+    ///
+    /// The iteration order is arbitrary, but consistent across platforms for
+    /// the same crate version. Each key will be yielded only once even if it
+    /// has multiple associated values.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    ///
+    /// map.insert("x-hello", "hello");
+    /// map.insert("x-hello", "goodbye");
+    /// map.insert("Content-Length", "123");
+    ///
+    /// for key in map.keys() {
+    ///     println!("{:?}", key);
+    /// }
+    /// ```
     pub fn keys(&self) -> Keys<T> {
         Keys { inner: self.iter() }
     }
 
+    /// An iterator visiting all values.
+    ///
+    /// The iteration order is arbitrary, but consistent across platforms for
+    /// the same crate version.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    ///
+    /// map.insert("x-hello", "hello");
+    /// map.insert("x-hello", "goodbye");
+    /// map.insert("Content-Length", "123");
+    ///
+    /// for value in map.values() {
+    ///     println!("{}", value);
+    /// }
+    /// ```
     pub fn values(&self) -> Values<T> {
         Values { inner: self.iter() }
     }
