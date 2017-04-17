@@ -983,6 +983,30 @@ impl<T> HeaderMap<T> {
         }
     }
 
+    /// Gets the given key's corresponding entry in the map for in-place
+    /// manipulation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    ///
+    /// let headers = &[
+    ///     "content-length",
+    ///     "x-hello",
+    ///     "Content-Length",
+    ///     "x-world",
+    /// ];
+    ///
+    /// for &header in headers {
+    ///     let counter = map.entry(header).or_insert(0);
+    ///     *counter += 1;
+    /// }
+    ///
+    /// assert_eq!(map["content-length"], 2);
+    /// assert_eq!(map["x-hello"], 1);
+    /// ```
     #[inline]
     pub fn entry<K>(&mut self, key: K) -> Entry<T>
         where K: IntoHeaderName,
@@ -1061,6 +1085,28 @@ impl<T> HeaderMap<T> {
             }))
     }
 
+    /// Inserts a key-value pair into the map.
+    ///
+    /// If the map did not previously have this key present, then `None` is
+    /// returned.
+    ///
+    /// If the map did have this key present, the new value is associated with
+    /// the key and all previous values are removed and returned. The key is not
+    /// updated, though; this matters for types that can be `==` without being
+    /// identical.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    /// assert!(map.set("x-hello", "world").is_none());
+    /// assert!(!map.is_empty());
+    ///
+    /// let mut prev = map.set("x-hello", "earth").unwrap();
+    /// assert_eq!("world", prev.next().unwrap());
+    /// assert!(prev.next().is_none());
+    /// ```
     pub fn set<K>(&mut self, key: K, val: T) -> Option<DrainEntry<T>>
         where K: IntoHeaderName,
     {
@@ -1169,9 +1215,30 @@ impl<T> HeaderMap<T> {
             })
     }
 
-    /// Inserts a header into the map without removing any values
+    /// Inserts a key-value pair into the map.
     ///
-    /// Returns `true` if `key` has not previously been stored in the map
+    /// If the map did not previously have this key present, then `false` is
+    /// returned.
+    ///
+    /// If the map did have this key present, the new value is pushed to the end
+    /// of the list of values currently associated with the key. The key is not
+    /// updated, though; this matters for types that can be `==` without being
+    /// identical.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    /// assert!(!map.insert("x-hello", "world"));
+    /// assert!(!map.is_empty());
+    ///
+    /// map.insert("x-hello", "earth");
+    ///
+    /// let values = map.get_all("x-hello").unwrap();
+    /// assert_eq!("world", *values.first());
+    /// assert_eq!("earth", *values.last());
+    /// ```
     pub fn insert<K>(&mut self, key: K, val: T) -> bool
         where K: IntoHeaderName,
     {
@@ -1326,12 +1393,53 @@ impl<T> HeaderMap<T> {
         index
     }
 
+    /// Removes a key from the map, returning the values associated with the
+    /// key.
+    ///
+    /// Returns `None` if the map does not contain the key.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    /// map.insert("x-hello", "world");
+    ///
+    /// {
+    ///     let mut prev = map.remove("x-hello").unwrap();
+    ///     assert_eq!("world", prev.next().unwrap());
+    ///     assert!(prev.next().is_none());
+    /// }
+    ///
+    /// assert!(map.remove("x-hello").is_none());
+    /// ```
     pub fn remove<K: ?Sized>(&mut self, key: &K) -> Option<DrainEntry<T>>
         where K: IntoHeaderName
     {
         self.remove_entry(key).map(|e| e.1)
     }
 
+    /// Removes a key from the map, returning the key and all values associated
+    /// with the key.
+    ///
+    /// Returns `None` if the map does not contain the key.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    /// map.insert("x-hello", "world");
+    ///
+    /// {
+    ///     let (key, mut prev) = map.remove_entry("x-hello").unwrap();
+    ///     assert_eq!("x-hello", key.as_str());
+    ///     assert_eq!("world", prev.next().unwrap());
+    ///     assert!(prev.next().is_none());
+    /// }
+    ///
+    /// assert!(map.remove("x-hello").is_none());
+    /// ```
     pub fn remove_entry<K: ?Sized>(&mut self, key: &K) -> Option<(HeaderName, DrainEntry<T>)>
         where K: IntoHeaderName
     {
@@ -1990,6 +2098,37 @@ impl<'a, T> Drop for Drain<'a, T> {
     }
 }
 
+// ===== impl Entry =====
+
+impl<'a, T> Entry<'a, T> {
+    pub fn or_insert(self, default: T) -> &'a mut T {
+        use self::Entry::*;
+
+        match self {
+            Occupied(e) => e.into_mut(),
+            Vacant(e) => e.insert(default),
+        }
+    }
+
+    pub fn or_insert_with<F: FnOnce() -> T>(self, default: F) -> &'a mut T {
+        use self::Entry::*;
+
+        match self {
+            Occupied(e) => e.into_mut(),
+            Vacant(e) => e.insert(default()),
+        }
+    }
+
+    pub fn key(&self) -> &HeaderName {
+        use self::Entry::*;
+
+        match *self {
+            Vacant(ref e) => e.key(),
+            Occupied(ref e) => e.key(),
+        }
+    }
+}
+
 // ===== impl VacantEntry =====
 
 impl<'a, T> VacantEntry<'a, T> {
@@ -2003,7 +2142,7 @@ impl<'a, T> VacantEntry<'a, T> {
         self.key
     }
 
-    pub fn set(self, value: T) -> &'a mut T {
+    pub fn insert(self, value: T) -> &'a mut T {
         let index = if self.map.is_scan() {
             let index = self.map.entries.len();
             self.map.insert_entry(self.hash, self.key, value.into());
@@ -2296,6 +2435,14 @@ impl<'a, T: 'a> ValueSetMut<'a, T> {
         }
     }
 
+    /// Converts the `ValueSetMut` into a mutable reference to the **first**
+    /// value.
+    ///
+    /// The lifetime of the returned reference is bound to the original map.
+    pub fn into_mut(self) -> &'a mut T {
+        &mut self.map.entries[self.index as usize].value
+    }
+
     /// Replaces all values for this entry with the provided value.
     #[inline]
     pub fn set(&mut self, value: T) -> DrainEntry<T> {
@@ -2384,6 +2531,14 @@ impl<'a, T> OccupiedEntry<'a, T> {
     #[inline]
     pub fn last_mut(&mut self) -> &mut T {
         self.inner.last_mut()
+    }
+
+    /// Converts the `OccupiedEntry` into a mutable reference to the **first**
+    /// value.
+    ///
+    /// The lifetime of the returned reference is bound to the original map.
+    pub fn into_mut(self) -> &'a mut T {
+        self.inner.into_mut()
     }
 
     /// Replaces all values for this entry with the provided value.
