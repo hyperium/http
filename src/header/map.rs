@@ -67,14 +67,23 @@ pub struct HeaderMap<T> {
 //
 // [1]: https://en.wikipedia.org/wiki/Hash_table#Robin_Hood_hashing
 
-/// A `HeaderMap` iterator.
+/// `HeaderMap` entry iterator.
 ///
-/// Yields `(HeaderName, value)` tuples. The same header name may be yielded
+/// Yields `(&HeaderName, &value)` tuples. The same header name may be yielded
 /// more than once if it has more than one associated value.
 pub struct Iter<'a, T: 'a> {
-    map: &'a HeaderMap<T>,
+    inner: IterMut<'a, T>,
+}
+
+/// `HeaderMap` mutable entry iterator
+///
+/// Yields `(&HeaderName, &mut value)` tuples. The same header name may be
+/// yielded more than once if it has more than one associated value.
+pub struct IterMut<'a, T: 'a> {
+    map: *mut HeaderMap<T>,
     entry: Size,
     cursor: Option<Cursor>,
+    lt: PhantomData<&'a mut ()>,
 }
 
 /// An iterator over `HeaderMap` keys.
@@ -85,9 +94,14 @@ pub struct Keys<'a, T: 'a> {
     inner: Iter<'a, T>,
 }
 
-/// An iterator over `HeaderMap` values.
+/// `HeaderMap` value iterator.
 pub struct Values<'a, T: 'a> {
     inner: Iter<'a, T>,
+}
+
+/// `HeaderMap` mutable value iterator
+pub struct ValuesMut<'a, T: 'a> {
+    inner: IterMut<'a, T>,
 }
 
 /// A drain iterator for `HeaderMap`.
@@ -785,9 +799,41 @@ impl<T> HeaderMap<T> {
     /// ```
     pub fn iter(&self) -> Iter<T> {
         Iter {
-            map: self,
+            inner: IterMut {
+                map: self as *const _ as *mut _,
+                entry: 0,
+                cursor: self.entries.first().map(|_| Cursor::Head),
+                lt: PhantomData,
+            }
+        }
+    }
+
+    /// An iterator visiting all key-value pairs, with mutable value references.
+    ///
+    /// The iterator order is arbitrary, but consistent across platforms for the
+    /// same crate version. Each key will be yielded once per associated value,
+    /// so if a key has 3 associated values, it will be yielded 3 times.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    ///
+    /// map.insert("x-hello", "hello".to_string());
+    /// map.insert("x-hello", "goodbye".to_string());
+    /// map.insert("Content-Length", "123".to_string());
+    ///
+    /// for (key, value) in map.iter_mut() {
+    ///     value.push_str("-boop");
+    /// }
+    /// ```
+    pub fn iter_mut(&mut self) -> IterMut<T> {
+        IterMut {
+            map: self as *mut _,
             entry: 0,
             cursor: self.entries.first().map(|_| Cursor::Head),
+            lt: PhantomData,
         }
     }
 
@@ -838,6 +884,58 @@ impl<T> HeaderMap<T> {
         Values { inner: self.iter() }
     }
 
+    /// An iterator visiting all values mutably.
+    ///
+    /// The iteration order is arbitrary, but consistent across platforms for
+    /// the same crate version.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    ///
+    /// map.insert("x-hello", "hello".to_string());
+    /// map.insert("x-hello", "goodbye".to_string());
+    /// map.insert("Content-Length", "123".to_string());
+    ///
+    /// for value in map.values_mut() {
+    ///     value.push_str("-boop");
+    /// }
+    /// ```
+    pub fn values_mut(&mut self) -> ValuesMut<T> {
+        ValuesMut { inner: self.iter_mut() }
+    }
+
+    /// Clears the map, returning all entries as an iterator.
+    ///
+    /// The internal memory is kept for reuse.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    ///
+    /// map.insert("x-hello", "hello");
+    /// map.insert("x-hello", "goodbye");
+    /// map.insert("Content-Length", "123");
+    ///
+    /// let mut drain = map.drain();
+    ///
+    /// let (key, mut vals) = drain.next().unwrap();
+    ///
+    /// assert_eq!("x-hello", key.as_str());
+    /// assert_eq!("hello", vals.next().unwrap());
+    /// assert_eq!("goodbye", vals.next().unwrap());
+    /// assert!(vals.next().is_none());
+    ///
+    /// let (key, mut vals) = drain.next().unwrap();
+    ///
+    /// assert_eq!("content-length", key.as_str());
+    /// assert_eq!("123", vals.next().unwrap());
+    /// assert!(vals.next().is_none());
+    /// ```
     pub fn drain(&mut self) -> Drain<T> {
         Drain {
             idx: 0,
@@ -1609,6 +1707,15 @@ impl<'a, T> IntoIterator for &'a HeaderMap<T> {
     }
 }
 
+impl<'a, T> IntoIterator for &'a mut HeaderMap<T> {
+    type Item = (&'a HeaderName, &'a mut T);
+    type IntoIter = IterMut<'a, T>;
+
+    fn into_iter(self) -> IterMut<'a, T> {
+        self.iter_mut()
+    }
+}
+
 impl<K, T> FromIterator<(K, T)> for HeaderMap<T>
     where K: IntoHeaderName,
 {
@@ -1752,10 +1859,20 @@ impl<'a, T> Iterator for Iter<'a, T> {
     type Item = (&'a HeaderName, &'a T);
 
     fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next_unsafe().map(|(key, ptr)| {
+            (key, unsafe { &*ptr })
+        })
+    }
+}
+
+// ===== impl IterMut =====
+
+impl<'a, T> IterMut<'a, T> {
+    fn next_unsafe(&mut self) -> Option<(&'a HeaderName, *mut T)> {
         use self::Cursor::*;
 
         if self.cursor.is_none() {
-            if (self.entry + 1) as usize >= self.map.entries.len() {
+            if (self.entry + 1) as usize >= unsafe { &*self.map }.entries.len() {
                 return None;
             }
 
@@ -1763,25 +1880,35 @@ impl<'a, T> Iterator for Iter<'a, T> {
             self.cursor = Some(Cursor::Head);
         }
 
-        let entry = &self.map.entries[self.entry as usize];
+        let entry = unsafe { &(*self.map).entries[self.entry as usize] };
 
         match self.cursor.unwrap() {
             Head => {
                 self.cursor = entry.links.map(|l| Values(l.next));
-                Some((&entry.key, &entry.value))
+                Some((&entry.key, &entry.value as *const _ as *mut _))
             }
             Values(idx) => {
                 let idx = idx as usize;
-                let extra = &self.map.extra_values[idx as usize];
+                let extra = unsafe { &(*self.map).extra_values[idx as usize] };
 
                 match extra.next.get() {
                     Link::Entry(_) => self.cursor = None,
                     Link::Extra(i) => self.cursor = Some(Values(i)),
                 }
 
-                Some((&entry.key, &extra.value))
+                Some((&entry.key, &extra.value as *const _ as *mut _))
             }
         }
+    }
+}
+
+impl<'a, T> Iterator for IterMut<'a, T> {
+    type Item = (&'a HeaderName, &'a mut T);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next_unsafe().map(|(key, ptr)| {
+            (key, unsafe { &mut *ptr })
+        })
     }
 }
 
@@ -1799,6 +1926,16 @@ impl<'a, T> Iterator for Keys<'a, T> {
 
 impl<'a, T> Iterator for Values<'a, T> {
     type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next().map(|(_, v)| v)
+    }
+}
+
+// ===== impl ValuesMut ====
+
+impl<'a, T> Iterator for ValuesMut<'a, T> {
+    type Item = &'a mut T;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next().map(|(_, v)| v)
