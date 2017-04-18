@@ -117,12 +117,6 @@ pub struct ValueSet<'a, T: 'a> {
     index: Size,
 }
 
-/// A mutable view to all values associated with a single key.
-pub struct ValueSetMut<'a, T: 'a> {
-    map: &'a mut HeaderMap<T>,
-    index: Size,
-}
-
 /// A view into a single location in a `HeaderMap`, which may be vaccant or occupied.
 pub enum Entry<'a, T: 'a> {
     Occupied(OccupiedEntry<'a, T>),
@@ -144,8 +138,9 @@ pub struct VacantEntry<'a, T: 'a> {
 ///
 /// This struct is returned as part of the `Entry` enum.
 pub struct OccupiedEntry<'a, T: 'a> {
-    inner: ValueSetMut<'a, T>,
+    map: &'a mut HeaderMap<T>,
     probe: Size,
+    index: Size,
 }
 
 /// An iterator of all values associated with a single header name.
@@ -706,55 +701,6 @@ impl<T> HeaderMap<T> {
         }
     }
 
-    /// Returns a mutable view of all values associated with a key.
-    ///
-    /// The returned view does not incur any allocations and allows iterating
-    /// the values associated with the key. See [`ValueSetMut`] for more
-    /// details.
-    ///
-    /// [`ValueSetMut`]: struct.ValueSetMut.html
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use http::HeaderMap;
-    /// let mut map = HeaderMap::new();
-    ///
-    /// map.insert("x-hello", "hello".to_string());
-    /// map.insert("x-hello", "goodbye".to_string());
-    ///
-    /// {
-    ///     let mut view = map.get_all_mut("x-hello").unwrap();
-    ///     assert_eq!(view.first(), &"hello");
-    ///
-    ///     let mut iter = view.iter_mut();
-    ///     iter.next().unwrap().push_str("-hello");
-    ///     iter.next().unwrap().push_str("-goodbye");
-    ///     assert!(iter.next().is_none());
-    /// }
-    ///
-    /// assert_eq!(map["x-hello"], "hello-hello");
-    /// ```
-    pub fn get_all_mut<K: ?Sized>(&mut self, key: &K) -> Option<ValueSetMut<T>>
-        where K: IntoHeaderName
-    {
-        let res = if self.is_scan() {
-            key.find_scan(self).map(|i| (0, i))
-        } else {
-            key.find_hashed(self)
-        };
-
-        match res {
-            Some((_, found)) => {
-                Some(ValueSetMut {
-                    map: self,
-                    index: found as Size,
-                })
-            }
-            None => None,
-        }
-    }
-
     /// Returns true if the map contains a value for the specified key.
     ///
     /// # Examples
@@ -1032,10 +978,8 @@ impl<T> HeaderMap<T> {
         match self.find_scan(&key) {
             Some(index) => {
                 Entry::Occupied(OccupiedEntry {
-                    inner: ValueSetMut {
-                        map: self,
-                        index: index as Size,
-                    },
+                    map: self,
+                    index: index as Size,
                     probe: 0,
                 })
             }
@@ -1070,10 +1014,8 @@ impl<T> HeaderMap<T> {
                 danger: danger,
             }),
             Entry::Occupied(OccupiedEntry {
-                inner: ValueSetMut {
-                    map: self,
-                    index: pos as Size,
-                },
+                map: self,
+                index: pos as Size,
                 probe: probe as Size,
             }),
             Entry::Vacant(VacantEntry {
@@ -2561,6 +2503,7 @@ impl<'a, T: 'a> DoubleEndedIterator for EntryIterMut<'a, T> {
     }
 }
 
+/*
 // ===== impl ValueSetMut =====
 
 impl<'a, T: 'a> ValueSetMut<'a, T> {
@@ -2818,75 +2761,363 @@ impl<'a, 'b: 'a, T> IntoIterator for &'b mut ValueSetMut<'a, T> {
         self.iter_mut()
     }
 }
+*/
 
 // ===== impl OccupiedEntry =====
 
 impl<'a, T> OccupiedEntry<'a, T> {
-    /// Get a reference to the header name in the entry.
+    /// Returns a reference to the entry's key.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::{HeaderMap, Entry};
+    /// let mut map = HeaderMap::new();
+    /// map.insert("x-hello", "world");
+    ///
+    /// if let Entry::Occupied(e) = map.entry("x-hello") {
+    ///     assert_eq!("x-hello", e.key().as_str());
+    /// }
+    /// ```
     #[inline]
     pub fn key(&self) -> &HeaderName {
-        self.inner.key()
+        &self.map.entries[self.index as usize].key
     }
 
-    /// Get a reference to the first header value in the entry.
+    /// Get a reference to the first value in the entry.
+    ///
+    /// Values are stored in insertion order.
     ///
     /// # Panics
     ///
-    /// Panics if there are no values for the entry.
+    /// `first` panics if there are no values associated with the entry.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::{HeaderMap, Entry};
+    /// let mut map = HeaderMap::new();
+    /// map.insert("x-hello", "world");
+    ///
+    /// if let Entry::Occupied(mut e) = map.entry("x-hello") {
+    ///     assert_eq!(e.first(), &"world");
+    ///
+    ///     e.insert("earth");
+    ///
+    ///     assert_eq!(e.first(), &"world");
+    /// }
+    /// ```
     #[inline]
     pub fn first(&self) -> &T {
-        self.inner.first()
+        &self.map.entries[self.index as usize].value
     }
 
-    /// Get a mutable reference to the first header value in the entry.
+    /// Get a mutable reference to the first value in the entry.
+    ///
+    /// Values are stored in insertion order.
+    ///
+    /// # Panics
+    ///
+    /// `first_mut` panics if there are no values associated with the entry.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::{HeaderMap, Entry};
+    /// let mut map = HeaderMap::new();
+    /// map.insert("x-hello", "world".to_string());
+    ///
+    /// if let Entry::Occupied(mut e) = map.entry("x-hello") {
+    ///     e.first_mut().push_str("-2");
+    ///     assert_eq!(e.first(), &"world-2");
+    /// }
+    /// ```
     #[inline]
     pub fn first_mut(&mut self) -> &mut T {
-        self.inner.first_mut()
+        &mut self.map.entries[self.index as usize].value
     }
 
-    /// Get a reference to the last header value in this entry.
+    /// Get a reference to the last value in the entry.
+    ///
+    /// Values are stored in insertion order.
+    ///
+    /// # Panics
+    ///
+    /// `last` panics if there are no values associated with the entry.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::{HeaderMap, Entry};
+    /// let mut map = HeaderMap::new();
+    /// map.insert("x-hello", "world");
+    ///
+    /// if let Entry::Occupied(mut e) = map.entry("x-hello") {
+    ///     assert_eq!(e.last(), &"world");
+    ///
+    ///     e.insert("earth");
+    ///
+    ///     assert_eq!(e.last(), &"earth");
+    /// }
+    /// ```
     #[inline]
     pub fn last(&self) -> &T {
-        self.inner.last()
+        let entry = &self.map.entries[self.index as usize];
+
+        match entry.links {
+            Some(links) => {
+                let extra = &self.map.extra_values[links.tail as usize];
+                &extra.value
+            }
+            None => &entry.value
+        }
     }
 
-    /// Get a mutable reference to the last header value in this entry.
+    /// Get a reference to the last value in the set.
+    ///
+    /// Values are stored in insertion order.
+    ///
+    /// # Panics
+    ///
+    /// `last` panics if there are no values associated with the entry.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::{HeaderMap, Entry};
+    /// let mut map = HeaderMap::new();
+    /// map.insert("x-hello", "world".to_string());
+    /// map.insert("x-hello", "earth".to_string());
+    ///
+    /// if let Entry::Occupied(mut e) = map.entry("x-hello") {
+    ///     e.last_mut().push_str("-2");
+    ///     assert_eq!(e.last(), &"earth-2");
+    /// }
+    /// ```
     #[inline]
     pub fn last_mut(&mut self) -> &mut T {
-        self.inner.last_mut()
+        let entry = &mut self.map.entries[self.index as usize];
+
+        match entry.links {
+            Some(links) => {
+                let extra = &mut self.map.extra_values[links.tail as usize];
+                &mut extra.value
+            }
+            None => &mut entry.value
+        }
     }
 
     /// Converts the `OccupiedEntry` into a mutable reference to the **first**
     /// value.
     ///
     /// The lifetime of the returned reference is bound to the original map.
+    ///
+    /// # Panics
+    ///
+    /// `into_mut` panics if there are no values associated with the entry.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::{HeaderMap, Entry};
+    /// let mut map = HeaderMap::new();
+    /// map.insert("x-hello", "world".to_string());
+    /// map.insert("x-hello", "earth".to_string());
+    ///
+    /// if let Entry::Occupied(e) = map.entry("x-hello") {
+    ///     e.into_mut().push_str("-2");
+    /// }
+    ///
+    /// assert_eq!("world-2", map["x-hello"]);
+    /// ```
     pub fn into_mut(self) -> &'a mut T {
-        self.inner.into_mut()
+        &mut self.map.entries[self.index as usize].value
     }
 
-    /// Replaces all values for this entry with the provided value.
+    /// Sets the value of the entry.
+    ///
+    /// All previous values associated with the entry are removed and returned.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::{HeaderMap, Entry};
+    /// let mut map = HeaderMap::new();
+    /// map.insert("x-hello", "world");
+    ///
+    /// if let Entry::Occupied(mut e) = map.entry("x-hello") {
+    ///     let mut prev = e.set("earth");
+    ///     assert_eq!("world", prev.next().unwrap());
+    ///     assert!(prev.next().is_none());
+    /// }
+    ///
+    /// assert_eq!("earth", map["x-hello"]);
+    /// ```
     #[inline]
     pub fn set(&mut self, value: T) -> DrainEntry<T> {
-        self.inner.set(value)
+        self.map.set_occupied(self.index, value.into())
     }
 
+    /// Insert the value into the entry.
+    ///
+    /// The new value is appended to the end of the entry's value list. All
+    /// previous values associated with the entry are retained.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::{HeaderMap, Entry};
+    /// let mut map = HeaderMap::new();
+    /// map.insert("x-hello", "world");
+    ///
+    /// if let Entry::Occupied(mut e) = map.entry("x-hello") {
+    ///     e.insert("earth");
+    /// }
+    ///
+    /// let values = map.get_all("x-hello").unwrap();
+    /// assert_eq!(&"world", values.first());
+    /// assert_eq!(&"earth", values.last());
+    /// ```
     pub fn insert(&mut self, value: T) {
-        self.inner.insert(value)
+        let idx = self.index as usize;
+        let entry = &mut self.map.entries[idx];
+        insert_value(idx, entry, &mut self.map.extra_values, value.into());
     }
 
+    /// Remove the entry from the map.
+    ///
+    /// Any values currently stored in the entry are returned.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::{HeaderMap, Entry};
+    /// let mut map = HeaderMap::new();
+    /// map.insert("x-hello", "world");
+    ///
+    /// if let Entry::Occupied(e) = map.entry("x-hello") {
+    ///     let mut prev = e.remove();
+    ///     assert_eq!("world", prev.next().unwrap());
+    ///     assert!(prev.next().is_none());
+    /// }
+    ///
+    /// assert!(!map.contains_key("x-hello"));
+    /// ```
     pub fn remove(self) -> DrainEntry<'a, T> {
         self.remove_entry().1
     }
 
+    /// Remove the entry from the map.
+    ///
+    /// They key and any values currently stored in the entry are returned.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::{HeaderMap, Entry};
+    /// let mut map = HeaderMap::new();
+    /// map.insert("x-hello", "world");
+    ///
+    /// if let Entry::Occupied(e) = map.entry("x-hello") {
+    ///     let (key, mut prev) = e.remove_entry();
+    ///     assert_eq!("x-hello", key.as_str());
+    ///     assert_eq!("world", prev.next().unwrap());
+    ///     assert!(prev.next().is_none());
+    /// }
+    ///
+    /// assert!(!map.contains_key("x-hello"));
+    /// ```
     pub fn remove_entry(self) -> (HeaderName, DrainEntry<'a, T>) {
-        if self.inner.map.is_scan() {
-            self.inner.map.remove_found_scan(
-                self.inner.index as usize)
+        if self.map.is_scan() {
+            self.map.remove_found_scan(
+                self.index as usize)
         } else {
-            self.inner.map.remove_found_hashed(
+            self.map.remove_found_hashed(
                 self.probe as usize,
-                self.inner.index as usize)
+                self.index as usize)
         }
+    }
+
+    /// Returns an iterator visiting all values associated with the entry.
+    ///
+    /// Values are iterated in insertion order.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::{HeaderMap, Entry};
+    /// let mut map = HeaderMap::new();
+    /// map.insert("x-hello", "world");
+    /// map.insert("x-hello", "earth");
+    ///
+    /// if let Entry::Occupied(e) = map.entry("x-hello") {
+    ///     let mut iter = e.iter();
+    ///     assert_eq!(&"world", iter.next().unwrap());
+    ///     assert_eq!(&"earth", iter.next().unwrap());
+    ///     assert!(iter.next().is_none());
+    /// }
+    /// ```
+    #[inline]
+    pub fn iter(&self) -> EntryIter<T> {
+        self.map.entry_iter(self.index)
+    }
+
+    /// Returns an iterator mutably visiting all values associated with the
+    /// entry.
+    ///
+    /// Values are iterated in insertion order.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::{HeaderMap, Entry};
+    /// let mut map = HeaderMap::new();
+    /// map.insert("x-hello", "world".to_string());
+    /// map.insert("x-hello", "earth".to_string());
+    ///
+    /// if let Entry::Occupied(mut e) = map.entry("x-hello") {
+    ///     for e in e.iter_mut() {
+    ///         e.push_str("-boop");
+    ///     }
+    /// }
+    ///
+    /// let mut values = map.get_all("x-hello").unwrap();
+    /// assert_eq!(&"world-boop", values.first());
+    /// assert_eq!(&"earth-boop", values.last());
+    /// ```
+    #[inline]
+    pub fn iter_mut(&mut self) -> EntryIterMut<T> {
+        self.map.entry_iter_mut(self.index)
+    }
+}
+
+impl<'a, T> IntoIterator for OccupiedEntry<'a, T> {
+    type Item = &'a mut T;
+    type IntoIter = EntryIterMut<'a, T>;
+
+    #[inline]
+    fn into_iter(self) -> EntryIterMut<'a, T> {
+        self.map.entry_iter_mut(self.index)
+    }
+}
+
+impl<'a, 'b: 'a, T> IntoIterator for &'b OccupiedEntry<'a, T> {
+    type Item = &'a T;
+    type IntoIter = EntryIter<'a, T>;
+
+    #[inline]
+    fn into_iter(self) -> EntryIter<'a, T> {
+        self.iter()
+    }
+}
+
+impl<'a, 'b: 'a, T> IntoIterator for &'b mut OccupiedEntry<'a, T> {
+    type Item = &'a mut T;
+    type IntoIter = EntryIterMut<'a, T>;
+
+    #[inline]
+    fn into_iter(self) -> EntryIterMut<'a, T> {
+        self.iter_mut()
     }
 }
 

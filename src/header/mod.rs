@@ -84,7 +84,6 @@ pub use self::map::{
     Values,
     Drain,
     ValueSet,
-    ValueSetMut,
     Entry,
     VacantEntry,
     OccupiedEntry,

@@ -13,7 +13,7 @@ fn smoke() {
 
     match headers.entry(&name) {
         Entry::Vacant(e) => {
-            e.set("world");
+            e.insert("world");
         }
         _ => panic!(),
     }
