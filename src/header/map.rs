@@ -3287,14 +3287,29 @@ fn hash_elem_using<K: ?Sized>(danger: &Danger, k: &K) -> HashValue
 
 /// A marker trait used to identify values that can be used as keys to a
 /// `HeaderMap`.
+///
+/// Types that implement this trait can be used as a `HeaderMap` key.
 pub trait IntoHeaderName: Sealed {
+
+    // This trait is implemented both for types that are passed by value
+    // (argument to `entry`) and types that are passed by reference (argument to
+    // `get`). This means we only need one trait vs. two.
+    //
+    // In order to be able to implement `IntoHeaderName` for dynamically sized
+    // types, the functions that take `self` are guarded with `where Self:
+    // Sized`. However, an implementation is still required, so we have an
+    // unreachable default implementation for these functions.
+    //
+    // The alternative would be to provide a separate `AsHeaderName` trait for
+    // cases where DST values can be passed in.
+
     #[doc(hidden)]
     fn set<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<DrainEntry<T>>
         where Self: Sized
     {
         drop(map);
         drop(val);
-        unimplemented!();
+        unreachable!();
     }
 
     #[doc(hidden)]
@@ -3303,7 +3318,7 @@ pub trait IntoHeaderName: Sealed {
     {
         drop(map);
         drop(val);
-        unimplemented!();
+        unreachable!();
     }
 
     #[doc(hidden)]
@@ -3312,7 +3327,7 @@ pub trait IntoHeaderName: Sealed {
     #[doc(hidden)]
     fn entry<T>(self, map: &mut HeaderMap<T>) -> Entry<T> where Self: Sized {
         drop(map);
-        unimplemented!();
+        unreachable!();
     }
 
     #[doc(hidden)]

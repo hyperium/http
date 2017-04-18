@@ -1,9 +1,8 @@
 use bytes::Bytes;
 
 use std::{ops, str};
-use std::hash::{Hash, Hasher};
 
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct ByteStr {
     bytes: Bytes,
 }
@@ -36,12 +35,5 @@ impl From<String> for ByteStr {
 impl<'a> From<&'a str> for ByteStr {
     fn from(src: &'a str) -> ByteStr {
         ByteStr { bytes: Bytes::from(src) }
-    }
-}
-
-impl Hash for ByteStr {
-    #[inline]
-    fn hash<H: Hasher>(&self, hasher: &mut H) {
-        self.as_bytes().hash(hasher)
     }
 }

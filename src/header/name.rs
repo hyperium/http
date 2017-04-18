@@ -84,6 +84,12 @@ macro_rules! standard_headers {
     }
 }
 
+// Generate constants for all standard HTTP headers. This includes a static hash
+// code for the "fast hash" path. The hash code for static headers *do not* have
+// to match the text representation of those headers. This is because header
+// strings are always converted to the static values (when they match) before
+// being hashed. This means that it is impossible to compare the static hash
+// code of CONTENT_LENGTH with "content-length".
 standard_headers! {
     /// Advertises which content types the client is able to understand.
     ///
