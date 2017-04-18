@@ -91,7 +91,11 @@ pub use self::map::{
     DrainEntry,
     IntoHeaderName,
 };
-pub use self::name::HeaderName;
+pub use self::name::{
+    HeaderName,
+    FromBytesError,
+    FromStrError,
+};
 
 // Use header name constants
 pub use self::name::{

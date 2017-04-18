@@ -2,6 +2,7 @@ use byte_str::ByteStr;
 
 use std::{cmp, fmt};
 
+/// Represents an HTTP header field value.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct HeaderValue {
     inner: ByteStr,

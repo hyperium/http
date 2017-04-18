@@ -6,6 +6,26 @@ use std::{fmt, mem};
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 
+/// Represents an HTTP header field name
+///
+/// Header field names identify the header. Header sets may include multiple
+/// headers with the same name. The HTTP specification defines a number of
+/// standard headers, but HTTP messages may include non-standard header names as
+/// well as long as they adhere to the specification.
+///
+/// `HeaderName` is used as the [`HeaderMap`] key. Constants are available for
+/// all standard header names in the [`header`] module.
+///
+/// # Representation
+///
+/// `HeaderName` represents standard header names using an `enum`, as such they
+/// will not require an allocation for storage. All custom header names are
+/// lower cased upon conversion to a `HeaderName` value. This avoids the
+/// overhead of dynamically doing lower case conversion during the hash code
+/// computation and the comparison operation.
+///
+/// [`HeaderMap`]: struct.HeaderMap.html
+/// [`header`]: index.html
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub struct HeaderName {
     inner: Repr<Custom>,
@@ -33,11 +53,13 @@ struct MaybeLower<'a> {
     lower: bool,
 }
 
+/// A possible error when converting a `HeaderName` from `[u8]`.
 #[derive(Debug)]
 pub struct FromBytesError {
     _priv: (),
 }
 
+/// A possible error when converting a `HeaderName` from a string.
 #[derive(Debug)]
 pub struct FromStrError {
     _priv: (),
@@ -1705,6 +1727,7 @@ impl<'a> From<&'a HeaderName> for HeaderName {
     }
 }
 
+#[doc(hidden)]
 impl From<StandardHeader> for HeaderName {
     fn from(src: StandardHeader) -> HeaderName {
         HeaderName {
@@ -1713,6 +1736,7 @@ impl From<StandardHeader> for HeaderName {
     }
 }
 
+#[doc(hidden)]
 impl From<Custom> for HeaderName {
     fn from(src: Custom) -> HeaderName {
         HeaderName { inner: Repr::Custom(src) }
@@ -1791,6 +1815,7 @@ impl<'a> FastHash for HdrName<'a> {
     }
 }
 
+#[doc(hidden)]
 impl<'a> From<HdrName<'a>> for HeaderName {
     fn from(src: HdrName<'a>) -> HeaderName {
         match src.inner {
@@ -1826,6 +1851,7 @@ impl<'a> From<HdrName<'a>> for HeaderName {
     }
 }
 
+#[doc(hidden)]
 impl<'a> PartialEq<HdrName<'a>> for HeaderName {
     #[inline]
     fn eq(&self, other: &HdrName<'a>) -> bool {
