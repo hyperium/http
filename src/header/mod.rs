@@ -83,7 +83,7 @@ pub use self::map::{
     Keys,
     Values,
     Drain,
-    ValueSet,
+    GetAll,
     Entry,
     VacantEntry,
     OccupiedEntry,

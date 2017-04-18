@@ -111,8 +111,10 @@ pub struct Drain<'a, T> {
     lt: PhantomData<&'a ()>,
 }
 
-/// A view to all values associated with a single key.
-pub struct ValueSet<'a, T: 'a> {
+/// A view to all values stored in a single entry.
+///
+/// This struct is returned by `HeaderMap::get_all`.
+pub struct GetAll<'a, T: 'a> {
     map: &'a HeaderMap<T>,
     index: Size,
 }
@@ -659,10 +661,10 @@ impl<T> HeaderMap<T> {
     /// Returns a view of all values associated with a key.
     ///
     /// The returned view does not incur any allocations and allows iterating
-    /// the values associated with the key.  See [`ValueSet`] for more details.
+    /// the values associated with the key.  See [`GetAll`] for more details.
     /// Returns `None` if there are no values associated with the key.
     ///
-    /// [`ValueSet`]: struct.ValueSet.html
+    /// [`GetAll`]: struct.GetAll.html
     ///
     /// # Examples
     ///
@@ -681,7 +683,7 @@ impl<T> HeaderMap<T> {
     /// assert_eq!(&"goodbye", iter.next().unwrap());
     /// assert!(iter.next().is_none());
     /// ```
-    pub fn get_all<K: ?Sized>(&self, key: &K) -> Option<ValueSet<T>>
+    pub fn get_all<K: ?Sized>(&self, key: &K) -> Option<GetAll<T>>
         where K: IntoHeaderName
     {
         let res = if self.is_scan() {
@@ -692,7 +694,7 @@ impl<T> HeaderMap<T> {
 
         match res {
             Some((_, found)) => {
-                Some(ValueSet {
+                Some(GetAll {
                     map: self,
                     index: found as Size,
                 })
@@ -2212,9 +2214,9 @@ impl<'a, T> VacantEntry<'a, T> {
 }
 
 
-// ===== impl ValueSet =====
+// ===== impl GetAll =====
 
-impl<'a, T> ValueSet<'a, T> {
+impl<'a, T> GetAll<'a, T> {
     /// Returns a reference to the entry's key.
     ///
     /// # Examples
@@ -2319,13 +2321,13 @@ impl<'a, T> ValueSet<'a, T> {
     }
 }
 
-impl<'a, T: PartialEq> PartialEq for ValueSet<'a, T> {
+impl<'a, T: PartialEq> PartialEq for GetAll<'a, T> {
     fn eq(&self, other: &Self) -> bool {
         self.iter().eq(other.iter())
     }
 }
 
-impl<'a, T> IntoIterator for ValueSet<'a, T> {
+impl<'a, T> IntoIterator for GetAll<'a, T> {
     type Item = &'a T;
     type IntoIter = EntryIter<'a, T>;
 
@@ -2335,7 +2337,7 @@ impl<'a, T> IntoIterator for ValueSet<'a, T> {
     }
 }
 
-impl<'a, 'b: 'a, T> IntoIterator for &'b ValueSet<'a, T> {
+impl<'a, 'b: 'a, T> IntoIterator for &'b GetAll<'a, T> {
     type Item = &'a T;
     type IntoIter = EntryIter<'a, T>;
 
