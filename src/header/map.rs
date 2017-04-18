@@ -111,13 +111,13 @@ pub struct Drain<'a, T> {
     lt: PhantomData<&'a ()>,
 }
 
-/// A view to all values associated with a single header name.
+/// A view to all values associated with a single key.
 pub struct ValueSet<'a, T: 'a> {
     map: &'a HeaderMap<T>,
     index: Size,
 }
 
-/// A mutable view to all values associated with a single header name.
+/// A mutable view to all values associated with a single key.
 pub struct ValueSetMut<'a, T: 'a> {
     map: &'a mut HeaderMap<T>,
     index: Size,
@@ -2101,6 +2101,31 @@ impl<'a, T> Drop for Drain<'a, T> {
 // ===== impl Entry =====
 
 impl<'a, T> Entry<'a, T> {
+    /// Ensures a value is in the entry by inserting the default if empty.
+    ///
+    /// Returns a mutable reference to the **first** value in the entry.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    ///
+    /// let headers = &[
+    ///     "content-length",
+    ///     "x-hello",
+    ///     "Content-Length",
+    ///     "x-world",
+    /// ];
+    ///
+    /// for &header in headers {
+    ///     let counter = map.entry(header).or_insert(0);
+    ///     *counter += 1;
+    /// }
+    ///
+    /// assert_eq!(map["content-length"], 2);
+    /// assert_eq!(map["x-hello"], 1);
+    /// ```
     pub fn or_insert(self, default: T) -> &'a mut T {
         use self::Entry::*;
 
@@ -2110,6 +2135,39 @@ impl<'a, T> Entry<'a, T> {
         }
     }
 
+    /// Ensures a value is in the entry by inserting the result of the default
+    /// function if empty.
+    ///
+    /// The default function is not called if the entry exists in the map.
+    /// Returns a mutable reference to the **first** value in the entry.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage.
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    ///
+    /// let res = map.entry("x-hello")
+    ///     .or_insert_with(|| "world".to_string());
+    ///
+    /// assert_eq!(res, "world");
+    /// ```
+    ///
+    /// The default function is not called if the entry exists in the map.
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    /// map.insert("x-hello", "world".to_string());
+    ///
+    /// let res = map.entry("x-hello")
+    ///     .or_insert_with(|| unreachable!());
+    ///
+    ///
+    /// assert_eq!(res, "world");
+    /// ```
     pub fn or_insert_with<F: FnOnce() -> T>(self, default: F) -> &'a mut T {
         use self::Entry::*;
 
@@ -2119,6 +2177,16 @@ impl<'a, T> Entry<'a, T> {
         }
     }
 
+    /// Returns a reference to the entry's key
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map: HeaderMap<i32> = HeaderMap::new();
+    ///
+    /// assert_eq!(map.entry("x-hello").key().as_str(), "x-hello");
+    /// ```
     pub fn key(&self) -> &HeaderName {
         use self::Entry::*;
 
@@ -2132,16 +2200,55 @@ impl<'a, T> Entry<'a, T> {
 // ===== impl VacantEntry =====
 
 impl<'a, T> VacantEntry<'a, T> {
+    /// Returns a reference to the entry's key
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map: HeaderMap<i32> = HeaderMap::new();
+    ///
+    /// assert_eq!(map.entry("x-hello").key().as_str(), "x-hello");
+    /// ```
     #[inline]
     pub fn key(&self) -> &HeaderName {
         &self.key
     }
 
+    /// Take ownership of the key
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::{HeaderMap, Entry};
+    /// let mut map: HeaderMap<i32> = HeaderMap::new();
+    ///
+    /// if let Entry::Vacant(v) = map.entry("x-hello") {
+    ///     assert_eq!(v.into_key().as_str(), "x-hello");
+    /// }
+    /// ```
     #[inline]
     pub fn into_key(self) -> HeaderName {
         self.key
     }
 
+    /// Insert the value into the entry.
+    ///
+    /// The value will be associated with this entry's key. A mutable reference
+    /// to the inserted value will be returned.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::{HeaderMap, Entry};
+    /// let mut map = HeaderMap::new();
+    ///
+    /// if let Entry::Vacant(v) = map.entry("x-hello") {
+    ///     v.insert("world");
+    /// }
+    ///
+    /// assert_eq!(map["x-hello"], "world");
+    /// ```
     pub fn insert(self, value: T) -> &'a mut T {
         let index = if self.map.is_scan() {
             let index = self.map.entries.len();
@@ -2166,19 +2273,73 @@ impl<'a, T> VacantEntry<'a, T> {
 // ===== impl ValueSet =====
 
 impl<'a, T> ValueSet<'a, T> {
-    /// Get a reference to the header name.
+    /// Returns a reference to the entry's key.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    /// map.insert("x-hello", "world");
+    ///
+    /// assert_eq!("x-hello", map.get_all("x-hello").unwrap().key().as_str());
+    /// ```
     #[inline]
     pub fn key(&self) -> &HeaderName {
         &self.map.entries[self.index as usize].key
     }
 
     /// Get a reference to the first value in the set.
+    ///
+    /// Values are stored in insertion order.
+    ///
+    /// # Panics
+    ///
+    /// `first` panics if there are no values associated with the entry.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    /// map.insert("x-hello", "world");
+    ///
+    /// assert_eq!(
+    ///     map.get_all("x-hello").unwrap().first(),
+    ///     &"world");
+    ///
+    /// map.insert("x-hello", "earth");
+    ///
+    /// assert_eq!(
+    ///     map.get_all("x-hello").unwrap().first(),
+    ///     &"world");
+    /// ```
     #[inline]
     pub fn first(&self) -> &T {
         &self.map.entries[self.index as usize].value
     }
 
     /// Get a reference to the last value in the set.
+    ///
+    /// Values are stored in insertion order.
+    ///
+    /// # Panics
+    ///
+    /// `last` panics if there are no values associated with the entry.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    /// map.insert("x-hello", "world");
+    ///
+    /// assert_eq!(map.get_all("x-hello").unwrap().last(), &"world");
+    ///
+    /// map.insert("x-hello", "earth");
+    ///
+    /// assert_eq!(map.get_all("x-hello").unwrap().last(), &"earth");
+    /// ```
     #[inline]
     pub fn last(&self) -> &T {
         let entry = &self.map.entries[self.index as usize];
@@ -2192,6 +2353,24 @@ impl<'a, T> ValueSet<'a, T> {
         }
     }
 
+    /// Returns an iterator visiting all values associated with the entry.
+    ///
+    /// Values are iterated in insertion order.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    /// map.insert("x-hello", "world");
+    /// map.insert("x-hello", "earth");
+    ///
+    /// let values = map.get_all("x-hello").unwrap();
+    /// let mut iter = values.iter();
+    /// assert_eq!(&"world", iter.next().unwrap());
+    /// assert_eq!(&"earth", iter.next().unwrap());
+    /// assert!(iter.next().is_none());
+    /// ```
     #[inline]
     pub fn iter(&self) -> EntryIter<T> {
         self.into_iter()
@@ -2385,29 +2564,98 @@ impl<'a, T: 'a> DoubleEndedIterator for EntryIterMut<'a, T> {
 // ===== impl ValueSetMut =====
 
 impl<'a, T: 'a> ValueSetMut<'a, T> {
-    /// Get a reference to the header name.
+    /// Returns a reference to the entry's key.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    /// map.insert("x-hello", "world");
+    ///
+    /// assert_eq!("x-hello", map.get_all_mut("x-hello").unwrap().key().as_str());
+    /// ```
     #[inline]
     pub fn key(&self) -> &HeaderName {
         &self.map.entries[self.index as usize].key
     }
 
-    /// Get a reference to the first header value in the entry.
+    /// Get a reference to the first value in the set.
+    ///
+    /// Values are stored in insertion order.
     ///
     /// # Panics
     ///
-    /// Panics if there are no values for the entry.
+    /// `first` panics if there are no values associated with the entry.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    /// map.insert("x-hello", "world");
+    ///
+    /// let mut values = map.get_all_mut("x-hello").unwrap();
+    ///
+    /// assert_eq!(values.first(), &"world");
+    ///
+    /// values.insert("earth");
+    ///
+    /// assert_eq!(values.first(), &"world");
+    /// ```
     #[inline]
     pub fn first(&self) -> &T {
         &self.map.entries[self.index as usize].value
     }
 
-    /// Get a mutable reference to the first header value in the entry.
+    /// Get a mutable reference to the first value in the set.
+    ///
+    /// Values are stored in insertion order.
+    ///
+    /// # Panics
+    ///
+    /// `first_mut` panics if there are no values associated with the entry.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    /// map.insert("x-hello", "world".to_string());
+    ///
+    /// let mut values = map.get_all_mut("x-hello").unwrap();
+    ///
+    /// values.first_mut().push_str("2");
+    /// assert_eq!(values.first(), &"world2");
+    /// ```
     #[inline]
     pub fn first_mut(&mut self) -> &mut T {
         &mut self.map.entries[self.index as usize].value
     }
 
-    /// Get a reference to the last header value in this entry.
+    /// Get a reference to the last value in the set.
+    ///
+    /// Values are stored in insertion order.
+    ///
+    /// # Panics
+    ///
+    /// `last` panics if there are no values associated with the entry.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    /// map.insert("x-hello", "world");
+    ///
+    /// let mut values = map.get_all_mut("x-hello").unwrap();
+    ///
+    /// assert_eq!(values.last(), &"world");
+    ///
+    /// values.insert("earth");
+    ///
+    /// assert_eq!(values.last(), &"earth");
+    /// ```
     #[inline]
     pub fn last(&self) -> &T {
         let entry = &self.map.entries[self.index as usize];
@@ -2421,7 +2669,27 @@ impl<'a, T: 'a> ValueSetMut<'a, T> {
         }
     }
 
-    /// Get a mutable reference to the last header value in this entry.
+    /// Get a mutable reference to the last value in the set.
+    ///
+    /// Values are stored in insertion order.
+    ///
+    /// # Panics
+    ///
+    /// `last_mut` panics if there are no values associated with the entry.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    /// map.insert("x-hello", "world".to_string());
+    /// map.insert("x-hello", "earth".to_string());
+    ///
+    /// let mut values = map.get_all_mut("x-hello").unwrap();
+    ///
+    /// values.last_mut().push_str("2");
+    /// assert_eq!(values.last(), &"earth2");
+    /// ```
     #[inline]
     pub fn last_mut(&mut self) -> &mut T {
         let entry = &mut self.map.entries[self.index as usize];
@@ -2439,16 +2707,71 @@ impl<'a, T: 'a> ValueSetMut<'a, T> {
     /// value.
     ///
     /// The lifetime of the returned reference is bound to the original map.
+    ///
+    /// # Panics
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::{HeaderMap, Entry};
+    /// let mut map = HeaderMap::new();
+    /// map.insert("x-hello", "world".to_string());
+    /// map.insert("x-hello", "earth".to_string());
+    ///
+    /// if let Entry::Occupied(e) = map.entry("x-hello") {
+    ///     e.into_mut().push_str("-2");
+    /// }
+    ///
+    /// assert_eq!("world-2", map["x-hello"]);
+    /// ```
     pub fn into_mut(self) -> &'a mut T {
         &mut self.map.entries[self.index as usize].value
     }
 
-    /// Replaces all values for this entry with the provided value.
+    /// Sets the value of the entry.
+    ///
+    /// All previous values associated with the entry are removed and returned.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::{HeaderMap, Entry};
+    /// let mut map = HeaderMap::new();
+    /// map.insert("x-hello", "world");
+    ///
+    /// if let Entry::Occupied(mut e) = map.entry("x-hello") {
+    ///     let mut prev = e.set("earth");
+    ///     assert_eq!("world", prev.next().unwrap());
+    ///     assert!(prev.next().is_none());
+    /// }
+    ///
+    /// assert_eq!("earth", map["x-hello"]);
+    /// ```
     #[inline]
     pub fn set(&mut self, value: T) -> DrainEntry<T> {
         self.map.set_occupied(self.index, value.into())
     }
 
+    /// Insert the value into the entry.
+    ///
+    /// The new value is appended to the end of the entry's value list. All
+    /// previous values associated with the entry are retained.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::{HeaderMap, Entry};
+    /// let mut map = HeaderMap::new();
+    /// map.insert("x-hello", "world");
+    ///
+    /// if let Entry::Occupied(mut e) = map.entry("x-hello") {
+    ///     e.insert("earth");
+    /// }
+    ///
+    /// let values = map.get_all("x-hello").unwrap();
+    /// assert_eq!(&"world", values.first());
+    /// assert_eq!(&"earth", values.last());
+    /// ```
     pub fn insert(&mut self, value: T) {
         let idx = self.index as usize;
         let entry = &mut self.map.entries[idx];
