@@ -1919,6 +1919,12 @@ fn eq_ignore_ascii_case(lower: &[u8], s: &[u8]) -> bool {
 }
 
 #[test]
+fn test_bounds() {
+    fn check_bounds<T: Sync + Send>() {}
+    check_bounds::<HeaderName>();
+}
+
+#[test]
 fn test_parse_standard_headers() {
     use self::StandardHeader::*;
 

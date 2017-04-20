@@ -2,7 +2,6 @@ use super::fast_hash::FastHash;
 use super::name::{HeaderName, HdrName};
 
 use std::{cmp, fmt, mem, ops, ptr, u16};
-use std::cell::Cell;
 use std::collections::hash_map::RandomState;
 use std::hash::{BuildHasher, Hasher};
 use std::iter::FromIterator;
@@ -219,7 +218,7 @@ struct HashValue(Size);
 /// enabling double ended iteration.
 #[derive(Clone)]
 struct Bucket<T> {
-    hash: Cell<HashValue>,
+    hash: HashValue,
     key: HeaderName,
     value: T,
     links: Option<Links>,
@@ -236,8 +235,8 @@ struct Links {
 #[derive(Clone)]
 struct ExtraValue<T> {
     value: T,
-    prev: Cell<Link>,
-    next: Cell<Link>,
+    prev: Link,
+    next: Link,
 }
 
 /// A header value node is either linked to another node in the `extra_values`
@@ -1435,13 +1434,13 @@ impl<T> HeaderMap<T> {
         if let Some(entry) = self.entries.get(found) {
             // was not last element
             // examine new element in `found` and find it in indices
-            let mut probe = desired_pos(self.mask as usize, entry.hash.get());
+            let mut probe = desired_pos(self.mask as usize, entry.hash);
 
             probe_loop!(probe < self.indices.len(), {
                 if let Some((i, _)) = self.indices[probe].resolve() {
                     if i >= self.entries.len() {
                         // found it
-                        self.indices[probe] = Pos::new(found as Size, entry.hash.get());
+                        self.indices[probe] = Pos::new(found as Size, entry.hash);
                         break;
                     }
                 }
@@ -1483,58 +1482,72 @@ impl<T> HeaderMap<T> {
     /// Removes the `ExtraValue` at the given index.
     #[inline]
     fn remove_extra_value(&mut self, idx: usize) -> ExtraValue<T> {
+        let prev;
+        let next;
+
         {
             let extra = &self.extra_values[idx];
+            prev = extra.prev;
+            next = extra.next;
+        }
 
-            // First unlink the extra value
-            match extra.prev.get() {
-                Link::Entry(entry_idx) => {
-                    // Set the link head to the next value
-                    match extra.next.get() {
-                        Link::Entry(_) => {
-                            // This is the only extra value, so unset the entry
-                            // links
-                            self.entries[entry_idx as usize].links = None;
-                        }
-                        Link::Extra(extra_idx) => {
-                            self.entries[entry_idx as usize].links.as_mut().unwrap()
-                                .next = extra_idx;
-                        }
+        // First unlink the extra value
+        match prev {
+            Link::Entry(entry_idx) => {
+                // Set the link head to the next value
+                match next {
+                    Link::Entry(_) => {
+                        // This is the only extra value, so unset the entry
+                        // links
+                        self.entries[entry_idx as usize].links = None;
                     }
-                }
-                Link::Extra(extra_idx) => {
-                    self.extra_values[extra_idx as usize].next.set(extra.next.get());
+                    Link::Extra(extra_idx) => {
+                        self.entries[entry_idx as usize].links.as_mut().unwrap()
+                            .next = extra_idx;
+                    }
                 }
             }
+            Link::Extra(extra_idx) => {
+                self.extra_values[extra_idx as usize].next = next;
+            }
+        }
 
-            match extra.next.get() {
-                Link::Entry(entry_idx) => {
-                    match extra.prev.get() {
-                        // Nothing to do, this was already handled above
-                        Link::Entry(_) => {}
-                        Link::Extra(extra_idx) => {
-                            self.entries[entry_idx as usize].links.as_mut().unwrap()
-                                .tail = extra_idx;
-                        }
+        match next {
+            Link::Entry(entry_idx) => {
+                match prev {
+                    // Nothing to do, this was already handled above
+                    Link::Entry(_) => {}
+                    Link::Extra(extra_idx) => {
+                        self.entries[entry_idx as usize].links.as_mut().unwrap()
+                            .tail = extra_idx;
                     }
                 }
-                Link::Extra(extra_idx) => {
-                    self.extra_values[extra_idx as usize].prev.set(extra.prev.get());
-                }
+            }
+            Link::Extra(extra_idx) => {
+                self.extra_values[extra_idx as usize].prev = prev;
             }
         }
 
         // Remove the extra value
-        let extra = self.extra_values.swap_remove(idx);
+        let mut extra = self.extra_values.swap_remove(idx);
 
         // This is the index of the value that was moved (possibly `extra`)
         let old_idx = self.extra_values.len() as Size;
 
         // Check if another entry was displaced. If it was, then the links
         // need to be fixed.
-        if let Some(moved) = self.extra_values.get(idx) {
+        if self.extra_values.get(idx).is_some() {
+            let next;
+            let prev;
+
+            {
+                let moved = &self.extra_values[idx];
+                next = moved.next;
+                prev = moved.prev;
+            }
+
             // An entry was moved, we have to the links
-            match moved.prev.get() {
+            match prev {
                 Link::Entry(entry_idx) => {
                     // It is critical that we do not attempt to read the
                     // header name or value as that memory may have been
@@ -1543,28 +1556,28 @@ impl<T> HeaderMap<T> {
                     links.next = idx as Size;
                 }
                 Link::Extra(extra_idx) => {
-                    self.extra_values[extra_idx as usize].next.set(Link::Extra(idx as Size));
+                    self.extra_values[extra_idx as usize].next = Link::Extra(idx as Size);
                 }
             }
 
-            match moved.next.get() {
+            match next {
                 Link::Entry(entry_idx) => {
                     let links = self.entries[entry_idx as usize].links.as_mut().unwrap();
                     links.tail = idx as Size;
                 }
                 Link::Extra(extra_idx) => {
-                    self.extra_values[extra_idx as usize].prev.set(Link::Extra(idx as Size));
+                    self.extra_values[extra_idx as usize].prev = Link::Extra(idx as Size);
                 }
             }
         }
 
         // Finally, update the links in `extra`
-        if extra.prev.get() == Link::Extra(old_idx) {
-            extra.prev.set(Link::Extra(idx as Size));
+        if extra.prev == Link::Extra(old_idx) {
+            extra.prev = Link::Extra(idx as Size);
         }
 
-        if extra.next.get() == Link::Extra(old_idx) {
-            extra.next.set(Link::Extra(idx as Size));
+        if extra.next == Link::Extra(old_idx) {
+            extra.next = Link::Extra(idx as Size);
         }
 
         extra
@@ -1575,7 +1588,7 @@ impl<T> HeaderMap<T> {
         assert!(self.entries.len() < MAX_SIZE as usize, "header map at capacity");
 
         self.entries.push(Bucket {
-            hash: Cell::new(hash),
+            hash: hash,
             key: key,
             value: value,
             links: None,
@@ -1602,7 +1615,7 @@ impl<T> HeaderMap<T> {
         debug_assert!(!self.is_scan());
 
         // Loop over all entries and re-insert them into the map
-        for entry in &self.entries {
+        for entry in &mut self.entries {
             let hash = hash_elem_using(&self.danger, &entry.key);
             let mut probe = desired_pos(self.mask as usize, hash);
             let mut dist = 0;
@@ -1622,7 +1635,7 @@ impl<T> HeaderMap<T> {
                 dist += 1;
             });
 
-            entry.hash.set(hash);
+            entry.hash = hash;
 
             do_insert_phase_two(
                 &mut self.indices,
@@ -1880,8 +1893,8 @@ fn insert_value<T>(entry_idx: usize,
             let idx = extra.len() as Size;
             extra.push(ExtraValue {
                 value: value,
-                prev: Cell::new(Link::Extra(links.tail)),
-                next: Cell::new(Link::Entry(entry_idx as Size)),
+                prev: Link::Extra(links.tail),
+                next: Link::Entry(entry_idx as Size),
             });
 
             entry.links = Some(Links {
@@ -1893,8 +1906,8 @@ fn insert_value<T>(entry_idx: usize,
             let idx = extra.len() as Size;
             extra.push(ExtraValue {
                 value: value,
-                prev: Cell::new(Link::Entry(entry_idx as Size)),
-                next: Cell::new(Link::Entry(entry_idx as Size)),
+                prev: Link::Entry(entry_idx as Size),
+                next: Link::Entry(entry_idx as Size),
             });
 
             entry.links = Some(Links {
@@ -1916,6 +1929,9 @@ impl<'a, T> Iterator for Iter<'a, T> {
         })
     }
 }
+
+unsafe impl<'a, T: Sync> Sync for Iter<'a, T> {}
+unsafe impl<'a, T: Sync> Send for Iter<'a, T> {}
 
 // ===== impl IterMut =====
 
@@ -1943,7 +1959,7 @@ impl<'a, T> IterMut<'a, T> {
                 let idx = idx as usize;
                 let extra = unsafe { &(*self.map).extra_values[idx as usize] };
 
-                match extra.next.get() {
+                match extra.next {
                     Link::Entry(_) => self.cursor = None,
                     Link::Extra(i) => self.cursor = Some(Values(i)),
                 }
@@ -1963,6 +1979,9 @@ impl<'a, T> Iterator for IterMut<'a, T> {
         })
     }
 }
+
+unsafe impl<'a, T: Sync> Sync for IterMut<'a, T> {}
+unsafe impl<'a, T: Send> Send for IterMut<'a, T> {}
 
 // ===== impl Keys =====
 
@@ -2041,6 +2060,9 @@ impl<'a, T> Drop for Drain<'a, T> {
         }
     }
 }
+
+unsafe impl<'a, T: Sync> Sync for Drain<'a, T> {}
+unsafe impl<'a, T: Send> Send for Drain<'a, T> {}
 
 // ===== impl Entry =====
 
@@ -2381,7 +2403,7 @@ impl<'a, T: 'a> Iterator for EntryIter<'a, T> {
                     self.front = None;
                     self.back = None;
                 } else {
-                    match extra.next.get() {
+                    match extra.next {
                         Link::Entry(_) => self.front = None,
                         Link::Extra(i) => self.front = Some(Values(i)),
                     }
@@ -2413,7 +2435,7 @@ impl<'a, T: 'a> DoubleEndedIterator for EntryIter<'a, T> {
                     self.front = None;
                     self.back = None;
                 } else {
-                    match extra.prev.get() {
+                    match extra.prev {
                         Link::Entry(_) => self.back = Some(Head),
                         Link::Extra(idx) => self.back = Some(Values(idx)),
                     }
@@ -2460,7 +2482,7 @@ impl<'a, T: 'a> Iterator for EntryIterMut<'a, T> {
                     self.front = None;
                     self.back = None;
                 } else {
-                    match extra.next.get() {
+                    match extra.next {
                         Link::Entry(_) => self.front = None,
                         Link::Extra(i) => self.front = Some(Values(i)),
                     }
@@ -2492,7 +2514,7 @@ impl<'a, T: 'a> DoubleEndedIterator for EntryIterMut<'a, T> {
                     self.front = None;
                     self.back = None;
                 } else {
-                    match extra.prev.get() {
+                    match extra.prev {
                         Link::Entry(_) => self.back = Some(Head),
                         Link::Extra(idx) => self.back = Some(Values(idx)),
                     }
@@ -2504,6 +2526,9 @@ impl<'a, T: 'a> DoubleEndedIterator for EntryIterMut<'a, T> {
         }
     }
 }
+
+unsafe impl<'a, T: Sync> Sync for EntryIterMut<'a, T> {}
+unsafe impl<'a, T: Send> Send for EntryIterMut<'a, T> {}
 
 // ===== impl OccupiedEntry =====
 
@@ -2876,7 +2901,7 @@ impl<'a, T> Iterator for DrainEntry<'a, T> {
             // Remove the extra value
             let extra = unsafe { &mut (*self.map) }.remove_extra_value(next as usize);
 
-            match extra.next.get() {
+            match extra.next {
                 Link::Extra(idx) => self.next = Some(idx),
                 Link::Entry(_) => self.next = None,
             }
@@ -2894,6 +2919,9 @@ impl<'a, T> Drop for DrainEntry<'a, T> {
         }
     }
 }
+
+unsafe impl<'a, T: Sync> Sync for DrainEntry<'a, T> {}
+unsafe impl<'a, T: Send> Send for DrainEntry<'a, T> {}
 
 // ===== impl Pos =====
 
@@ -3303,3 +3331,23 @@ impl<'a> HeaderMapKey for &'a String {
 }
 
 impl<'a> Sealed for &'a String {}
+
+#[test]
+fn test_bounds() {
+    fn check_bounds<T: Send + Send>() {}
+
+    check_bounds::<HeaderMap<()>>();
+    check_bounds::<Iter<'static, ()>>();
+    check_bounds::<IterMut<'static, ()>>();
+    check_bounds::<Keys<'static, ()>>();
+    check_bounds::<Values<'static, ()>>();
+    check_bounds::<ValuesMut<'static, ()>>();
+    check_bounds::<Drain<'static, ()>>();
+    check_bounds::<GetAll<'static, ()>>();
+    check_bounds::<Entry<'static, ()>>();
+    check_bounds::<VacantEntry<'static, ()>>();
+    check_bounds::<OccupiedEntry<'static, ()>>();
+    check_bounds::<EntryIter<'static, ()>>();
+    check_bounds::<EntryIterMut<'static, ()>>();
+    check_bounds::<DrainEntry<'static, ()>>();
+}
