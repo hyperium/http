@@ -89,7 +89,7 @@ pub use self::map::{
     OccupiedEntry,
     EntryIter,
     DrainEntry,
-    IntoHeaderName,
+    HeaderMapKey,
 };
 pub use self::name::{
     HeaderName,

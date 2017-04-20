@@ -641,7 +641,7 @@ impl<T> HeaderMap<T> {
     /// assert_eq!(map.get("x-hello").unwrap(), &"hello");
     /// ```
     pub fn get<K: ?Sized>(&self, key: &K) -> Option<&T>
-        where K: IntoHeaderName
+        where K: HeaderMapKey
     {
         let res = if self.is_scan() {
             key.find_scan(self).map(|i| (0, i))
@@ -684,7 +684,7 @@ impl<T> HeaderMap<T> {
     /// assert!(iter.next().is_none());
     /// ```
     pub fn get_all<K: ?Sized>(&self, key: &K) -> Option<GetAll<T>>
-        where K: IntoHeaderName
+        where K: HeaderMapKey
     {
         let res = if self.is_scan() {
             key.find_scan(self).map(|i| (0, i))
@@ -716,7 +716,7 @@ impl<T> HeaderMap<T> {
     /// assert!(map.contains_key("x-hello"));
     /// ```
     pub fn contains_key<K: ?Sized>(&self, key: &K) -> bool
-        where K: IntoHeaderName
+        where K: HeaderMapKey
     {
         if self.is_scan() {
             key.find_scan(self).is_some()
@@ -957,7 +957,7 @@ impl<T> HeaderMap<T> {
     /// ```
     #[inline]
     pub fn entry<K>(&mut self, key: K) -> Entry<T>
-        where K: IntoHeaderName,
+        where K: HeaderMapKey,
     {
         key.entry(self)
     }
@@ -1052,7 +1052,7 @@ impl<T> HeaderMap<T> {
     /// assert!(prev.next().is_none());
     /// ```
     pub fn set<K>(&mut self, key: K, val: T) -> Option<DrainEntry<T>>
-        where K: IntoHeaderName,
+        where K: HeaderMapKey,
     {
         key.set(self, val.into())
     }
@@ -1184,7 +1184,7 @@ impl<T> HeaderMap<T> {
     /// assert_eq!("earth", *values.last());
     /// ```
     pub fn insert<K>(&mut self, key: K, val: T) -> bool
-        where K: IntoHeaderName,
+        where K: HeaderMapKey,
     {
         key.insert(self, val.into())
     }
@@ -1358,7 +1358,7 @@ impl<T> HeaderMap<T> {
     /// assert!(map.remove("x-hello").is_none());
     /// ```
     pub fn remove<K: ?Sized>(&mut self, key: &K) -> Option<DrainEntry<T>>
-        where K: IntoHeaderName
+        where K: HeaderMapKey
     {
         self.remove_entry(key).map(|e| e.1)
     }
@@ -1385,7 +1385,7 @@ impl<T> HeaderMap<T> {
     /// assert!(map.remove("x-hello").is_none());
     /// ```
     pub fn remove_entry<K: ?Sized>(&mut self, key: &K) -> Option<(HeaderName, DrainEntry<T>)>
-        where K: IntoHeaderName
+        where K: HeaderMapKey
     {
         if self.is_scan() {
             match key.find_scan(self) {
@@ -1769,7 +1769,7 @@ impl<'a, T> IntoIterator for &'a mut HeaderMap<T> {
 }
 
 impl<K, T> FromIterator<(K, T)> for HeaderMap<T>
-    where K: IntoHeaderName,
+    where K: HeaderMapKey,
 {
     fn from_iter<I>(iter: I) -> Self
         where I: IntoIterator<Item = (K, T)>
@@ -1781,7 +1781,7 @@ impl<K, T> FromIterator<(K, T)> for HeaderMap<T>
 }
 
 impl<K, T> Extend<(K, T)> for HeaderMap<T>
-    where K: IntoHeaderName,
+    where K: HeaderMapKey,
 {
     fn extend<I: IntoIterator<Item = (K, T)>>(&mut self, iter: I) {
         // Keys may be already present or show multiple times in the iterator.
@@ -1831,7 +1831,7 @@ impl<T: Default> Default for HeaderMap<T> {
 }
 
 impl<'a, K: ?Sized, T> ops::Index<&'a K> for HeaderMap<T>
-    where K: IntoHeaderName,
+    where K: HeaderMapKey,
 {
     type Output = T;
 
@@ -3023,7 +3023,7 @@ fn hash_elem_using<K: ?Sized>(danger: &Danger, k: &K) -> HashValue
 
 /*
  *
- * ===== impl IntoHeaderName =====
+ * ===== impl HeaderMapKey =====
  *
  */
 
@@ -3031,13 +3031,13 @@ fn hash_elem_using<K: ?Sized>(danger: &Danger, k: &K) -> HashValue
 /// `HeaderMap`.
 ///
 /// Types that implement this trait can be used as a `HeaderMap` key.
-pub trait IntoHeaderName: Sealed {
+pub trait HeaderMapKey: Sealed {
 
     // This trait is implemented both for types that are passed by value
     // (argument to `entry`) and types that are passed by reference (argument to
     // `get`). This means we only need one trait vs. two.
     //
-    // In order to be able to implement `IntoHeaderName` for dynamically sized
+    // In order to be able to implement `HeaderMapKey` for dynamically sized
     // types, the functions that take `self` are guarded with `where Self:
     // Sized`. However, an implementation is still required, so we have an
     // unreachable default implementation for these functions.
@@ -3079,10 +3079,10 @@ pub trait IntoHeaderName: Sealed {
     fn find_hashed<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)>;
 }
 
-// Prevent users from implementing the `IntoHeaderName` trait.
+// Prevent users from implementing the `HeaderMapKey` trait.
 pub trait Sealed {}
 
-impl IntoHeaderName for HeaderName {
+impl HeaderMapKey for HeaderName {
     #[doc(hidden)]
     #[inline]
     fn set<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<DrainEntry<T>> {
@@ -3122,7 +3122,7 @@ impl IntoHeaderName for HeaderName {
 
 impl Sealed for HeaderName {}
 
-impl<'a> IntoHeaderName for &'a HeaderName {
+impl<'a> HeaderMapKey for &'a HeaderName {
     #[doc(hidden)]
     #[inline]
     fn set<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<DrainEntry<T>> {
@@ -3162,7 +3162,7 @@ impl<'a> IntoHeaderName for &'a HeaderName {
 
 impl<'a> Sealed for &'a HeaderName {}
 
-impl IntoHeaderName for str {
+impl HeaderMapKey for str {
     #[doc(hidden)]
     #[inline]
     fn insert_ref<T>(&self, map: &mut HeaderMap<T>, val: T) {
@@ -3184,7 +3184,7 @@ impl IntoHeaderName for str {
 
 impl Sealed for str {}
 
-impl<'a> IntoHeaderName for &'a str {
+impl<'a> HeaderMapKey for &'a str {
     #[doc(hidden)]
     #[inline]
     fn set<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<DrainEntry<T>> {
@@ -3224,7 +3224,7 @@ impl<'a> IntoHeaderName for &'a str {
 
 impl<'a> Sealed for &'a str {}
 
-impl IntoHeaderName for String {
+impl HeaderMapKey for String {
     #[doc(hidden)]
     #[inline]
     fn set<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<DrainEntry<T>> {
@@ -3264,7 +3264,7 @@ impl IntoHeaderName for String {
 
 impl Sealed for String {}
 
-impl<'a> IntoHeaderName for &'a String {
+impl<'a> HeaderMapKey for &'a String {
     #[doc(hidden)]
     #[inline]
     fn set<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<DrainEntry<T>> {
