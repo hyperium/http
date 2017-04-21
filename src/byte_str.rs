@@ -8,10 +8,12 @@ pub struct ByteStr {
 }
 
 impl ByteStr {
+    #[inline]
     pub fn from_static(val: &'static str) -> ByteStr {
         ByteStr { bytes: Bytes::from_static(val.as_bytes()) }
     }
 
+    #[inline]
     pub unsafe fn from_utf8_unchecked(bytes: Bytes) -> ByteStr {
         ByteStr { bytes: bytes }
     }
@@ -20,6 +22,7 @@ impl ByteStr {
 impl ops::Deref for ByteStr {
     type Target = str;
 
+    #[inline]
     fn deref(&self) -> &str {
         let b: &[u8] = self.bytes.as_ref();
         unsafe { str::from_utf8_unchecked(b) }
@@ -27,12 +30,14 @@ impl ops::Deref for ByteStr {
 }
 
 impl From<String> for ByteStr {
+    #[inline]
     fn from(src: String) -> ByteStr {
         ByteStr { bytes: Bytes::from(src) }
     }
 }
 
 impl<'a> From<&'a str> for ByteStr {
+    #[inline]
     fn from(src: &'a str) -> ByteStr {
         ByteStr { bytes: Bytes::from(src) }
     }

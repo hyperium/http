@@ -3,6 +3,7 @@ use byte_str::ByteStr;
 use bytes::{Bytes, BytesMut};
 
 use std::{fmt, mem};
+use std::borrow::Borrow;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 
@@ -1706,6 +1707,12 @@ impl AsRef<str> for HeaderName {
 impl AsRef<[u8]> for HeaderName {
     fn as_ref(&self) -> &[u8] {
         self.as_str().as_bytes()
+    }
+}
+
+impl Borrow<str> for HeaderName {
+    fn borrow(&self) -> &str {
+        self.as_str()
     }
 }
 
