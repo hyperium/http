@@ -1043,32 +1043,32 @@ impl<T> HeaderMap<T> {
     /// ```
     /// # use http::HeaderMap;
     /// let mut map = HeaderMap::new();
-    /// assert!(map.set("x-hello", "world").is_none());
+    /// assert!(map.insert("x-hello", "world").is_none());
     /// assert!(!map.is_empty());
     ///
-    /// let mut prev = map.set("x-hello", "earth").unwrap();
+    /// let mut prev = map.insert("x-hello", "earth").unwrap();
     /// assert_eq!("world", prev.next().unwrap());
     /// assert!(prev.next().is_none());
     /// ```
-    pub fn set<K>(&mut self, key: K, val: T) -> Option<DrainEntry<T>>
+    pub fn insert<K>(&mut self, key: K, val: T) -> Option<DrainEntry<T>>
         where K: HeaderMapKey,
     {
-        key.set(self, val.into())
+        key.insert(self, val.into())
     }
 
-    fn set2<K>(&mut self, key: K, val: T) -> Option<DrainEntry<T>>
+    fn insert2<K>(&mut self, key: K, val: T) -> Option<DrainEntry<T>>
         where K: FastHash + Into<HeaderName>,
               HeaderName: PartialEq<K>,
     {
         if self.is_scan() {
-            self.set_scan(key, val)
+            self.insert_scan(key, val)
         } else {
-            self.set_hashed(key, val)
+            self.insert_hashed(key, val)
         }
     }
 
     #[inline]
-    fn set_scan<K>(&mut self, key: K, value: T) -> Option<DrainEntry<T>>
+    fn insert_scan<K>(&mut self, key: K, value: T) -> Option<DrainEntry<T>>
         where K: FastHash + Into<HeaderName>,
               HeaderName: PartialEq<K>,
     {
@@ -1107,7 +1107,7 @@ impl<T> HeaderMap<T> {
 
     /// Set an occupied bucket to the given value
     #[inline]
-    fn set_occupied(&mut self, index: Size, value: T) -> DrainEntry<T> {
+    fn insert_occupied(&mut self, index: Size, value: T) -> DrainEntry<T> {
         // TODO: Looks like this is repeated code
         let old;
         let links;
@@ -1128,7 +1128,7 @@ impl<T> HeaderMap<T> {
     }
 
     #[inline]
-    fn set_hashed<K>(&mut self, key: K, value: T) -> Option<DrainEntry<T>>
+    fn insert_hashed<K>(&mut self, key: K, value: T) -> Option<DrainEntry<T>>
         where K: FastHash + Into<HeaderName>,
               HeaderName: PartialEq<K>,
     {
@@ -1145,7 +1145,7 @@ impl<T> HeaderMap<T> {
                 None
             },
             // Occupied
-            Some(self.set_occupied(pos as Size, value)),
+            Some(self.insert_occupied(pos as Size, value)),
             // Robinhood
             {
                 self.insert_phase_two(
@@ -2700,7 +2700,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// map.append("x-hello", "world");
     ///
     /// if let Entry::Occupied(mut e) = map.entry("x-hello") {
-    ///     let mut prev = e.set("earth");
+    ///     let mut prev = e.insert("earth");
     ///     assert_eq!("world", prev.next().unwrap());
     ///     assert!(prev.next().is_none());
     /// }
@@ -2708,8 +2708,8 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// assert_eq!("earth", map["x-hello"]);
     /// ```
     #[inline]
-    pub fn set(&mut self, value: T) -> DrainEntry<T> {
-        self.map.set_occupied(self.index, value.into())
+    pub fn insert(&mut self, value: T) -> DrainEntry<T> {
+        self.map.insert_occupied(self.index, value.into())
     }
 
     /// Insert the value into the entry.
@@ -3058,7 +3058,7 @@ pub trait HeaderMapKey: Sealed {
     // cases where DST values can be passed in.
 
     #[doc(hidden)]
-    fn set<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<DrainEntry<T>>
+    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<DrainEntry<T>>
         where Self: Sized
     {
         drop(map);
@@ -3097,8 +3097,8 @@ pub trait Sealed {}
 impl HeaderMapKey for HeaderName {
     #[doc(hidden)]
     #[inline]
-    fn set<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<DrainEntry<T>> {
-        map.set2(self, val)
+    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<DrainEntry<T>> {
+        map.insert2(self, val)
     }
 
     #[doc(hidden)]
@@ -3137,8 +3137,8 @@ impl Sealed for HeaderName {}
 impl<'a> HeaderMapKey for &'a HeaderName {
     #[doc(hidden)]
     #[inline]
-    fn set<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<DrainEntry<T>> {
-        map.set2(self, val)
+    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<DrainEntry<T>> {
+        map.insert2(self, val)
     }
 
     #[doc(hidden)]
@@ -3199,8 +3199,8 @@ impl Sealed for str {}
 impl<'a> HeaderMapKey for &'a str {
     #[doc(hidden)]
     #[inline]
-    fn set<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<DrainEntry<T>> {
-        HdrName::from_bytes(self.as_bytes(), move |hdr| map.set2(hdr, val)).unwrap()
+    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<DrainEntry<T>> {
+        HdrName::from_bytes(self.as_bytes(), move |hdr| map.insert2(hdr, val)).unwrap()
     }
 
     #[doc(hidden)]
@@ -3239,8 +3239,8 @@ impl<'a> Sealed for &'a str {}
 impl HeaderMapKey for String {
     #[doc(hidden)]
     #[inline]
-    fn set<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<DrainEntry<T>> {
-        self.as_str().set(map, val)
+    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<DrainEntry<T>> {
+        self.as_str().insert(map, val)
     }
 
     #[doc(hidden)]
@@ -3279,8 +3279,8 @@ impl Sealed for String {}
 impl<'a> HeaderMapKey for &'a String {
     #[doc(hidden)]
     #[inline]
-    fn set<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<DrainEntry<T>> {
-        self.as_str().set(map, val)
+    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<DrainEntry<T>> {
+        self.as_str().insert(map, val)
     }
 
     #[doc(hidden)]

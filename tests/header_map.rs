@@ -39,7 +39,7 @@ fn drain() {
     let mut headers = HeaderMap::new();
 
     // Insert a single value
-    headers.set("hello", "world");
+    headers.insert("hello", "world");
 
     {
         let mut iter = headers.drain();
@@ -57,7 +57,7 @@ fn drain() {
 
     // Insert two sequential values
     headers.append("hello", "world");
-    headers.set("zomg", "bar");
+    headers.insert("zomg", "bar");
     headers.append("hello", "world2");
 
     // Drain...
@@ -87,14 +87,14 @@ fn drain_entry() {
     let mut headers = HeaderMap::new();
 
     headers.append("hello", "world");
-    headers.set("zomg", "foo");
+    headers.insert("zomg", "foo");
     headers.append("hello", "world2");
     headers.append("more", "words");
     headers.append("more", "insertions");
 
-    // Using set
+    // Using insert
     {
-        let vals: Vec<_> = headers.set("hello", "wat").unwrap().collect();
+        let vals: Vec<_> = headers.insert("hello", "wat").unwrap().collect();
         assert_eq!(2, vals.len());
         assert_eq!(vals[0], "world");
         assert_eq!(vals[1], "world2");
@@ -108,10 +108,10 @@ fn eq() {
 
     assert_eq!(a, b);
 
-    a.set("hello", "world");
+    a.insert("hello", "world");
     assert_ne!(a, b);
 
-    b.set("hello", "world");
+    b.insert("hello", "world");
     assert_eq!(a, b);
 
     a.append("foo", "bar");
