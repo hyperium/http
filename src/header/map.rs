@@ -19,8 +19,8 @@ use std::marker::PhantomData;
 /// # use http::HeaderMap;
 /// let mut headers = HeaderMap::new();
 ///
-/// headers.insert("Host", "example.com");
-/// headers.insert("Content-Length", "123");
+/// headers.append("Host", "example.com");
+/// headers.append("Content-Length", "123");
 ///
 /// assert!(headers.contains_key("host"));
 /// assert!(!headers.contains_key("Location"));
@@ -460,12 +460,12 @@ impl<T> HeaderMap<T> {
     ///
     /// assert_eq!(0, map.len());
     ///
-    /// map.insert("x-header-one", "1");
-    /// map.insert("x-header-two", "2");
+    /// map.append("x-header-one", "1");
+    /// map.append("x-header-two", "2");
     ///
     /// assert_eq!(2, map.len());
     ///
-    /// map.insert("x-header-two", "deux");
+    /// map.append("x-header-two", "deux");
     ///
     /// assert_eq!(3, map.len());
     /// ```
@@ -487,12 +487,12 @@ impl<T> HeaderMap<T> {
     ///
     /// assert_eq!(0, map.keys_len());
     ///
-    /// map.insert("x-header-one", "1");
-    /// map.insert("x-header-two", "2");
+    /// map.append("x-header-one", "1");
+    /// map.append("x-header-two", "2");
     ///
     /// assert_eq!(2, map.keys_len());
     ///
-    /// map.insert("x-header-two", "deux");
+    /// map.append("x-header-two", "deux");
     ///
     /// assert_eq!(2, map.keys_len());
     /// ```
@@ -511,7 +511,7 @@ impl<T> HeaderMap<T> {
     ///
     /// assert!(map.is_empty());
     ///
-    /// map.insert("x-hello", "world");
+    /// map.append("x-hello", "world");
     ///
     /// assert!(!map.is_empty());
     /// ```
@@ -528,7 +528,7 @@ impl<T> HeaderMap<T> {
     /// ```
     /// # use http::HeaderMap;
     /// let mut map = HeaderMap::new();
-    /// map.insert("x-hello", "world");
+    /// map.append("x-hello", "world");
     ///
     /// map.clear();
     /// assert!(map.is_empty());
@@ -557,7 +557,7 @@ impl<T> HeaderMap<T> {
     ///
     /// assert_eq!(0, map.capacity());
     ///
-    /// map.insert("x-hello", "world");
+    /// map.append("x-hello", "world");
     /// assert_eq!(8, map.capacity());
     /// ```
     #[inline]
@@ -598,7 +598,7 @@ impl<T> HeaderMap<T> {
     /// # use http::HeaderMap;
     /// let mut map = HeaderMap::new();
     /// map.reserve(10);
-    /// # map.insert("foo", "bar");
+    /// # map.append("foo", "bar");
     /// ```
     pub fn reserve(&mut self, additional: usize) {
         if self.is_scan() {
@@ -633,10 +633,10 @@ impl<T> HeaderMap<T> {
     /// let mut map = HeaderMap::new();
     /// assert!(map.get("x-hello").is_none());
     ///
-    /// map.insert("x-hello", "hello");
+    /// map.append("x-hello", "hello");
     /// assert_eq!(map.get("x-hello").unwrap(), &"hello");
     ///
-    /// map.insert("x-hello", "world");
+    /// map.append("x-hello", "world");
     /// assert_eq!(map.get("x-hello").unwrap(), &"hello");
     /// ```
     pub fn get<K: ?Sized>(&self, key: &K) -> Option<&T>
@@ -671,8 +671,8 @@ impl<T> HeaderMap<T> {
     /// # use http::HeaderMap;
     /// let mut map = HeaderMap::new();
     ///
-    /// map.insert("x-hello", "hello");
-    /// map.insert("x-hello", "goodbye");
+    /// map.append("x-hello", "hello");
+    /// map.append("x-hello", "goodbye");
     ///
     /// let view = map.get_all("x-hello").unwrap();
     /// assert_eq!(view.first(), &"hello");
@@ -711,7 +711,7 @@ impl<T> HeaderMap<T> {
     /// let mut map = HeaderMap::new();
     /// assert!(!map.contains_key("x-hello"));
     ///
-    /// map.insert("x-hello", "world");
+    /// map.append("x-hello", "world");
     /// assert!(map.contains_key("x-hello"));
     /// ```
     pub fn contains_key<K: ?Sized>(&self, key: &K) -> bool
@@ -736,9 +736,9 @@ impl<T> HeaderMap<T> {
     /// # use http::HeaderMap;
     /// let mut map = HeaderMap::new();
     ///
-    /// map.insert("x-hello", "hello");
-    /// map.insert("x-hello", "goodbye");
-    /// map.insert("Content-Length", "123");
+    /// map.append("x-hello", "hello");
+    /// map.append("x-hello", "goodbye");
+    /// map.append("Content-Length", "123");
     ///
     /// for (key, value) in map.iter() {
     ///     println!("{:?}: {}", key, value);
@@ -767,9 +767,9 @@ impl<T> HeaderMap<T> {
     /// # use http::HeaderMap;
     /// let mut map = HeaderMap::new();
     ///
-    /// map.insert("x-hello", "hello".to_string());
-    /// map.insert("x-hello", "goodbye".to_string());
-    /// map.insert("Content-Length", "123".to_string());
+    /// map.append("x-hello", "hello".to_string());
+    /// map.append("x-hello", "goodbye".to_string());
+    /// map.append("Content-Length", "123".to_string());
     ///
     /// for (key, value) in map.iter_mut() {
     ///     value.push_str("-boop");
@@ -796,9 +796,9 @@ impl<T> HeaderMap<T> {
     /// # use http::HeaderMap;
     /// let mut map = HeaderMap::new();
     ///
-    /// map.insert("x-hello", "hello");
-    /// map.insert("x-hello", "goodbye");
-    /// map.insert("Content-Length", "123");
+    /// map.append("x-hello", "hello");
+    /// map.append("x-hello", "goodbye");
+    /// map.append("Content-Length", "123");
     ///
     /// for key in map.keys() {
     ///     println!("{:?}", key);
@@ -819,9 +819,9 @@ impl<T> HeaderMap<T> {
     /// # use http::HeaderMap;
     /// let mut map = HeaderMap::new();
     ///
-    /// map.insert("x-hello", "hello");
-    /// map.insert("x-hello", "goodbye");
-    /// map.insert("Content-Length", "123");
+    /// map.append("x-hello", "hello");
+    /// map.append("x-hello", "goodbye");
+    /// map.append("Content-Length", "123");
     ///
     /// for value in map.values() {
     ///     println!("{}", value);
@@ -842,9 +842,9 @@ impl<T> HeaderMap<T> {
     /// # use http::HeaderMap;
     /// let mut map = HeaderMap::new();
     ///
-    /// map.insert("x-hello", "hello".to_string());
-    /// map.insert("x-hello", "goodbye".to_string());
-    /// map.insert("Content-Length", "123".to_string());
+    /// map.append("x-hello", "hello".to_string());
+    /// map.append("x-hello", "goodbye".to_string());
+    /// map.append("Content-Length", "123".to_string());
     ///
     /// for value in map.values_mut() {
     ///     value.push_str("-boop");
@@ -864,9 +864,9 @@ impl<T> HeaderMap<T> {
     /// # use http::HeaderMap;
     /// let mut map = HeaderMap::new();
     ///
-    /// map.insert("x-hello", "hello");
-    /// map.insert("x-hello", "goodbye");
-    /// map.insert("Content-Length", "123");
+    /// map.append("x-hello", "hello");
+    /// map.append("x-hello", "goodbye");
+    /// map.append("Content-Length", "123");
     ///
     /// let mut drain = map.drain();
     ///
@@ -1173,35 +1173,35 @@ impl<T> HeaderMap<T> {
     /// ```
     /// # use http::HeaderMap;
     /// let mut map = HeaderMap::new();
-    /// assert!(!map.insert("x-hello", "world"));
+    /// assert!(!map.append("x-hello", "world"));
     /// assert!(!map.is_empty());
     ///
-    /// map.insert("x-hello", "earth");
+    /// map.append("x-hello", "earth");
     ///
     /// let values = map.get_all("x-hello").unwrap();
     /// assert_eq!("world", *values.first());
     /// assert_eq!("earth", *values.last());
     /// ```
-    pub fn insert<K>(&mut self, key: K, val: T) -> bool
+    pub fn append<K>(&mut self, key: K, val: T) -> bool
         where K: HeaderMapKey,
     {
-        key.insert(self, val.into())
+        key.append(self, val.into())
     }
 
     #[inline]
-    fn insert2<K>(&mut self, key: K, val: T) -> bool
+    fn append2<K>(&mut self, key: K, val: T) -> bool
         where K: FastHash + Into<HeaderName>,
               HeaderName: PartialEq<K>,
     {
         if self.is_scan() {
-            self.insert_scan(key, val)
+            self.append_scan(key, val)
         } else {
-            self.insert_hashed(key, val)
+            self.append_hashed(key, val)
         }
     }
 
     #[inline]
-    fn insert_scan<K>(&mut self, key: K, value: T) -> bool
+    fn append_scan<K>(&mut self, key: K, value: T) -> bool
         where K: FastHash + Into<HeaderName>,
               HeaderName: PartialEq<K>,
     {
@@ -1210,7 +1210,7 @@ impl<T> HeaderMap<T> {
         // Try to find the slot for the requested key
         for (idx, entry) in self.entries.iter_mut().enumerate() {
             if entry.key == key {
-                insert_value(idx as Size, entry, &mut self.extra_values, value);
+                append_value(idx as Size, entry, &mut self.extra_values, value);
                 return true;
             }
         }
@@ -1222,7 +1222,7 @@ impl<T> HeaderMap<T> {
     }
 
     #[inline]
-    fn insert_hashed<K>(&mut self, key: K, value: T) -> bool
+    fn append_hashed<K>(&mut self, key: K, value: T) -> bool
         where K: FastHash + Into<HeaderName>,
               HeaderName: PartialEq<K>,
     {
@@ -1240,7 +1240,7 @@ impl<T> HeaderMap<T> {
             },
             // Occupied
             {
-                insert_value(pos, &mut self.entries[pos as usize], &mut self.extra_values, value);
+                append_value(pos, &mut self.entries[pos as usize], &mut self.extra_values, value);
                 true
             },
             // Robinhood
@@ -1335,7 +1335,7 @@ impl<T> HeaderMap<T> {
     /// ```
     /// # use http::HeaderMap;
     /// let mut map = HeaderMap::new();
-    /// map.insert("x-hello", "world");
+    /// map.append("x-hello", "world");
     ///
     /// {
     ///     let mut prev = map.remove("x-hello").unwrap();
@@ -1361,7 +1361,7 @@ impl<T> HeaderMap<T> {
     /// ```
     /// # use http::HeaderMap;
     /// let mut map = HeaderMap::new();
-    /// map.insert("x-hello", "world");
+    /// map.append("x-hello", "world");
     ///
     /// {
     ///     let (key, mut prev) = map.remove_entry("x-hello").unwrap();
@@ -1801,7 +1801,7 @@ impl<K, T> Extend<(K, T)> for HeaderMap<T>
         self.reserve(reserve);
 
         for (k, v) in iter {
-            self.insert(k, v);
+            self.append(k, v);
         }
     }
 }
@@ -1870,7 +1870,7 @@ fn do_insert_phase_two(indices: &mut Vec<Pos>,
 }
 
 #[inline]
-fn insert_value<T>(entry_idx: Size,
+fn append_value<T>(entry_idx: Size,
                    entry: &mut Bucket<T>,
                    extra: &mut Vec<ExtraValue<T>>,
                    value: T)
@@ -2113,7 +2113,7 @@ impl<'a, T> Entry<'a, T> {
     /// ```
     /// # use http::HeaderMap;
     /// let mut map = HeaderMap::new();
-    /// map.insert("x-hello", "world".to_string());
+    /// map.append("x-hello", "world".to_string());
     ///
     /// let res = map.entry("x-hello")
     ///     .or_insert_with(|| unreachable!());
@@ -2233,7 +2233,7 @@ impl<'a, T> GetAll<'a, T> {
     /// ```
     /// # use http::HeaderMap;
     /// let mut map = HeaderMap::new();
-    /// map.insert("x-hello", "world");
+    /// map.append("x-hello", "world");
     ///
     /// assert_eq!("x-hello", map.get_all("x-hello").unwrap().key().as_str());
     /// ```
@@ -2255,13 +2255,13 @@ impl<'a, T> GetAll<'a, T> {
     /// ```
     /// # use http::HeaderMap;
     /// let mut map = HeaderMap::new();
-    /// map.insert("x-hello", "world");
+    /// map.append("x-hello", "world");
     ///
     /// assert_eq!(
     ///     map.get_all("x-hello").unwrap().first(),
     ///     &"world");
     ///
-    /// map.insert("x-hello", "earth");
+    /// map.append("x-hello", "earth");
     ///
     /// assert_eq!(
     ///     map.get_all("x-hello").unwrap().first(),
@@ -2285,11 +2285,11 @@ impl<'a, T> GetAll<'a, T> {
     /// ```
     /// # use http::HeaderMap;
     /// let mut map = HeaderMap::new();
-    /// map.insert("x-hello", "world");
+    /// map.append("x-hello", "world");
     ///
     /// assert_eq!(map.get_all("x-hello").unwrap().last(), &"world");
     ///
-    /// map.insert("x-hello", "earth");
+    /// map.append("x-hello", "earth");
     ///
     /// assert_eq!(map.get_all("x-hello").unwrap().last(), &"earth");
     /// ```
@@ -2315,8 +2315,8 @@ impl<'a, T> GetAll<'a, T> {
     /// ```
     /// # use http::HeaderMap;
     /// let mut map = HeaderMap::new();
-    /// map.insert("x-hello", "world");
-    /// map.insert("x-hello", "earth");
+    /// map.append("x-hello", "world");
+    /// map.append("x-hello", "earth");
     ///
     /// let values = map.get_all("x-hello").unwrap();
     /// let mut iter = values.iter();
@@ -2527,7 +2527,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// ```
     /// # use http::header::{HeaderMap, Entry};
     /// let mut map = HeaderMap::new();
-    /// map.insert("x-hello", "world");
+    /// map.append("x-hello", "world");
     ///
     /// if let Entry::Occupied(e) = map.entry("x-hello") {
     ///     assert_eq!("x-hello", e.key().as_str());
@@ -2551,12 +2551,12 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// ```
     /// # use http::header::{HeaderMap, Entry};
     /// let mut map = HeaderMap::new();
-    /// map.insert("x-hello", "world");
+    /// map.append("x-hello", "world");
     ///
     /// if let Entry::Occupied(mut e) = map.entry("x-hello") {
     ///     assert_eq!(e.first(), &"world");
     ///
-    ///     e.insert("earth");
+    ///     e.append("earth");
     ///
     ///     assert_eq!(e.first(), &"world");
     /// }
@@ -2579,7 +2579,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// ```
     /// # use http::header::{HeaderMap, Entry};
     /// let mut map = HeaderMap::new();
-    /// map.insert("x-hello", "world".to_string());
+    /// map.append("x-hello", "world".to_string());
     ///
     /// if let Entry::Occupied(mut e) = map.entry("x-hello") {
     ///     e.first_mut().push_str("-2");
@@ -2604,12 +2604,12 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// ```
     /// # use http::header::{HeaderMap, Entry};
     /// let mut map = HeaderMap::new();
-    /// map.insert("x-hello", "world");
+    /// map.append("x-hello", "world");
     ///
     /// if let Entry::Occupied(mut e) = map.entry("x-hello") {
     ///     assert_eq!(e.last(), &"world");
     ///
-    ///     e.insert("earth");
+    ///     e.append("earth");
     ///
     ///     assert_eq!(e.last(), &"earth");
     /// }
@@ -2640,8 +2640,8 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// ```
     /// # use http::header::{HeaderMap, Entry};
     /// let mut map = HeaderMap::new();
-    /// map.insert("x-hello", "world".to_string());
-    /// map.insert("x-hello", "earth".to_string());
+    /// map.append("x-hello", "world".to_string());
+    /// map.append("x-hello", "earth".to_string());
     ///
     /// if let Entry::Occupied(mut e) = map.entry("x-hello") {
     ///     e.last_mut().push_str("-2");
@@ -2675,8 +2675,8 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// ```
     /// # use http::header::{HeaderMap, Entry};
     /// let mut map = HeaderMap::new();
-    /// map.insert("x-hello", "world".to_string());
-    /// map.insert("x-hello", "earth".to_string());
+    /// map.append("x-hello", "world".to_string());
+    /// map.append("x-hello", "earth".to_string());
     ///
     /// if let Entry::Occupied(e) = map.entry("x-hello") {
     ///     e.into_mut().push_str("-2");
@@ -2697,7 +2697,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// ```
     /// # use http::header::{HeaderMap, Entry};
     /// let mut map = HeaderMap::new();
-    /// map.insert("x-hello", "world");
+    /// map.append("x-hello", "world");
     ///
     /// if let Entry::Occupied(mut e) = map.entry("x-hello") {
     ///     let mut prev = e.set("earth");
@@ -2722,20 +2722,20 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// ```
     /// # use http::header::{HeaderMap, Entry};
     /// let mut map = HeaderMap::new();
-    /// map.insert("x-hello", "world");
+    /// map.append("x-hello", "world");
     ///
     /// if let Entry::Occupied(mut e) = map.entry("x-hello") {
-    ///     e.insert("earth");
+    ///     e.append("earth");
     /// }
     ///
     /// let values = map.get_all("x-hello").unwrap();
     /// assert_eq!(&"world", values.first());
     /// assert_eq!(&"earth", values.last());
     /// ```
-    pub fn insert(&mut self, value: T) {
+    pub fn append(&mut self, value: T) {
         let idx = self.index;
         let entry = &mut self.map.entries[idx as usize];
-        insert_value(idx, entry, &mut self.map.extra_values, value.into());
+        append_value(idx, entry, &mut self.map.extra_values, value.into());
     }
 
     /// Remove the entry from the map.
@@ -2747,7 +2747,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// ```
     /// # use http::header::{HeaderMap, Entry};
     /// let mut map = HeaderMap::new();
-    /// map.insert("x-hello", "world");
+    /// map.append("x-hello", "world");
     ///
     /// if let Entry::Occupied(e) = map.entry("x-hello") {
     ///     let mut prev = e.remove();
@@ -2770,7 +2770,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// ```
     /// # use http::header::{HeaderMap, Entry};
     /// let mut map = HeaderMap::new();
-    /// map.insert("x-hello", "world");
+    /// map.append("x-hello", "world");
     ///
     /// if let Entry::Occupied(e) = map.entry("x-hello") {
     ///     let (key, mut prev) = e.remove_entry();
@@ -2798,8 +2798,8 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// ```
     /// # use http::header::{HeaderMap, Entry};
     /// let mut map = HeaderMap::new();
-    /// map.insert("x-hello", "world");
-    /// map.insert("x-hello", "earth");
+    /// map.append("x-hello", "world");
+    /// map.append("x-hello", "earth");
     ///
     /// if let Entry::Occupied(e) = map.entry("x-hello") {
     ///     let mut iter = e.iter();
@@ -2823,8 +2823,8 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// ```
     /// # use http::header::{HeaderMap, Entry};
     /// let mut map = HeaderMap::new();
-    /// map.insert("x-hello", "world".to_string());
-    /// map.insert("x-hello", "earth".to_string());
+    /// map.append("x-hello", "world".to_string());
+    /// map.append("x-hello", "earth".to_string());
     ///
     /// if let Entry::Occupied(mut e) = map.entry("x-hello") {
     ///     for e in e.iter_mut() {
@@ -3067,7 +3067,7 @@ pub trait HeaderMapKey: Sealed {
     }
 
     #[doc(hidden)]
-    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> bool
+    fn append<T>(self, map: &mut HeaderMap<T>, val: T) -> bool
         where Self: Sized
     {
         drop(map);
@@ -3076,7 +3076,7 @@ pub trait HeaderMapKey: Sealed {
     }
 
     #[doc(hidden)]
-    fn insert_ref<T>(&self, map: &mut HeaderMap<T>, val: T);
+    fn append_ref<T>(&self, map: &mut HeaderMap<T>, val: T);
 
     #[doc(hidden)]
     fn entry<T>(self, map: &mut HeaderMap<T>) -> Entry<T> where Self: Sized {
@@ -3103,14 +3103,14 @@ impl HeaderMapKey for HeaderName {
 
     #[doc(hidden)]
     #[inline]
-    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> bool {
-        map.insert2(self, val)
+    fn append<T>(self, map: &mut HeaderMap<T>, val: T) -> bool {
+        map.append2(self, val)
     }
 
     #[doc(hidden)]
     #[inline]
-    fn insert_ref<T>(&self, map: &mut HeaderMap<T>, val: T) {
-        map.insert2(self, val);
+    fn append_ref<T>(&self, map: &mut HeaderMap<T>, val: T) {
+        map.append2(self, val);
     }
 
     #[doc(hidden)]
@@ -3143,14 +3143,14 @@ impl<'a> HeaderMapKey for &'a HeaderName {
 
     #[doc(hidden)]
     #[inline]
-    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> bool {
-        map.insert2(self, val)
+    fn append<T>(self, map: &mut HeaderMap<T>, val: T) -> bool {
+        map.append2(self, val)
     }
 
     #[doc(hidden)]
     #[inline]
-    fn insert_ref<T>(&self, map: &mut HeaderMap<T>, val: T) {
-        map.insert2(*self, val);
+    fn append_ref<T>(&self, map: &mut HeaderMap<T>, val: T) {
+        map.append2(*self, val);
     }
 
     #[doc(hidden)]
@@ -3177,8 +3177,8 @@ impl<'a> Sealed for &'a HeaderName {}
 impl HeaderMapKey for str {
     #[doc(hidden)]
     #[inline]
-    fn insert_ref<T>(&self, map: &mut HeaderMap<T>, val: T) {
-        HdrName::from_bytes(self.as_bytes(), move |hdr| map.insert2(hdr, val)).unwrap();
+    fn append_ref<T>(&self, map: &mut HeaderMap<T>, val: T) {
+        HdrName::from_bytes(self.as_bytes(), move |hdr| map.append2(hdr, val)).unwrap();
     }
 
     #[doc(hidden)]
@@ -3205,14 +3205,14 @@ impl<'a> HeaderMapKey for &'a str {
 
     #[doc(hidden)]
     #[inline]
-    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> bool {
-        HdrName::from_bytes(self.as_bytes(), move |hdr| map.insert2(hdr, val)).unwrap()
+    fn append<T>(self, map: &mut HeaderMap<T>, val: T) -> bool {
+        HdrName::from_bytes(self.as_bytes(), move |hdr| map.append2(hdr, val)).unwrap()
     }
 
     #[doc(hidden)]
     #[inline]
-    fn insert_ref<T>(&self, map: &mut HeaderMap<T>, val: T) {
-        (*self).insert_ref(map, val)
+    fn append_ref<T>(&self, map: &mut HeaderMap<T>, val: T) {
+        (*self).append_ref(map, val)
     }
 
     #[doc(hidden)]
@@ -3245,14 +3245,14 @@ impl HeaderMapKey for String {
 
     #[doc(hidden)]
     #[inline]
-    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> bool {
-        self.as_str().insert(map, val)
+    fn append<T>(self, map: &mut HeaderMap<T>, val: T) -> bool {
+        self.as_str().append(map, val)
     }
 
     #[doc(hidden)]
     #[inline]
-    fn insert_ref<T>(&self, map: &mut HeaderMap<T>, val: T) {
-        self.as_str().insert_ref(map, val)
+    fn append_ref<T>(&self, map: &mut HeaderMap<T>, val: T) {
+        self.as_str().append_ref(map, val)
     }
 
     #[doc(hidden)]
@@ -3285,14 +3285,14 @@ impl<'a> HeaderMapKey for &'a String {
 
     #[doc(hidden)]
     #[inline]
-    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> bool {
-        self.as_str().insert(map, val)
+    fn append<T>(self, map: &mut HeaderMap<T>, val: T) -> bool {
+        self.as_str().append(map, val)
     }
 
     #[doc(hidden)]
     #[inline]
-    fn insert_ref<T>(&self, map: &mut HeaderMap<T>, val: T) {
-        self.as_str().insert_ref(map, val)
+    fn append_ref<T>(&self, map: &mut HeaderMap<T>, val: T) {
+        self.as_str().append_ref(map, val)
     }
 
     #[doc(hidden)]

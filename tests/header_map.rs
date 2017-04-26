@@ -25,7 +25,7 @@ fn smoke() {
             assert_eq!(e.first(), &"world");
 
             // Push another value
-            e.insert("zomg");
+            e.append("zomg");
 
             assert_eq!(*e.first(), "world");
             assert_eq!(*e.last(), "zomg");
@@ -56,9 +56,9 @@ fn drain() {
     assert!(headers.is_empty());
 
     // Insert two sequential values
-    headers.insert("hello", "world");
+    headers.append("hello", "world");
     headers.set("zomg", "bar");
-    headers.insert("hello", "world2");
+    headers.append("hello", "world2");
 
     // Drain...
     {
@@ -86,11 +86,11 @@ fn drain() {
 fn drain_entry() {
     let mut headers = HeaderMap::new();
 
-    headers.insert("hello", "world");
+    headers.append("hello", "world");
     headers.set("zomg", "foo");
-    headers.insert("hello", "world2");
-    headers.insert("more", "words");
-    headers.insert("more", "insertions");
+    headers.append("hello", "world2");
+    headers.append("more", "words");
+    headers.append("more", "insertions");
 
     // Using set
     {
@@ -114,20 +114,20 @@ fn eq() {
     b.set("hello", "world");
     assert_eq!(a, b);
 
-    a.insert("foo", "bar");
-    a.insert("foo", "baz");
+    a.append("foo", "bar");
+    a.append("foo", "baz");
     assert_ne!(a, b);
 
-    b.insert("foo", "bar");
+    b.append("foo", "bar");
     assert_ne!(a, b);
 
-    b.insert("foo", "baz");
+    b.append("foo", "baz");
     assert_eq!(a, b);
 
-    a.insert("a", "a");
-    a.insert("a", "b");
-    b.insert("a", "b");
-    b.insert("a", "a");
+    a.append("a", "a");
+    a.append("a", "b");
+    b.append("a", "b");
+    b.append("a", "a");
 
     assert_ne!(a, b);
 }
