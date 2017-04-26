@@ -1,8 +1,8 @@
 //! HTTP header types
 //!
-//! The module provides [`HeaderName`], [`HeaderValue`], [`HeaderMap`], and a
-//! number of types used for interacting with [`HeaderMap`]. These types allow
-//! representing both HTTP/1 and HTTP/2 headers.
+//! The module provides [`HeaderName`], [`HeaderMap`], and a number of types
+//! used for interacting with [`HeaderMap`]. These types allow representing both
+//! HTTP/1 and HTTP/2 headers.
 //!
 //! # `HeaderName`
 //!
@@ -65,7 +65,6 @@
 //! pairs). Attempting to insert more will result in a panic.
 //!
 //! [`HeaderName`]: #
-//! [`HeaderValue`]: #
 //! [`HeaderMap`]: #
 //! [multimap]: https://en.wikipedia.org/wiki/Multimap
 //! [`HashMap`]: #
@@ -74,9 +73,7 @@
 mod fast_hash;
 mod map;
 mod name;
-mod value;
 
-pub use self::value::HeaderValue;
 pub use self::map::{
     HeaderMap,
     Iter,
