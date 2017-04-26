@@ -1,7 +1,7 @@
 use super::fast_hash::FastHash;
 use super::name::{HeaderName, HdrName};
 
-use std::{cmp, fmt, mem, ops, ptr, u16};
+use std::{cmp, fmt, mem, ops, ptr};
 use std::collections::hash_map::RandomState;
 use std::hash::{BuildHasher, Hasher};
 use std::iter::FromIterator;
