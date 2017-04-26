@@ -56,7 +56,7 @@ fn drain() {
     assert!(headers.is_empty());
 
     // Insert two sequential values
-    headers.append("hello", "world");
+    headers.insert("hello", "world");
     headers.insert("zomg", "bar");
     headers.append("hello", "world2");
 
@@ -86,10 +86,10 @@ fn drain() {
 fn drain_entry() {
     let mut headers = HeaderMap::new();
 
-    headers.append("hello", "world");
+    headers.insert("hello", "world");
     headers.insert("zomg", "foo");
     headers.append("hello", "world2");
-    headers.append("more", "words");
+    headers.insert("more", "words");
     headers.append("more", "insertions");
 
     // Using insert
@@ -114,11 +114,11 @@ fn eq() {
     b.insert("hello", "world");
     assert_eq!(a, b);
 
-    a.append("foo", "bar");
+    a.insert("foo", "bar");
     a.append("foo", "baz");
     assert_ne!(a, b);
 
-    b.append("foo", "bar");
+    b.insert("foo", "bar");
     assert_ne!(a, b);
 
     b.append("foo", "baz");
