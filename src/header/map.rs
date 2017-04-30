@@ -1594,6 +1594,8 @@ impl<T> HeaderMap<T> {
             // Initialze the indices
             self.indices = vec![Pos::none(); cap];
 
+            self.mask = cap.wrapping_sub(1) as Size;
+
             // Rebuild the table
             self.rebuild();
         }
@@ -1604,10 +1606,14 @@ impl<T> HeaderMap<T> {
         debug_assert!(!self.is_scan());
 
         // Loop over all entries and re-insert them into the map
-        for entry in &mut self.entries {
+        'outer:
+        for (index, entry) in self.entries.iter_mut().enumerate() {
             let hash = hash_elem_using(&self.danger, &entry.key);
             let mut probe = desired_pos(self.mask, hash);
             let mut dist = 0;
+
+            // Update the entry's hash code
+            entry.hash = hash;
 
             probe_loop!(probe < self.indices.len() as Size, {
                 if let Some((_, entry_hash)) = self.indices[probe as usize].resolve() {
@@ -1615,21 +1621,22 @@ impl<T> HeaderMap<T> {
                     let their_dist = probe_distance(self.mask, entry_hash, probe);
 
                     if their_dist < dist {
+                        // Robinhood
                         break;
                     }
                 } else {
-                    break;
+                    // Vaccant slot
+                    self.indices[probe as usize] = Pos::new(index as Size, hash);
+                    continue 'outer;
                 }
 
                 dist += 1;
             });
 
-            entry.hash = hash;
-
             do_insert_phase_two(
                 &mut self.indices,
                 probe as Size,
-                Pos::new(probe as Size, hash));
+                Pos::new(index as Size, hash));
         }
     }
 
@@ -3015,7 +3022,7 @@ fn probe_distance(mask: Size, hash: HashValue, current: Size) -> Size {
 fn hash_elem_using<K: ?Sized>(danger: &Danger, k: &K) -> HashValue
     where K: FastHash
 {
-    const MASK: u64 = MAX_SIZE as u64;
+    const MASK: u64 = (MAX_SIZE as u64) - 1;
 
     let hash = match *danger {
         // Safe hash
