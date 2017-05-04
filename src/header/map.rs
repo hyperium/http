@@ -1,4 +1,3 @@
-use super::fnv::FnvHasher;
 use super::name::{HeaderName, HdrName};
 
 use std::{fmt, mem, ops, ptr};
@@ -2780,6 +2779,8 @@ fn probe_distance(mask: Size, hash: HashValue, current: usize) -> usize {
 fn hash_elem_using<K: ?Sized>(danger: &Danger, k: &K) -> HashValue
     where K: Hash
 {
+    use fnv::FnvHasher;
+
     const MASK: u64 = (MAX_SIZE as u64) - 1;
 
     let hash = match *danger {

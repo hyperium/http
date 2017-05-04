@@ -70,7 +70,6 @@
 //! [`HashMap`]: #
 //! [Robin Hood hashing]: https://en.wikipedia.org/wiki/Hash_table#Robin_Hood_hashing
 
-mod fnv;
 mod map;
 mod name;
 

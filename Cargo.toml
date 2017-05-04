@@ -17,9 +17,9 @@ A set of types for representing HTTP requests and responses.
 
 [dependencies]
 bytes = "0.4"
+fnv = "1.0.5"
 
 [dev-dependencies]
-fnv = "1.0.0"
 ordermap = "0.2.9"
 seahash = "3.0.5"
 
