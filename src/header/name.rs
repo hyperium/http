@@ -1,4 +1,3 @@
-use super::fast_hash::{self, FastHash, FastHasher};
 use byte_str::ByteStr;
 use bytes::{Bytes, BytesMut};
 
@@ -70,7 +69,7 @@ macro_rules! standard_headers {
     (
         $(
             $(#[$docs:meta])*
-            ($konst:ident, $upcase:ident, $name:expr, $hash:expr);
+            ($konst:ident, $upcase:ident, $name:expr);
         )+
     ) => {
         #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -88,18 +87,11 @@ macro_rules! standard_headers {
         )+
 
         impl StandardHeader {
+            #[inline]
             fn as_str(&self) -> &'static str {
                 match *self {
                     $(
                     StandardHeader::$konst => $name,
-                    )+
-                }
-            }
-
-            fn fast_hash(&self) -> u64 {
-                match *self {
-                    $(
-                    StandardHeader::$konst => $hash,
                     )+
                 }
             }
@@ -124,7 +116,7 @@ standard_headers! {
     /// where the request is done: when fetching a CSS stylesheet a different
     /// value is set for the request than when fetching an image, video or a
     /// script.
-    (Accept, ACCEPT, "accept", 0xeff6d003e398d7a5);
+    (Accept, ACCEPT, "accept");
 
     /// Advertises which character set the client is able to understand.
     ///
@@ -139,7 +131,7 @@ standard_headers! {
     /// theoretically send back a 406 (Not Acceptable) error code. But, for a
     /// better user experience, this is rarely done and the more common way is
     /// to ignore the Accept-Charset header in this case.
-    (AcceptCharset, ACCEPT_CHARSET, "accept-charset", 0x1b8f06ca7ed762c1);
+    (AcceptCharset, ACCEPT_CHARSET, "accept-charset");
 
     /// Advertises which content encoding the client is able to understand.
     ///
@@ -167,7 +159,7 @@ standard_headers! {
     /// forbidden, by an identity;q=0 or a *;q=0 without another explicitly set
     /// value for identity, the server must never send back a 406 Not Acceptable
     /// error.
-    (AcceptEncoding, ACCEPT_ENCODING, "accept-encoding", 0xed7ad0d2d46c21bb);
+    (AcceptEncoding, ACCEPT_ENCODING, "accept-encoding");
 
     /// Advertises which languages the client is able to understand.
     ///
@@ -192,7 +184,7 @@ standard_headers! {
     /// send back a 406 (Not Acceptable) error code. But, for a better user
     /// experience, this is rarely done and more common way is to ignore the
     /// Accept-Language header in this case.
-    (AcceptLanguage, ACCEPT_LANGUAGE, "accept-language", 0xac19d32c76975414);
+    (AcceptLanguage, ACCEPT_LANGUAGE, "accept-language");
 
     /// Advertises which patch formats the server is able to understand.
     ///
@@ -203,7 +195,7 @@ standard_headers! {
     /// presence of a specific patch document format in this header indicates
     /// that that specific format is allowed on the resource identified by the
     /// URI.
-    (AcceptPatch, ACCEPT_PATCH, "accept-patch", 0x6806ce9fd6365e43);
+    (AcceptPatch, ACCEPT_PATCH, "accept-patch");
 
     /// Marker used by the server to advertise partial request support.
     ///
@@ -213,7 +205,7 @@ standard_headers! {
     ///
     /// In presence of an Accept-Ranges header, the browser may try to resume an
     /// interrupted download, rather than to start it from the start again.
-    (AcceptRanges, ACCEPT_RANGES, "accept-ranges", 0x8c091f75208a4f87);
+    (AcceptRanges, ACCEPT_RANGES, "accept-ranges");
 
     /// Preflight response indicating if the response to the request can be
     /// exposed to the page.
@@ -238,7 +230,7 @@ standard_headers! {
     /// be set on both sides (the Access-Control-Allow-Credentials header and in
     /// the XHR or Fetch request) in order for the CORS request with credentials
     /// to succeed.
-    (AccessControlAllowCredentials, ACCESS_CONTROL_ALLOW_CREDENTIALS, "access-control-allow-credentials", 0x123e04e1da30623d);
+    (AccessControlAllowCredentials, ACCESS_CONTROL_ALLOW_CREDENTIALS, "access-control-allow-credentials");
 
     /// Preflight response indicating permitted HTTP headers.
     ///
@@ -254,33 +246,33 @@ standard_headers! {
     ///
     /// This header is required if the request has an
     /// Access-Control-Request-Headers header.
-    (AccessControlAllowHeaders, ACCESS_CONTROL_ALLOW_HEADERS, "access-control-allow-headers", 0x2efdf4c8a2f7a7b3);
+    (AccessControlAllowHeaders, ACCESS_CONTROL_ALLOW_HEADERS, "access-control-allow-headers");
 
     /// Preflight header response indicating permitted access methods.
     ///
     /// The Access-Control-Allow-Methods response header specifies the method or
     /// methods allowed when accessing the resource in response to a preflight
     /// request.
-    (AccessControlAllowMethods, ACCESS_CONTROL_ALLOW_METHODS, "access-control-allow-methods", 0x5a06b0abdb43b934);
+    (AccessControlAllowMethods, ACCESS_CONTROL_ALLOW_METHODS, "access-control-allow-methods");
 
     /// Indicates whether the response can be shared with resources with the
     /// given origin.
-    (AccessControlAllowOrigin, ACCESS_CONTROL_ALLOW_ORIGIN, "access-control-allow-origin", 0xe5c0399a935db583);
+    (AccessControlAllowOrigin, ACCESS_CONTROL_ALLOW_ORIGIN, "access-control-allow-origin");
 
     /// Indicates which headers can be exposed as part of the response by
     /// listing their names.
-    (AccessControlExposeHeaders, ACCESS_CONTROL_EXPOSE_HEADERS, "access-control-expose-headers", 0x1da428e21e5fe3fb);
+    (AccessControlExposeHeaders, ACCESS_CONTROL_EXPOSE_HEADERS, "access-control-expose-headers");
 
     /// Indicates how long the results of a preflight request can be cached.
-    (AccessControlMaxAge, ACCESS_CONTROL_MAX_AGE, "access-control-max-age", 0x5aa6caa3a3a0a341);
+    (AccessControlMaxAge, ACCESS_CONTROL_MAX_AGE, "access-control-max-age");
 
     /// Informs the server which HTTP headers will be used when an actual
     /// request is made.
-    (AccessControlRequestHeaders, ACCESS_CONTROL_REQUEST_HEADERS, "access-control-request-headers", 0x65df4f4cd10f7086);
+    (AccessControlRequestHeaders, ACCESS_CONTROL_REQUEST_HEADERS, "access-control-request-headers");
 
     /// Informs the server know which HTTP method will be used when the actual
     /// request is made.
-    (AccessControlRequestMethod, ACCESS_CONTROL_REQUEST_METHOD, "access-control-request-method", 0x74a79e52fc0965e9);
+    (AccessControlRequestMethod, ACCESS_CONTROL_REQUEST_METHOD, "access-control-request-method");
 
     /// Indicates the time in seconds the object has been in a proxy cache.
     ///
@@ -288,7 +280,7 @@ standard_headers! {
     /// probably just fetched from the origin server; otherwise It is usually
     /// calculated as a difference between the proxy's current date and the Date
     /// general header included in the HTTP response.
-    (Age, AGE, "age", 0x6494b76e2a92f7ce);
+    (Age, AGE, "age");
 
     /// Lists the set of methods support by a resource.
     ///
@@ -297,16 +289,16 @@ standard_headers! {
     /// empty Allow header indicates that the resource allows no request
     /// methods, which might occur temporarily for a given resource, for
     /// example.
-    (Allow, ALLOW, "allow", 0xcc2e6e57b0564dc0);
+    (Allow, ALLOW, "allow");
 
     /// Advertises the availability of alternate services to clients.
-    (AltSvc, ALT_SVC, "alt-svc", 0x50f2feb089c778b7);
+    (AltSvc, ALT_SVC, "alt-svc");
 
     /// Contains the credentials to authenticate a user agent with a server.
     ///
     /// Usually this header is included after the server has responded with a
     /// 401 Unauthorized status and the WWW-Authenticate header.
-    (Authorization, AUTHORIZATION, "authorization", 0xe9dbd53eddc9410);
+    (Authorization, AUTHORIZATION, "authorization");
 
     /// Specifies directives for caching mechanisms in both requests and
     /// responses.
@@ -314,7 +306,7 @@ standard_headers! {
     /// Caching directives are unidirectional, meaning that a given directive in
     /// a request is not implying that the same directive is to be given in the
     /// response.
-    (CacheControl, CACHE_CONTROL, "cache-control", 0x82488f691fdbe3dd);
+    (CacheControl, CACHE_CONTROL, "cache-control");
 
     /// Controls whether or not the network connection stays open after the
     /// current transaction finishes.
@@ -329,7 +321,7 @@ standard_headers! {
     /// to consume them and not to forward them further. Standard hop-by-hop
     /// headers can be listed too (it is often the case of Keep-Alive, but this
     /// is not mandatory.
-    (Connection, CONNECTION, "connection", 0xa57ad5cdc82cb4d2);
+    (Connection, CONNECTION, "connection");
 
     /// Indicates if the content is expected to be displayed inline.
     ///
@@ -349,7 +341,7 @@ standard_headers! {
     /// to HTTP forms and POST requests. Only the value form-data, as well as
     /// the optional directive name and filename, can be used in the HTTP
     /// context.
-    (ContentDisposition, CONTENT_DISPOSITION, "content-disposition", 0x35b4da4ba0850266);
+    (ContentDisposition, CONTENT_DISPOSITION, "content-disposition");
 
     /// Used to compress the media-type.
     ///
@@ -361,7 +353,7 @@ standard_headers! {
     /// use this field, but some types of resources, like jpeg images, are
     /// already compressed.  Sometimes using additional compression doesn't
     /// reduce payload size and can even make the payload longer.
-    (ContentEncoding, CONTENT_ENCODING, "content-encoding", 0xbdf222ba151247c);
+    (ContentEncoding, CONTENT_ENCODING, "content-encoding");
 
     /// Used to describe the languages indtended for the audience.
     ///
@@ -376,13 +368,13 @@ standard_headers! {
     /// intended for all language audiences. Multiple language tags are also
     /// possible, as well as applying the Content-Language header to various
     /// media types and not only to textual documents.
-    (ContentLanguage, CONTENT_LANGUAGE, "content-language", 0x1576ec21205e426);
+    (ContentLanguage, CONTENT_LANGUAGE, "content-language");
 
     /// Indicates the size fo the entity-body.
     ///
     /// The header value must be a decimal indicating the number of octets sent
     /// to the recipient.
-    (ContentLength, CONTENT_LENGTH, "content-length", 0xe1c9fab5479e2674);
+    (ContentLength, CONTENT_LENGTH, "content-length");
 
     /// Indicates an alternate location for the returned data.
     ///
@@ -395,7 +387,7 @@ standard_headers! {
     /// without the need of further content negotiation. Location is a header
     /// associated with the response, while Content-Location is associated with
     /// the entity returned.
-    (ContentLocation, CONTENT_LOCATION, "content-location", 0x7c481a15bbaad44a);
+    (ContentLocation, CONTENT_LOCATION, "content-location");
 
     /// Contains the MD5 digest of the entity-body.
     ///
@@ -404,10 +396,10 @@ standard_headers! {
     /// message integrity check (MIC) of the entity-body. (Note: a MIC is good
     /// for detecting accidental modification of the entity-body in transit, but
     /// is not proof against malicious attacks.)
-    (ContentMd5, CONTENT_MD5, "content-md5", 0x545e3b9a690da374);
+    (ContentMd5, CONTENT_MD5, "content-md5");
 
     /// Indicates where in a full body message a partial message belongs.
-    (ContentRange, CONTENT_RANGE, "content-range", 0x503111c14f890f08);
+    (ContentRange, CONTENT_RANGE, "content-range");
 
     /// Allows controlling resources the user agent is allowed to load for a
     /// given page.
@@ -415,7 +407,7 @@ standard_headers! {
     /// With a few exceptions, policies mostly involve specifying server origins
     /// and script endpoints. This helps guard against cross-site scripting
     /// attacks (XSS).
-    (ContentSecurityPolicy, CONTENT_SECURITY_POLICY, "content-security-policy", 0x9eac9326e92e4b02);
+    (ContentSecurityPolicy, CONTENT_SECURITY_POLICY, "content-security-policy");
 
     /// Allows experimenting with policies by monitoring their effects.
     ///
@@ -423,7 +415,7 @@ standard_headers! {
     /// developers to experiment with policies by monitoring (but not enforcing)
     /// their effects. These violation reports consist of JSON documents sent
     /// via an HTTP POST request to the specified URI.
-    (ContentSecurityPolicyReportOnly, CONTENT_SECURITY_POLICY_REPORT_ONLY, "content-security-policy-report-only", 0xe1f05b97ef837748);
+    (ContentSecurityPolicyReportOnly, CONTENT_SECURITY_POLICY_REPORT_ONLY, "content-security-policy-report-only");
 
     /// Used to indicate the media type of the resource.
     ///
@@ -435,23 +427,23 @@ standard_headers! {
     ///
     /// In requests, (such as POST or PUT), the client tells the server what
     /// type of data is actually sent.
-    (ContentType, CONTENT_TYPE, "content-type", 0xb47822143f2eb82a);
+    (ContentType, CONTENT_TYPE, "content-type");
 
     /// Contains stored HTTP cookies previously sent by the server with the
     /// Set-Cookie header.
     ///
     /// The Cookie header might be omitted entirely, if the privacy setting of
     /// the browser are set to block them, for example.
-    (Cookie, COOKIE, "cookie", 0x1a309b816fba6489);
+    (Cookie, COOKIE, "cookie");
 
     /// Indicates the client's tracking preference.
     ///
     /// This header lets users indicate whether they would prefer privacy rather
     /// than personalized content.
-    (Dnt, DNT, "dnt", 0x4efa5e93002b6162);
+    (Dnt, DNT, "dnt");
 
     /// Contains the date and time at which the message was originated.
-    (Date, DATE, "date", 0xa6420b1528a9c034);
+    (Date, DATE, "date");
 
     /// Identifier for a specific version of a resource.
     ///
@@ -467,7 +459,7 @@ standard_headers! {
     /// to quickly determine whether two representations of a resource are the
     /// same, but they might also be set to persist indefinitely by a tracking
     /// server.
-    (Etag, ETAG, "etag", 0x2d471eabb173cbbd);
+    (Etag, ETAG, "etag");
 
     /// Indicates expectations that need to be fulfilled by the server in order
     /// to properly handle the request.
@@ -486,7 +478,7 @@ standard_headers! {
     ///
     /// No common browsers send the Expect header, but some other clients such
     /// as cURL do so by default.
-    (Expect, EXPECT, "expect", 0xa3fdf9d58b60c082);
+    (Expect, EXPECT, "expect");
 
     /// Contains the date/time after which the response is considered stale.
     ///
@@ -495,7 +487,7 @@ standard_headers! {
     ///
     /// If there is a Cache-Control header with the "max-age" or "s-max-age"
     /// directive in the response, the Expires header is ignored.
-    (Expires, EXPIRES, "expires", 0xf03cdefb06dee481);
+    (Expires, EXPIRES, "expires");
 
     /// Contains information from the client-facing side of proxy servers that
     /// is altered or lost when a proxy is involved in the path of the request.
@@ -507,7 +499,7 @@ standard_headers! {
     /// location-dependent content and by design it exposes privacy sensitive
     /// information, such as the IP address of the client. Therefore the user's
     /// privacy must be kept in mind when deploying this header.
-    (Forwarded, FORWARDED, "forwarded", 0xc1c7723a74dd94cf);
+    (Forwarded, FORWARDED, "forwarded");
 
     /// Contains an Internet email address for a human user who controls the
     /// requesting user agent.
@@ -516,7 +508,7 @@ standard_headers! {
     /// header should be sent, so you can be contacted if problems occur on
     /// servers, such as if the robot is sending excessive, unwanted, or invalid
     /// requests.
-    (From, FROM, "from", 0x52b86bd20aff06b5);
+    (From, FROM, "from");
 
     /// Specifies the domain name of the server and (optionally) the TCP port
     /// number on which the server is listening.
@@ -527,7 +519,7 @@ standard_headers! {
     /// A Host header field must be sent in all HTTP/1.1 request messages. A 400
     /// (Bad Request) status code will be sent to any HTTP/1.1 request message
     /// that lacks a Host header field or contains more than one.
-    (Host, HOST, "host", 0xdafeb1b516b284f5);
+    (Host, HOST, "host");
 
     /// Makes a request conditional based on the E-Tag.
     ///
@@ -552,7 +544,7 @@ standard_headers! {
     /// that has been done since the original resource was fetched. If the
     /// request cannot be fulfilled, the 412 (Precondition Failed) response is
     /// returned.
-    (IfMatch, IF_MATCH, "if-match", 0x2005dc4bb60b9fb9);
+    (IfMatch, IF_MATCH, "if-match");
 
     /// Makes a request conditional based on the modification date.
     ///
@@ -569,7 +561,7 @@ standard_headers! {
     ///
     /// The most common use case is to update a cached entity that has no
     /// associated ETag.
-    (IfModifiedSince, IF_MODIFIED_SINCE, "if-modified-since", 0xac2f9d07bb4afb54);
+    (IfModifiedSince, IF_MODIFIED_SINCE, "if-modified-since");
 
     /// Makes a request conditional based on the E-Tag.
     ///
@@ -605,7 +597,7 @@ standard_headers! {
     /// guaranteeing that another upload didn't happen before, losing the data
     /// of the previous put; this problems is the variation of the lost update
     /// problem.
-    (IfNoneMatch, IF_NONE_MATCH, "if-none-match", 0xa0fd96bc4180454f);
+    (IfNoneMatch, IF_NONE_MATCH, "if-none-match");
 
     /// Makes a request conditional based on range.
     ///
@@ -621,7 +613,7 @@ standard_headers! {
     /// The most common use case is to resume a download, to guarantee that the
     /// stored resource has not been modified since the last fragment has been
     /// received.
-    (IfRange, IF_RANGE, "if-range", 0x5f487c7807cff9f7);
+    (IfRange, IF_RANGE, "if-range");
 
     /// Makes the request conditional based on the last modification date.
     ///
@@ -642,18 +634,18 @@ standard_headers! {
     /// * In conjunction with a range request with a If-Range header, it can be
     /// used to ensure that the new fragment requested comes from an unmodified
     /// document.
-    (IfUnmodifiedSince, IF_UNMODIFIED_SINCE, "if-unmodified-since", 0x9ab2560633ff2a63);
+    (IfUnmodifiedSince, IF_UNMODIFIED_SINCE, "if-unmodified-since");
 
     /// Content-Types that are acceptable for the response.
-    (LastModified, LAST_MODIFIED, "last-modified", 0xa6fa11139304ac0e);
+    (LastModified, LAST_MODIFIED, "last-modified");
 
     /// Hint about how the connection and may be used to set a timeout and a
     /// maximum amount of requests.
-    (KeepAlive, KEEP_ALIVE, "keep-alive", 0xcea10c567bd9e858);
+    (KeepAlive, KEEP_ALIVE, "keep-alive");
 
     /// Allows the server to point an interested client to another resource
     /// containing metadata about the requested resource.
-    (Link, LINK, "link", 0x6aa9257b3dd5c28e);
+    (Link, LINK, "link");
 
     /// Indicates the URL to redirect a page to.
     ///
@@ -684,11 +676,11 @@ standard_headers! {
     /// when content negotiation happened, without the need of further content
     /// negotiation. Location is a header associated with the response, while
     /// Content-Location is associated with the entity returned.
-    (Location, LOCATION, "location", 0xf6497f8f13049e31);
+    (Location, LOCATION, "location");
 
     /// Indicates the max number of intermediaries the request should be sent
     /// through.
-    (MaxForwards, MAX_FORWARDS, "max-forwards", 0x97e2a38720281478);
+    (MaxForwards, MAX_FORWARDS, "max-forwards");
 
     /// Indicates where a fetch originates from.
     ///
@@ -696,7 +688,7 @@ standard_headers! {
     /// sent with CORS requests, as well as with POST requests. It is similar to
     /// the Referer header, but, unlike this header, it doesn't disclose the
     /// whole path.
-    (Origin, ORIGIN, "origin", 0x96e33a9e88a71ead);
+    (Origin, ORIGIN, "origin");
 
     /// HTTP/1.0 header usually used for backwards compatibility.
     ///
@@ -704,7 +696,7 @@ standard_headers! {
     /// that may have various effects along the request-response chain. It is
     /// used for backwards compatibility with HTTP/1.0 caches where the
     /// Cache-Control HTTP/1.1 header is not yet present.
-    (Pragma, PRAGMA, "pragma", 0x84d678706a701186);
+    (Pragma, PRAGMA, "pragma");
 
     /// Defines the authentication method that should be used to gain access to
     /// a proxy.
@@ -722,14 +714,14 @@ standard_headers! {
     ///
     /// The `proxy-authenticate` header is sent along with a `407 Proxy
     /// Authentication Required`.
-    (ProxyAuthenticate, PROXY_AUTHENTICATE, "proxy-authenticate", 0x8c32dbc4f461112a);
+    (ProxyAuthenticate, PROXY_AUTHENTICATE, "proxy-authenticate");
 
     /// Contains the credentials to authenticate a user agent to a proxy server.
     ///
     /// This header is usually included after the server has responded with a
     /// 407 Proxy Authentication Required status and the Proxy-Authenticate
     /// header.
-    (ProxyAuthorization, PROXY_AUTHORIZATION, "proxy-authorization", 0x9b6ea5b97d174d00);
+    (ProxyAuthorization, PROXY_AUTHORIZATION, "proxy-authorization");
 
     /// Associates a specific cryptographic public key with a certain server.
     ///
@@ -737,14 +729,14 @@ standard_headers! {
     /// or several keys are pinned and none of them are used by the server, the
     /// browser will not accept the response as legitimate, and will not display
     /// it.
-    (PublicKeyPins, PUBLIC_KEY_PINS, "public-key-pins", 0xe30b4982730c8fd);
+    (PublicKeyPins, PUBLIC_KEY_PINS, "public-key-pins");
 
     /// Sends reports of pinning violation to the report-uri specified in the
     /// header.
     ///
     /// Unlike `Public-Key-Pins`, this header still allows browsers to connect
     /// to the server if the pinning is violated.
-    (PublicKeyPinsReportOnly, PUBLIC_KEY_PINS_REPORT_ONLY, "public-key-pins-report-only", 0xa49682b0f8b52e34);
+    (PublicKeyPinsReportOnly, PUBLIC_KEY_PINS_REPORT_ONLY, "public-key-pins-report-only");
 
     /// Indicates the part of a document that the server should return.
     ///
@@ -754,7 +746,7 @@ standard_headers! {
     /// the ranges are invalid, the server returns the 416 Range Not Satisfiable
     /// error. The server can also ignore the Range header and return the whole
     /// document with a 200 status code.
-    (Range, RANGE, "range", 0x48532552a588c75b);
+    (Range, RANGE, "range");
 
     /// Contains the address of the previous web page from which a link to the
     /// currently requested page was followed.
@@ -762,15 +754,15 @@ standard_headers! {
     /// The Referer header allows servers to identify where people are visiting
     /// them from and may use that data for analytics, logging, or optimized
     /// caching, for example.
-    (Referer, REFERER, "referer", 0x78f4ab93831ad71d);
+    (Referer, REFERER, "referer");
 
     /// Governs which referrer information should be included with requests
     /// made.
-    (ReferrerPolicy, REFERRER_POLICY, "referrer-policy", 0xdb580524af0c6629);
+    (ReferrerPolicy, REFERRER_POLICY, "referrer-policy");
 
     /// Informs the web browser that the current page or frame should be
     /// refreshed.
-    (Refresh, REFRESH, "refresh", 0x6a8afb42c7c229ae);
+    (Refresh, REFRESH, "refresh");
 
     /// The Retry-After response HTTP header indicates how long the user agent
     /// should wait before making a follow-up request. There are two main cases
@@ -782,7 +774,7 @@ standard_headers! {
     /// * When sent with a redirect response, such as 301 (Moved Permanently),
     /// it indicates the minimum time that the user agent is asked to wait
     /// before issuing the redirected request.
-    (RetryAfter, RETRY_AFTER, "retry-after", 0x88f9348ca93a174f);
+    (RetryAfter, RETRY_AFTER, "retry-after");
 
     /// Contains information about the software used by the origin server to
     /// handle the request.
@@ -791,13 +783,13 @@ standard_headers! {
     /// potentially reveal internal implementation details that might make it
     /// (slightly) easier for attackers to find and exploit known security
     /// holes.
-    (Server, SERVER, "server", 0x7078d0b96973532);
+    (Server, SERVER, "server");
 
     /// Used to send cookies from the server to the user agent.
-    (SetCookie, SET_COOKIE, "set-cookie", 0x25a75d77c4b7238f);
+    (SetCookie, SET_COOKIE, "set-cookie");
 
     /// Tells the client to communicate with HTTPS instead of using HTTP.
-    (StrictTransportSecurity, STRICT_TRANSPORT_SECURITY, "strict-transport-security", 0x2bd3d4ac07de9fd);
+    (StrictTransportSecurity, STRICT_TRANSPORT_SECURITY, "strict-transport-security");
 
     /// Informs the server of transfer encodings willing to be accepted as part
     /// of the response.
@@ -807,14 +799,14 @@ standard_headers! {
     /// recipients and you that don't have to specify "chunked" using the TE
     /// header. However, it is useful for setting if the client is accepting
     /// trailer fields in a chunked transfer coding using the "trailers" value.
-    (Te, TE, "te", 0xa9d03e0efcf03c6e);
+    (Te, TE, "te");
 
     /// Indicates the tracking status that applied to the corresponding request.
-    (Tk, TK, "tk", 0x727e308d7f89cf2b);
+    (Tk, TK, "tk");
 
     /// Allows the sender to include additional fields at the end of chunked
     /// messages.
-    (Trailer, TRAILER, "trailer", 0xb64ea43b3b70f7fb);
+    (Trailer, TRAILER, "trailer");
 
     /// Specifies the form of encoding used to safely transfer the entity to the
     /// client.
@@ -828,7 +820,7 @@ standard_headers! {
     /// When present on a response to a `HEAD` request that has no body, it
     /// indicates the value that would have applied to the corresponding `GET`
     /// message.
-    (TransferEncoding, TRANSFER_ENCODING, "transfer-encoding", 0xae18377791e15069);
+    (TransferEncoding, TRANSFER_ENCODING, "transfer-encoding");
 
     /// A response to the client's tracking preference.
     ///
@@ -840,18 +832,18 @@ standard_headers! {
     /// is the designated resource, and remains so for any subsequent
     /// request-specific tracking status resource referred to by the Tk field
     /// value.
-    (Tsv, TSV, "tsv", 0x4e9c95b87f3cc85d);
+    (Tsv, TSV, "tsv");
 
     /// Contains a string that allows identifying the requesting client's
     /// software.
-    (UserAgent, USER_AGENT, "user-agent", 0x220348d64524c3fe);
+    (UserAgent, USER_AGENT, "user-agent");
 
     /// Used as part of the exchange to upgrade the protocol.
-    (Upgrade, UPGRADE, "upgrade", 0xe67ca9064a838479);
+    (Upgrade, UPGRADE, "upgrade");
 
     /// Sends a signal to the server expressing the client’s preference for an
     /// encrypted and authenticated response.
-    (UpgradeInsecureRequests, UPGRADE_INSECURE_REQUESTS, "upgrade-insecure-requests", 0x5c423de2b362db36);
+    (UpgradeInsecureRequests, UPGRADE_INSECURE_REQUESTS, "upgrade-insecure-requests");
 
     /// Determines how to match future requests with cached responses.
     ///
@@ -863,7 +855,7 @@ standard_headers! {
     ///
     /// The `vary` header should be set on a 304 Not Modified response exactly
     /// like it would have been set on an equivalent 200 OK response.
-    (Vary, VARY, "vary", 0x4e67b46bf773816b);
+    (Vary, VARY, "vary");
 
     /// Added by proxies to track routing.
     ///
@@ -872,7 +864,7 @@ standard_headers! {
     /// It is used for tracking message forwards, avoiding request loops, and
     /// identifying the protocol capabilities of senders along the
     /// request/response chain.
-    (Via, VIA, "via", 0xafa70b58adb45b5f);
+    (Via, VIA, "via");
 
     /// General HTTP header contains information about possible problems with
     /// the status of the message.
@@ -880,11 +872,11 @@ standard_headers! {
     /// More than one `warning` header may appear in a response. Warning header
     /// fields can in general be applied to any message, however some warn-codes
     /// are specific to caches and can only be applied to response messages.
-    (Warning, WARNING, "warning", 0x916614ef8bbad3d3);
+    (Warning, WARNING, "warning");
 
     /// Defines the authentication method that should be used to gain access to
     /// a resource.
-    (WwwAuthenticate, WWW_AUTHENTICATE, "www-authenticate", 0x2bf5bbe2274d4b74);
+    (WwwAuthenticate, WWW_AUTHENTICATE, "www-authenticate");
 
     /// Marker used by the server to indicate that the MIME types advertised in
     /// the `content-type` headers should not be changed and be followed.
@@ -899,7 +891,7 @@ standard_headers! {
     /// less aggressive.
     ///
     /// Site security testers usually expect this header to be set.
-    (XContentTypeOptions, X_CONTENT_TYPE_OPTIONS, "x-content-type-options", 0x424b1bb449a9c2ea);
+    (XContentTypeOptions, X_CONTENT_TYPE_OPTIONS, "x-content-type-options");
 
     /// Controls DNS prefetching.
     ///
@@ -912,7 +904,7 @@ standard_headers! {
     /// This prefetching is performed in the background, so that the DNS is
     /// likely to have been resolved by the time the referenced items are
     /// needed. This reduces latency when the user clicks a link.
-    (XDnsPrefetchControl, X_DNS_PREFETCH_CONTROL, "x-dns-prefetch-control", 0xf8e75a6bd87b8e47);
+    (XDnsPrefetchControl, X_DNS_PREFETCH_CONTROL, "x-dns-prefetch-control");
 
     /// Indicates whether or not a browser should be allowed to render a page in
     /// a frame.
@@ -922,7 +914,7 @@ standard_headers! {
     ///
     /// The added security is only provided if the user accessing the document
     /// is using a browser supporting `x-frame-options`.
-    (XFrameOptions, X_FRAME_OPTIONS, "x-frame-options", 0x991f40e34fb35c26);
+    (XFrameOptions, X_FRAME_OPTIONS, "x-frame-options");
 
     /// Stop pages from loading when an XSS attack is detected.
     ///
@@ -933,7 +925,7 @@ standard_headers! {
     /// implement a strong Content-Security-Policy that disables the use of
     /// inline JavaScript ('unsafe-inline'), they can still provide protections
     /// for users of older web browsers that don't yet support CSP.
-    (XXssProtection, X_XSS_PROTECTION, "x-xss-protection", 0xc813b7f67f5e69ee);
+    (XXssProtection, X_XSS_PROTECTION, "x-xss-protection");
 }
 
 /// Valid header name characters
@@ -1681,23 +1673,6 @@ impl FromStr for HeaderName {
     }
 }
 
-impl FastHash for HeaderName {
-    #[inline]
-    fn fast_hash(&self) -> u64 {
-        match self.inner {
-            Repr::Standard(s) => s.fast_hash(),
-            Repr::Custom(ref b) => fast_hash::fast_hash(b.0.as_bytes()),
-        }
-    }
-}
-
-impl<'a> FastHash for &'a HeaderName {
-    #[inline]
-    fn fast_hash(&self) -> u64 {
-        (**self).fast_hash()
-    }
-}
-
 impl AsRef<str> for HeaderName {
     fn as_ref(&self) -> &str {
         self.as_str()
@@ -1789,39 +1764,6 @@ impl<'a> HdrName<'a> {
     }
 }
 
-impl<'a> FastHash for HdrName<'a> {
-    #[inline]
-    fn fast_hash(&self) -> u64 {
-        match self.inner {
-            Repr::Standard(s) => s.fast_hash(),
-            Repr::Custom(ref maybe_lower) => {
-                if maybe_lower.lower {
-                    fast_hash::fast_hash(maybe_lower.buf)
-                } else {
-                    let mut buf = [0u8; 8];
-                    let mut src = maybe_lower.buf;
-
-                    let mut hasher = FastHasher::new();
-
-                    while src.len() >= 8 {
-                        to_lower!(buf, src, 8);
-
-                        hasher.hash(&buf);
-
-                        src = &src[8..];
-                    }
-
-                    for (i, &b) in src.iter().enumerate() {
-                        buf[i] = HEADER_CHARS[b as usize];
-                    }
-
-                    hasher.finish(&buf[..src.len()])
-                }
-            }
-        }
-    }
-}
-
 #[doc(hidden)]
 impl<'a> From<HdrName<'a>> for HeaderName {
     fn from(src: HdrName<'a>) -> HeaderName {
@@ -1890,9 +1832,7 @@ impl<'a> PartialEq<HdrName<'a>> for HeaderName {
 impl Hash for Custom {
     #[inline]
     fn hash<H: Hasher>(&self, hasher: &mut H) {
-        for b in self.0.as_bytes() {
-            b.hash(hasher);
-        }
+        hasher.write(self.0.as_bytes())
     }
 }
 
@@ -1902,12 +1842,10 @@ impl<'a> Hash for MaybeLower<'a> {
     #[inline]
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         if self.lower {
-            for &b in self.buf {
-                b.hash(hasher);
-            }
+            hasher.write(self.buf);
         } else {
             for &b in self.buf {
-                HEADER_CHARS[b as usize].hash(hasher);
+                hasher.write(&[HEADER_CHARS[b as usize]]);
             }
         }
     }
@@ -2099,77 +2037,4 @@ fn test_eq_hdr_name() {
 
     let a = HeaderName { inner: Repr::Standard(Vary) };
     assert_ne!(a, b);
-}
-
-#[test]
-fn test_hashing() {
-    use self::StandardHeader::*;
-    use std::collections::hash_map::DefaultHasher;
-
-    fn hash<T: Hash>(v: &T) -> u64 {
-        let mut h = DefaultHasher::new();
-        v.hash(&mut h);
-        h.finish()
-    }
-
-    for &hdr in &[Accept, Age, Allow, Expect] {
-        let a = HeaderName { inner: Repr::Standard(hdr) };
-        let b = HdrName { inner: Repr::Standard(hdr) };
-
-        assert_eq!(a.fast_hash(), b.fast_hash());
-        assert_eq!(hash(&a), hash(&b));
-
-        for &hdr2 in &[AcceptRanges, Connection, Etag] {
-            let a2 = HeaderName { inner: Repr::Standard(hdr2) };
-            let b2 = HdrName { inner: Repr::Standard(hdr2) };
-
-            assert_ne!(a2.fast_hash(), b.fast_hash());
-            assert_ne!(hash(&a2), hash(&b));
-
-            assert_ne!(a.fast_hash(), b2.fast_hash());
-            assert_ne!(hash(&a), hash(&b2));
-        }
-    }
-
-    // Case insensitive hashing
-    let a: HeaderName = "hello-world".parse().unwrap();
-    let b = HdrName {
-        inner: Repr::Custom(MaybeLower {
-            buf: b"Hello-World",
-            lower: false,
-        }),
-    };
-
-    assert_eq!(a.fast_hash(), b.fast_hash());
-    assert_eq!(hash(&a), hash(&b));
-
-    let b = HdrName {
-        inner: Repr::Custom(MaybeLower {
-            buf: b"hello-waldo",
-            lower: false,
-        }),
-    };
-
-    assert_ne!(a.fast_hash(), b.fast_hash());
-    assert_ne!(hash(&a), hash(&b));
-
-    let b = HdrName {
-        inner: Repr::Custom(MaybeLower {
-            buf: b"hello-world",
-            lower: false,
-        }),
-    };
-
-    assert_eq!(a.fast_hash(), b.fast_hash());
-    assert_eq!(hash(&a), hash(&b));
-
-    let b = HdrName {
-        inner: Repr::Custom(MaybeLower {
-            buf: b"hello-world",
-            lower: true,
-        }),
-    };
-
-    assert_eq!(a.fast_hash(), b.fast_hash());
-    assert_eq!(hash(&a), hash(&b));
 }

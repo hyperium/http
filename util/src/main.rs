@@ -1,6 +1,3 @@
-use std::collections::hash_map::RandomState;
-use std::hash::{BuildHasher, Hasher, Hash};
-
 macro_rules! standard_headers {
     (
         $(
@@ -1035,18 +1032,9 @@ fn upcase(s: &str) -> String {
 }
 
 pub fn main() {
-    let hasher = RandomState::new();
-
     for &(doc, string) in HEADERS.iter() {
-        let mut h = hasher.build_hasher();
-        string.hash(&mut h);
-        let hash = h.finish();
-
-        println!("    {:?},", string);
-        /*
         println!("{}", &doc[1..doc.len()-5]);
-        println!("    ({}, {}, {:?}, 0x{:x});", constantize(string), upcase(string), string, hash);
+        println!("    ({}, {}, {:?});", constantize(string), upcase(string), string);
         println!("");
-        */
     }
 }

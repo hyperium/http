@@ -70,7 +70,6 @@
 //! [`HashMap`]: #
 //! [Robin Hood hashing]: https://en.wikipedia.org/wiki/Hash_table#Robin_Hood_hashing
 
-mod fast_hash;
 mod map;
 mod name;
 

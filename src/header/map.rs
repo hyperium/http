@@ -1,9 +1,8 @@
-use super::fast_hash::FastHash;
 use super::name::{HeaderName, HdrName};
 
-use std::{cmp, fmt, mem, ops, ptr};
+use std::{fmt, mem, ops, ptr};
 use std::collections::hash_map::RandomState;
-use std::hash::{BuildHasher, Hasher};
+use std::hash::{BuildHasher, Hasher, Hash};
 use std::iter::FromIterator;
 use std::marker::PhantomData;
 
@@ -80,7 +79,7 @@ pub struct Iter<'a, T: 'a> {
 /// yielded more than once if it has more than one associated value.
 pub struct IterMut<'a, T: 'a> {
     map: *mut HeaderMap<T>,
-    entry: Size,
+    entry: usize,
     cursor: Option<Cursor>,
     lt: PhantomData<&'a mut ()>,
 }
@@ -115,7 +114,7 @@ pub struct Drain<'a, T> {
 /// This struct is returned by `HeaderMap::get_all`.
 pub struct GetAll<'a, T: 'a> {
     map: &'a HeaderMap<T>,
-    index: Size,
+    index: usize,
 }
 
 /// A view into a single location in a `HeaderMap`, which may be vaccant or occupied.
@@ -131,7 +130,7 @@ pub struct VacantEntry<'a, T: 'a> {
     map: &'a mut HeaderMap<T>,
     key: HeaderName,
     hash: HashValue,
-    probe: Size,
+    probe: usize,
     danger: bool,
 }
 
@@ -140,14 +139,14 @@ pub struct VacantEntry<'a, T: 'a> {
 /// This struct is returned as part of the `Entry` enum.
 pub struct OccupiedEntry<'a, T: 'a> {
     map: &'a mut HeaderMap<T>,
-    probe: Size,
-    index: Size,
+    probe: usize,
+    index: usize,
 }
 
 /// An iterator of all values associated with a single header name.
 pub struct EntryIter<'a, T: 'a> {
     map: &'a HeaderMap<T>,
-    index: Size,
+    index: usize,
     front: Option<Cursor>,
     back: Option<Cursor>,
 }
@@ -155,7 +154,7 @@ pub struct EntryIter<'a, T: 'a> {
 /// A mutable iterator of all values associated with a single header name.
 pub struct EntryIterMut<'a, T: 'a> {
     map: *mut HeaderMap<T>,
-    index: Size,
+    index: usize,
     front: Option<Cursor>,
     back: Option<Cursor>,
     lt: PhantomData<&'a ()>,
@@ -165,7 +164,7 @@ pub struct EntryIterMut<'a, T: 'a> {
 pub struct DrainEntry<'a, T> {
     map: *mut HeaderMap<T>,
     first: Option<T>,
-    next: Option<Size>,
+    next: Option<usize>,
     lt: PhantomData<&'a ()>,
 }
 
@@ -173,7 +172,7 @@ pub struct DrainEntry<'a, T> {
 #[derive(Copy, Clone, Eq, PartialEq)]
 enum Cursor {
     Head,
-    Values(Size),
+    Values(usize),
 }
 
 /// Type used for representing the size of a HeaderMap value.
@@ -208,7 +207,7 @@ struct Pos {
 /// bits is fine since we know that the `indices` vector will never grow beyond
 /// that size.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-struct HashValue(Size);
+struct HashValue(usize);
 
 /// Stores the data associated with a `HeaderMap` entry. Only the first value is
 /// included in this struct. If a header name has more than one associated
@@ -227,8 +226,8 @@ struct Bucket<T> {
 /// The head and tail of the value linked list.
 #[derive(Debug, Copy, Clone)]
 struct Links {
-    next: Size,
-    tail: Size,
+    next: usize,
+    tail: usize,
 }
 
 /// Node in doubly-linked list of header value entries
@@ -244,8 +243,8 @@ struct ExtraValue<T> {
 /// start of the list and holds the associated header name.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 enum Link {
-    Entry(Size),
-    Extra(Size),
+    Entry(usize),
+    Extra(usize),
 }
 
 /// Tracks the header map danger level! This relates to the adaptive hashing
@@ -276,8 +275,8 @@ const SEQ_SEARCH_THRESHOLD: usize = 8;
 //
 // The current constant values were picked from another implementation. It could
 // be that there are different values better suited to the header map case.
-const DISPLACEMENT_THRESHOLD: Size = 128;
-const FORWARD_SHIFT_THRESHOLD: Size = 512;
+const DISPLACEMENT_THRESHOLD: usize = 128;
+const FORWARD_SHIFT_THRESHOLD: usize = 512;
 
 // The default strategy for handling the yellow danger state is to increase the
 // header map capacity in order to (hopefully) reduce the number of collisions.
@@ -290,6 +289,7 @@ const LOAD_FACTOR_THRESHOLD: f32 = 0.2;
 // the end is hit.
 macro_rules! probe_loop {
     ($label:tt: $probe_var: ident < $len: expr, $body: expr) => {
+        debug_assert!($len > 0);
         $label:
         loop {
             if $probe_var < $len {
@@ -301,6 +301,7 @@ macro_rules! probe_loop {
         }
     };
     ($probe_var: ident < $len: expr, $body: expr) => {
+        debug_assert!($len > 0);
         loop {
             if $probe_var < $len {
                 $body
@@ -335,12 +336,11 @@ macro_rules! insert_phase_one {
         let $hash = hash_elem_using(&$map.danger, &$key);
         let mut $probe = desired_pos($map.mask, $hash);
         let mut dist = 0;
-        let len = $map.indices.len() as Size;
         let ret;
 
         // Start at the ideal position, checking all slots
-        probe_loop!('probe: $probe < len, {
-            if let Some(($pos, entry_hash)) = $map.indices[$probe as usize].resolve() {
+        probe_loop!('probe: $probe < $map.indices.len(), {
+            if let Some(($pos, entry_hash)) = $map.indices[$probe].resolve() {
                 // The slot is already occupied, but check if it has a lower
                 // displacement.
                 let their_dist = probe_distance($map.mask, entry_hash, $probe);
@@ -355,7 +355,7 @@ macro_rules! insert_phase_one {
 
                     ret = $robinhood;
                     break 'probe;
-                } else if entry_hash == $hash && $map.entries[$pos as usize].key == $key {
+                } else if entry_hash == $hash && $map.entries[$pos].key == $key {
                     // There already is an entry with the same key.
                     ret = $occupied;
                     break 'probe;
@@ -371,6 +371,7 @@ macro_rules! insert_phase_one {
 
             dist += 1;
         });
+
         ret
     }}
 }
@@ -558,24 +559,10 @@ impl<T> HeaderMap<T> {
     /// assert_eq!(0, map.capacity());
     ///
     /// map.insert("x-hello", "world");
-    /// assert_eq!(8, map.capacity());
+    /// assert_eq!(6, map.capacity());
     /// ```
     #[inline]
     pub fn capacity(&self) -> usize {
-        if self.is_scan() {
-            self.capacity_scan()
-        } else {
-            self.capacity_hashed()
-        }
-    }
-
-    #[inline]
-    fn capacity_scan(&self) -> usize {
-        self.entries.capacity()
-    }
-
-    #[inline]
-    fn capacity_hashed(&self) -> usize {
         usable_capacity(self.indices.len())
     }
 
@@ -601,21 +588,21 @@ impl<T> HeaderMap<T> {
     /// # map.insert("foo", "bar");
     /// ```
     pub fn reserve(&mut self, additional: usize) {
-        if self.is_scan() {
-            // If in "scan" mode, then the hash table is unallocated. All we
-            // have to do is grow the entries table.
-            //
-            // The new size of the entries table *may* be above the sequential
-            // scan threshold, but we don't transition hashing until the number
-            // of inserted elements passes the threshold.
-            self.entries.reserve(additional);
-        } else {
-            let cap = self.entries.len()
-                .checked_add(additional)
-                .expect("reserve overflow");
+        // TODO: This can't overflow if done properly... since the max # of
+        // elements is u16::MAX.
+        let cap = self.entries.len()
+            .checked_add(additional)
+            .expect("reserve overflow");
 
-            if cap > self.indices.len() {
-                self.grow_hashed(cap.next_power_of_two());
+        if cap > self.indices.len() {
+            let cap = cap.next_power_of_two();
+
+            if self.entries.len() == 0 {
+                self.mask = cap - 1;
+                self.indices = vec![Pos::none(); cap];
+                self.entries = Vec::with_capacity(usable_capacity(cap));
+            } else {
+                self.grow(cap);
             }
         }
     }
@@ -642,13 +629,7 @@ impl<T> HeaderMap<T> {
     pub fn get<K: ?Sized>(&self, key: &K) -> Option<&T>
         where K: HeaderMapKey
     {
-        let res = if self.is_scan() {
-            key.find_scan(self).map(|i| (0, i))
-        } else {
-            key.find_hashed(self)
-        };
-
-        match res {
+        match key.find(self) {
             Some((_, found)) => {
                 let entry = &self.entries[found as usize];
                 Some(&entry.value)
@@ -685,17 +666,11 @@ impl<T> HeaderMap<T> {
     pub fn get_all<K: ?Sized>(&self, key: &K) -> Option<GetAll<T>>
         where K: HeaderMapKey
     {
-        let res = if self.is_scan() {
-            key.find_scan(self).map(|i| (0, i))
-        } else {
-            key.find_hashed(self)
-        };
-
-        match res {
+        match key.find(self) {
             Some((_, found)) => {
                 Some(GetAll {
                     map: self,
-                    index: found as Size,
+                    index: found,
                 })
             }
             None => None,
@@ -717,11 +692,7 @@ impl<T> HeaderMap<T> {
     pub fn contains_key<K: ?Sized>(&self, key: &K) -> bool
         where K: HeaderMapKey
     {
-        if self.is_scan() {
-            key.find_scan(self).is_some()
-        } else {
-            key.find_hashed(self).is_some()
-        }
+        key.find(self).is_some()
     }
 
     /// An iterator visiting all key-value pairs.
@@ -884,6 +855,10 @@ impl<T> HeaderMap<T> {
     /// assert!(vals.next().is_none());
     /// ```
     pub fn drain(&mut self) -> Drain<T> {
+        for i in &mut self.indices {
+            *i = Pos::none();
+        }
+
         Drain {
             idx: 0,
             map: self as *mut _,
@@ -891,7 +866,7 @@ impl<T> HeaderMap<T> {
         }
     }
 
-    fn entry_iter(&self, idx: Size) -> EntryIter<T> {
+    fn entry_iter(&self, idx: usize) -> EntryIter<T> {
         use self::Cursor::*;
 
         let back = {
@@ -910,7 +885,7 @@ impl<T> HeaderMap<T> {
         }
     }
 
-    fn entry_iter_mut(&mut self, idx: Size) -> EntryIterMut<T> {
+    fn entry_iter_mut(&mut self, idx: usize) -> EntryIterMut<T> {
         use self::Cursor::*;
 
         let back = {
@@ -962,44 +937,12 @@ impl<T> HeaderMap<T> {
     }
 
     fn entry2<K>(&mut self, key: K) -> Entry<T>
-        where K: FastHash + Into<HeaderName>,
+        where K: Hash + Into<HeaderName>,
               HeaderName: PartialEq<K>,
     {
-        if self.is_scan() {
-            self.entry_scan(key)
-        } else {
-            self.entry_hashed(key)
-        }
-    }
+        // Ensure that there is space in the map
+        self.reserve_one();
 
-    fn entry_scan<K>(&mut self, key: K) -> Entry<T>
-        where K: FastHash + Into<HeaderName>,
-              HeaderName: PartialEq<K>,
-    {
-        match self.find_scan(&key) {
-            Some(index) => {
-                Entry::Occupied(OccupiedEntry {
-                    map: self,
-                    index: index as Size,
-                    probe: 0,
-                })
-            }
-            None => {
-                Entry::Vacant(VacantEntry {
-                    map: self,
-                    hash: HashValue(0),
-                    key: key.into(),
-                    probe: 0,
-                    danger: false,
-                })
-            }
-        }
-    }
-
-    fn entry_hashed<K>(&mut self, key: K) -> Entry<T>
-        where K: FastHash + Into<HeaderName>,
-              HeaderName: PartialEq<K>,
-    {
         insert_phase_one!(
             self,
             key,
@@ -1011,19 +954,19 @@ impl<T> HeaderMap<T> {
                 map: self,
                 hash: hash,
                 key: key.into(),
-                probe: probe as Size,
+                probe: probe,
                 danger: danger,
             }),
             Entry::Occupied(OccupiedEntry {
                 map: self,
-                index: pos as Size,
-                probe: probe as Size,
+                index: pos,
+                probe: probe,
             }),
             Entry::Vacant(VacantEntry {
                 map: self,
                 hash: hash,
                 key: key.into(),
-                probe: probe as Size,
+                probe: probe,
                 danger: danger,
             }))
     }
@@ -1056,58 +999,40 @@ impl<T> HeaderMap<T> {
         key.insert(self, val.into())
     }
 
-    fn insert2<K>(&mut self, key: K, val: T) -> Option<DrainEntry<T>>
-        where K: FastHash + Into<HeaderName>,
-              HeaderName: PartialEq<K>,
-    {
-        if self.is_scan() {
-            self.insert_scan(key, val)
-        } else {
-            self.insert_hashed(key, val)
-        }
-    }
-
     #[inline]
-    fn insert_scan<K>(&mut self, key: K, value: T) -> Option<DrainEntry<T>>
-        where K: FastHash + Into<HeaderName>,
+    fn insert2<K>(&mut self, key: K, value: T) -> Option<DrainEntry<T>>
+        where K: Hash + Into<HeaderName>,
               HeaderName: PartialEq<K>,
     {
-        self.reserve_one_scan();
+        self.reserve_one();
 
-        let old;
-        let links;
-
-        // A little misdirection to make the borrow checker happy.
-        'outer:
-        loop {
-            // Try to find the slot for the requested key
-            for (_, entry) in self.entries.iter_mut().enumerate() {
-                if entry.key == key {
-                    // Found the entry
-                    old = mem::replace(&mut entry.value, value);
-                    links = entry.links.take();
-
-                    break 'outer;
-                }
-            }
-
-            self.insert_entry(HashValue(0), key.into(), value);
-            self.maybe_promote();
-
-            return None;
-        }
-
-        Some(DrainEntry {
-            map: self as *mut _,
-            first: Some(old),
-            next: links.map(|l| l.next),
-            lt: PhantomData,
-        })
+        insert_phase_one!(
+            self, key, probe, pos, hash, danger,
+            // Vacant
+            {
+                drop(danger); // Make lint happy
+                let index = self.entries.len();
+                self.insert_entry(hash, key.into(), value);
+                self.indices[probe as usize] = Pos::new(index, hash);
+                None
+            },
+            // Occupied
+            Some(self.insert_occupied(pos, value)),
+            // Robinhood
+            {
+                self.insert_phase_two(
+                    key.into(),
+                    value,
+                    hash,
+                    probe,
+                    danger);
+                None
+            })
     }
 
     /// Set an occupied bucket to the given value
     #[inline]
-    fn insert_occupied(&mut self, index: Size, value: T) -> DrainEntry<T> {
+    fn insert_occupied(&mut self, index: usize, value: T) -> DrainEntry<T> {
         // TODO: Looks like this is repeated code
         let old;
         let links;
@@ -1125,37 +1050,6 @@ impl<T> HeaderMap<T> {
             next: links.map(|l| l.next),
             lt: PhantomData,
         }
-    }
-
-    #[inline]
-    fn insert_hashed<K>(&mut self, key: K, value: T) -> Option<DrainEntry<T>>
-        where K: FastHash + Into<HeaderName>,
-              HeaderName: PartialEq<K>,
-    {
-        self.reserve_one_hashed();
-
-        insert_phase_one!(
-            self, key, probe, pos, hash, danger,
-            // Vacant
-            {
-                drop(danger); // Make lint happy
-                let index = self.entries.len();
-                self.insert_entry(hash, key.into(), value);
-                self.indices[probe as usize] = Pos::new(index as Size, hash);
-                None
-            },
-            // Occupied
-            Some(self.insert_occupied(pos as Size, value)),
-            // Robinhood
-            {
-                self.insert_phase_two(
-                    key.into(),
-                    value,
-                    hash,
-                    probe as Size,
-                    danger);
-                None
-            })
     }
 
     /// Inserts a key-value pair into the map.
@@ -1182,51 +1076,18 @@ impl<T> HeaderMap<T> {
     /// assert_eq!("world", *values.first());
     /// assert_eq!("earth", *values.last());
     /// ```
-    pub fn append<K>(&mut self, key: K, val: T) -> bool
+    pub fn append<K>(&mut self, key: K, value: T) -> bool
         where K: HeaderMapKey,
     {
-        key.append(self, val.into())
+        key.append(self, value.into())
     }
 
     #[inline]
-    fn append2<K>(&mut self, key: K, val: T) -> bool
-        where K: FastHash + Into<HeaderName>,
+    fn append2<K>(&mut self, key: K, value: T) -> bool
+        where K: Hash + Into<HeaderName>,
               HeaderName: PartialEq<K>,
     {
-        if self.is_scan() {
-            self.append_scan(key, val)
-        } else {
-            self.append_hashed(key, val)
-        }
-    }
-
-    #[inline]
-    fn append_scan<K>(&mut self, key: K, value: T) -> bool
-        where K: FastHash + Into<HeaderName>,
-              HeaderName: PartialEq<K>,
-    {
-        self.reserve_one_scan();
-
-        // Try to find the slot for the requested key
-        for (idx, entry) in self.entries.iter_mut().enumerate() {
-            if entry.key == key {
-                append_value(idx as Size, entry, &mut self.extra_values, value);
-                return true;
-            }
-        }
-
-        self.insert_entry(HashValue(0), key.into(), value);
-        self.maybe_promote();
-
-        false
-    }
-
-    #[inline]
-    fn append_hashed<K>(&mut self, key: K, value: T) -> bool
-        where K: FastHash + Into<HeaderName>,
-              HeaderName: PartialEq<K>,
-    {
-        self.reserve_one_hashed();
+        self.reserve_one();
 
         insert_phase_one!(
             self, key, probe, pos, hash, danger,
@@ -1235,7 +1096,7 @@ impl<T> HeaderMap<T> {
                 drop(danger);
                 let index = self.entries.len();
                 self.insert_entry(hash, key.into(), value);
-                self.indices[probe as usize] = Pos::new(index as Size, hash);
+                self.indices[probe as usize] = Pos::new(index, hash);
                 false
             },
             // Occupied
@@ -1249,7 +1110,7 @@ impl<T> HeaderMap<T> {
                     key.into(),
                     value,
                     hash,
-                    probe as Size,
+                    probe,
                     danger);
 
                 false
@@ -1257,34 +1118,25 @@ impl<T> HeaderMap<T> {
     }
 
     #[inline]
-    fn find_scan<K: ?Sized>(&self, key: &K) -> Option<Size>
-        where HeaderName: PartialEq<K>
-    {
-        for (i, entry) in self.entries.iter().enumerate() {
-            if entry.key == *key {
-                return Some(i as Size);
-            }
-        }
-
-        None
-    }
-
-    #[inline]
-    fn find_hashed<K: ?Sized>(&self, key: &K) -> Option<(Size, Size)>
-        where K: FastHash + Into<HeaderName>,
+    fn find<K: ?Sized>(&self, key: &K) -> Option<(usize, usize)>
+        where K: Hash + Into<HeaderName>,
               HeaderName: PartialEq<K>,
     {
+        if self.entries.is_empty() {
+            return None;
+        }
+
         let hash = hash_elem_using(&self.danger, key);
         let mask = self.mask;
         let mut probe = desired_pos(mask, hash);
         let mut dist = 0;
 
-        probe_loop!(probe < self.indices.len() as Size, {
-            if let Some((i, entry_hash)) = self.indices[probe as usize].resolve() {
+        probe_loop!(probe < self.indices.len(), {
+            if let Some((i, entry_hash)) = self.indices[probe].resolve() {
                 if dist > probe_distance(mask, entry_hash, probe) {
                     // give up when probe distance is too long
                     return None;
-                } else if entry_hash == hash && self.entries[i as usize].key == *key {
+                } else if entry_hash == hash && self.entries[i].key == *key {
                     return Some((probe, i));
                 }
             } else {
@@ -1303,11 +1155,9 @@ impl<T> HeaderMap<T> {
                         key: HeaderName,
                         value: T,
                         hash: HashValue,
-                        probe: Size,
+                        probe: usize,
                         danger: bool) -> usize
     {
-        debug_assert!(!self.is_scan());
-
         // Push the value and get the index
         let index = self.entries.len();
         self.insert_entry(hash, key, value);
@@ -1315,7 +1165,7 @@ impl<T> HeaderMap<T> {
         let num_displaced = do_insert_phase_two(
             &mut self.indices,
             probe,
-            Pos::new(index as Size, hash));
+            Pos::new(index, hash));
 
         if danger || num_displaced >= DISPLACEMENT_THRESHOLD {
             // Increase danger level
@@ -1375,43 +1225,19 @@ impl<T> HeaderMap<T> {
     pub fn remove_entry<K: ?Sized>(&mut self, key: &K) -> Option<(HeaderName, DrainEntry<T>)>
         where K: HeaderMapKey
     {
-        if self.is_scan() {
-            match key.find_scan(self) {
-                Some(idx) => {
-                    Some(self.remove_found_scan(idx))
-                }
-                None => None,
+        match key.find(self) {
+            Some((probe, idx)) => {
+                Some(self.remove_found(probe, idx))
             }
-        } else {
-            match key.find_hashed(self) {
-                Some((probe, idx)) => {
-                    Some(self.remove_found_hashed(probe, idx))
-                }
-                None => None,
-            }
+            None => None,
         }
-    }
-
-    /// Remove an entry from the map while in sequential mode
-    #[inline]
-    fn remove_found_scan(&mut self, index: Size) -> (HeaderName, DrainEntry<T>) {
-        let entry = self.entries.swap_remove(index as usize);
-
-        let drain = DrainEntry {
-            map: self as *mut _,
-            first: Some(entry.value),
-            next: entry.links.map(|l| l.next),
-            lt: PhantomData,
-        };
-
-        (entry.key, drain)
     }
 
     /// Remove an entry from the map while in hashed mode
     #[inline]
-    fn remove_found_hashed(&mut self,
-                           probe: Size,
-                           found: Size) -> (HeaderName, DrainEntry<T>)
+    fn remove_found(&mut self,
+                    probe: usize,
+                    found: usize) -> (HeaderName, DrainEntry<T>)
     {
         // index `probe` and entry `found` is to be removed
         // use swap_remove, but then we need to update the index that points
@@ -1425,9 +1251,9 @@ impl<T> HeaderMap<T> {
             // examine new element in `found` and find it in indices
             let mut probe = desired_pos(self.mask, entry.hash);
 
-            probe_loop!(probe < self.indices.len() as Size, {
+            probe_loop!(probe < self.indices.len(), {
                 if let Some((i, _)) = self.indices[probe as usize].resolve() {
-                    if i >= self.entries.len() as Size {
+                    if i >= self.entries.len() {
                         // found it
                         self.indices[probe as usize] = Pos::new(found, entry.hash);
                         break;
@@ -1442,9 +1268,9 @@ impl<T> HeaderMap<T> {
             let mut last_probe = probe;
             let mut probe = probe + 1;
 
-            probe_loop!(probe < self.indices.len() as Size, {
+            probe_loop!(probe < self.indices.len(), {
                 if let Some((_, entry_hash)) = self.indices[probe as usize].resolve() {
-                    if probe_distance(self.mask as Size, entry_hash, probe) > 0 {
+                    if probe_distance(self.mask, entry_hash, probe) > 0 {
                         self.indices[last_probe as usize] = self.indices[probe as usize];
                         self.indices[probe as usize] = Pos::none();
                     } else {
@@ -1521,7 +1347,7 @@ impl<T> HeaderMap<T> {
         let mut extra = self.extra_values.swap_remove(idx);
 
         // This is the index of the value that was moved (possibly `extra`)
-        let old_idx = self.extra_values.len() as Size;
+        let old_idx = self.extra_values.len();
 
         // Check if another entry was displaced. If it was, then the links
         // need to be fixed.
@@ -1542,31 +1368,31 @@ impl<T> HeaderMap<T> {
                     // header name or value as that memory may have been
                     // "released" already.
                     let links = self.entries[entry_idx as usize].links.as_mut().unwrap();
-                    links.next = idx as Size;
+                    links.next = idx;
                 }
                 Link::Extra(extra_idx) => {
-                    self.extra_values[extra_idx as usize].next = Link::Extra(idx as Size);
+                    self.extra_values[extra_idx as usize].next = Link::Extra(idx);
                 }
             }
 
             match next {
                 Link::Entry(entry_idx) => {
                     let links = self.entries[entry_idx as usize].links.as_mut().unwrap();
-                    links.tail = idx as Size;
+                    links.tail = idx;
                 }
                 Link::Extra(extra_idx) => {
-                    self.extra_values[extra_idx as usize].prev = Link::Extra(idx as Size);
+                    self.extra_values[extra_idx as usize].prev = Link::Extra(idx);
                 }
             }
         }
 
         // Finally, update the links in `extra`
         if extra.prev == Link::Extra(old_idx) {
-            extra.prev = Link::Extra(idx as Size);
+            extra.prev = Link::Extra(idx);
         }
 
         if extra.next == Link::Extra(old_idx) {
-            extra.next = Link::Extra(idx as Size);
+            extra.next = Link::Extra(idx);
         }
 
         extra
@@ -1574,7 +1400,7 @@ impl<T> HeaderMap<T> {
 
     #[inline]
     fn insert_entry(&mut self, hash: HashValue, key: HeaderName, value: T) {
-        assert!(self.entries.len() < MAX_SIZE as usize, "header map at capacity");
+        assert!(self.entries.len() < MAX_SIZE, "header map at capacity");
 
         self.entries.push(Bucket {
             hash: hash,
@@ -1584,27 +1410,7 @@ impl<T> HeaderMap<T> {
         });
     }
 
-    #[inline]
-    fn maybe_promote(&mut self) {
-        if self.entries.len() == (SEQ_SEARCH_THRESHOLD + 1) {
-            let cap = cmp::max(
-                SEQ_SEARCH_THRESHOLD << 1,
-                self.entries.capacity().next_power_of_two());
-
-            // Initialze the indices
-            self.indices = vec![Pos::none(); cap];
-
-            self.mask = cap.wrapping_sub(1) as Size;
-
-            // Rebuild the table
-            self.rebuild();
-        }
-    }
-
     fn rebuild(&mut self) {
-        // This path should only be hit in hashed mode
-        debug_assert!(!self.is_scan());
-
         // Loop over all entries and re-insert them into the map
         'outer:
         for (index, entry) in self.entries.iter_mut().enumerate() {
@@ -1615,7 +1421,7 @@ impl<T> HeaderMap<T> {
             // Update the entry's hash code
             entry.hash = hash;
 
-            probe_loop!(probe < self.indices.len() as Size, {
+            probe_loop!(probe < self.indices.len(), {
                 if let Some((_, entry_hash)) = self.indices[probe as usize].resolve() {
                     // if existing element probed less than us, swap
                     let their_dist = probe_distance(self.mask, entry_hash, probe);
@@ -1626,7 +1432,7 @@ impl<T> HeaderMap<T> {
                     }
                 } else {
                     // Vaccant slot
-                    self.indices[probe as usize] = Pos::new(index as Size, hash);
+                    self.indices[probe as usize] = Pos::new(index, hash);
                     continue 'outer;
                 }
 
@@ -1635,20 +1441,17 @@ impl<T> HeaderMap<T> {
 
             do_insert_phase_two(
                 &mut self.indices,
-                probe as Size,
-                Pos::new(index as Size, hash));
+                probe,
+                Pos::new(index, hash));
         }
     }
 
     fn reinsert_entry_in_order(&mut self, pos: Pos) {
-        // This path should only be hit in scan mode
-        debug_assert!(!self.is_scan());
-
         if let Some((_, entry_hash)) = pos.resolve() {
             // Find first empty bucket and insert there
             let mut probe = desired_pos(self.mask, entry_hash);
 
-            probe_loop!(probe < self.indices.len() as Size, {
+            probe_loop!(probe < self.indices.len(), {
                 if self.indices[probe as usize].resolve().is_none() {
                     // empty bucket, insert here
                     self.indices[probe as usize] = pos;
@@ -1658,25 +1461,21 @@ impl<T> HeaderMap<T> {
         }
     }
 
-    #[inline]
-    fn reserve_one_scan(&mut self) {
-        debug_assert!(self.danger.is_green());
+    fn reserve_one(&mut self) {
+        let len = self.entries.len();
 
-        if self.entries.len() == self.capacity_scan() {
-            self.double_capacity_scan();
-        }
-    }
-
-    #[inline]
-    fn reserve_one_hashed(&mut self) {
         if self.danger.is_yellow() {
-            debug_assert!(!self.is_scan());
-
             let load_factor = self.entries.len() as f32 / self.indices.len() as f32;
 
             if load_factor >= LOAD_FACTOR_THRESHOLD {
+                // Transition back to green danger level
                 self.danger.to_green();
-                self.double_capacity_hashed();
+
+                // Double the capacity
+                let new_cap = self.indices.len() * 2;
+
+                // Grow the capacity
+                self.grow(new_cap);
             } else {
                 self.danger.to_red();
 
@@ -1687,48 +1486,30 @@ impl<T> HeaderMap<T> {
 
                 self.rebuild();
             }
-        } else if self.entries.len() == self.capacity_hashed() {
-            self.double_capacity_hashed();
-        }
-    }
-
-
-    /// Double the HeaderMap capacity while currently in scan mode
-    #[inline]
-    fn double_capacity_scan(&mut self) {
-        let len = self.entries.len();
-
-        if len == 0 {
-            let capacity = 8usize;
-
-            // Make sure the hash map stays in the sequential search threshold
-            debug_assert!(capacity <= SEQ_SEARCH_THRESHOLD);
-
-            self.entries = Vec::with_capacity(capacity);
-        } else {
-            // Double the capacity
-            self.entries.reserve(len);
+        } else if len == self.capacity() {
+            if len == 0 {
+                let new_raw_cap = 8;
+                self.mask = 8 - 1;
+                self.indices = vec![Pos::none(); new_raw_cap];
+                self.entries = Vec::with_capacity(usable_capacity(new_raw_cap));
+            } else {
+                let raw_cap = self.indices.len();
+                self.grow(raw_cap << 1);
+            }
         }
     }
 
     #[inline]
-    fn double_capacity_hashed(&mut self) {
-        let cap = self.indices.len().checked_mul(2).expect("grow overflow");
-        self.grow_hashed(cap);
-    }
-
-    #[inline]
-    fn grow_hashed(&mut self, new_raw_cap: usize) {
+    fn grow(&mut self, new_raw_cap: usize) {
         // This path can never be reached when handling the first allocation in
         // the map.
-        debug_assert!(self.entries.len() > 0);
 
         // find first ideally placed element -- start of cluster
         let mut first_ideal = 0;
 
         for (i, pos) in self.indices.iter().enumerate() {
             if let Some((_, entry_hash)) = pos.resolve() {
-                if 0 == probe_distance(self.mask, entry_hash, i as Size) {
+                if 0 == probe_distance(self.mask, entry_hash, i) {
                     first_ideal = i;
                     break;
                 }
@@ -1749,13 +1530,8 @@ impl<T> HeaderMap<T> {
         }
 
         // Reserve additional entry slots
-        let more = self.capacity_hashed() - self.entries.len();
-        self.entries.reserve(more);
-    }
-
-    #[inline]
-    fn is_scan(&self) -> bool {
-        self.indices.len() == 0
+        let more = self.capacity() - self.entries.len();
+        self.entries.reserve_exact(more);
     }
 }
 
@@ -1855,13 +1631,13 @@ impl<'a, K: ?Sized, T> ops::Index<&'a K> for HeaderMap<T>
 /// returns the number of displaced elements
 #[inline]
 fn do_insert_phase_two(indices: &mut Vec<Pos>,
-          mut probe: Size,
+          mut probe: usize,
           mut old_pos: Pos)
-    -> Size
+    -> usize
 {
     let mut num_displaced = 0;
 
-    probe_loop!(probe < indices.len() as Size, {
+    probe_loop!(probe < indices.len(), {
         let pos = &mut indices[probe as usize];
 
         if pos.is_none() {
@@ -1877,18 +1653,18 @@ fn do_insert_phase_two(indices: &mut Vec<Pos>,
 }
 
 #[inline]
-fn append_value<T>(entry_idx: Size,
+fn append_value<T>(entry_idx: usize,
                    entry: &mut Bucket<T>,
                    extra: &mut Vec<ExtraValue<T>>,
                    value: T)
 {
     match entry.links {
         Some(links) => {
-            let idx = extra.len() as Size;
+            let idx = extra.len();
             extra.push(ExtraValue {
                 value: value,
                 prev: Link::Extra(links.tail),
-                next: Link::Entry(entry_idx as Size),
+                next: Link::Entry(entry_idx),
             });
 
             entry.links = Some(Links {
@@ -1897,11 +1673,11 @@ fn append_value<T>(entry_idx: Size,
             });
         }
         None => {
-            let idx = extra.len() as Size;
+            let idx = extra.len();
             extra.push(ExtraValue {
                 value: value,
-                prev: Link::Entry(entry_idx as Size),
-                next: Link::Entry(entry_idx as Size),
+                prev: Link::Entry(entry_idx),
+                next: Link::Entry(entry_idx),
             });
 
             entry.links = Some(Links {
@@ -2210,20 +1986,13 @@ impl<'a, T> VacantEntry<'a, T> {
     /// assert_eq!(map["x-hello"], "world");
     /// ```
     pub fn insert(self, value: T) -> &'a mut T {
-        let index = if self.map.is_scan() {
-            let index = self.map.entries.len();
-            self.map.insert_entry(self.hash, self.key, value.into());
-
-            self.map.maybe_promote();
-            index
-        } else {
-            self.map.insert_phase_two(
-                self.key,
-                value.into(),
-                self.hash,
-                self.probe,
-                self.danger)
-        };
+        // Ensure that there is space in the map
+        let index = self.map.insert_phase_two(
+            self.key,
+            value.into(),
+            self.hash,
+            self.probe,
+            self.danger);
 
         &mut self.map.entries[index].value
     }
@@ -2789,11 +2558,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// assert!(!map.contains_key("x-hello"));
     /// ```
     pub fn remove_entry(self) -> (HeaderName, DrainEntry<'a, T>) {
-        if self.map.is_scan() {
-            self.map.remove_found_scan(self.index)
-        } else {
-            self.map.remove_found_hashed(self.probe, self.index)
-        }
+        self.map.remove_found(self.probe, self.index)
     }
 
     /// Returns an iterator visiting all values associated with the entry.
@@ -2918,9 +2683,9 @@ unsafe impl<'a, T: Send> Send for DrainEntry<'a, T> {}
 
 impl Pos {
     #[inline]
-    fn new(index: Size, hash: HashValue) -> Self {
+    fn new(index: usize, hash: HashValue) -> Self {
         Pos {
-            index: index,
+            index: index as Size,
             hash: hash,
         }
     }
@@ -2944,9 +2709,9 @@ impl Pos {
     }
 
     #[inline]
-    fn resolve(&self) -> Option<(Size, HashValue)> {
+    fn resolve(&self) -> Option<(usize, HashValue)> {
         if self.is_some() {
-            Some((self.index, self.hash))
+            Some((self.index as usize, self.hash))
         } else {
             None
         }
@@ -2982,13 +2747,6 @@ impl Danger {
         }
     }
 
-    fn is_green(&self) -> bool {
-        match *self {
-            Danger::Green => true,
-            _ => false,
-        }
-    }
-
     fn to_green(&mut self) {
         debug_assert!(self.is_yellow());
         *self = Danger::Green;
@@ -3008,20 +2766,21 @@ fn to_raw_capacity(n: usize) -> usize {
 }
 
 #[inline]
-fn desired_pos(mask: Size, hash: HashValue) -> Size {
-    hash.0 & mask
+fn desired_pos(mask: Size, hash: HashValue) -> usize {
+    (hash.0 & mask) as usize
 }
 
 /// The number of steps that `current` is forward of the desired position for hash
 #[inline]
-fn probe_distance(mask: Size, hash: HashValue, current: Size) -> Size {
-    current.wrapping_sub(desired_pos(mask, hash)) & mask
+fn probe_distance(mask: Size, hash: HashValue, current: usize) -> usize {
+    current.wrapping_sub(desired_pos(mask, hash)) & mask as usize
 }
 
-#[inline]
 fn hash_elem_using<K: ?Sized>(danger: &Danger, k: &K) -> HashValue
-    where K: FastHash
+    where K: Hash
 {
+    use fnv::FnvHasher;
+
     const MASK: u64 = (MAX_SIZE as u64) - 1;
 
     let hash = match *danger {
@@ -3033,11 +2792,13 @@ fn hash_elem_using<K: ?Sized>(danger: &Danger, k: &K) -> HashValue
         }
         // Fast hash
         _ => {
-            k.fast_hash()
+            let mut h = FnvHasher::default();
+            k.hash(&mut h);
+            h.finish()
         }
     };
 
-    HashValue((hash & MASK) as Size)
+    HashValue((hash & MASK) as usize)
 }
 
 /*
@@ -3092,10 +2853,7 @@ pub trait HeaderMapKey: Sealed {
     }
 
     #[doc(hidden)]
-    fn find_scan<T>(&self, map: &HeaderMap<T>) -> Option<Size>;
-
-    #[doc(hidden)]
-    fn find_hashed<T>(&self, map: &HeaderMap<T>) -> Option<(Size, Size)>;
+    fn find<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)>;
 }
 
 // Prevent users from implementing the `HeaderMapKey` trait.
@@ -3128,14 +2886,8 @@ impl HeaderMapKey for HeaderName {
 
     #[doc(hidden)]
     #[inline]
-    fn find_scan<T>(&self, map: &HeaderMap<T>) -> Option<Size> {
-        map.find_scan(self)
-    }
-
-    #[doc(hidden)]
-    #[inline]
-    fn find_hashed<T>(&self, map: &HeaderMap<T>) -> Option<(Size, Size)> {
-        map.find_hashed(self)
+    fn find<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)> {
+        map.find(self)
     }
 }
 
@@ -3168,14 +2920,8 @@ impl<'a> HeaderMapKey for &'a HeaderName {
 
     #[doc(hidden)]
     #[inline]
-    fn find_scan<T>(&self, map: &HeaderMap<T>) -> Option<Size> {
-        map.find_scan(*self)
-    }
-
-    #[doc(hidden)]
-    #[inline]
-    fn find_hashed<T>(&self, map: &HeaderMap<T>) -> Option<(Size, Size)> {
-        map.find_hashed(*self)
+    fn find<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)> {
+        map.find(*self)
     }
 }
 
@@ -3190,14 +2936,8 @@ impl HeaderMapKey for str {
 
     #[doc(hidden)]
     #[inline]
-    fn find_scan<T>(&self, map: &HeaderMap<T>) -> Option<Size> {
-        HdrName::from_bytes(self.as_bytes(), |hdr| map.find_scan(&hdr)).unwrap()
-    }
-
-    #[doc(hidden)]
-    #[inline]
-    fn find_hashed<T>(&self, map: &HeaderMap<T>) -> Option<(Size, Size)> {
-        HdrName::from_bytes(self.as_bytes(), |hdr| map.find_hashed(&hdr)).unwrap()
+    fn find<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)> {
+        HdrName::from_bytes(self.as_bytes(), |hdr| map.find(&hdr)).unwrap()
     }
 }
 
@@ -3230,14 +2970,8 @@ impl<'a> HeaderMapKey for &'a str {
 
     #[doc(hidden)]
     #[inline]
-    fn find_scan<T>(&self, map: &HeaderMap<T>) -> Option<Size> {
-        (*self).find_scan(map)
-    }
-
-    #[doc(hidden)]
-    #[inline]
-    fn find_hashed<T>(&self, map: &HeaderMap<T>) -> Option<(Size, Size)> {
-        (*self).find_hashed(map)
+    fn find<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)> {
+        HeaderMapKey::find(*self, map)
     }
 }
 
@@ -3270,14 +3004,8 @@ impl HeaderMapKey for String {
 
     #[doc(hidden)]
     #[inline]
-    fn find_scan<T>(&self, map: &HeaderMap<T>) -> Option<Size> {
-        self.as_str().find_scan(map)
-    }
-
-    #[doc(hidden)]
-    #[inline]
-    fn find_hashed<T>(&self, map: &HeaderMap<T>) -> Option<(Size, Size)> {
-        self.as_str().find_hashed(map)
+    fn find<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)> {
+        HeaderMapKey::find(self.as_str(), map)
     }
 }
 
@@ -3310,14 +3038,8 @@ impl<'a> HeaderMapKey for &'a String {
 
     #[doc(hidden)]
     #[inline]
-    fn find_scan<T>(&self, map: &HeaderMap<T>) -> Option<Size> {
-        self.as_str().find_scan(map)
-    }
-
-    #[doc(hidden)]
-    #[inline]
-    fn find_hashed<T>(&self, map: &HeaderMap<T>) -> Option<(Size, Size)> {
-        self.as_str().find_hashed(map)
+    fn find<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)> {
+        HeaderMapKey::find(self.as_str(), map)
     }
 }
 

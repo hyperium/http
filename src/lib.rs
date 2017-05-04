@@ -1,4 +1,5 @@
 extern crate bytes;
+extern crate fnv;
 
 pub mod header;
 pub mod method;
