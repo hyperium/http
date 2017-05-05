@@ -22,13 +22,16 @@ fn smoke() {
 
     match headers.entry(&name) {
         Entry::Occupied(mut e) => {
-            assert_eq!(e.first(), &"world");
+            assert_eq!(e.get(), &"world");
 
             // Push another value
             e.append("zomg");
 
-            assert_eq!(*e.first(), "world");
-            assert_eq!(*e.last(), "zomg");
+            let mut i = e.iter();
+
+            assert_eq!(*i.next().unwrap(), "world");
+            assert_eq!(*i.next().unwrap(), "zomg");
+            assert!(i.next().is_none());
         }
         _ => panic!(),
     }

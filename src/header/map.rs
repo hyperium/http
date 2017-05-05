@@ -656,7 +656,7 @@ impl<T> HeaderMap<T> {
     /// map.append("x-hello", "goodbye");
     ///
     /// let view = map.get_all("x-hello").unwrap();
-    /// assert_eq!(view.first(), &"hello");
+    /// assert_eq!(view.get(), &"hello");
     ///
     /// let mut iter = view.iter();
     /// assert_eq!(&"hello", iter.next().unwrap());
@@ -1073,8 +1073,9 @@ impl<T> HeaderMap<T> {
     /// map.append("x-hello", "earth");
     ///
     /// let values = map.get_all("x-hello").unwrap();
-    /// assert_eq!("world", *values.first());
-    /// assert_eq!("earth", *values.last());
+    /// let mut i = values.iter();
+    /// assert_eq!("world", *i.next().unwrap());
+    /// assert_eq!("earth", *i.next().unwrap());
     /// ```
     pub fn append<K>(&mut self, key: K, value: T) -> bool
         where K: HeaderMapKey,
@@ -2022,10 +2023,6 @@ impl<'a, T> GetAll<'a, T> {
     ///
     /// Values are stored in insertion order.
     ///
-    /// # Panics
-    ///
-    /// `first` panics if there are no values associated with the entry.
-    ///
     /// # Examples
     ///
     /// ```
@@ -2034,52 +2031,18 @@ impl<'a, T> GetAll<'a, T> {
     /// map.insert("x-hello", "world");
     ///
     /// assert_eq!(
-    ///     map.get_all("x-hello").unwrap().first(),
+    ///     map.get_all("x-hello").unwrap().get(),
     ///     &"world");
     ///
     /// map.append("x-hello", "earth");
     ///
     /// assert_eq!(
-    ///     map.get_all("x-hello").unwrap().first(),
+    ///     map.get_all("x-hello").unwrap().get(),
     ///     &"world");
     /// ```
     #[inline]
-    pub fn first(&self) -> &T {
+    pub fn get(&self) -> &T {
         &self.map.entries[self.index as usize].value
-    }
-
-    /// Get a reference to the last value in the set.
-    ///
-    /// Values are stored in insertion order.
-    ///
-    /// # Panics
-    ///
-    /// `last` panics if there are no values associated with the entry.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use http::HeaderMap;
-    /// let mut map = HeaderMap::new();
-    /// map.insert("x-hello", "world");
-    ///
-    /// assert_eq!(map.get_all("x-hello").unwrap().last(), &"world");
-    ///
-    /// map.append("x-hello", "earth");
-    ///
-    /// assert_eq!(map.get_all("x-hello").unwrap().last(), &"earth");
-    /// ```
-    #[inline]
-    pub fn last(&self) -> &T {
-        let entry = &self.map.entries[self.index as usize];
-
-        match entry.links {
-            Some(links) => {
-                let extra = &self.map.extra_values[links.tail as usize];
-                &extra.value
-            }
-            None => &entry.value
-        }
     }
 
     /// Returns an iterator visiting all values associated with the entry.
@@ -2320,7 +2283,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     ///
     /// # Panics
     ///
-    /// `first` panics if there are no values associated with the entry.
+    /// `get` panics if there are no values associated with the entry.
     ///
     /// # Examples
     ///
@@ -2330,15 +2293,15 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// map.insert("x-hello", "world");
     ///
     /// if let Entry::Occupied(mut e) = map.entry("x-hello") {
-    ///     assert_eq!(e.first(), &"world");
+    ///     assert_eq!(e.get(), &"world");
     ///
     ///     e.append("earth");
     ///
-    ///     assert_eq!(e.first(), &"world");
+    ///     assert_eq!(e.get(), &"world");
     /// }
     /// ```
     #[inline]
-    pub fn first(&self) -> &T {
+    pub fn get(&self) -> &T {
         &self.map.entries[self.index as usize].value
     }
 
@@ -2348,7 +2311,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     ///
     /// # Panics
     ///
-    /// `first_mut` panics if there are no values associated with the entry.
+    /// `get_mut` panics if there are no values associated with the entry.
     ///
     /// # Examples
     ///
@@ -2358,83 +2321,13 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// map.insert("x-hello", "world".to_string());
     ///
     /// if let Entry::Occupied(mut e) = map.entry("x-hello") {
-    ///     e.first_mut().push_str("-2");
-    ///     assert_eq!(e.first(), &"world-2");
+    ///     e.get_mut().push_str("-2");
+    ///     assert_eq!(e.get(), &"world-2");
     /// }
     /// ```
     #[inline]
-    pub fn first_mut(&mut self) -> &mut T {
+    pub fn get_mut(&mut self) -> &mut T {
         &mut self.map.entries[self.index as usize].value
-    }
-
-    /// Get a reference to the last value in the entry.
-    ///
-    /// Values are stored in insertion order.
-    ///
-    /// # Panics
-    ///
-    /// `last` panics if there are no values associated with the entry.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use http::header::{HeaderMap, Entry};
-    /// let mut map = HeaderMap::new();
-    /// map.insert("x-hello", "world");
-    ///
-    /// if let Entry::Occupied(mut e) = map.entry("x-hello") {
-    ///     assert_eq!(e.last(), &"world");
-    ///
-    ///     e.append("earth");
-    ///
-    ///     assert_eq!(e.last(), &"earth");
-    /// }
-    /// ```
-    #[inline]
-    pub fn last(&self) -> &T {
-        let entry = &self.map.entries[self.index as usize];
-
-        match entry.links {
-            Some(links) => {
-                let extra = &self.map.extra_values[links.tail as usize];
-                &extra.value
-            }
-            None => &entry.value
-        }
-    }
-
-    /// Get a reference to the last value in the set.
-    ///
-    /// Values are stored in insertion order.
-    ///
-    /// # Panics
-    ///
-    /// `last` panics if there are no values associated with the entry.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use http::header::{HeaderMap, Entry};
-    /// let mut map = HeaderMap::new();
-    /// map.insert("x-hello", "world".to_string());
-    /// map.append("x-hello", "earth".to_string());
-    ///
-    /// if let Entry::Occupied(mut e) = map.entry("x-hello") {
-    ///     e.last_mut().push_str("-2");
-    ///     assert_eq!(e.last(), &"earth-2");
-    /// }
-    /// ```
-    #[inline]
-    pub fn last_mut(&mut self) -> &mut T {
-        let entry = &mut self.map.entries[self.index as usize];
-
-        match entry.links {
-            Some(links) => {
-                let extra = &mut self.map.extra_values[links.tail as usize];
-                &mut extra.value
-            }
-            None => &mut entry.value
-        }
     }
 
     /// Converts the `OccupiedEntry` into a mutable reference to the **first**
@@ -2505,8 +2398,9 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// }
     ///
     /// let values = map.get_all("x-hello").unwrap();
-    /// assert_eq!(&"world", values.first());
-    /// assert_eq!(&"earth", values.last());
+    /// let mut i = values.iter();
+    /// assert_eq!("world", *i.next().unwrap());
+    /// assert_eq!("earth", *i.next().unwrap());
     /// ```
     pub fn append(&mut self, value: T) {
         let idx = self.index;
@@ -2605,8 +2499,9 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// }
     ///
     /// let mut values = map.get_all("x-hello").unwrap();
-    /// assert_eq!(&"world-boop", values.first());
-    /// assert_eq!(&"earth-boop", values.last());
+    /// let mut i = values.iter();
+    /// assert_eq!(&"world-boop", i.next().unwrap());
+    /// assert_eq!(&"earth-boop", i.next().unwrap());
     /// ```
     #[inline]
     pub fn iter_mut(&mut self) -> EntryIterMut<T> {
