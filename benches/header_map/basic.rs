@@ -1,5 +1,3 @@
-use vec_map;
-
 macro_rules! bench {
     ($name:ident($map:ident, $b:ident) $body:expr) => {
         mod $name {

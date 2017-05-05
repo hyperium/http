@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 #[derive(Clone)]
 pub struct VecMap<K, V> {
     vec: Vec<(K, V)>,
