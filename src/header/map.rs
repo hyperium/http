@@ -638,6 +638,34 @@ impl<T> HeaderMap<T> {
         }
     }
 
+    /// Returns a mutable reference to the value associated with the key.
+    ///
+    /// If there are multiple values associated with the key, then the first one
+    /// is returned. Use `entry` to get all values associated with a given
+    /// key. Returns `None` if there are no values associated with the key.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::HeaderMap;
+    /// let mut map = HeaderMap::new();
+    /// map.insert("x-hello", "hello".to_string());
+    /// map.get_mut("x-hello").unwrap().push_str("-world");
+    ///
+    /// assert_eq!(map.get("x-hello").unwrap(), &"hello-world");
+    /// ```
+    pub fn get_mut<K: ?Sized>(&mut self, key: &K) -> Option<&mut T>
+        where K: HeaderMapKey
+    {
+        match key.find(self) {
+            Some((_, found)) => {
+                let entry = &mut self.entries[found as usize];
+                Some(&mut entry.value)
+            }
+            None => None,
+        }
+    }
+
     /// Returns a view of all values associated with a key.
     ///
     /// The returned view does not incur any allocations and allows iterating
