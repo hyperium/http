@@ -1005,9 +1005,14 @@ impl<T> HeaderMap<T> {
     /// returned.
     ///
     /// If the map did have this key present, the new value is associated with
-    /// the key and all previous values are removed and returned. The key is not
-    /// updated, though; this matters for types that can be `==` without being
-    /// identical.
+    /// the key and all previous values are removed. **Note** that only a single
+    /// one of the previous values is returned. If there are multiple values
+    /// that have been previously associated with the key, then the first one is
+    /// returned. See `insert_mult` on `OccupiedEntry` for an API that returns
+    /// all values.
+    ///
+    /// The key is not updated, though; this matters for types that can be `==`
+    /// without being identical.
     ///
     /// # Examples
     ///
@@ -1018,17 +1023,16 @@ impl<T> HeaderMap<T> {
     /// assert!(!map.is_empty());
     ///
     /// let mut prev = map.insert("x-hello", "earth").unwrap();
-    /// assert_eq!("world", prev.next().unwrap());
-    /// assert!(prev.next().is_none());
+    /// assert_eq!("world", prev);
     /// ```
-    pub fn insert<K>(&mut self, key: K, val: T) -> Option<DrainEntry<T>>
+    pub fn insert<K>(&mut self, key: K, val: T) -> Option<T>
         where K: HeaderMapKey,
     {
         key.insert(self, val.into())
     }
 
     #[inline]
-    fn insert2<K>(&mut self, key: K, value: T) -> Option<DrainEntry<T>>
+    fn insert2<K>(&mut self, key: K, value: T) -> Option<T>
         where K: Hash + Into<HeaderName>,
               HeaderName: PartialEq<K>,
     {
@@ -1060,8 +1064,25 @@ impl<T> HeaderMap<T> {
 
     /// Set an occupied bucket to the given value
     #[inline]
-    fn insert_occupied(&mut self, index: usize, value: T) -> DrainEntry<T> {
-        // TODO: Looks like this is repeated code
+    fn insert_occupied(&mut self, index: usize, value: T) -> T {
+        let old;
+        let links;
+
+        {
+            let entry = &mut self.entries[index as usize];
+
+            old = mem::replace(&mut entry.value, value);
+            links = entry.links.take();
+        }
+
+        if let Some(links) = links {
+            self.remove_all_extra_values(links.next);
+        }
+
+        old
+    }
+
+    fn insert_occupied_mult(&mut self, index: usize, value: T) -> DrainEntry<T> {
         let old;
         let links;
 
@@ -1204,36 +1225,12 @@ impl<T> HeaderMap<T> {
         index
     }
 
-    /// Removes a key from the map, returning the values associated with the
-    /// key.
+    /// Removes a key from the map, returning the value associated with the key.
     ///
-    /// Returns `None` if the map does not contain the key.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use http::HeaderMap;
-    /// let mut map = HeaderMap::new();
-    /// map.insert("x-hello", "world");
-    ///
-    /// {
-    ///     let mut prev = map.remove("x-hello").unwrap();
-    ///     assert_eq!("world", prev.next().unwrap());
-    ///     assert!(prev.next().is_none());
-    /// }
-    ///
-    /// assert!(map.remove("x-hello").is_none());
-    /// ```
-    pub fn remove<K: ?Sized>(&mut self, key: &K) -> Option<DrainEntry<T>>
-        where K: HeaderMapKey
-    {
-        self.remove_entry(key).map(|e| e.1)
-    }
-
-    /// Removes a key from the map, returning the key and all values associated
-    /// with the key.
-    ///
-    /// Returns `None` if the map does not contain the key.
+    /// Returns `None` if the map does not contain the key. If there are
+    /// multiple values associated with the key, then the first one is returned.
+    /// See `remove_entry_mult` on `OccupiedEntry` for an API that yields all
+    /// values.
     ///
     /// # Examples
     ///
@@ -1242,21 +1239,23 @@ impl<T> HeaderMap<T> {
     /// let mut map = HeaderMap::new();
     /// map.insert("x-hello", "world");
     ///
-    /// {
-    ///     let (key, mut prev) = map.remove_entry("x-hello").unwrap();
-    ///     assert_eq!("x-hello", key.as_str());
-    ///     assert_eq!("world", prev.next().unwrap());
-    ///     assert!(prev.next().is_none());
-    /// }
+    /// let mut prev = map.remove("x-hello").unwrap();
+    /// assert_eq!("world", prev);
     ///
     /// assert!(map.remove("x-hello").is_none());
     /// ```
-    pub fn remove_entry<K: ?Sized>(&mut self, key: &K) -> Option<(HeaderName, DrainEntry<T>)>
+    pub fn remove<K: ?Sized>(&mut self, key: &K) -> Option<T>
         where K: HeaderMapKey
     {
         match key.find(self) {
             Some((probe, idx)) => {
-                Some(self.remove_found(probe, idx))
+                let entry = self.remove_found(probe, idx);
+
+                if let Some(links) = entry.links {
+                    self.remove_all_extra_values(links.next);
+                }
+
+                Some(entry.value)
             }
             None => None,
         }
@@ -1264,10 +1263,7 @@ impl<T> HeaderMap<T> {
 
     /// Remove an entry from the map while in hashed mode
     #[inline]
-    fn remove_found(&mut self,
-                    probe: usize,
-                    found: usize) -> (HeaderName, DrainEntry<T>)
-    {
+    fn remove_found(&mut self, probe: usize, found: usize) -> Bucket<T> {
         // index `probe` and entry `found` is to be removed
         // use swap_remove, but then we need to update the index that points
         // to the other entry that has to move
@@ -1313,14 +1309,7 @@ impl<T> HeaderMap<T> {
             });
         }
 
-        let drain = DrainEntry {
-            map: self as *mut _,
-            first: Some(entry.value),
-            next: entry.links.map(|l| l.next),
-            lt: PhantomData,
-        };
-
-        (entry.key, drain)
+        entry
     }
 
     /// Removes the `ExtraValue` at the given index.
@@ -1425,6 +1414,18 @@ impl<T> HeaderMap<T> {
         }
 
         extra
+    }
+
+    fn remove_all_extra_values(&mut self, mut head: usize) {
+        loop {
+            let extra = self.remove_extra_value(head);
+
+            if let Link::Extra(idx) = extra.next {
+                head = idx;
+            } else {
+                break;
+            }
+        }
     }
 
     #[inline]
@@ -2387,7 +2388,8 @@ impl<'a, T> OccupiedEntry<'a, T> {
 
     /// Sets the value of the entry.
     ///
-    /// All previous values associated with the entry are removed and returned.
+    /// All previous values associated with the entry are removed and the first
+    /// one is returned. See `insert_mult` for an API that returns all values.
     ///
     /// # Examples
     ///
@@ -2398,15 +2400,40 @@ impl<'a, T> OccupiedEntry<'a, T> {
     ///
     /// if let Entry::Occupied(mut e) = map.entry("x-hello") {
     ///     let mut prev = e.insert("earth");
-    ///     assert_eq!("world", prev.next().unwrap());
-    ///     assert!(prev.next().is_none());
+    ///     assert_eq!("world", prev);
     /// }
     ///
     /// assert_eq!("earth", map["x-hello"]);
     /// ```
     #[inline]
-    pub fn insert(&mut self, value: T) -> DrainEntry<T> {
+    pub fn insert(&mut self, value: T) -> T {
         self.map.insert_occupied(self.index, value.into())
+    }
+
+    /// Sets the value of the entry.
+    ///
+    /// This function does the same as `insert` except it returns an iterator
+    /// that yields all values previously associated with the key.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::{HeaderMap, Entry};
+    /// let mut map = HeaderMap::new();
+    /// map.insert("x-hello", "world");
+    /// map.append("x-hello", "world2");
+    ///
+    /// if let Entry::Occupied(mut e) = map.entry("x-hello") {
+    ///     let mut prev = e.insert_mult("earth");
+    ///     assert_eq!("world", prev.next().unwrap());
+    ///     assert_eq!("world2", prev.next().unwrap());
+    ///     assert!(prev.next().is_none());
+    /// }
+    ///
+    /// assert_eq!("earth", map["x-hello"]);
+    /// ```
+    pub fn insert_mult(&mut self, value: T) -> DrainEntry<T> {
+        self.map.insert_occupied_mult(self.index, value.into())
     }
 
     /// Insert the value into the entry.
@@ -2438,7 +2465,8 @@ impl<'a, T> OccupiedEntry<'a, T> {
 
     /// Remove the entry from the map.
     ///
-    /// Any values currently stored in the entry are returned.
+    /// All values associated with the entry are removed and the first one is
+    /// returned. See `remove_entry_mult` for an API that returns all values.
     ///
     /// # Examples
     ///
@@ -2449,19 +2477,20 @@ impl<'a, T> OccupiedEntry<'a, T> {
     ///
     /// if let Entry::Occupied(e) = map.entry("x-hello") {
     ///     let mut prev = e.remove();
-    ///     assert_eq!("world", prev.next().unwrap());
-    ///     assert!(prev.next().is_none());
+    ///     assert_eq!("world", prev);
     /// }
     ///
     /// assert!(!map.contains_key("x-hello"));
     /// ```
-    pub fn remove(self) -> DrainEntry<'a, T> {
+    pub fn remove(self) -> T {
         self.remove_entry().1
     }
 
     /// Remove the entry from the map.
     ///
-    /// They key and any values currently stored in the entry are returned.
+    /// The key and all values associated with the entry are removed and the
+    /// first one is returned. See `remove_entry_mult` for an API that returns
+    /// all values.
     ///
     /// # Examples
     ///
@@ -2473,14 +2502,50 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// if let Entry::Occupied(e) = map.entry("x-hello") {
     ///     let (key, mut prev) = e.remove_entry();
     ///     assert_eq!("x-hello", key.as_str());
-    ///     assert_eq!("world", prev.next().unwrap());
-    ///     assert!(prev.next().is_none());
+    ///     assert_eq!("world", prev);
     /// }
     ///
     /// assert!(!map.contains_key("x-hello"));
     /// ```
-    pub fn remove_entry(self) -> (HeaderName, DrainEntry<'a, T>) {
-        self.map.remove_found(self.probe, self.index)
+    pub fn remove_entry(self) -> (HeaderName, T) {
+        let entry = self.map.remove_found(self.probe, self.index);
+
+        if let Some(links) = entry.links {
+            self.map.remove_all_extra_values(links.next);
+        }
+
+        (entry.key, entry.value)
+    }
+
+    /// Remove the entry from the map.
+    ///
+    /// The key and all values associated with the entry are removed and
+    /// returned. See `remove_entry_mult` for an API that returns all values.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::{HeaderMap, Entry};
+    /// let mut map = HeaderMap::new();
+    /// map.insert("x-hello", "world");
+    ///
+    /// if let Entry::Occupied(e) = map.entry("x-hello") {
+    ///     let (key, mut prev) = e.remove_entry();
+    ///     assert_eq!("x-hello", key.as_str());
+    ///     assert_eq!("world", prev);
+    /// }
+    ///
+    /// assert!(!map.contains_key("x-hello"));
+    /// ```
+    pub fn remove_entry_mult(self) -> (HeaderName, DrainEntry<'a, T>) {
+        let entry = self.map.remove_found(self.probe, self.index);
+        let drain = DrainEntry {
+            map: self.map as *mut _,
+            first: Some(entry.value),
+            next: entry.links.map(|l| l.next),
+            lt: PhantomData,
+        };
+        (entry.key, drain)
     }
 
     /// Returns an iterator visiting all values associated with the entry.
@@ -2749,7 +2814,7 @@ pub trait HeaderMapKey: Sealed {
     // cases where DST values can be passed in.
 
     #[doc(hidden)]
-    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<DrainEntry<T>>
+    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<T>
         where Self: Sized
     {
         drop(map);
@@ -2785,7 +2850,7 @@ pub trait Sealed {}
 impl HeaderMapKey for HeaderName {
     #[doc(hidden)]
     #[inline]
-    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<DrainEntry<T>> {
+    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<T> {
         map.insert2(self, val)
     }
 
@@ -2819,7 +2884,7 @@ impl Sealed for HeaderName {}
 impl<'a> HeaderMapKey for &'a HeaderName {
     #[doc(hidden)]
     #[inline]
-    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<DrainEntry<T>> {
+    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<T> {
         map.insert2(self, val)
     }
 
@@ -2869,7 +2934,7 @@ impl Sealed for str {}
 impl<'a> HeaderMapKey for &'a str {
     #[doc(hidden)]
     #[inline]
-    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<DrainEntry<T>> {
+    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<T> {
         HdrName::from_bytes(self.as_bytes(), move |hdr| map.insert2(hdr, val)).unwrap()
     }
 
@@ -2903,7 +2968,7 @@ impl<'a> Sealed for &'a str {}
 impl HeaderMapKey for String {
     #[doc(hidden)]
     #[inline]
-    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<DrainEntry<T>> {
+    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<T> {
         self.as_str().insert(map, val)
     }
 
@@ -2937,7 +3002,7 @@ impl Sealed for String {}
 impl<'a> HeaderMapKey for &'a String {
     #[doc(hidden)]
     #[inline]
-    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<DrainEntry<T>> {
+    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<T> {
         self.as_str().insert(map, val)
     }
 
