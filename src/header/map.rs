@@ -1247,33 +1247,6 @@ impl<T> HeaderMap<T> {
     pub fn remove<K: ?Sized>(&mut self, key: &K) -> Option<T>
         where K: HeaderMapKey
     {
-        self.remove_entry(key).map(|e| e.1)
-    }
-
-    /// Removes a key from the map, returning the key and all values associated
-    /// with the key.
-    ///
-    /// Returns `None` if the map does not contain the key. If there are
-    /// multiple values associated with the key, then the first one is returned.
-    /// See `remove_entry_mult` on `OccupiedEntry` for an API that yields all
-    /// values.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use http::HeaderMap;
-    /// let mut map = HeaderMap::new();
-    /// map.insert("x-hello", "world");
-    ///
-    /// let (key, mut prev) = map.remove_entry("x-hello").unwrap();
-    /// assert_eq!("x-hello", key.as_str());
-    /// assert_eq!("world", prev);
-    ///
-    /// assert!(map.remove("x-hello").is_none());
-    /// ```
-    pub fn remove_entry<K: ?Sized>(&mut self, key: &K) -> Option<(HeaderName, T)>
-        where K: HeaderMapKey
-    {
         match key.find(self) {
             Some((probe, idx)) => {
                 let entry = self.remove_found(probe, idx);
@@ -1282,7 +1255,7 @@ impl<T> HeaderMap<T> {
                     self.remove_all_extra_values(links.next);
                 }
 
-                Some((entry.key, entry.value))
+                Some(entry.value)
             }
             None => None,
         }

@@ -97,7 +97,12 @@ fn drain_entry() {
 
     // Using insert
     {
-        let vals: Vec<_> = headers.insert("hello", "wat").unwrap().collect();
+        let mut e = match headers.entry("hello") {
+            Entry::Occupied(e) => e,
+            _ => panic!(),
+        };
+
+        let vals: Vec<_> = e.insert_mult("wat").collect();
         assert_eq!(2, vals.len());
         assert_eq!(vals[0], "world");
         assert_eq!(vals[1], "world2");
