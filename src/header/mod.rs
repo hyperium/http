@@ -72,6 +72,7 @@
 
 mod map;
 mod name;
+mod value;
 
 pub use self::map::{
     HeaderMap,
@@ -91,6 +92,11 @@ pub use self::name::{
     HeaderName,
     FromBytesError,
     FromStrError,
+};
+pub use self::value::{
+    HeaderValue,
+    InvalidValueError,
+    ToStrError,
 };
 
 // Use header name constants
