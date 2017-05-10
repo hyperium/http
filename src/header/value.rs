@@ -35,7 +35,8 @@ pub struct ToStrError {
 impl HeaderValue {
     /// Convert a static string to a `HeaderValue`
     ///
-    /// This function will not perform any copying or checks and is very cheap.
+    /// This function will not perform any copying, however the string is
+    /// checked to ensure that no invalid characters are present.
     ///
     /// # Panics
     ///
@@ -167,8 +168,32 @@ impl HeaderValue {
     }
 
     /// Returns true if the `HeaderValue` has a length of zero bytes.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::HeaderValue;
+    /// let val = HeaderValue::from_static("");
+    /// assert!(val.is_empty());
+    ///
+    /// let val = HeaderValue::from_static("hello");
+    /// assert!(!val.is_empty());
+    /// ```
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+
+    /// Converts a `HeaderValue` to a byte slice.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::HeaderValue;
+    /// let val = HeaderValue::from_static("hello");
+    /// assert_eq!(val.as_bytes(), b"hello");
+    /// ```
+    pub fn as_bytes(&self) -> &[u8] {
+        self.as_ref()
     }
 }
 
