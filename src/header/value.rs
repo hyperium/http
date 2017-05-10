@@ -274,13 +274,13 @@ impl PartialEq<HeaderValue> for [u8] {
 
 impl PartialOrd<HeaderValue> for str {
     fn partial_cmp(&self, other: &HeaderValue) -> Option<cmp::Ordering> {
-        other.partial_cmp(self)
+        self.as_bytes().partial_cmp(other.as_bytes())
     }
 }
 
 impl PartialOrd<HeaderValue> for [u8] {
     fn partial_cmp(&self, other: &HeaderValue) -> Option<cmp::Ordering> {
-        other.partial_cmp(self)
+        self.as_bytes().partial_cmp(other.as_bytes())
     }
 }
 
@@ -304,7 +304,7 @@ impl PartialEq<HeaderValue> for String {
 
 impl PartialOrd<HeaderValue> for String {
     fn partial_cmp(&self, other: &HeaderValue) -> Option<cmp::Ordering> {
-        other.partial_cmp(self)
+        self.as_bytes().partial_cmp(other.as_bytes())
     }
 }
 
@@ -332,6 +332,6 @@ impl<'a> PartialEq<HeaderValue> for &'a str {
 
 impl<'a> PartialOrd<HeaderValue> for &'a str {
     fn partial_cmp(&self, other: &HeaderValue) -> Option<cmp::Ordering> {
-        other.partial_cmp(self)
+        self.as_bytes().partial_cmp(other.as_bytes())
     }
 }
