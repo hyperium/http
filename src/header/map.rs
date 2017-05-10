@@ -1639,7 +1639,7 @@ impl<T: fmt::Debug> fmt::Debug for HeaderMap<T> {
     }
 }
 
-impl<T: Default> Default for HeaderMap<T> {
+impl<T> Default for HeaderMap<T> {
     fn default() -> Self {
         HeaderMap::new()
     }
