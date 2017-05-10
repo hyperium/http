@@ -36,7 +36,8 @@ impl HeaderValue {
     /// Convert a static string to a `HeaderValue`
     ///
     /// This function will not perform any copying, however the string is
-    /// checked to ensure that no invalid characters are present.
+    /// checked to ensure that no invalid characters are present. Only visible
+    /// ASCII characters (32-127) are permitted.
     ///
     /// # Panics
     ///
@@ -67,7 +68,9 @@ impl HeaderValue {
     /// Attempt to convert a string to a `HeaderValue`.
     ///
     /// If the argument contains invalid header value characters, an error is
-    /// returned.
+    /// returned. Only visible ASCII characters (32-127) are permitted. Use
+    /// `try_from_bytes` to create a `HeaderValue` that includes opaque octets
+    /// (128-255).
     ///
     /// # Examples
     ///
@@ -99,6 +102,9 @@ impl HeaderValue {
     }
 
     /// Attempt to convert a byte slice to a `HeaderValue`.
+    ///
+    /// If the argument contains invalid header value bytes, an error is
+    /// returned. Only byte values between 32 and 255 (inclusive) are permitted.
     ///
     /// # Examples
     ///
