@@ -280,7 +280,7 @@ impl PartialOrd<HeaderValue> for str {
 
 impl PartialOrd<HeaderValue> for [u8] {
     fn partial_cmp(&self, other: &HeaderValue) -> Option<cmp::Ordering> {
-        self.as_bytes().partial_cmp(other.as_bytes())
+        self.partial_cmp(other.as_bytes())
     }
 }
 
