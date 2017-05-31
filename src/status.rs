@@ -2,6 +2,7 @@
 
 use std::fmt;
 use std::error::Error;
+use std::str::FromStr;
 
 /// An HTTP status code (`status-code` in RFC 7230 et al.).
 ///
@@ -27,6 +28,15 @@ pub struct FromU16Error {
     _priv: (),
 }
 
+/// A possible error value when converting a `StatusCode` from a `&str`.
+///
+/// This type is returned from `StatusCode::from_str` when the supplied input is
+/// not a valid number, less than 100 or greater than 599.
+#[derive(Debug)]
+pub struct FromStrError {
+    _priv: (),
+}
+
 impl StatusCode {
     /// Converts a u16 to a status code.
     ///
@@ -38,6 +48,24 @@ impl StatusCode {
         }
 
         Ok(StatusCode(src))
+    }
+
+    /// Converts a &[u8] to a status code
+    pub fn from_slice(src: &[u8]) -> Result<StatusCode, FromStrError> {
+        if src.len() != 3 {
+            return Err(FromStrError::new());
+        }
+
+        let a = src[0].wrapping_sub(b'0') as u16;
+        let b = src[1].wrapping_sub(b'0') as u16;
+        let c = src[1].wrapping_sub(b'0') as u16;
+
+        if a > 9 || b > 9 || c > 9 {
+            return Err(FromStrError::new());
+        }
+
+        let status = (a * 100) + (b * 10) + c;
+        Ok(StatusCode(status))
     }
 
     /// Check if class is Informational.
@@ -91,9 +119,27 @@ impl From<StatusCode> for u16 {
     }
 }
 
+impl FromStr for StatusCode {
+    type Err = FromStrError;
+
+    fn from_str(s: &str) -> Result<StatusCode, FromStrError> {
+        let code = try!(s.parse().map_err(|_| FromStrError::new()));
+        StatusCode::from_u16(code)
+            .map_err(|_| FromStrError::new())
+    }
+}
+
 impl FromU16Error {
     fn new() -> FromU16Error {
         FromU16Error {
+            _priv: (),
+        }
+    }
+}
+
+impl FromStrError {
+    fn new() -> FromStrError {
+        FromStrError {
             _priv: (),
         }
     }
@@ -341,5 +387,17 @@ impl Error for FromU16Error {
 
     fn cause(&self) -> Option<&Error> {
         None
+    }
+}
+
+impl fmt::Display for FromStrError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.description())
+    }
+}
+
+impl Error for FromStrError {
+    fn description(&self) -> &str {
+        "invalid status code"
     }
 }
