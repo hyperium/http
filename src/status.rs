@@ -58,7 +58,7 @@ impl StatusCode {
 
         let a = src[0].wrapping_sub(b'0') as u16;
         let b = src[1].wrapping_sub(b'0') as u16;
-        let c = src[1].wrapping_sub(b'0') as u16;
+        let c = src[2].wrapping_sub(b'0') as u16;
 
         if a > 9 || b > 9 || c > 9 {
             return Err(FromStrError::new());
