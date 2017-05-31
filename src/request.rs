@@ -23,10 +23,11 @@ pub struct Request<T> {
 /// header fields.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Head {
-    method: Method,
-    uri: Uri,
-    version: Version,
-    headers: HeaderMap<HeaderValue>,
+    pub method: Method,
+    pub uri: Uri,
+    pub version: Version,
+    pub headers: HeaderMap<HeaderValue>,
+    _priv: (),
 }
 
 impl<T> Request<T> {
@@ -47,7 +48,7 @@ impl<T> Request<T> {
     /// assert_eq!(*request.method(), method::GET);
     /// assert_eq!(*request.body(), "hello world");
     /// ```
-    pub fn new(head: Head, body: T) -> Request<T> {
+    pub fn from_parts(head: Head, body: T) -> Request<T> {
         Request {
             head: head,
             body: body,
@@ -62,7 +63,18 @@ impl<T> Request<T> {
     /// unimplemented!();
     /// ```
     pub fn method(&self) -> &Method {
-        self.head.method()
+        &self.head.method
+    }
+
+    /// Returns a mutable reference to the associated HTTP method.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// unimplemented!();
+    /// ```
+    pub fn method_mut(&mut self) -> &mut Method {
+        &mut self.head.method
     }
 
     /// Returns a reference to the associated URI.
@@ -73,7 +85,18 @@ impl<T> Request<T> {
     /// unimplemented!();
     /// ```
     pub fn uri(&self) -> &Uri {
-        self.head.uri()
+        &self.head.uri
+    }
+
+    /// Returns a mutable reference to the associated URI.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// unimplemented!();
+    /// ```
+    pub fn uri_mut(&self) -> &mut Uri {
+        &mut self.head.uri
     }
 
     /// Returns a reference to the associated version.
@@ -84,7 +107,18 @@ impl<T> Request<T> {
     /// unimplemented!();
     /// ```
     pub fn version(&self) -> &Version {
-        self.head.version()
+        &self.head.version
+    }
+
+    /// Returns a mutable reference to the associated version.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// unimplemented!();
+    /// ```
+    pub fn version_mut(&mut self) -> &mut Version {
+        &self.head.version
     }
 
     /// Returns a reference to the associated header field map.
@@ -95,7 +129,18 @@ impl<T> Request<T> {
     /// unimplemented!();
     /// ```
     pub fn headers(&self) -> &HeaderMap<HeaderValue> {
-        self.head.headers()
+        &self.head.headers
+    }
+
+    /// Returns a mutable reference to the associated header field map.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// unimplemented!();
+    /// ```
+    pub fn headers_mut(&mut self) -> &mut HeaderMap<HeaderValue> {
+        &mut self.head.headers
     }
 
     /// Returns a reference to the associated HTTP body.
@@ -150,95 +195,8 @@ impl Head {
             uri: uri,
             version: version,
             headers: headers,
+            _priv: (),
         }
-    }
-
-    /// Returns a reference to the associated HTTP method.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// unimplemented!();
-    /// ```
-    pub fn method(&self) -> &Method {
-        &self.method
-    }
-
-    /// Returns a mutable reference to the associated HTTP method.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// unimplemented!();
-    /// ```
-    pub fn method_mut(&mut self) -> &mut Method {
-        &mut self.method
-    }
-
-    /// Returns a reference to the associated URI.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// unimplemented!();
-    /// ```
-    pub fn uri(&self) -> &Uri {
-        &self.uri
-    }
-
-    /// Returns a mutable reference to the associated URI.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// unimplemented!();
-    /// ```
-    pub fn uri_mut(&mut self) -> &mut Uri {
-        &mut self.uri
-    }
-
-    /// Returns a reference to the associated version.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// unimplemented!();
-    /// ```
-    pub fn version(&self) -> &Version {
-        &self.version
-    }
-
-    /// Returns a mutable reference to the associated version.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// unimplemented!();
-    /// ```
-    pub fn version_mut(&mut self) -> &mut Version {
-        &mut self.version
-    }
-
-    /// Returns a reference to the associated header field map.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// unimplemented!();
-    /// ```
-    pub fn headers(&self) -> &HeaderMap<HeaderValue> {
-        &self.headers
-    }
-
-    /// Returns a mutable reference to the associated header field map.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// unimplemented!();
-    /// ```
-    pub fn headers_mut(&mut self) -> &mut HeaderMap<HeaderValue> {
-        &mut self.headers
     }
 }
 
