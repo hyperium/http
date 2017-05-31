@@ -2,8 +2,8 @@
 
 use Uri;
 use header::{HeaderMap, HeaderValue};
-use method::{self, Method};
-use version::{self, Version};
+use method::Method;
+use version::Version;
 
 /// Represents an HTTP request.
 ///
