@@ -37,13 +37,8 @@ impl<T> Request<T> {
     ///
     /// ```
     /// # use http::*;
-    /// let head = request::Head::new(
-    ///     method::GET,
-    ///     "/".parse().unwrap(),
-    ///     version::HTTP_11,
-    ///     HeaderMap::new());
-    ///
-    /// let request = Request::new(head, "hello world");
+    /// let head = request::Head::default();
+    /// let request = Request::from_parts(head, "hello world");
     ///
     /// assert_eq!(*request.method(), method::GET);
     /// assert_eq!(*request.body(), "hello world");
@@ -60,7 +55,9 @@ impl<T> Request<T> {
     /// # Examples
     ///
     /// ```
-    /// unimplemented!();
+    /// # use http::*;
+    /// let request: Request<()> = Request::default();
+    /// assert_eq!(*request.method(), method::GET);
     /// ```
     pub fn method(&self) -> &Method {
         &self.head.method
@@ -71,7 +68,10 @@ impl<T> Request<T> {
     /// # Examples
     ///
     /// ```
-    /// unimplemented!();
+    /// # use http::*;
+    /// let mut request: Request<()> = Request::default();
+    /// *request.method_mut() = method::PUT;
+    /// assert_eq!(*request.method(), method::PUT);
     /// ```
     pub fn method_mut(&mut self) -> &mut Method {
         &mut self.head.method
@@ -82,7 +82,9 @@ impl<T> Request<T> {
     /// # Examples
     ///
     /// ```
-    /// unimplemented!();
+    /// # use http::*;
+    /// let request: Request<()> = Request::default();
+    /// assert_eq!(*request.uri(), *"/");
     /// ```
     pub fn uri(&self) -> &Uri {
         &self.head.uri
@@ -93,9 +95,12 @@ impl<T> Request<T> {
     /// # Examples
     ///
     /// ```
-    /// unimplemented!();
+    /// # use http::*;
+    /// let mut request: Request<()> = Request::default();
+    /// *request.uri_mut() = "/hello".parse().unwrap();
+    /// assert_eq!(*request.uri(), *"/hello");
     /// ```
-    pub fn uri_mut(&self) -> &mut Uri {
+    pub fn uri_mut(&mut self) -> &mut Uri {
         &mut self.head.uri
     }
 
@@ -104,7 +109,9 @@ impl<T> Request<T> {
     /// # Examples
     ///
     /// ```
-    /// unimplemented!();
+    /// # use http::*;
+    /// let request: Request<()> = Request::default();
+    /// assert_eq!(*request.version(), version::HTTP_11);
     /// ```
     pub fn version(&self) -> &Version {
         &self.head.version
@@ -115,10 +122,13 @@ impl<T> Request<T> {
     /// # Examples
     ///
     /// ```
-    /// unimplemented!();
+    /// # use http::*;
+    /// let mut request: Request<()> = Request::default();
+    /// *request.version_mut() = version::HTTP_2;
+    /// assert_eq!(*request.version(), version::HTTP_2);
     /// ```
     pub fn version_mut(&mut self) -> &mut Version {
-        &self.head.version
+        &mut self.head.version
     }
 
     /// Returns a reference to the associated header field map.
@@ -126,7 +136,9 @@ impl<T> Request<T> {
     /// # Examples
     ///
     /// ```
-    /// unimplemented!();
+    /// # use http::*;
+    /// let request: Request<()> = Request::default();
+    /// assert!(request.headers().is_empty());
     /// ```
     pub fn headers(&self) -> &HeaderMap<HeaderValue> {
         &self.head.headers
@@ -137,7 +149,11 @@ impl<T> Request<T> {
     /// # Examples
     ///
     /// ```
-    /// unimplemented!();
+    /// # use http::*;
+    /// # use http::header::*;
+    /// let mut request: Request<()> = Request::default();
+    /// request.headers_mut().insert("hello", HeaderValue::from_static("world"));
+    /// assert!(!request.headers().is_empty());
     /// ```
     pub fn headers_mut(&mut self) -> &mut HeaderMap<HeaderValue> {
         &mut self.head.headers
@@ -148,7 +164,9 @@ impl<T> Request<T> {
     /// # Examples
     ///
     /// ```
-    /// unimplemented!();
+    /// # use http::*;
+    /// let request: Request<String> = Request::default();
+    /// assert!(request.body().is_empty());
     /// ```
     pub fn body(&self) -> &T {
         &self.body
@@ -159,7 +177,10 @@ impl<T> Request<T> {
     /// # Examples
     ///
     /// ```
-    /// unimplemented!();
+    /// # use http::*;
+    /// let mut request: Request<String> = Request::default();
+    /// request.body_mut().push_str("hello world");
+    /// assert!(!request.body().is_empty());
     /// ```
     pub fn body_mut(&mut self) -> &mut T {
         &mut self.body
@@ -170,33 +191,14 @@ impl<T> Request<T> {
     /// # Examples
     ///
     /// ```
-    /// unimplemented!();
+    /// # use http::*;
+    /// let request: Request<()> = Request::default();
+    /// let (head, body) = request.into_parts();
+    /// let request::Head { method, .. } = head;
+    /// assert_eq!(method, method::GET);
     /// ```
     pub fn into_parts(self) -> (Head, T) {
         (self.head, self.body)
-    }
-}
-
-impl Head {
-    /// Creates a new `Head` with the given çomponents
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// unimplemented!();
-    /// ```
-    pub fn new(method: Method,
-               uri: Uri,
-               version: Version,
-               headers: HeaderMap<HeaderValue>) -> Head
-    {
-        Head {
-            method: method,
-            uri: uri,
-            version: version,
-            headers: headers,
-            _priv: (),
-        }
     }
 }
 
