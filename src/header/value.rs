@@ -11,9 +11,10 @@ use std::{char, cmp, fmt, str};
 /// To handle this, the `HeaderValue` is useable as a type and can be compared
 /// with strings and implements `Debug`. A `to_str` fn is provided that returns
 /// an `Err` if the header value contains non visible ascii characters.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(Clone, Hash)]
 pub struct HeaderValue {
     inner: Bytes,
+    is_sensitive: bool,
 }
 
 /// A possible error when converting a `HeaderValue` from a string or byte
@@ -62,6 +63,7 @@ impl HeaderValue {
 
         HeaderValue {
             inner: Bytes::from_static(bytes),
+            is_sensitive: false,
         }
     }
 
@@ -98,7 +100,10 @@ impl HeaderValue {
             }
         }
 
-        Ok(HeaderValue { inner: Bytes::from(bytes) })
+        Ok(HeaderValue {
+            inner: Bytes::from(bytes),
+            is_sensitive: false,
+        })
     }
 
     /// Attempt to convert a byte slice to a `HeaderValue`.
@@ -130,7 +135,10 @@ impl HeaderValue {
             }
         }
 
-        Ok(HeaderValue { inner: Bytes::from(src) })
+        Ok(HeaderValue {
+            inner: Bytes::from(src),
+            is_sensitive: false,
+        })
     }
 
     /// Yields a `&str` slice if the `HeaderValue` only contains visible ASCII
@@ -201,6 +209,49 @@ impl HeaderValue {
     pub fn as_bytes(&self) -> &[u8] {
         self.as_ref()
     }
+
+    /// Mark that the header value represents sensitive information.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::HeaderValue;
+    /// let mut val = HeaderValue::from_static("my secret");
+    ///
+    /// val.set_sensitive(true);
+    /// assert!(val.is_sensitive());
+    ///
+    /// val.set_sensitive(false);
+    /// assert!(!val.is_sensitive());
+    /// ```
+    pub fn set_sensitive(&mut self, val: bool) {
+        self.is_sensitive = val;
+    }
+
+    /// Returns `true` if the value represents sensitive data.
+    ///
+    /// Sensitive data could represent passwords or other data that should not
+    /// be stored on disk or in memory. This setting can be used by components
+    /// like caches to avoid storing the value. HPACK encoders must set the
+    /// header field to never index when `is_sensitive` returns true.
+    ///
+    /// Note that sensitivity is not factored into equality or ordering.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::HeaderValue;
+    /// let mut val = HeaderValue::from_static("my secret");
+    ///
+    /// val.set_sensitive(true);
+    /// assert!(val.is_sensitive());
+    ///
+    /// val.set_sensitive(false);
+    /// assert!(!val.is_sensitive());
+    /// ```
+    pub fn is_sensitive(&self) -> bool {
+        self.is_sensitive
+    }
 }
 
 impl AsRef<[u8]> for HeaderValue {
@@ -211,7 +262,7 @@ impl AsRef<[u8]> for HeaderValue {
 
 impl fmt::Debug for HeaderValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(f, "\""));
+        try!(write!(f, "HeaderValue {{ \""));
 
         for &b in self.as_ref() {
             if is_visible_ascii(b) {
@@ -222,7 +273,7 @@ impl fmt::Debug for HeaderValue {
             }
         }
 
-        write!(f, "\"")
+        write!(f, "\", is_sensitive={:?} }}", self.is_sensitive)
     }
 }
 
@@ -235,6 +286,26 @@ fn is_valid(b: u8) -> bool {
 }
 
 // ===== PartialEq / PartialOrd =====
+
+impl PartialEq for HeaderValue {
+    fn eq(&self, other: &HeaderValue) -> bool {
+        self.inner == other.inner
+    }
+}
+
+impl Eq for HeaderValue {}
+
+impl PartialOrd for HeaderValue {
+    fn partial_cmp(&self, other: &HeaderValue) -> Option<cmp::Ordering> {
+        self.inner.partial_cmp(&other.inner)
+    }
+}
+
+impl Ord for HeaderValue {
+    fn cmp(&self, other: &Self) -> cmp::Ordering {
+        self.inner.cmp(&other.inner)
+    }
+}
 
 impl PartialEq<str> for HeaderValue {
     fn eq(&self, other: &str) -> bool {
