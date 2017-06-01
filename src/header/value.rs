@@ -262,9 +262,18 @@ impl AsRef<[u8]> for HeaderValue {
 
 impl fmt::Debug for HeaderValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(f, "HeaderValue {{ \""));
+        f.debug_struct("HeaderValue")
+            .field("value", &EscapeBytes(self.as_ref()))
+            .field("is_sensitive", &self.is_sensitive)
+            .finish()
+    }
+}
 
-        for &b in self.as_ref() {
+struct EscapeBytes<'a>(&'a [u8]);
+
+impl<'a> fmt::Debug for EscapeBytes<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for &b in self.0 {
             if is_visible_ascii(b) {
                 let ch = unsafe { char::from_u32_unchecked(b as u32) };
                 try!(write!(f, "{}", ch));
@@ -273,7 +282,7 @@ impl fmt::Debug for HeaderValue {
             }
         }
 
-        write!(f, "\", is_sensitive={:?} }}", self.is_sensitive)
+        Ok(())
     }
 }
 
