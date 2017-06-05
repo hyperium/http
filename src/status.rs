@@ -374,7 +374,7 @@ status_codes! {
 
 impl fmt::Display for FromU16Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.description())
+        f.write_str(self.description())
     }
 }
 
@@ -390,7 +390,7 @@ impl Error for FromU16Error {
 
 impl fmt::Display for FromStrError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.description())
+        f.write_str(self.description())
     }
 }
 
