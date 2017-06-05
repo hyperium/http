@@ -51,7 +51,7 @@ impl StatusCode {
     }
 
     /// Converts a &[u8] to a status code
-    pub fn from_slice(src: &[u8]) -> Result<StatusCode, FromStrError> {
+    pub fn from_bytes(src: &[u8]) -> Result<StatusCode, FromStrError> {
         if src.len() != 3 {
             return Err(FromStrError::new());
         }
