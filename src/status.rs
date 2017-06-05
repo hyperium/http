@@ -60,7 +60,7 @@ impl StatusCode {
         let b = src[1].wrapping_sub(b'0') as u16;
         let c = src[2].wrapping_sub(b'0') as u16;
 
-        if a > 9 || b > 9 || c > 9 {
+        if a == 0 || a > 5 || b > 9 || c > 9 {
             return Err(FromStrError::new());
         }
 
@@ -123,9 +123,7 @@ impl FromStr for StatusCode {
     type Err = FromStrError;
 
     fn from_str(s: &str) -> Result<StatusCode, FromStrError> {
-        let code = try!(s.parse().map_err(|_| FromStrError::new()));
-        StatusCode::from_u16(code)
-            .map_err(|_| FromStrError::new())
+        StatusCode::from_bytes(s.as_ref())
     }
 }
 
