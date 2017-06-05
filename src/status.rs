@@ -408,12 +408,8 @@ macro_rules! status_code_strs {
             /// The return value only includes a numerical representation of the
             /// status code. The canonical reason is not included.
             pub fn as_str(&self) -> &str {
-                match self.0 {
-                    $(
-                    $num => stringify!($num),
-                    )+
-                    _ => unreachable!(),
-                }
+                const CODES: [&'static str; 500] = [ $( stringify!($num), )+ ];
+                CODES[(self.0 - 100) as usize]
             }
         }
     }
