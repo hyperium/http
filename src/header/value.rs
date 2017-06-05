@@ -74,6 +74,9 @@ impl HeaderValue {
     /// `try_from_bytes` to create a `HeaderValue` that includes opaque octets
     /// (128-255).
     ///
+    /// This function is intended to be replaced in the future by a `TryFrom`
+    /// implementation once the trait is stabilized in std.
+    ///
     /// # Examples
     ///
     /// ```
@@ -111,11 +114,14 @@ impl HeaderValue {
     /// If the argument contains invalid header value bytes, an error is
     /// returned. Only byte values between 32 and 255 (inclusive) are permitted.
     ///
+    /// This function is intended to be replaced in the future by a `TryFrom`
+    /// implementation once the trait is stabilized in std.
+    ///
     /// # Examples
     ///
     /// ```
     /// # use http::header::HeaderValue;
-    /// let val = HeaderValue::try_from_slice(b"hello\xfa").unwrap();
+    /// let val = HeaderValue::try_from_bytes(b"hello\xfa").unwrap();
     /// assert_eq!(val, &b"hello\xfa"[..]);
     /// ```
     ///
@@ -123,10 +129,10 @@ impl HeaderValue {
     ///
     /// ```
     /// # use http::header::HeaderValue;
-    /// let val = HeaderValue::try_from_slice(b"\n");
+    /// let val = HeaderValue::try_from_bytes(b"\n");
     /// assert!(val.is_err());
     /// ```
-    pub fn try_from_slice(src: &[u8]) -> Result<HeaderValue, InvalidValueError> {
+    pub fn try_from_bytes(src: &[u8]) -> Result<HeaderValue, InvalidValueError> {
         for &b in src {
             if !is_valid(b) {
                 return Err(InvalidValueError {
