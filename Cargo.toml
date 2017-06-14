@@ -22,6 +22,8 @@ fnv = "1.0.5"
 [dev-dependencies]
 ordermap = "0.2.9"
 seahash = "3.0.5"
+rand = "0.3.15"
+quickcheck = "0.4.1"
 
 [[bench]]
 name = "header_map"
