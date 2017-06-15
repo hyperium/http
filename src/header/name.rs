@@ -1732,6 +1732,34 @@ impl<'a> PartialEq<&'a HeaderName> for HeaderName {
     }
 }
 
+impl PartialEq<str> for HeaderName {
+    /// Performs a case-insensitive comparison of the string against the header
+    /// name
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use http::*;
+    ///
+    /// assert_eq!(header::CONTENT_LENGTH, "content-length");
+    /// assert_eq!(header::CONTENT_LENGTH, "Content-Length");
+    /// assert_ne!(header::CONTENT_LENGTH, "content length");
+    /// ```
+    #[inline]
+    fn eq(&self, other: &str) -> bool {
+        eq_ignore_ascii_case(self.as_ref(), other.as_bytes())
+    }
+}
+
+impl<'a> PartialEq<&'a str> for HeaderName {
+    /// Performs a case-insensitive comparison of the string against the header
+    /// name
+    #[inline]
+    fn eq(&self, other: &&'a str) -> bool {
+        *self == **other
+    }
+}
+
 // ===== HdrName =====
 
 impl<'a> HdrName<'a> {
