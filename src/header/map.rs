@@ -129,7 +129,7 @@ pub struct GetAll<'a, T: 'a> {
     index: usize,
 }
 
-/// A view into a single location in a `HeaderMap`, which may be vaccant or occupied.
+/// A view into a single location in a `HeaderMap`, which may be vacant or occupied.
 pub enum Entry<'a, T: 'a> {
     Occupied(OccupiedEntry<'a, T>),
     Vacant(VacantEntry<'a, T>),
@@ -1489,7 +1489,7 @@ impl<T> HeaderMap<T> {
                         break;
                     }
                 } else {
-                    // Vaccant slot
+                    // Vacant slot
                     self.indices[probe] = Pos::new(index, hash);
                     continue 'outer;
                 }
@@ -1682,6 +1682,85 @@ impl<K, T> FromIterator<(K, T)> for HeaderMap<T>
        let mut map = HeaderMap::new();
        map.extend(iter);
        map
+    }
+}
+
+impl<T> Extend<(Option<HeaderName>, T)> for HeaderMap<T> {
+    /// Extend a `HeaderMap` with the contents of another `HeaderMap`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::*;
+    /// let mut map = HeaderMap::new();
+    ///
+    /// map.insert("foo", "bar");
+    /// map.insert("accept", "awesome");
+    ///
+    /// let mut extra = HeaderMap::new();
+    ///
+    /// extra.insert("foo", "baz");
+    /// extra.insert("cookie", "hello");
+    /// extra.append("cookie", "world");
+    /// extra.insert("something", "else");
+    ///
+    /// map.extend(extra);
+    ///
+    /// assert_eq!(map["foo"], "baz");
+    /// assert_eq!(map["accept"], "awesome");
+    /// assert_eq!(map["cookie"], "hello");
+    /// assert_eq!(map["something"], "else");
+    ///
+    /// let v = map.get_all("foo").unwrap();
+    /// assert_eq!(1, v.iter().count());
+    ///
+    /// let v = map.get_all("cookie").unwrap();
+    /// assert_eq!(2, v.iter().count());
+    /// ```
+    fn extend<I: IntoIterator<Item = (Option<HeaderName>, T)>>(&mut self, iter: I) {
+        let mut iter = iter.into_iter();
+
+        // The structure of this is a bit weird, but it is mostly to make the
+        // borrow checker happy.
+        let (mut key, mut val) = match iter.next() {
+            Some((Some(key), val)) => (key, val),
+            Some((None, _)) => panic!("expected a header name, but got None"),
+            None => return,
+        };
+
+        'outer:
+        loop {
+            let mut entry = match self.entry(key) {
+                Entry::Occupied(mut e) => {
+                    // Replace all previous values while maintaining a handle to
+                    // the entry.
+                    e.insert(val);
+                    e
+                }
+                Entry::Vacant(e) => {
+                    e.insert_entry(val)
+                }
+            };
+
+            // As long as `HeaderName` is none, keep inserting the value into
+            // the current entry
+            'inner:
+            loop {
+                match iter.next() {
+                    Some((Some(k), v)) => {
+                        key = k;
+                        val = v;
+                        continue 'outer;
+                    }
+                    Some((None, v)) => {
+                        entry.append(v);
+                    }
+                    None => {
+                        return;
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -2116,6 +2195,40 @@ impl<'a, T> VacantEntry<'a, T> {
             self.danger);
 
         &mut self.map.entries[index].value
+    }
+
+    /// Insert the value into the entry.
+    ///
+    /// The value will be associated with this entry's key. The new
+    /// `OccupiedEntry` is returned, allowing for further manipulation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::*;
+    /// let mut map = HeaderMap::new();
+    ///
+    /// if let Entry::Vacant(v) = map.entry("x-hello") {
+    ///     let mut e = v.insert_entry("world");
+    ///     e.insert("world2");
+    /// }
+    ///
+    /// assert_eq!(map["x-hello"], "world2");
+    /// ```
+    pub fn insert_entry(self, value: T) -> OccupiedEntry<'a, T> {
+        // Ensure that there is space in the map
+        let index = self.map.insert_phase_two(
+            self.key,
+            value.into(),
+            self.hash,
+            self.probe,
+            self.danger);
+
+        OccupiedEntry {
+            map: self.map,
+            index: index,
+            probe: self.probe,
+        }
     }
 }
 
