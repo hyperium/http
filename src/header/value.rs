@@ -394,6 +394,18 @@ impl PartialOrd<HeaderValue> for String {
     }
 }
 
+impl<'a> PartialEq<HeaderValue> for &'a HeaderValue {
+    fn eq(&self, other: &HeaderValue) -> bool {
+        **self == *other
+    }
+}
+
+impl<'a> PartialOrd<HeaderValue> for &'a HeaderValue {
+    fn partial_cmp(&self, other: &HeaderValue) -> Option<cmp::Ordering> {
+        (**self).partial_cmp(other)
+    }
+}
+
 impl<'a, T: ?Sized> PartialEq<&'a T> for HeaderValue
     where HeaderValue: PartialEq<T>
 {
