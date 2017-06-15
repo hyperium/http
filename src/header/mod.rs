@@ -84,8 +84,9 @@ pub use self::map::{
     Entry,
     VacantEntry,
     OccupiedEntry,
-    EntryIter,
-    DrainEntry,
+    ValueIter,
+    ValueIterMut,
+    ValueDrain,
     HeaderMapKey,
 };
 pub use self::name::{

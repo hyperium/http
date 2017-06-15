@@ -93,6 +93,8 @@ pub struct Keys<'a, T: 'a> {
 }
 
 /// `HeaderMap` value iterator.
+///
+/// Each value contained in the `HeaderMap` will be yielded.
 pub struct Values<'a, T: 'a> {
     inner: Iter<'a, T>,
 }
@@ -144,7 +146,7 @@ pub struct OccupiedEntry<'a, T: 'a> {
 }
 
 /// An iterator of all values associated with a single header name.
-pub struct EntryIter<'a, T: 'a> {
+pub struct ValueIter<'a, T: 'a> {
     map: &'a HeaderMap<T>,
     index: usize,
     front: Option<Cursor>,
@@ -152,7 +154,7 @@ pub struct EntryIter<'a, T: 'a> {
 }
 
 /// A mutable iterator of all values associated with a single header name.
-pub struct EntryIterMut<'a, T: 'a> {
+pub struct ValueIterMut<'a, T: 'a> {
     map: *mut HeaderMap<T>,
     index: usize,
     front: Option<Cursor>,
@@ -161,7 +163,7 @@ pub struct EntryIterMut<'a, T: 'a> {
 }
 
 /// An drain iterator of all values associated with a single header name.
-pub struct DrainEntry<'a, T> {
+pub struct ValueDrain<'a, T> {
     map: *mut HeaderMap<T>,
     first: Option<T>,
     next: Option<usize>,
@@ -894,7 +896,7 @@ impl<T> HeaderMap<T> {
         }
     }
 
-    fn entry_iter(&self, idx: usize) -> EntryIter<T> {
+    fn value_iter(&self, idx: usize) -> ValueIter<T> {
         use self::Cursor::*;
 
         let back = {
@@ -905,7 +907,7 @@ impl<T> HeaderMap<T> {
                 .unwrap_or(Head)
         };
 
-        EntryIter {
+        ValueIter {
             map: self,
             index: idx,
             front: Some(Head),
@@ -913,7 +915,7 @@ impl<T> HeaderMap<T> {
         }
     }
 
-    fn entry_iter_mut(&mut self, idx: usize) -> EntryIterMut<T> {
+    fn value_iter_mut(&mut self, idx: usize) -> ValueIterMut<T> {
         use self::Cursor::*;
 
         let back = {
@@ -924,7 +926,7 @@ impl<T> HeaderMap<T> {
                 .unwrap_or(Head)
         };
 
-        EntryIterMut {
+        ValueIterMut {
             map: self as *mut _,
             index: idx,
             front: Some(Head),
@@ -1082,7 +1084,7 @@ impl<T> HeaderMap<T> {
         old
     }
 
-    fn insert_occupied_mult(&mut self, index: usize, value: T) -> DrainEntry<T> {
+    fn insert_occupied_mult(&mut self, index: usize, value: T) -> ValueDrain<T> {
         let old;
         let links;
 
@@ -1093,7 +1095,7 @@ impl<T> HeaderMap<T> {
             links = entry.links.take();
         }
 
-        DrainEntry {
+        ValueDrain {
             map: self as *mut _,
             first: Some(old),
             next: links.map(|l| l.next),
@@ -1816,7 +1818,7 @@ impl<'a, T> Iterator for ValuesMut<'a, T> {
 // ===== impl Drain =====
 
 impl<'a, T> Iterator for Drain<'a, T> {
-    type Item = (HeaderName, DrainEntry<'a, T>);
+    type Item = (HeaderName, ValueDrain<'a, T>);
 
     fn next(&mut self) -> Option<Self::Item> {
         let idx = self.idx;
@@ -1840,7 +1842,7 @@ impl<'a, T> Iterator for Drain<'a, T> {
             next = entry.links.map(|l| l.next);
         };
 
-        let values = DrainEntry {
+        let values = ValueDrain {
             map: self.map,
             first: Some(value),
             next: next,
@@ -2093,7 +2095,7 @@ impl<'a, T> GetAll<'a, T> {
     /// assert!(iter.next().is_none());
     /// ```
     #[inline]
-    pub fn iter(&self) -> EntryIter<T> {
+    pub fn iter(&self) -> ValueIter<T> {
         self.into_iter()
     }
 }
@@ -2106,27 +2108,27 @@ impl<'a, T: PartialEq> PartialEq for GetAll<'a, T> {
 
 impl<'a, T> IntoIterator for GetAll<'a, T> {
     type Item = &'a T;
-    type IntoIter = EntryIter<'a, T>;
+    type IntoIter = ValueIter<'a, T>;
 
     #[inline]
-    fn into_iter(self) -> EntryIter<'a, T> {
-        self.map.entry_iter(self.index)
+    fn into_iter(self) -> ValueIter<'a, T> {
+        self.map.value_iter(self.index)
     }
 }
 
 impl<'a, 'b: 'a, T> IntoIterator for &'b GetAll<'a, T> {
     type Item = &'a T;
-    type IntoIter = EntryIter<'a, T>;
+    type IntoIter = ValueIter<'a, T>;
 
     #[inline]
-    fn into_iter(self) -> EntryIter<'a, T> {
-        self.map.entry_iter(self.index)
+    fn into_iter(self) -> ValueIter<'a, T> {
+        self.map.value_iter(self.index)
     }
 }
 
-// ===== impl EntryIter =====
+// ===== impl ValueIter =====
 
-impl<'a, T: 'a> Iterator for EntryIter<'a, T> {
+impl<'a, T: 'a> Iterator for ValueIter<'a, T> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -2171,7 +2173,7 @@ impl<'a, T: 'a> Iterator for EntryIter<'a, T> {
     }
 }
 
-impl<'a, T: 'a> DoubleEndedIterator for EntryIter<'a, T> {
+impl<'a, T: 'a> DoubleEndedIterator for ValueIter<'a, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
         use self::Cursor::*;
 
@@ -2203,9 +2205,9 @@ impl<'a, T: 'a> DoubleEndedIterator for EntryIter<'a, T> {
     }
 }
 
-// ===== impl EntryIterMut =====
+// ===== impl ValueIterMut =====
 
-impl<'a, T: 'a> Iterator for EntryIterMut<'a, T> {
+impl<'a, T: 'a> Iterator for ValueIterMut<'a, T> {
     type Item = &'a mut T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -2250,7 +2252,7 @@ impl<'a, T: 'a> Iterator for EntryIterMut<'a, T> {
     }
 }
 
-impl<'a, T: 'a> DoubleEndedIterator for EntryIterMut<'a, T> {
+impl<'a, T: 'a> DoubleEndedIterator for ValueIterMut<'a, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
         use self::Cursor::*;
 
@@ -2282,8 +2284,8 @@ impl<'a, T: 'a> DoubleEndedIterator for EntryIterMut<'a, T> {
     }
 }
 
-unsafe impl<'a, T: Sync> Sync for EntryIterMut<'a, T> {}
-unsafe impl<'a, T: Send> Send for EntryIterMut<'a, T> {}
+unsafe impl<'a, T: Sync> Sync for ValueIterMut<'a, T> {}
+unsafe impl<'a, T: Send> Send for ValueIterMut<'a, T> {}
 
 // ===== impl OccupiedEntry =====
 
@@ -2432,7 +2434,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     ///
     /// assert_eq!("earth", map["x-hello"]);
     /// ```
-    pub fn insert_mult(&mut self, value: T) -> DrainEntry<T> {
+    pub fn insert_mult(&mut self, value: T) -> ValueDrain<T> {
         self.map.insert_occupied_mult(self.index, value.into())
     }
 
@@ -2537,9 +2539,9 @@ impl<'a, T> OccupiedEntry<'a, T> {
     ///
     /// assert!(!map.contains_key("x-hello"));
     /// ```
-    pub fn remove_entry_mult(self) -> (HeaderName, DrainEntry<'a, T>) {
+    pub fn remove_entry_mult(self) -> (HeaderName, ValueDrain<'a, T>) {
         let entry = self.map.remove_found(self.probe, self.index);
-        let drain = DrainEntry {
+        let drain = ValueDrain {
             map: self.map as *mut _,
             first: Some(entry.value),
             next: entry.links.map(|l| l.next),
@@ -2568,8 +2570,8 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// }
     /// ```
     #[inline]
-    pub fn iter(&self) -> EntryIter<T> {
-        self.map.entry_iter(self.index)
+    pub fn iter(&self) -> ValueIter<T> {
+        self.map.value_iter(self.index)
     }
 
     /// Returns an iterator mutably visiting all values associated with the
@@ -2597,44 +2599,44 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// assert_eq!(&"earth-boop", i.next().unwrap());
     /// ```
     #[inline]
-    pub fn iter_mut(&mut self) -> EntryIterMut<T> {
-        self.map.entry_iter_mut(self.index)
+    pub fn iter_mut(&mut self) -> ValueIterMut<T> {
+        self.map.value_iter_mut(self.index)
     }
 }
 
 impl<'a, T> IntoIterator for OccupiedEntry<'a, T> {
     type Item = &'a mut T;
-    type IntoIter = EntryIterMut<'a, T>;
+    type IntoIter = ValueIterMut<'a, T>;
 
     #[inline]
-    fn into_iter(self) -> EntryIterMut<'a, T> {
-        self.map.entry_iter_mut(self.index)
+    fn into_iter(self) -> ValueIterMut<'a, T> {
+        self.map.value_iter_mut(self.index)
     }
 }
 
 impl<'a, 'b: 'a, T> IntoIterator for &'b OccupiedEntry<'a, T> {
     type Item = &'a T;
-    type IntoIter = EntryIter<'a, T>;
+    type IntoIter = ValueIter<'a, T>;
 
     #[inline]
-    fn into_iter(self) -> EntryIter<'a, T> {
+    fn into_iter(self) -> ValueIter<'a, T> {
         self.iter()
     }
 }
 
 impl<'a, 'b: 'a, T> IntoIterator for &'b mut OccupiedEntry<'a, T> {
     type Item = &'a mut T;
-    type IntoIter = EntryIterMut<'a, T>;
+    type IntoIter = ValueIterMut<'a, T>;
 
     #[inline]
-    fn into_iter(self) -> EntryIterMut<'a, T> {
+    fn into_iter(self) -> ValueIterMut<'a, T> {
         self.iter_mut()
     }
 }
 
-// ===== impl DrainEntry =====
+// ===== impl ValueDrain =====
 
-impl<'a, T> Iterator for DrainEntry<'a, T> {
+impl<'a, T> Iterator for ValueDrain<'a, T> {
     type Item = T;
 
     #[inline]
@@ -2657,15 +2659,15 @@ impl<'a, T> Iterator for DrainEntry<'a, T> {
     }
 }
 
-impl<'a, T> Drop for DrainEntry<'a, T> {
+impl<'a, T> Drop for ValueDrain<'a, T> {
     fn drop(&mut self) {
         while let Some(_) = self.next() {
         }
     }
 }
 
-unsafe impl<'a, T: Sync> Sync for DrainEntry<'a, T> {}
-unsafe impl<'a, T: Send> Send for DrainEntry<'a, T> {}
+unsafe impl<'a, T: Sync> Sync for ValueDrain<'a, T> {}
+unsafe impl<'a, T: Send> Send for ValueDrain<'a, T> {}
 
 // ===== impl Pos =====
 
@@ -3048,7 +3050,7 @@ fn test_bounds() {
     check_bounds::<Entry<'static, ()>>();
     check_bounds::<VacantEntry<'static, ()>>();
     check_bounds::<OccupiedEntry<'static, ()>>();
-    check_bounds::<EntryIter<'static, ()>>();
-    check_bounds::<EntryIterMut<'static, ()>>();
-    check_bounds::<DrainEntry<'static, ()>>();
+    check_bounds::<ValueIter<'static, ()>>();
+    check_bounds::<ValueIterMut<'static, ()>>();
+    check_bounds::<ValueDrain<'static, ()>>();
 }
