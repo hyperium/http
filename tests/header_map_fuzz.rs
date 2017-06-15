@@ -18,7 +18,6 @@ fn header_map_fuzz() {
     }
 
     QuickCheck::new()
-        .tests(250)
         .quickcheck(prop as fn(Fuzz) -> TestResult)
 }
 
@@ -34,6 +33,13 @@ struct Fuzz {
     reduce: usize,
 }
 
+#[derive(Debug)]
+struct Weight {
+    insert: usize,
+    remove: usize,
+    append: usize,
+}
+
 #[derive(Debug, Clone)]
 struct Step {
     action: Action,
@@ -47,9 +53,10 @@ enum Action {
         val: HeaderValue, // Value to insert
         old: Option<HeaderValue>, // Old value
     },
-    Get {
-        name: HeaderName, // Name to get
-        val: Option<HeaderValue>, // Expected value
+    Append {
+        name: HeaderName,
+        val: HeaderValue,
+        ret: bool,
     },
     Remove {
         name: HeaderName, // Name to remove
@@ -72,8 +79,14 @@ impl Fuzz {
         let mut expect = AltMap::default();
         let num = rng.gen_range(5, 500);
 
+        let weight = Weight {
+            insert: rng.gen_range(1, 10),
+            remove: rng.gen_range(1, 10),
+            append: rng.gen_range(1, 10),
+        };
+
         while steps.len() < num {
-            steps.push(expect.gen_step(&mut rng));
+            steps.push(expect.gen_step(&weight, &mut rng));
         }
 
         Fuzz {
@@ -105,8 +118,8 @@ impl Arbitrary for Fuzz {
 }
 
 impl AltMap {
-    fn gen_step(&mut self, rng: &mut StdRng) -> Step {
-        let action = self.gen_action(rng);
+    fn gen_step(&mut self, weight: &Weight, rng: &mut StdRng) -> Step {
+        let action = self.gen_action(weight, rng);
 
         Step {
             action: action,
@@ -115,13 +128,30 @@ impl AltMap {
     }
 
     /// This will also apply the action against `self`
-    fn gen_action(&mut self, rng: &mut StdRng) -> Action {
-        match rng.gen_range(0, 3) {
-            0 => self.gen_insert(rng),
-            1 => self.gen_get(rng),
-            2 => self.gen_remove(rng),
-            _ => unreachable!(),
+    fn gen_action(&mut self, weight: &Weight, rng: &mut StdRng) -> Action {
+        let sum = weight.insert +
+            weight.remove +
+            weight.append;
+
+        let mut num = rng.gen_range(0, sum);
+
+        if num < weight.insert {
+            return self.gen_insert(rng);
         }
+
+        num -= weight.insert;
+
+        if num < weight.remove {
+            return self.gen_remove(rng);
+        }
+
+        num -= weight.remove;
+
+        if num < weight.append {
+            return self.gen_append(rng);
+        }
+
+        unreachable!();
     }
 
     fn gen_insert(&mut self, rng: &mut StdRng) -> Action {
@@ -129,20 +159,10 @@ impl AltMap {
         let val = gen_header_value(rng);
         let old = self.insert(name.clone(), val.clone());
 
-        return Action::Insert {
+        Action::Insert {
             name: name,
             val: val,
             old: old,
-        };
-    }
-
-    fn gen_get(&mut self, rng: &mut StdRng) -> Action {
-        let name = self.gen_name(-3, rng);
-        let val = self.find(&name).map(Clone::clone);
-
-        Action::Get {
-            name: name,
-            val: val,
         }
     }
 
@@ -153,6 +173,23 @@ impl AltMap {
         Action::Remove {
             name: name,
             val: val,
+        }
+    }
+
+    fn gen_append(&mut self, rng: &mut StdRng) -> Action {
+        let name = self.gen_name(-5, rng);
+        let val = gen_header_value(rng);
+
+        let vals = self.map.entry(name.clone())
+            .or_insert(vec![]);
+
+        let ret = !vals.is_empty();
+        vals.push(val.clone());
+
+        Action::Append {
+            name: name,
+            val: val,
+            ret: ret,
         }
     }
 
@@ -190,10 +227,6 @@ impl AltMap {
         old.and_then(|v| v.into_iter().next())
     }
 
-    fn find(&self, name: &HeaderName) -> Option<&HeaderValue> {
-        self.map.get(name).and_then(|v| v.iter().next())
-    }
-
     fn remove(&mut self, name: &HeaderName) -> Option<HeaderValue> {
         self.map.remove(name).and_then(|v| v.into_iter().next())
     }
@@ -202,7 +235,13 @@ impl AltMap {
         assert_eq!(self.map.len(), other.keys_len());
 
         for (key, val) in &self.map {
+            // Test get
             assert_eq!(other.get(key), val.get(0));
+
+            // Test get_all
+            let vals = other.get_all(key).unwrap();
+            let actual: Vec<_> = vals.iter().collect();
+            assert_eq!(&actual[..], &val[..]);
         }
     }
 }
@@ -214,13 +253,17 @@ impl Action {
                 let actual = map.insert(name, val);
                 assert_eq!(actual, old);
             }
-            Action::Get { name, val } => {
-                let actual = map.get(&name);
-                assert_eq!(actual, val.as_ref());
-            }
             Action::Remove { name, val } => {
+                // Just to help track the state, load all associated values.
+                if let Some(v) = map.get_all(&name) {
+                    let _: Vec<_> = v.iter().collect();
+                }
+
                 let actual = map.remove(&name);
                 assert_eq!(actual, val);
+            }
+            Action::Append { name, val, ret } => {
+                assert_eq!(ret, map.append(name, val));
             }
         }
     }

@@ -177,6 +177,20 @@ fn insert_79_custom_std_headers() {
     }
 }
 
+#[test]
+fn append_multiple_values() {
+    let mut map = HeaderMap::new();
+
+    map.append(header::CONTENT_TYPE, "json");
+    map.append(header::CONTENT_TYPE, "html");
+    map.append(header::CONTENT_TYPE, "xml");
+
+    let vals = map.get_all(&header::CONTENT_TYPE).unwrap();
+    let vals: Vec<_> = vals.iter().collect();
+
+    assert_eq!(&vals, &[&"json", &"html", &"xml"]);
+}
+
 fn custom_std(n: usize) -> Vec<HeaderName> {
     (0..n).map(|i| {
         let s = format!("{}-{}", STD[i % STD.len()].as_str(), i);
