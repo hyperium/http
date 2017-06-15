@@ -633,7 +633,7 @@ impl<T> HeaderMap<T> {
     {
         match key.find(self) {
             Some((_, found)) => {
-                let entry = &self.entries[found as usize];
+                let entry = &self.entries[found];
                 Some(&entry.value)
             }
             None => None,
@@ -661,7 +661,7 @@ impl<T> HeaderMap<T> {
     {
         match key.find(self) {
             Some((_, found)) => {
-                let entry = &mut self.entries[found as usize];
+                let entry = &mut self.entries[found];
                 Some(&mut entry.value)
             }
             None => None,
@@ -900,7 +900,7 @@ impl<T> HeaderMap<T> {
         use self::Cursor::*;
 
         let back = {
-            let entry = &self.entries[idx as usize];
+            let entry = &self.entries[idx];
 
             entry.links
                 .map(|l| Values(l.tail))
@@ -919,7 +919,7 @@ impl<T> HeaderMap<T> {
         use self::Cursor::*;
 
         let back = {
-            let entry = &self.entries[idx as usize];
+            let entry = &self.entries[idx];
 
             entry.links
                 .map(|l| Values(l.tail))
@@ -1047,7 +1047,7 @@ impl<T> HeaderMap<T> {
                 drop(danger); // Make lint happy
                 let index = self.entries.len();
                 self.insert_entry(hash, key.into(), value);
-                self.indices[probe as usize] = Pos::new(index, hash);
+                self.indices[probe] = Pos::new(index, hash);
                 None
             },
             // Occupied
@@ -1067,21 +1067,12 @@ impl<T> HeaderMap<T> {
     /// Set an occupied bucket to the given value
     #[inline]
     fn insert_occupied(&mut self, index: usize, value: T) -> T {
-        let old;
-        let links;
-
-        {
-            let entry = &mut self.entries[index as usize];
-
-            old = mem::replace(&mut entry.value, value);
-            links = entry.links.take();
-        }
-
-        if let Some(links) = links {
+        if let Some(links) = self.entries[index].links {
             self.remove_all_extra_values(links.next);
         }
 
-        old
+        let entry = &mut self.entries[index];
+        mem::replace(&mut entry.value, value)
     }
 
     fn insert_occupied_mult(&mut self, index: usize, value: T) -> ValueDrain<T> {
@@ -1089,7 +1080,7 @@ impl<T> HeaderMap<T> {
         let links;
 
         {
-            let entry = &mut self.entries[index as usize];
+            let entry = &mut self.entries[index];
 
             old = mem::replace(&mut entry.value, value);
             links = entry.links.take();
@@ -1148,12 +1139,12 @@ impl<T> HeaderMap<T> {
                 drop(danger);
                 let index = self.entries.len();
                 self.insert_entry(hash, key.into(), value);
-                self.indices[probe as usize] = Pos::new(index, hash);
+                self.indices[probe] = Pos::new(index, hash);
                 false
             },
             // Occupied
             {
-                append_value(pos, &mut self.entries[pos as usize], &mut self.extra_values, value);
+                append_value(pos, &mut self.entries[pos], &mut self.extra_values, value);
                 true
             },
             // Robinhood
@@ -1251,11 +1242,11 @@ impl<T> HeaderMap<T> {
     {
         match key.find(self) {
             Some((probe, idx)) => {
-                let entry = self.remove_found(probe, idx);
-
-                if let Some(links) = entry.links {
+                if let Some(links) = self.entries[idx].links {
                     self.remove_all_extra_values(links.next);
                 }
+
+                let entry = self.remove_found(probe, idx);
 
                 Some(entry.value)
             }
@@ -1269,24 +1260,30 @@ impl<T> HeaderMap<T> {
         // index `probe` and entry `found` is to be removed
         // use swap_remove, but then we need to update the index that points
         // to the other entry that has to move
-        self.indices[probe as usize] = Pos::none();
-        let entry = self.entries.swap_remove(found as usize);
+        self.indices[probe] = Pos::none();
+        let entry = self.entries.swap_remove(found);
 
         // correct index that points to the entry that had to swap places
-        if let Some(entry) = self.entries.get(found as usize) {
+        if let Some(entry) = self.entries.get(found) {
             // was not last element
             // examine new element in `found` and find it in indices
             let mut probe = desired_pos(self.mask, entry.hash);
 
             probe_loop!(probe < self.indices.len(), {
-                if let Some((i, _)) = self.indices[probe as usize].resolve() {
+                if let Some((i, _)) = self.indices[probe].resolve() {
                     if i >= self.entries.len() {
                         // found it
-                        self.indices[probe as usize] = Pos::new(found, entry.hash);
+                        self.indices[probe] = Pos::new(found, entry.hash);
                         break;
                     }
                 }
             });
+
+            // Update links
+            if let Some(links) = entry.links {
+                self.extra_values[links.next].prev = Link::Entry(found);
+                self.extra_values[links.tail].next = Link::Entry(found);
+            }
         }
 
         // backward shift deletion in self.indices
@@ -1296,10 +1293,10 @@ impl<T> HeaderMap<T> {
             let mut probe = probe + 1;
 
             probe_loop!(probe < self.indices.len(), {
-                if let Some((_, entry_hash)) = self.indices[probe as usize].resolve() {
+                if let Some((_, entry_hash)) = self.indices[probe].resolve() {
                     if probe_distance(self.mask, entry_hash, probe) > 0 {
-                        self.indices[last_probe as usize] = self.indices[probe as usize];
-                        self.indices[probe as usize] = Pos::none();
+                        self.indices[last_probe] = self.indices[probe];
+                        self.indices[probe] = Pos::none();
                     } else {
                         break;
                     }
@@ -1321,45 +1318,46 @@ impl<T> HeaderMap<T> {
         let next;
 
         {
+            debug_assert!(self.extra_values.len() > idx);
             let extra = &self.extra_values[idx];
             prev = extra.prev;
             next = extra.next;
         }
 
         // First unlink the extra value
-        match prev {
-            Link::Entry(entry_idx) => {
-                // Set the link head to the next value
-                match next {
-                    Link::Entry(_) => {
-                        // This is the only extra value, so unset the entry
-                        // links
-                        self.entries[entry_idx as usize].links = None;
-                    }
-                    Link::Extra(extra_idx) => {
-                        self.entries[entry_idx as usize].links.as_mut().unwrap()
-                            .next = extra_idx;
-                    }
-                }
-            }
-            Link::Extra(extra_idx) => {
-                self.extra_values[extra_idx as usize].next = next;
-            }
-        }
+        match (prev, next) {
+            (Link::Entry(prev), Link::Entry(next)) => {
+                debug_assert_eq!(prev, next);
+                debug_assert!(self.entries.len() > prev);
 
-        match next {
-            Link::Entry(entry_idx) => {
-                match prev {
-                    // Nothing to do, this was already handled above
-                    Link::Entry(_) => {}
-                    Link::Extra(extra_idx) => {
-                        self.entries[entry_idx as usize].links.as_mut().unwrap()
-                            .tail = extra_idx;
-                    }
-                }
+                self.entries[prev].links = None;
             }
-            Link::Extra(extra_idx) => {
-                self.extra_values[extra_idx as usize].prev = prev;
+            (Link::Entry(prev), Link::Extra(next)) => {
+                debug_assert!(self.entries.len() > prev);
+                debug_assert!(self.entries[prev].links.is_some());
+
+                self.entries[prev].links.as_mut().unwrap()
+                    .next = next;
+
+                debug_assert!(self.extra_values.len() > next);
+                self.extra_values[next].prev = Link::Entry(prev);
+            }
+            (Link::Extra(prev), Link::Entry(next)) => {
+                debug_assert!(self.entries.len() > next);
+                debug_assert!(self.entries[next].links.is_some());
+
+                self.entries[next].links.as_mut().unwrap()
+                    .tail = prev;
+
+                debug_assert!(self.extra_values.len() > prev);
+                self.extra_values[prev].next = Link::Entry(next);
+            }
+            (Link::Extra(prev), Link::Extra(next)) => {
+                debug_assert!(self.extra_values.len() > next);
+                debug_assert!(self.extra_values.len() > prev);
+
+                self.extra_values[prev].next = Link::Extra(next);
+                self.extra_values[next].prev = Link::Extra(prev);
             }
         }
 
@@ -1369,13 +1367,23 @@ impl<T> HeaderMap<T> {
         // This is the index of the value that was moved (possibly `extra`)
         let old_idx = self.extra_values.len();
 
+        // Update the links
+        if extra.prev == Link::Extra(old_idx) {
+            extra.prev = Link::Extra(idx);
+        }
+
+        if extra.next == Link::Extra(old_idx) {
+            extra.next = Link::Extra(idx);
+        }
+
         // Check if another entry was displaced. If it was, then the links
         // need to be fixed.
-        if self.extra_values.get(idx).is_some() {
+        if idx != old_idx {
             let next;
             let prev;
 
             {
+                debug_assert!(self.extra_values.len() > idx);
                 let moved = &self.extra_values[idx];
                 next = moved.next;
                 prev = moved.prev;
@@ -1387,33 +1395,41 @@ impl<T> HeaderMap<T> {
                     // It is critical that we do not attempt to read the
                     // header name or value as that memory may have been
                     // "released" already.
-                    let links = self.entries[entry_idx as usize].links.as_mut().unwrap();
+                    debug_assert!(self.entries.len() > entry_idx);
+                    debug_assert!(self.entries[entry_idx].links.is_some());
+
+                    let links = self.entries[entry_idx].links.as_mut().unwrap();
                     links.next = idx;
                 }
                 Link::Extra(extra_idx) => {
-                    self.extra_values[extra_idx as usize].next = Link::Extra(idx);
+                    debug_assert!(self.extra_values.len() > extra_idx);
+                    self.extra_values[extra_idx].next = Link::Extra(idx);
                 }
             }
 
             match next {
                 Link::Entry(entry_idx) => {
-                    let links = self.entries[entry_idx as usize].links.as_mut().unwrap();
+                    debug_assert!(self.entries.len() > entry_idx);
+                    debug_assert!(self.entries[entry_idx].links.is_some());
+
+                    let links = self.entries[entry_idx].links.as_mut().unwrap();
                     links.tail = idx;
                 }
                 Link::Extra(extra_idx) => {
-                    self.extra_values[extra_idx as usize].prev = Link::Extra(idx);
+                    debug_assert!(self.extra_values.len() > extra_idx);
+                    self.extra_values[extra_idx].prev = Link::Extra(idx);
                 }
             }
         }
 
-        // Finally, update the links in `extra`
-        if extra.prev == Link::Extra(old_idx) {
-            extra.prev = Link::Extra(idx);
-        }
+        debug_assert!({
+            for v in &self.extra_values {
+                assert!(v.next != Link::Extra(old_idx));
+                assert!(v.prev != Link::Extra(old_idx));
+            }
 
-        if extra.next == Link::Extra(old_idx) {
-            extra.next = Link::Extra(idx);
-        }
+            true
+        });
 
         extra
     }
@@ -1454,7 +1470,7 @@ impl<T> HeaderMap<T> {
             entry.hash = hash;
 
             probe_loop!(probe < self.indices.len(), {
-                if let Some((_, entry_hash)) = self.indices[probe as usize].resolve() {
+                if let Some((_, entry_hash)) = self.indices[probe].resolve() {
                     // if existing element probed less than us, swap
                     let their_dist = probe_distance(self.mask, entry_hash, probe);
 
@@ -1464,7 +1480,7 @@ impl<T> HeaderMap<T> {
                     }
                 } else {
                     // Vaccant slot
-                    self.indices[probe as usize] = Pos::new(index, hash);
+                    self.indices[probe] = Pos::new(index, hash);
                     continue 'outer;
                 }
 
@@ -1484,9 +1500,9 @@ impl<T> HeaderMap<T> {
             let mut probe = desired_pos(self.mask, entry_hash);
 
             probe_loop!(probe < self.indices.len(), {
-                if self.indices[probe as usize].resolve().is_none() {
+                if self.indices[probe].resolve().is_none() {
                     // empty bucket, insert here
-                    self.indices[probe as usize] = pos;
+                    self.indices[probe] = pos;
                     return;
                 }
             });
@@ -1670,7 +1686,7 @@ fn do_insert_phase_two(indices: &mut Vec<Pos>,
     let mut num_displaced = 0;
 
     probe_loop!(probe < indices.len(), {
-        let pos = &mut indices[probe as usize];
+        let pos = &mut indices[probe];
 
         if pos.is_none() {
             *pos = old_pos;
@@ -1698,6 +1714,8 @@ fn append_value<T>(entry_idx: usize,
                 prev: Link::Extra(links.tail),
                 next: Link::Entry(entry_idx),
             });
+
+            extra[links.tail].next = Link::Extra(idx);
 
             entry.links = Some(Links {
                 tail: idx,
@@ -1742,7 +1760,7 @@ impl<'a, T> IterMut<'a, T> {
         use self::Cursor::*;
 
         if self.cursor.is_none() {
-            if (self.entry + 1) as usize >= unsafe { &*self.map }.entries.len() {
+            if (self.entry + 1) >= unsafe { &*self.map }.entries.len() {
                 return None;
             }
 
@@ -1750,7 +1768,7 @@ impl<'a, T> IterMut<'a, T> {
             self.cursor = Some(Cursor::Head);
         }
 
-        let entry = unsafe { &(*self.map).entries[self.entry as usize] };
+        let entry = unsafe { &(*self.map).entries[self.entry] };
 
         match self.cursor.unwrap() {
             Head => {
@@ -1758,8 +1776,7 @@ impl<'a, T> IterMut<'a, T> {
                 Some((&entry.key, &entry.value as *const _ as *mut _))
             }
             Values(idx) => {
-                let idx = idx as usize;
-                let extra = unsafe { &(*self.map).extra_values[idx as usize] };
+                let extra = unsafe { &(*self.map).extra_values[idx] };
 
                 match extra.next {
                     Link::Entry(_) => self.cursor = None,
@@ -2047,7 +2064,7 @@ impl<'a, T> GetAll<'a, T> {
     /// ```
     #[inline]
     pub fn key(&self) -> &HeaderName {
-        &self.map.entries[self.index as usize].key
+        &self.map.entries[self.index].key
     }
 
     /// Get a reference to the first value in the set.
@@ -2073,7 +2090,7 @@ impl<'a, T> GetAll<'a, T> {
     /// ```
     #[inline]
     pub fn get(&self) -> &T {
-        &self.map.entries[self.index as usize].value
+        &self.map.entries[self.index].value
     }
 
     /// Returns an iterator visiting all values associated with the entry.
@@ -2134,7 +2151,7 @@ impl<'a, T: 'a> Iterator for ValueIter<'a, T> {
     fn next(&mut self) -> Option<Self::Item> {
         use self::Cursor::*;
 
-        let entry = &self.map.entries[self.index as usize];
+        let entry = &self.map.entries[self.index];
 
         match self.front {
             Some(Head) => {
@@ -2154,7 +2171,7 @@ impl<'a, T: 'a> Iterator for ValueIter<'a, T> {
                 Some(&entry.value)
             }
             Some(Values(idx)) => {
-                let extra = &self.map.extra_values[idx as usize];
+                let extra = &self.map.extra_values[idx];
 
                 if self.front == self.back {
                     self.front = None;
@@ -2177,7 +2194,7 @@ impl<'a, T: 'a> DoubleEndedIterator for ValueIter<'a, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
         use self::Cursor::*;
 
-        let entry = &self.map.entries[self.index as usize];
+        let entry = &self.map.entries[self.index];
 
         match self.back {
             Some(Head) => {
@@ -2186,7 +2203,7 @@ impl<'a, T: 'a> DoubleEndedIterator for ValueIter<'a, T> {
                 Some(&entry.value)
             }
             Some(Values(idx)) => {
-                let extra = &self.map.extra_values[idx as usize];
+                let extra = &self.map.extra_values[idx];
 
                 if self.front == self.back {
                     self.front = None;
@@ -2213,7 +2230,7 @@ impl<'a, T: 'a> Iterator for ValueIterMut<'a, T> {
     fn next(&mut self) -> Option<Self::Item> {
         use self::Cursor::*;
 
-        let entry = unsafe { &mut (*self.map).entries[self.index as usize] };
+        let entry = unsafe { &mut (*self.map).entries[self.index] };
 
         match self.front {
             Some(Head) => {
@@ -2233,7 +2250,7 @@ impl<'a, T: 'a> Iterator for ValueIterMut<'a, T> {
                 Some(&mut entry.value)
             }
             Some(Values(idx)) => {
-                let extra = unsafe { &mut (*self.map).extra_values[idx as usize] };
+                let extra = unsafe { &mut (*self.map).extra_values[idx] };
 
                 if self.front == self.back {
                     self.front = None;
@@ -2256,7 +2273,7 @@ impl<'a, T: 'a> DoubleEndedIterator for ValueIterMut<'a, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
         use self::Cursor::*;
 
-        let entry = unsafe { &mut (*self.map).entries[self.index as usize] };
+        let entry = unsafe { &mut (*self.map).entries[self.index] };
 
         match self.back {
             Some(Head) => {
@@ -2265,7 +2282,7 @@ impl<'a, T: 'a> DoubleEndedIterator for ValueIterMut<'a, T> {
                 Some(&mut entry.value)
             }
             Some(Values(idx)) => {
-                let extra = unsafe { &mut (*self.map).extra_values[idx as usize] };
+                let extra = unsafe { &mut (*self.map).extra_values[idx] };
 
                 if self.front == self.back {
                     self.front = None;
@@ -2305,7 +2322,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// ```
     #[inline]
     pub fn key(&self) -> &HeaderName {
-        &self.map.entries[self.index as usize].key
+        &self.map.entries[self.index].key
     }
 
     /// Get a reference to the first value in the entry.
@@ -2333,7 +2350,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// ```
     #[inline]
     pub fn get(&self) -> &T {
-        &self.map.entries[self.index as usize].value
+        &self.map.entries[self.index].value
     }
 
     /// Get a mutable reference to the first value in the entry.
@@ -2358,7 +2375,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// ```
     #[inline]
     pub fn get_mut(&mut self) -> &mut T {
-        &mut self.map.entries[self.index as usize].value
+        &mut self.map.entries[self.index].value
     }
 
     /// Converts the `OccupiedEntry` into a mutable reference to the **first**
@@ -2385,7 +2402,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// assert_eq!("world-2", map["x-hello"]);
     /// ```
     pub fn into_mut(self) -> &'a mut T {
-        &mut self.map.entries[self.index as usize].value
+        &mut self.map.entries[self.index].value
     }
 
     /// Sets the value of the entry.
@@ -2461,7 +2478,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// ```
     pub fn append(&mut self, value: T) {
         let idx = self.index;
-        let entry = &mut self.map.entries[idx as usize];
+        let entry = &mut self.map.entries[idx];
         append_value(idx, entry, &mut self.map.extra_values, value.into());
     }
 
@@ -2645,7 +2662,7 @@ impl<'a, T> Iterator for ValueDrain<'a, T> {
             self.first.take()
         } else if let Some(next) = self.next {
             // Remove the extra value
-            let extra = unsafe { &mut (*self.map) }.remove_extra_value(next as usize);
+            let extra = unsafe { &mut (*self.map) }.remove_extra_value(next);
 
             match extra.next {
                 Link::Extra(idx) => self.next = Some(idx),
@@ -2701,7 +2718,7 @@ impl Pos {
     #[inline]
     fn resolve(&self) -> Option<(usize, HashValue)> {
         if self.is_some() {
-            Some((self.index as usize, self.hash))
+            Some((self.index, self.hash))
         } else {
             None
         }
@@ -2757,13 +2774,13 @@ fn to_raw_capacity(n: usize) -> usize {
 
 #[inline]
 fn desired_pos(mask: Size, hash: HashValue) -> usize {
-    (hash.0 & mask) as usize
+    (hash.0 & mask)
 }
 
 /// The number of steps that `current` is forward of the desired position for hash
 #[inline]
 fn probe_distance(mask: Size, hash: HashValue, current: usize) -> usize {
-    current.wrapping_sub(desired_pos(mask, hash)) & mask as usize
+    current.wrapping_sub(desired_pos(mask, hash)) & mask
 }
 
 fn hash_elem_using<K: ?Sized>(danger: &Danger, k: &K) -> HashValue
