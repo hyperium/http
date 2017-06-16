@@ -69,6 +69,7 @@ pub struct HeaderMap<T> {
 ///
 /// Yields `(&HeaderName, &value)` tuples. The same header name may be yielded
 /// more than once if it has more than one associated value.
+#[derive(Debug)]
 pub struct Iter<'a, T: 'a> {
     inner: IterMut<'a, T>,
 }
@@ -77,6 +78,7 @@ pub struct Iter<'a, T: 'a> {
 ///
 /// Yields `(&HeaderName, &mut value)` tuples. The same header name may be
 /// yielded more than once if it has more than one associated value.
+#[derive(Debug)]
 pub struct IterMut<'a, T: 'a> {
     map: *mut HeaderMap<T>,
     entry: usize,
@@ -87,6 +89,7 @@ pub struct IterMut<'a, T: 'a> {
 /// An owning iterator over the entries of a `HeaderMap`.
 ///
 /// This struct is created by the `into_iter` method on `HeaderMap`.
+#[derive(Debug)]
 pub struct IntoIter<T> {
     // If None, pull from `entries`
     next: Option<usize>,
@@ -98,6 +101,7 @@ pub struct IntoIter<T> {
 ///
 /// Each header name is yielded only once, even if it has more than one
 /// associated value.
+#[derive(Debug)]
 pub struct Keys<'a, T: 'a> {
     inner: Iter<'a, T>,
 }
@@ -105,16 +109,19 @@ pub struct Keys<'a, T: 'a> {
 /// `HeaderMap` value iterator.
 ///
 /// Each value contained in the `HeaderMap` will be yielded.
+#[derive(Debug)]
 pub struct Values<'a, T: 'a> {
     inner: Iter<'a, T>,
 }
 
 /// `HeaderMap` mutable value iterator
+#[derive(Debug)]
 pub struct ValuesMut<'a, T: 'a> {
     inner: IterMut<'a, T>,
 }
 
 /// A drain iterator for `HeaderMap`.
+#[derive(Debug)]
 pub struct Drain<'a, T> {
     idx: usize,
     map: *mut HeaderMap<T>,
@@ -124,20 +131,26 @@ pub struct Drain<'a, T> {
 /// A view to all values stored in a single entry.
 ///
 /// This struct is returned by `HeaderMap::get_all`.
+#[derive(Debug)]
 pub struct GetAll<'a, T: 'a> {
     map: &'a HeaderMap<T>,
     index: usize,
 }
 
 /// A view into a single location in a `HeaderMap`, which may be vacant or occupied.
+#[derive(Debug)]
 pub enum Entry<'a, T: 'a> {
+    /// An occupied entry
     Occupied(OccupiedEntry<'a, T>),
+
+    /// A vacant entry
     Vacant(VacantEntry<'a, T>),
 }
 
 /// A view into a single empty location in a `HeaderMap`.
 ///
 /// This struct is returned as part of the `Entry` enum.
+#[derive(Debug)]
 pub struct VacantEntry<'a, T: 'a> {
     map: &'a mut HeaderMap<T>,
     key: HeaderName,
@@ -149,6 +162,7 @@ pub struct VacantEntry<'a, T: 'a> {
 /// A view into a single occupied location in a `HeaderMap`.
 ///
 /// This struct is returned as part of the `Entry` enum.
+#[derive(Debug)]
 pub struct OccupiedEntry<'a, T: 'a> {
     map: &'a mut HeaderMap<T>,
     probe: usize,
@@ -156,6 +170,7 @@ pub struct OccupiedEntry<'a, T: 'a> {
 }
 
 /// An iterator of all values associated with a single header name.
+#[derive(Debug)]
 pub struct ValueIter<'a, T: 'a> {
     map: &'a HeaderMap<T>,
     index: usize,
@@ -164,6 +179,7 @@ pub struct ValueIter<'a, T: 'a> {
 }
 
 /// A mutable iterator of all values associated with a single header name.
+#[derive(Debug)]
 pub struct ValueIterMut<'a, T: 'a> {
     map: *mut HeaderMap<T>,
     index: usize,
@@ -173,6 +189,7 @@ pub struct ValueIterMut<'a, T: 'a> {
 }
 
 /// An drain iterator of all values associated with a single header name.
+#[derive(Debug)]
 pub struct ValueDrain<'a, T> {
     map: *mut HeaderMap<T>,
     first: Option<T>,
@@ -181,7 +198,7 @@ pub struct ValueDrain<'a, T> {
 }
 
 /// Tracks the value iterator state
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 enum Cursor {
     Head,
     Values(usize),
@@ -227,7 +244,7 @@ struct HashValue(usize);
 /// linked list of entries is maintained. The doubly linked list is used so that
 /// removing a value is constant time. This also has the nice property of
 /// enabling double ended iteration.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct Bucket<T> {
     hash: HashValue,
     key: HeaderName,
@@ -243,7 +260,7 @@ struct Links {
 }
 
 /// Node in doubly-linked list of header value entries
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct ExtraValue<T> {
     value: T,
     prev: Link,

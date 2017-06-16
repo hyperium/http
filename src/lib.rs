@@ -1,3 +1,7 @@
+//! Common HTTP types.
+
+#![deny(warnings, missing_docs, missing_debug_implementations)]
+
 extern crate bytes;
 extern crate fnv;
 
