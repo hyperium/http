@@ -88,6 +88,7 @@ pub use self::map::{
     ValueIterMut,
     ValueDrain,
     HeaderMapKey,
+    IntoIter,
 };
 pub use self::name::{
     HeaderName,

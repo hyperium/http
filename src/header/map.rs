@@ -1,6 +1,6 @@
 use super::name::{HeaderName, HdrName};
 
-use std::{fmt, mem, ops, ptr};
+use std::{fmt, mem, ops, ptr, vec};
 use std::collections::hash_map::RandomState;
 use std::hash::{BuildHasher, Hasher, Hash};
 use std::iter::FromIterator;
@@ -84,6 +84,16 @@ pub struct IterMut<'a, T: 'a> {
     lt: PhantomData<&'a mut ()>,
 }
 
+/// An owning iterator over the entries of a `HeaderMap`.
+///
+/// This struct is created by the `into_iter` method on `HeaderMap`.
+pub struct IntoIter<T> {
+    // If None, pull from `entries`
+    next: Option<usize>,
+    entries: vec::IntoIter<Bucket<T>>,
+    extra_values: Vec<ExtraValue<T>>,
+}
+
 /// An iterator over `HeaderMap` keys.
 ///
 /// Each header name is yielded only once, even if it has more than one
@@ -119,7 +129,7 @@ pub struct GetAll<'a, T: 'a> {
     index: usize,
 }
 
-/// A view into a single location in a `HeaderMap`, which may be vaccant or occupied.
+/// A view into a single location in a `HeaderMap`, which may be vacant or occupied.
 pub enum Entry<'a, T: 'a> {
     Occupied(OccupiedEntry<'a, T>),
     Vacant(VacantEntry<'a, T>),
@@ -1479,7 +1489,7 @@ impl<T> HeaderMap<T> {
                         break;
                     }
                 } else {
-                    // Vaccant slot
+                    // Vacant slot
                     self.indices[probe] = Pos::new(index, hash);
                     continue 'outer;
                 }
@@ -1601,6 +1611,68 @@ impl<'a, T> IntoIterator for &'a mut HeaderMap<T> {
     }
 }
 
+impl<T> IntoIterator for HeaderMap<T> {
+    type Item = (Option<HeaderName>, T);
+    type IntoIter = IntoIter<T>;
+
+    /// Creates a consuming iterator, that is, one that moves keys and values
+    /// out of the map in arbitary order. The map cannot be used after calling
+    /// this.
+    ///
+    /// For each yielded item that has `None` provided for the `HeaderName`,
+    /// then the associated header name is the same as that of the previously
+    /// yielded item. The first yielded item will have `HeaderName` set.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage.
+    ///
+    /// ```
+    /// # use http::header;
+    /// # use http::header::*;
+    /// let mut map = HeaderMap::new();
+    /// map.insert(header::CONTENT_LENGTH, "123");
+    /// map.insert(header::CONTENT_TYPE, "json");
+    ///
+    /// let mut iter = map.into_iter();
+    /// assert_eq!(iter.next(), Some((Some(header::CONTENT_LENGTH), "123")));
+    /// assert_eq!(iter.next(), Some((Some(header::CONTENT_TYPE), "json")));
+    /// assert!(iter.next().is_none());
+    /// ```
+    ///
+    /// Multiple values per key.
+    ///
+    /// ```
+    /// # use http::header;
+    /// # use http::header::*;
+    /// let mut map = HeaderMap::new();
+    ///
+    /// map.append(header::CONTENT_LENGTH, "123");
+    /// map.append(header::CONTENT_LENGTH, "456");
+    ///
+    /// map.append(header::CONTENT_TYPE, "json");
+    /// map.append(header::CONTENT_TYPE, "html");
+    /// map.append(header::CONTENT_TYPE, "xml");
+    ///
+    /// let mut iter = map.into_iter();
+    ///
+    /// assert_eq!(iter.next(), Some((Some(header::CONTENT_LENGTH), "123")));
+    /// assert_eq!(iter.next(), Some((None, "456")));
+    ///
+    /// assert_eq!(iter.next(), Some((Some(header::CONTENT_TYPE), "json")));
+    /// assert_eq!(iter.next(), Some((None, "html")));
+    /// assert_eq!(iter.next(), Some((None, "xml")));
+    /// assert!(iter.next().is_none());
+    /// ```
+    fn into_iter(self) -> IntoIter<T> {
+        IntoIter {
+            next: None,
+            entries: self.entries.into_iter(),
+            extra_values: self.extra_values,
+        }
+    }
+}
+
 impl<K, T> FromIterator<(K, T)> for HeaderMap<T>
     where K: HeaderMapKey,
 {
@@ -1610,6 +1682,92 @@ impl<K, T> FromIterator<(K, T)> for HeaderMap<T>
        let mut map = HeaderMap::new();
        map.extend(iter);
        map
+    }
+}
+
+impl<T> Extend<(Option<HeaderName>, T)> for HeaderMap<T> {
+    /// Extend a `HeaderMap` with the contents of another `HeaderMap`.
+    ///
+    /// This function expects the yielded items to follow the same structure as
+    /// `IntoIter`.
+    ///
+    /// # Panics
+    ///
+    /// This panics if the first yielded item does not have a `HeaderName`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::*;
+    /// let mut map = HeaderMap::new();
+    ///
+    /// map.insert("foo", "bar");
+    /// map.insert("accept", "awesome");
+    ///
+    /// let mut extra = HeaderMap::new();
+    ///
+    /// extra.insert("foo", "baz");
+    /// extra.insert("cookie", "hello");
+    /// extra.append("cookie", "world");
+    /// extra.insert("something", "else");
+    ///
+    /// map.extend(extra);
+    ///
+    /// assert_eq!(map["foo"], "baz");
+    /// assert_eq!(map["accept"], "awesome");
+    /// assert_eq!(map["cookie"], "hello");
+    /// assert_eq!(map["something"], "else");
+    ///
+    /// let v = map.get_all("foo").unwrap();
+    /// assert_eq!(1, v.iter().count());
+    ///
+    /// let v = map.get_all("cookie").unwrap();
+    /// assert_eq!(2, v.iter().count());
+    /// ```
+    fn extend<I: IntoIterator<Item = (Option<HeaderName>, T)>>(&mut self, iter: I) {
+        let mut iter = iter.into_iter();
+
+        // The structure of this is a bit weird, but it is mostly to make the
+        // borrow checker happy.
+        let (mut key, mut val) = match iter.next() {
+            Some((Some(key), val)) => (key, val),
+            Some((None, _)) => panic!("expected a header name, but got None"),
+            None => return,
+        };
+
+        'outer:
+        loop {
+            let mut entry = match self.entry(key) {
+                Entry::Occupied(mut e) => {
+                    // Replace all previous values while maintaining a handle to
+                    // the entry.
+                    e.insert(val);
+                    e
+                }
+                Entry::Vacant(e) => {
+                    e.insert_entry(val)
+                }
+            };
+
+            // As long as `HeaderName` is none, keep inserting the value into
+            // the current entry
+            'inner:
+            loop {
+                match iter.next() {
+                    Some((Some(k), v)) => {
+                        key = k;
+                        val = v;
+                        continue 'outer;
+                    }
+                    Some((None, v)) => {
+                        entry.append(v);
+                    }
+                    None => {
+                        return;
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -2045,6 +2203,40 @@ impl<'a, T> VacantEntry<'a, T> {
 
         &mut self.map.entries[index].value
     }
+
+    /// Insert the value into the entry.
+    ///
+    /// The value will be associated with this entry's key. The new
+    /// `OccupiedEntry` is returned, allowing for further manipulation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::*;
+    /// let mut map = HeaderMap::new();
+    ///
+    /// if let Entry::Vacant(v) = map.entry("x-hello") {
+    ///     let mut e = v.insert_entry("world");
+    ///     e.insert("world2");
+    /// }
+    ///
+    /// assert_eq!(map["x-hello"], "world2");
+    /// ```
+    pub fn insert_entry(self, value: T) -> OccupiedEntry<'a, T> {
+        // Ensure that there is space in the map
+        let index = self.map.insert_phase_two(
+            self.key,
+            value.into(),
+            self.hash,
+            self.probe,
+            self.danger);
+
+        OccupiedEntry {
+            map: self.map,
+            index: index,
+            probe: self.probe,
+        }
+    }
 }
 
 
@@ -2303,6 +2495,45 @@ impl<'a, T: 'a> DoubleEndedIterator for ValueIterMut<'a, T> {
 
 unsafe impl<'a, T: Sync> Sync for ValueIterMut<'a, T> {}
 unsafe impl<'a, T: Send> Send for ValueIterMut<'a, T> {}
+
+// ===== impl IntoIter =====
+
+impl<T> Iterator for IntoIter<T> {
+    type Item = (Option<HeaderName>, T);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(next) = self.next {
+            self.next = match self.extra_values[next].next {
+                Link::Entry(_) => None,
+                Link::Extra(v) => Some(v),
+            };
+
+            let value = unsafe { ptr::read(&self.extra_values[next].value) };
+
+            return Some((None, value));
+        }
+
+        if let Some(bucket) = self.entries.next() {
+            self.next = bucket.links.map(|l| l.next);
+            let name = Some(bucket.key);
+            let value = bucket.value;
+
+            return Some((name, value));
+        }
+
+        None
+    }
+}
+
+impl<T> Drop for IntoIter<T> {
+    fn drop(&mut self) {
+        // Ensure the iterator is consumed
+        for _ in self.by_ref() { }
+
+        // All the values have already been yielded out.
+        unsafe { self.extra_values.set_len(0); }
+    }
+}
 
 // ===== impl OccupiedEntry =====
 
