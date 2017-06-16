@@ -1,3 +1,4 @@
+//! HTTP version
 use std::fmt;
 
 /// Represents a version of the HTTP spec.

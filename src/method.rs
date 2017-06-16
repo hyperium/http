@@ -14,6 +14,7 @@ use std::error::Error;
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Method(Inner);
 
+/// A possible error value when converting `Method` from bytes.
 #[derive(Debug)]
 pub struct FromBytesError {
     _priv: (),
