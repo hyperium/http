@@ -1688,6 +1688,13 @@ impl<K, T> FromIterator<(K, T)> for HeaderMap<T>
 impl<T> Extend<(Option<HeaderName>, T)> for HeaderMap<T> {
     /// Extend a `HeaderMap` with the contents of another `HeaderMap`.
     ///
+    /// This function expects the yielded items to follow the same structure as
+    /// `IntoIter`.
+    ///
+    /// # Panics
+    ///
+    /// This panics if the first yielded item does not have a `HeaderName`.
+    ///
     /// # Examples
     ///
     /// ```
@@ -2520,6 +2527,9 @@ impl<T> Iterator for IntoIter<T> {
 
 impl<T> Drop for IntoIter<T> {
     fn drop(&mut self) {
+        // Ensure the iterator is consumed
+        for _ in self.by_ref() { }
+
         // All the values have already been yielded out.
         unsafe { self.extra_values.set_len(0); }
     }
