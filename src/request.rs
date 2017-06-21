@@ -112,17 +112,17 @@ impl<T> Request<T> {
         &mut self.head.uri
     }
 
-    /// Returns a reference to the associated version.
+    /// Returns the associated version.
     ///
     /// # Examples
     ///
     /// ```
     /// # use http::*;
     /// let request: Request<()> = Request::default();
-    /// assert_eq!(*request.version(), version::HTTP_11);
+    /// assert_eq!(request.version(), version::HTTP_11);
     /// ```
-    pub fn version(&self) -> &Version {
-        &self.head.version
+    pub fn version(&self) -> Version {
+        self.head.version
     }
 
     /// Returns a mutable reference to the associated version.
@@ -133,7 +133,7 @@ impl<T> Request<T> {
     /// # use http::*;
     /// let mut request: Request<()> = Request::default();
     /// *request.version_mut() = version::HTTP_2;
-    /// assert_eq!(*request.version(), version::HTTP_2);
+    /// assert_eq!(request.version(), version::HTTP_2);
     /// ```
     pub fn version_mut(&mut self) -> &mut Version {
         &mut self.head.version
