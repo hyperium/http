@@ -44,6 +44,7 @@ pub struct Uri {
     path: Path,
 }
 
+/// Represents the scheme component of a URI
 #[derive(Debug, Clone)]
 pub struct Scheme {
     inner: Scheme2,
@@ -55,14 +56,17 @@ enum Scheme2 {
     Http,
     Https,
     // TODO: Explicitly list out other schemes
+    #[allow(dead_code)]
     Other(Box<ByteStr>),
 }
 
+/// Represents the authority component of a URI.
 #[derive(Debug, Clone)]
 pub struct Authority {
     data: ByteStr,
 }
 
+/// Represents the path component of a URI
 #[derive(Debug, Clone)]
 pub struct Path {
     data: ByteStr,
@@ -150,6 +154,60 @@ const SCHEME_CHARS: [u8; 256] = [
 ];
 
 impl Uri {
+    /// Attempt to convert a `Uri` from `Bytes`
+    pub fn try_from_shared(s: Bytes) -> Result<Uri, FromStrError> {
+        use self::ErrorKind::*;
+
+        if s.len() > MAX_LEN {
+            return Err(TooLong.into());
+        }
+
+        match s.len() {
+            0 => {
+                return Err(Empty.into());
+            }
+            1 => {
+                match s[0] {
+                    b'/' => {
+                        return Ok(Uri {
+                            scheme: Scheme::empty(),
+                            authority: Authority::empty(),
+                            path: Path::slash(),
+                        });
+                    }
+                    b'*' => {
+                        return Ok(Uri {
+                            scheme: Scheme::empty(),
+                            authority: Authority::empty(),
+                            path: Path::star(),
+                        });
+                    }
+                    _ => {
+                        let authority = try!(Authority::try_from_shared(s));
+
+                        return Ok(Uri {
+                            scheme: Scheme::empty(),
+                            authority: authority,
+                            // TODO: Should this be empty instead?
+                            path: Path::slash(),
+                        });
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        if s[0] == b'/' {
+            return Ok(Uri {
+                scheme: Scheme::empty(),
+                authority: Authority::empty(),
+                path: try!(Path::try_from_shared(s)),
+            });
+        }
+
+        parse_full(s)
+    }
+
     /// Get the path of this `Uri`.
     ///
     /// Both relative and absolute URIs contain a path component, though it
@@ -185,26 +243,7 @@ impl Uri {
     /// assert_eq!(uri.path(), "/hello/world");
     /// ```
     pub fn path(&self) -> &str {
-        unimplemented!();
-        /*
-        let start = self.marks.path_start();
-
-        let end = self.marks.query_start()
-            .or(self.marks.fragment_start())
-            .unwrap_or(self.data.len());
-
-        debug_assert!(end >= start);
-
-        let ret = &self.data[start..end];
-
-        if ret.is_empty() {
-            if self.scheme().is_some() {
-                return "/";
-            }
-        }
-
-        ret
-        */
+        self.path.path()
     }
 
     /// Get the scheme of this `Uri`.
@@ -242,15 +281,11 @@ impl Uri {
     /// assert!(uri.scheme().is_none());
     /// ```
     pub fn scheme(&self) -> Option<&str> {
-        unimplemented!();
-        /*
-        match self.marks.scheme {
-            SchemeMarks::Http => Some("http"),
-            SchemeMarks::Https => Some("https"),
-            SchemeMarks::None => None,
-            SchemeMarks::Other(end) => Some(&self.data[..end as usize]),
+        if self.scheme.inner == Scheme2::Empty {
+            None
+        } else {
+            Some(self.scheme.as_str())
         }
-        */
     }
 
     /// Get the authority of this `Uri`.
@@ -291,19 +326,11 @@ impl Uri {
     /// assert!(uri.authority().is_none());
     /// ```
     pub fn authority(&self) -> Option<&str> {
-        unimplemented!();
-        /*
-        if let Some(end) = self.marks.authority_end() {
-            let start = match self.marks.scheme {
-                SchemeMarks::Other(len) => len as usize + 3,
-                _ => 0,
-            };
-
-            Some(&self.data[start..end])
-        } else {
+        if self.authority.data.is_empty() {
             None
+        } else {
+            Some(self.authority.as_str())
         }
-        */
     }
 
     /// Get the host of this `Uri`.
@@ -340,11 +367,8 @@ impl Uri {
     /// assert!(uri.host().is_none());
     /// ```
     pub fn host(&self) -> Option<&str> {
-        unimplemented!();
-        /*
         self.authority()
             .and_then(|a| a.split(":").next())
-            */
     }
 
     /// Get the port of this `Uri`.
@@ -390,15 +414,12 @@ impl Uri {
     /// assert!(uri.port().is_none());
     /// ```
     pub fn port(&self) -> Option<u16> {
-        unimplemented!();
-        /*
         self.authority()
             .and_then(|a| {
                 a.find(":").and_then(|i| {
                     u16::from_str(&a[i+1..]).ok()
                 })
             })
-            */
     }
 
     /// Get the query string of this `Uri`, starting after the `?`.
@@ -445,22 +466,7 @@ impl Uri {
     /// assert!(uri.query().is_none());
     /// ```
     pub fn query(&self) -> Option<&str> {
-        unimplemented!();
-        /*
-        let start = self.marks.query;
-
-        if start == NONE {
-            return None;
-        }
-
-        let mut end = self.marks.fragment as usize;
-
-        if end == NONE as usize {
-            end = self.data.len();
-        }
-
-        Some(&self.data[(start+1) as usize..end])
-        */
+        self.path.query()
     }
 }
 
@@ -515,6 +521,16 @@ impl Scheme {
 
         Ok(Scheme2::Empty)
     }
+
+    /// Return a str representation of the scheme
+    pub fn as_str(&self) -> &str {
+        match self.inner {
+            Scheme2::Http => "http",
+            Scheme2::Https => "https",
+            Scheme2::Other(ref v) => &v[..],
+            Scheme2::Empty => unreachable!(),
+        }
+    }
 }
 
 impl Authority {
@@ -522,20 +538,37 @@ impl Authority {
         Authority { data: ByteStr::new() }
     }
 
-    fn parse(s: &[u8]) -> Result<usize, ErrorKind> {
+    fn try_from_shared(s: Bytes) -> Result<Self, FromStrError> {
+        let authority_end = try!(Authority::parse(&s[..]));
+
+        if authority_end != s.len() {
+            return Err(ErrorKind::InvalidUriChar.into());
+        }
+
+        Ok(Authority {
+            data: unsafe { ByteStr::from_utf8_unchecked(s) },
+        })
+    }
+
+    fn parse(s: &[u8]) -> Result<usize, FromStrError> {
         for (i, &b) in s.iter().enumerate() {
             match URI_CHARS[b as usize] {
                 b'/' => {
                     return Ok(i);
                 }
                 0 => {
-                    return Err(ErrorKind::InvalidUriChar);
+                    return Err(ErrorKind::InvalidUriChar.into());
                 }
                 _ => {}
             }
         }
 
         Ok(s.len())
+    }
+
+    /// Return a str representation of the authority
+    pub fn as_str(&self) -> &str {
+        &self.data[..]
     }
 }
 
@@ -554,8 +587,8 @@ impl FromStr for Authority {
 }
 
 impl Path {
-    // TODO: Figure out a better error type
-    pub fn try_from_shared(mut src: Bytes) -> Result<Self, FromStrError> {
+    /// Attempt to convert a `Path` from `Bytes`.
+    pub fn try_from_shared(src: Bytes) -> Result<Self, FromStrError> {
         let mut query = NONE;
 
         for (i, &b) in src[..].iter().enumerate() {
@@ -600,6 +633,30 @@ impl Path {
         Path {
             data: ByteStr::from_static("*"),
             query: NONE,
+        }
+    }
+
+    /// Returns the path component
+    pub fn path(&self) -> &str {
+        let ret = if self.query == NONE {
+            &self.data[..]
+        } else {
+            &self.data[..self.query as usize]
+        };
+
+        if ret.is_empty() {
+            return "/";
+        }
+
+        ret
+    }
+
+    /// Returns the query string component
+    pub fn query(&self) -> Option<&str> {
+        if self.query == NONE {
+            None
+        } else {
+            Some(&self.data[self.query as usize..])
         }
     }
 }
@@ -653,77 +710,7 @@ impl FromStr for Uri {
     type Err = FromStrError;
 
     fn from_str(s: &str) -> Result<Uri, FromStrError> {
-        use self::ErrorKind::*;
-
-        let b = s.as_bytes();
-
-        if s.len() > MAX_LEN {
-            return Err(TooLong.into());
-        }
-
-        match s.len() {
-            0 => {
-                return Err(Empty.into());
-            }
-            1 => {
-                match b[0] {
-                    b'/' => {
-                        return Ok(Uri {
-                            scheme: Scheme::empty(),
-                            authority: Authority::empty(),
-                            path: Path::slash(),
-                        });
-                    }
-                    b'*' => {
-                        return Ok(Uri {
-                            scheme: Scheme::empty(),
-                            authority: Authority::empty(),
-                            path: Path::star(),
-                        });
-                    }
-                    b => {
-                        let authority = try!(s.parse());
-
-                        return Ok(Uri {
-                            scheme: Scheme::empty(),
-                            authority: authority,
-                            // TODO: Should this be empty instead?
-                            path: Path::slash(),
-                        });
-                    }
-                }
-            }
-            _ => {}
-        }
-
-        if b[0] == b'/' {
-            return Ok(Uri {
-                scheme: Scheme::empty(),
-                authority: Authority::empty(),
-                path: try!(Path::from_str(s)),
-            });
-        }
-
-
-
-        // parse_full(s)
-
-
-        unimplemented!();
-        /*
-        let marks = try!(parse(s.as_bytes()));
-
-        let data = match marks.scheme {
-            SchemeMarks::None | SchemeMarks::Other(..) => ByteStr::from(s),
-            SchemeMarks::Http => ByteStr::from(&s[7..]),
-            SchemeMarks::Https => ByteStr::from(&s[8..]),
-        };
-
-        Ok(Uri {
-            data: data,
-            marks: marks,
-        })
-        */
+        Uri::try_from_shared(s.into())
     }
 }
 
@@ -944,7 +931,6 @@ test_parse! {
     authority = None,
     path = "/some/path/here",
     query = Some("and=then&hello"),
-    fragment = Some("and-bye"),
     host = None,
 }
 
@@ -957,7 +943,6 @@ test_parse! {
     authority = Some("127.0.0.1:61761"),
     path = "/chunks",
     query = None,
-    fragment = None,
     host = Some("127.0.0.1"),
     port = Some(61761),
 }
@@ -971,7 +956,6 @@ test_parse! {
     authority = Some("127.0.0.1:61761"),
     path = "/",
     query = None,
-    fragment = None,
     port = Some(61761),
 }
 
@@ -984,7 +968,6 @@ test_parse! {
     authority = None,
     path = "*",
     query = None,
-    fragment = None,
 }
 
 test_parse! {
@@ -996,7 +979,6 @@ test_parse! {
     authority = Some("localhost"),
     path = "",
     query = None,
-    fragment = None,
     port = None,
 }
 
@@ -1009,7 +991,6 @@ test_parse! {
     authority = Some("localhost:3000"),
     path = "",
     query = None,
-    fragment = None,
     host = Some("localhost"),
     port = Some(3000),
 }
@@ -1023,7 +1004,6 @@ test_parse! {
     authority = Some("127.0.0.1:80"),
     path = "/",
     query = None,
-    fragment = None,
     port = Some(80),
 }
 
@@ -1036,7 +1016,6 @@ test_parse! {
     authority = Some("127.0.0.1:443"),
     path = "/",
     query = None,
-    fragment = None,
     port = Some(443),
 }
 
@@ -1049,7 +1028,6 @@ test_parse! {
     authority = Some("127.0.0.1"),
     path = "/",
     query = None,
-    fragment = Some("?"),
     port = None,
 }
 
