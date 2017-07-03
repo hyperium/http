@@ -2,6 +2,8 @@
 
 use byte_str::ByteStr;
 
+use bytes::Bytes;
+
 use std::{fmt, u8, u16};
 use std::ascii::AsciiExt;
 use std::hash::{Hash, Hasher};
@@ -37,33 +39,44 @@ use std::str::{self, FromStr};
 /// For HTTP 2.0, the URI is encoded using pseudoheaders.
 #[derive(Clone)]
 pub struct Uri {
+    scheme: Scheme,
+    authority: Authority,
+    path: Path,
+}
+
+#[derive(Debug, Clone)]
+pub struct Scheme {
+    inner: Scheme2,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+enum Scheme2 {
+    Empty,
+    Http,
+    Https,
+    // TODO: Explicitly list out other schemes
+    Other(Box<ByteStr>),
+}
+
+#[derive(Debug, Clone)]
+pub struct Authority {
     data: ByteStr,
-    marks: Marks,
+}
+
+#[derive(Debug, Clone)]
+pub struct Path {
+    data: ByteStr,
+    query: u16,
 }
 
 /// An error resulting from a failed convertion of a URI from a &str.
 #[derive(Debug)]
 pub struct FromStrError(ErrorKind);
 
-#[derive(Clone)]
-struct Marks {
-    scheme: Scheme,
-    authority_end: u16,
-    query: u16,
-    fragment: u16,
-}
-
-#[derive(Clone, Eq, PartialEq)]
-enum Scheme {
-    None,
-    Http,
-    Https,
-    Other(u8),
-}
-
 #[derive(Debug, Eq, PartialEq)]
 enum ErrorKind {
     InvalidUriChar,
+    InvalidAuthority,
     InvalidFormat,
     TooLong,
     Empty,
@@ -172,6 +185,8 @@ impl Uri {
     /// assert_eq!(uri.path(), "/hello/world");
     /// ```
     pub fn path(&self) -> &str {
+        unimplemented!();
+        /*
         let start = self.marks.path_start();
 
         let end = self.marks.query_start()
@@ -189,6 +204,7 @@ impl Uri {
         }
 
         ret
+        */
     }
 
     /// Get the scheme of this `Uri`.
@@ -226,12 +242,15 @@ impl Uri {
     /// assert!(uri.scheme().is_none());
     /// ```
     pub fn scheme(&self) -> Option<&str> {
+        unimplemented!();
+        /*
         match self.marks.scheme {
-            Scheme::Http => Some("http"),
-            Scheme::Https => Some("https"),
-            Scheme::None => None,
-            Scheme::Other(end) => Some(&self.data[..end as usize]),
+            SchemeMarks::Http => Some("http"),
+            SchemeMarks::Https => Some("https"),
+            SchemeMarks::None => None,
+            SchemeMarks::Other(end) => Some(&self.data[..end as usize]),
         }
+        */
     }
 
     /// Get the authority of this `Uri`.
@@ -272,9 +291,11 @@ impl Uri {
     /// assert!(uri.authority().is_none());
     /// ```
     pub fn authority(&self) -> Option<&str> {
+        unimplemented!();
+        /*
         if let Some(end) = self.marks.authority_end() {
             let start = match self.marks.scheme {
-                Scheme::Other(len) => len as usize + 3,
+                SchemeMarks::Other(len) => len as usize + 3,
                 _ => 0,
             };
 
@@ -282,6 +303,7 @@ impl Uri {
         } else {
             None
         }
+        */
     }
 
     /// Get the host of this `Uri`.
@@ -318,8 +340,11 @@ impl Uri {
     /// assert!(uri.host().is_none());
     /// ```
     pub fn host(&self) -> Option<&str> {
+        unimplemented!();
+        /*
         self.authority()
             .and_then(|a| a.split(":").next())
+            */
     }
 
     /// Get the port of this `Uri`.
@@ -365,12 +390,15 @@ impl Uri {
     /// assert!(uri.port().is_none());
     /// ```
     pub fn port(&self) -> Option<u16> {
+        unimplemented!();
+        /*
         self.authority()
             .and_then(|a| {
                 a.find(":").and_then(|i| {
                     u16::from_str(&a[i+1..]).ok()
                 })
             })
+            */
     }
 
     /// Get the query string of this `Uri`, starting after the `?`.
@@ -417,6 +445,8 @@ impl Uri {
     /// assert!(uri.query().is_none());
     /// ```
     pub fn query(&self) -> Option<&str> {
+        unimplemented!();
+        /*
         let start = self.marks.query;
 
         if start == NONE {
@@ -430,241 +460,270 @@ impl Uri {
         }
 
         Some(&self.data[(start+1) as usize..end])
-    }
-
-    fn fragment(&self) -> Option<&str> {
-        let start = self.marks.fragment;
-
-        if start == NONE {
-            return None;
-        }
-
-        Some(&self.data[(start+1) as usize..])
+        */
     }
 }
 
-impl Marks {
-    fn authority_end(&self) -> Option<usize> {
-        if self.authority_end == NONE {
-            None
-        } else {
-            Some(self.authority_end as usize)
+impl Scheme {
+    fn empty() -> Self {
+        Scheme {
+            inner: Scheme2::Empty,
         }
     }
 
-    fn path_start(&self) -> usize {
-        self.authority_end()
-            .unwrap_or_else(|| {
-                match self.scheme {
-                    Scheme::Other(len) => len as usize + 3,
-                    _ => 0,
-                }
-            })
-    }
-
-    fn query_start(&self) -> Option<usize> {
-        if self.query == NONE {
-            None
-        } else {
-            Some(self.query as usize)
+    fn parse(s: &mut Bytes) -> Result<Scheme2, ErrorKind> {
+        if s.len() >= 7 {
+            // Check for HTTP
+            if s[..7].eq_ignore_ascii_case(b"http://") {
+                let _ = s.split_to(7);
+                // Prefix will be striped
+                return Ok(Scheme2::Http);
+            }
         }
-    }
 
-    fn fragment_start(&self) -> Option<usize> {
-        if self.fragment == NONE {
-            None
-        } else {
-            Some(self.fragment as usize)
+        if s.len() >= 8 {
+            // Check for HTTPs
+            if s[..8].eq_ignore_ascii_case(b"https://") {
+                let _ = s.split_to(8);
+                return Ok(Scheme2::Https);
+            }
         }
-    }
-}
 
-/// Parse a string into a `Uri`.
-fn parse(s: &[u8]) -> Result<Marks, ErrorKind> {
-    use self::ErrorKind::*;
+        if s.len() > 3 {
+            for (i, &b) in s.iter().enumerate() {
+                match SCHEME_CHARS[b as usize] {
+                    b':' => {
+                        // Not enough data remaining
+                        if s.len() < i + 3 {
+                            break;
+                        }
 
-    if s.len() > MAX_LEN {
-        return Err(TooLong);
-    }
+                        // Not a scheme
+                        if &s[i+1..i+3] != b"//" {
+                            break;
+                        }
 
-    match s.len() {
-        0 => {
-            return Err(Empty);
-        }
-        1 => {
-            match s[0] {
-                b'/' | b'*'=> {
-                    return Ok(Marks {
-                        scheme: Scheme::None,
-                        authority_end: NONE,
-                        query: NONE,
-                        fragment: NONE,
-                    });
-                }
-                b => {
-                    if URI_CHARS[b as usize] == 0 {
-                        return Err(ErrorKind::InvalidUriChar.into());
+                        unimplemented!();
+                        // return Ok((SchemeMarks::Other(i as u8), i + 3, s));
                     }
-
-                    return Ok(Marks {
-                        scheme: Scheme::None,
-                        authority_end: 1,
-                        query: NONE,
-                        fragment: NONE,
-                    });
+                    // Invald scheme character, abort
+                    0 => break,
+                    _ => {}
                 }
             }
         }
-        _ => {}
+
+        Ok(Scheme2::Empty)
     }
-
-    if s[0] == b'/' {
-        let (query, fragment) = try!(parse_query(s, 0));
-
-        return Ok(Marks {
-            scheme: Scheme::None,
-            authority_end: NONE,
-            query: query,
-            fragment: fragment,
-        });
-    }
-
-    parse_full(s)
 }
 
-fn parse_scheme(s: &[u8]) -> Result<(Scheme, usize, &[u8]), ErrorKind> {
-    if s.len() >= 7 {
-        // Check for HTTP
-        if s[..7].eq_ignore_ascii_case(b"http://") {
-            // Prefix will be striped
-            return Ok((Scheme::Http, 0, &s[7..]));
-        }
+impl Authority {
+    fn empty() -> Self {
+        Authority { data: ByteStr::new() }
     }
 
-    if s.len() >= 8 {
-        // Check for HTTPs
-        if s[..8].eq_ignore_ascii_case(b"https://") {
-            return Ok((Scheme::Https, 0, &s[8..]));
-        }
-    }
-
-    if s.len() > 3 {
+    fn parse(s: &[u8]) -> Result<usize, ErrorKind> {
         for (i, &b) in s.iter().enumerate() {
-            match SCHEME_CHARS[b as usize] {
-                b':' => {
-                    // Not enough data remaining
-                    if s.len() < i + 3 {
-                        break;
-                    }
-
-                    // Not a scheme
-                    if &s[i+1..i+3] != b"//" {
-                        break;
-                    }
-
-                    if i > u8::MAX as usize {
-                        return Err(ErrorKind::SchemeTooLong);
-                    }
-
-                    return Ok((Scheme::Other(i as u8), i + 3, s));
+            match URI_CHARS[b as usize] {
+                b'/' => {
+                    return Ok(i);
                 }
-                // Invald scheme character, abort
-                0 => break,
+                0 => {
+                    return Err(ErrorKind::InvalidUriChar);
+                }
                 _ => {}
             }
         }
-    }
 
-    Ok((Scheme::None, 0, s))
+        Ok(s.len())
+    }
 }
 
-fn parse_authority(s: &[u8], pos: usize) -> Result<u16, ErrorKind> {
-    for (i, &b) in s[pos..].iter().enumerate() {
-        match URI_CHARS[b as usize] {
-            b'/' => {
-                return Ok((pos + i) as u16);
-            }
-            0 => {
-                return Err(ErrorKind::InvalidUriChar);
-            }
-            _ => {}
-        }
-    }
+impl FromStr for Authority {
+    type Err = FromStrError;
 
-    Ok(s.len() as u16)
+    fn from_str(s: &str) -> Result<Self, FromStrError> {
+        let end = try!(Authority::parse(s.as_bytes()));
+
+        if end != s.len() {
+            return Err(ErrorKind::InvalidAuthority.into());
+        }
+
+        Ok(Authority { data: s.into() })
+    }
 }
 
-fn parse_full(s: &[u8]) -> Result<Marks, ErrorKind> {
-    let (scheme, pos, s) = try!(parse_scheme(s));
-    let authority = try!(parse_authority(s, pos));
+impl Path {
+    // TODO: Figure out a better error type
+    pub fn try_from_shared(mut src: Bytes) -> Result<Self, FromStrError> {
+        let mut query = NONE;
 
-    if scheme == Scheme::None {
-        if authority as usize != s.len() {
-            return Err(ErrorKind::InvalidFormat);
+        for (i, &b) in src[..].iter().enumerate() {
+            match URI_CHARS[b as usize] {
+                0 => {
+                    return Err(ErrorKind::InvalidUriChar.into());
+                }
+                b'?' => {
+                    if query == NONE {
+                        query = i as u16;
+                    }
+                }
+                b'#' => {
+                    // TODO: truncate
+                    unimplemented!();
+                }
+                _ => {}
+            }
         }
 
-        return Ok(Marks {
-            scheme: scheme,
-            authority_end: authority,
+        Ok(Path {
+            data: unsafe { ByteStr::from_utf8_unchecked(src) },
+            query: query,
+        })
+    }
+
+    fn empty() -> Self {
+        Path {
+            data: ByteStr::new(),
             query: NONE,
-            fragment: NONE,
+        }
+    }
+
+    fn slash() -> Self {
+        Path {
+            data: ByteStr::from_static("/"),
+            query: NONE,
+        }
+    }
+
+    fn star() -> Self {
+        Path {
+            data: ByteStr::from_static("*"),
+            query: NONE,
+        }
+    }
+}
+
+impl FromStr for Path {
+    type Err = FromStrError;
+
+    fn from_str(s: &str) -> Result<Self, FromStrError> {
+        Path::try_from_shared(s.into())
+    }
+}
+
+fn parse_full(mut s: Bytes) -> Result<Uri, FromStrError> {
+    // Parse the scheme
+    let scheme = try!(Scheme::parse(&mut s));
+
+    // Find the end of the authority. The scheme will already have been
+    // extracted.
+    let authority_end = try!(Authority::parse(&s[..]));
+
+    if scheme == Scheme2::Empty {
+        if authority_end != s.len() {
+            return Err(ErrorKind::InvalidFormat.into());
+        }
+
+        let authority = Authority {
+            data: unsafe { ByteStr::from_utf8_unchecked(s) },
+        };
+
+        return Ok(Uri {
+            scheme: Scheme { inner: scheme },
+            authority: authority,
+            path: Path::empty(),
         });
     }
 
-    let (query, fragment) = try!(parse_query(s, authority as usize));
+    let authority = s.split_to(authority_end);
+    let authority = Authority {
+        data: unsafe { ByteStr::from_utf8_unchecked(authority) },
+    };
 
-    Ok(Marks {
-        scheme: scheme,
-        authority_end: authority,
-        query: query,
-        fragment: fragment,
+    Ok(Uri {
+        scheme: Scheme { inner: scheme },
+        authority: authority,
+        path: try!(Path::try_from_shared(s)),
     })
 }
 
-fn parse_query(s: &[u8], pos: usize) -> Result<(u16, u16), ErrorKind> {
-    let mut query = NONE;
-    let mut fragment = NONE;
-
-    for (i, &b) in s[pos..].iter().enumerate() {
-        match URI_CHARS[b as usize] {
-            0 => {
-                return Err(ErrorKind::InvalidUriChar);
-            }
-            b'?' => {
-                if query == NONE {
-                    if fragment == NONE {
-                        query = (pos + i) as u16;
-                    }
-                }
-            }
-            b'#' => {
-                if fragment == NONE {
-                    fragment = (pos + i) as u16;
-                }
-            }
-            _ => {}
-        }
-    }
-
-    Ok((query, fragment))
-}
 
 impl FromStr for Uri {
     type Err = FromStrError;
 
     fn from_str(s: &str) -> Result<Uri, FromStrError> {
+        use self::ErrorKind::*;
+
+        let b = s.as_bytes();
+
+        if s.len() > MAX_LEN {
+            return Err(TooLong.into());
+        }
+
+        match s.len() {
+            0 => {
+                return Err(Empty.into());
+            }
+            1 => {
+                match b[0] {
+                    b'/' => {
+                        return Ok(Uri {
+                            scheme: Scheme::empty(),
+                            authority: Authority::empty(),
+                            path: Path::slash(),
+                        });
+                    }
+                    b'*' => {
+                        return Ok(Uri {
+                            scheme: Scheme::empty(),
+                            authority: Authority::empty(),
+                            path: Path::star(),
+                        });
+                    }
+                    b => {
+                        let authority = try!(s.parse());
+
+                        return Ok(Uri {
+                            scheme: Scheme::empty(),
+                            authority: authority,
+                            // TODO: Should this be empty instead?
+                            path: Path::slash(),
+                        });
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        if b[0] == b'/' {
+            return Ok(Uri {
+                scheme: Scheme::empty(),
+                authority: Authority::empty(),
+                path: try!(Path::from_str(s)),
+            });
+        }
+
+
+
+        // parse_full(s)
+
+
+        unimplemented!();
+        /*
         let marks = try!(parse(s.as_bytes()));
 
         let data = match marks.scheme {
-            Scheme::None | Scheme::Other(..) => ByteStr::from(s),
-            Scheme::Http => ByteStr::from(&s[7..]),
-            Scheme::Https => ByteStr::from(&s[8..]),
+            SchemeMarks::None | SchemeMarks::Other(..) => ByteStr::from(s),
+            SchemeMarks::Http => ByteStr::from(&s[7..]),
+            SchemeMarks::Https => ByteStr::from(&s[8..]),
         };
 
         Ok(Uri {
             data: data,
             marks: marks,
         })
+        */
     }
 }
 
@@ -695,10 +754,6 @@ impl PartialEq for Uri {
         }
 
         if self.query() != other.query() {
-            return false;
-        }
-
-        if self.fragment() != other.fragment() {
             return false;
         }
 
@@ -775,40 +830,19 @@ impl PartialEq<str> for Uri {
             other = &other[query.len()..];
         }
 
-        if let Some(frag) = self.fragment() {
-            if other[0] != b'#' {
-                return false;
-            }
-
-            other = &other[1..];
-
-            if other.len() < frag.len() {
-                return false;
-            }
-
-            if frag.as_bytes() != &other[..frag.len()] {
-                return false;
-            }
-
-            other = &other[frag.len()..];
-        }
-
-        other.is_empty()
+        other.is_empty() || other[0] == b'#'
     }
 }
 
 impl Eq for Uri {}
 
+/// Returns a `Uri` representing `/`
 impl Default for Uri {
     fn default() -> Uri {
         Uri {
-            data: ByteStr::from_static("/"),
-            marks: Marks {
-                scheme: Scheme::None,
-                authority_end: NONE,
-                query: NONE,
-                fragment: NONE,
-            }
+            scheme: Scheme::empty(),
+            authority: Authority::empty(),
+            path: Path::slash(),
         }
     }
 }
@@ -827,10 +861,6 @@ impl fmt::Display for Uri {
 
         if let Some(query) = self.query() {
             try!(write!(f, "?{}", query));
-        }
-
-        if let Some(fragment) = self.fragment() {
-            try!(write!(f, "#{}", fragment));
         }
 
         Ok(())
@@ -865,11 +895,6 @@ impl Hash for Uri {
         if let Some(query) = self.query() {
             b'?'.hash(state);
             Hash::hash_slice(query.as_bytes(), state);
-        }
-
-        if let Some(fragment) = self.fragment() {
-            b'#'.hash(state);
-            Hash::hash_slice(fragment.as_bytes(), state);
         }
     }
 }
