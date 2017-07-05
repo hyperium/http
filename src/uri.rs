@@ -41,7 +41,7 @@ use std::str::{self, FromStr};
 pub struct Uri {
     scheme: Scheme,
     authority: Authority,
-    path: Path,
+    origin_form: OriginForm,
 }
 
 /// Represents the scheme component of a URI
@@ -67,11 +67,26 @@ pub struct Authority {
 }
 
 /// Represents the path component of a URI
-/// TODO: rename OriginForm
 #[derive(Debug, Clone)]
-pub struct Path {
+pub struct OriginForm {
     data: ByteStr,
     query: u16,
+}
+
+/// The various parts of a URI.
+///
+/// This struct is used to provide to and retrieve from a URI.
+#[derive(Debug)]
+pub struct Parts {
+    /// The scheme component of a URI
+    pub scheme: Option<Scheme>,
+
+    /// The authority component of a URI
+    pub authority: Option<Authority>,
+
+    /// The origin-form component of a URI
+    pub origin_form: Option<OriginForm>,
+    _priv: (),
 }
 
 /// An error resulting from a failed convertion of a URI from a &str.
@@ -160,6 +175,9 @@ const SCHEME_CHARS: [u8; 256] = [
 
 impl Uri {
     /// Attempt to convert a `Uri` from `Bytes`
+    ///
+    /// This function will be replaced by a `TryFrom` implementation once the
+    /// trait lands in stable.
     pub fn try_from_shared(s: Bytes) -> Result<Uri, FromStrError> {
         use self::ErrorKind::*;
 
@@ -177,14 +195,14 @@ impl Uri {
                         return Ok(Uri {
                             scheme: Scheme::empty(),
                             authority: Authority::empty(),
-                            path: Path::slash(),
+                            origin_form: OriginForm::slash(),
                         });
                     }
                     b'*' => {
                         return Ok(Uri {
                             scheme: Scheme::empty(),
                             authority: Authority::empty(),
-                            path: Path::star(),
+                            origin_form: OriginForm::star(),
                         });
                     }
                     _ => {
@@ -194,7 +212,7 @@ impl Uri {
                             scheme: Scheme::empty(),
                             authority: authority,
                             // TODO: Should this be empty instead?
-                            path: Path::slash(),
+                            origin_form: OriginForm::slash(),
                         });
                     }
                 }
@@ -206,16 +224,19 @@ impl Uri {
             return Ok(Uri {
                 scheme: Scheme::empty(),
                 authority: Authority::empty(),
-                path: try!(Path::try_from_shared(s)),
+                origin_form: try!(OriginForm::try_from_shared(s)),
             });
         }
 
         parse_full(s)
     }
 
-    fn origin_form(&self) -> Option<&Path> {
+    /// Returns the origin form component of the Uri
+    ///
+    /// This is the path and query string components or *.
+    pub fn origin_form(&self) -> Option<&OriginForm> {
         if self.scheme.inner != Scheme2::Empty || self.authority.data.is_empty() {
-            Some(&self.path)
+            Some(&self.origin_form)
         } else {
             None
         }
@@ -256,14 +277,10 @@ impl Uri {
     /// assert_eq!(uri.path(), "/hello/world");
     /// ```
     pub fn path(&self) -> &str {
-        if self.path.data.is_empty() {
-            if self.scheme.inner != Scheme2::Empty {
-                self.path.path()
-            } else {
-                ""
-            }
+        if self.has_path() {
+            self.origin_form.path()
         } else {
-            self.path.path()
+            ""
         }
     }
 
@@ -487,24 +504,98 @@ impl Uri {
     /// assert!(uri.query().is_none());
     /// ```
     pub fn query(&self) -> Option<&str> {
-        self.path.query()
+        self.origin_form.query()
+    }
+
+    fn has_path(&self) -> bool {
+        !self.origin_form.data.is_empty() || self.scheme.inner != Scheme2::Empty
+    }
+}
+
+impl From<Parts> for Uri {
+    fn from(src: Parts) -> Self {
+        if src.scheme.is_some() {
+            assert!(src.authority.is_some(), "an authority must be provided if a scheme is provided");
+            assert!(src.origin_form.is_some(), "an `OriginForm` must be provided if a scheme is provided");
+        } else {
+            if src.authority.is_some() {
+                assert!(src.origin_form.is_none(), "`OriginForm` missing");
+            }
+        }
+
+        let scheme = match src.scheme {
+            Some(scheme) => scheme,
+            None => Scheme { inner: Scheme2::Empty },
+        };
+
+        let authority = match src.authority {
+            Some(authority) => authority,
+            None => Authority::empty(),
+        };
+
+        let origin_form = match src.origin_form {
+            Some(origin_form) => origin_form,
+            None => OriginForm::empty(),
+        };
+
+        Uri {
+            scheme: scheme,
+            authority: authority,
+            origin_form: origin_form,
+        }
+    }
+}
+
+impl From<Uri> for Parts {
+    fn from(src: Uri) -> Self {
+        let origin_form = if src.has_path() {
+            Some(src.origin_form)
+        } else {
+            None
+        };
+
+        let scheme = match src.scheme.inner {
+            Scheme2::Empty => None,
+            _ => Some(src.scheme),
+        };
+
+        let authority = if src.authority.data.is_empty() {
+            None
+        } else {
+            Some(src.authority)
+        };
+
+        Parts {
+            scheme: scheme,
+            authority: authority,
+            origin_form: origin_form,
+            _priv: (),
+        }
     }
 }
 
 impl Scheme {
+    /// Attempt to convert a `Scheme` from `Bytes`
+    ///
+    /// This function will be replaced by a `TryFrom` implementation once the
+    /// trait lands in stable.
+    pub fn try_from_shared(mut s: Bytes) -> Result<Self, FromStrError> {
+        Scheme::parse(&mut s)
+    }
+
     fn empty() -> Self {
         Scheme {
             inner: Scheme2::Empty,
         }
     }
 
-    fn parse(s: &mut Bytes) -> Result<Scheme2, ErrorKind> {
+    fn parse(s: &mut Bytes) -> Result<Scheme, FromStrError> {
         if s.len() >= 7 {
             // Check for HTTP
             if s[..7].eq_ignore_ascii_case(b"http://") {
                 let _ = s.split_to(7);
                 // Prefix will be striped
-                return Ok(Scheme2::Http);
+                return Ok(Scheme { inner: Scheme2::Http });
             }
         }
 
@@ -512,7 +603,7 @@ impl Scheme {
             // Check for HTTPs
             if s[..8].eq_ignore_ascii_case(b"https://") {
                 let _ = s.split_to(8);
-                return Ok(Scheme2::Https);
+                return Ok(Scheme { inner: Scheme2::Https });
             }
         }
 
@@ -521,7 +612,7 @@ impl Scheme {
                 let b = s[i];
 
                 if i == MAX_SCHEME_LEN {
-                    return Err(ErrorKind::SchemeTooLong);
+                    return Err(ErrorKind::SchemeTooLong.into());
                 }
 
                 match SCHEME_CHARS[b as usize] {
@@ -544,7 +635,9 @@ impl Scheme {
                         let byte_str = unsafe { ByteStr::from_utf8_unchecked(scheme) };
 
                         // Return scheme
-                        return Ok(Scheme2::Other(Box::new(byte_str)));
+                        return Ok(Scheme {
+                            inner: Scheme2::Other(Box::new(byte_str)),
+                        });
                     }
                     // Invald scheme character, abort
                     0 => break,
@@ -553,7 +646,7 @@ impl Scheme {
             }
         }
 
-        Ok(Scheme2::Empty)
+        Ok(Scheme { inner: Scheme2::Empty })
     }
 
     /// Return a str representation of the scheme
@@ -572,7 +665,11 @@ impl Authority {
         Authority { data: ByteStr::new() }
     }
 
-    fn try_from_shared(s: Bytes) -> Result<Self, FromStrError> {
+    /// Attempt to convert an `Authority` from `Bytes`.
+    ///
+    /// This function will be replaced by a `TryFrom` implementation once the
+    /// trait lands in stable.
+    pub fn try_from_shared(s: Bytes) -> Result<Self, FromStrError> {
         let authority_end = try!(Authority::parse(&s[..]));
 
         if authority_end != s.len() {
@@ -620,8 +717,11 @@ impl FromStr for Authority {
     }
 }
 
-impl Path {
-    /// Attempt to convert a `Path` from `Bytes`.
+impl OriginForm {
+    /// Attempt to convert a `OriginForm` from `Bytes`.
+    ///
+    /// This function will be replaced by a `TryFrom` implementation once the
+    /// trait lands in stable.
     pub fn try_from_shared(mut src: Bytes) -> Result<Self, FromStrError> {
         let mut query = NONE;
 
@@ -646,34 +746,55 @@ impl Path {
             }
         }
 
-        Ok(Path {
+        Ok(OriginForm {
             data: unsafe { ByteStr::from_utf8_unchecked(src) },
             query: query,
         })
     }
 
     fn empty() -> Self {
-        Path {
+        OriginForm {
             data: ByteStr::new(),
             query: NONE,
         }
     }
 
     fn slash() -> Self {
-        Path {
+        OriginForm {
             data: ByteStr::from_static("/"),
             query: NONE,
         }
     }
 
     fn star() -> Self {
-        Path {
+        OriginForm {
             data: ByteStr::from_static("*"),
             query: NONE,
         }
     }
 
     /// Returns the path component
+    ///
+    /// The path component is **case sensitive**.
+    ///
+    /// ```notrust
+    /// abc://username:password@example.com:123/path/data?key=value&key2=value2#fragid1
+    ///                                        |--------|
+    ///                                             |
+    ///                                           path
+    /// ```
+    ///
+    /// If the URI is `*` then the path component is equal to `*`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::uri::*;
+    ///
+    /// let origin_form: OriginForm = "/hello/world".parse().unwrap();
+    ///
+    /// assert_eq!(origin_form.path(), "/hello/world");
+    /// ```
     pub fn path(&self) -> &str {
         let ret = if self.query == NONE {
             &self.data[..]
@@ -689,6 +810,39 @@ impl Path {
     }
 
     /// Returns the query string component
+    ///
+    /// The query component contains non-hierarchical data that, along with data
+    /// in the path component, serves to identify a resource within the scope of
+    /// the URI's scheme and naming authority (if any). The query component is
+    /// indicated by the first question mark ("?") character and terminated by a
+    /// number sign ("#") character or by the end of the URI.
+    ///
+    /// ```notrust
+    /// abc://username:password@example.com:123/path/data?key=value&key2=value2#fragid1
+    ///                                                   |-------------------|
+    ///                                                             |
+    ///                                                           query
+    /// ```
+    ///
+    /// # Examples
+    ///
+    /// With a query string component
+    ///
+    /// ```
+    /// # use http::uri::*;
+    /// let origin_form: OriginForm = "/hello/world?key=value&foo=bar".parse().unwrap();
+    ///
+    /// assert_eq!(origin_form.query(), Some("key=value&foo=bar"));
+    /// ```
+    ///
+    /// Without a query string component
+    ///
+    /// ```
+    /// # use http::uri::*;
+    /// let origin_form: OriginForm = "/hello/world".parse().unwrap();
+    ///
+    /// assert!(origin_form.query().is_none());
+    /// ```
     pub fn query(&self) -> Option<&str> {
         if self.query == NONE {
             None
@@ -699,15 +853,15 @@ impl Path {
     }
 }
 
-impl FromStr for Path {
+impl FromStr for OriginForm {
     type Err = FromStrError;
 
     fn from_str(s: &str) -> Result<Self, FromStrError> {
-        Path::try_from_shared(s.into())
+        OriginForm::try_from_shared(s.into())
     }
 }
 
-impl fmt::Display for Path {
+impl fmt::Display for OriginForm {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         if !self.data.is_empty() {
             match self.data.as_bytes()[0] {
@@ -728,7 +882,7 @@ fn parse_full(mut s: Bytes) -> Result<Uri, FromStrError> {
     // extracted.
     let authority_end = try!(Authority::parse(&s[..]));
 
-    if scheme == Scheme2::Empty {
+    if scheme.inner == Scheme2::Empty {
         if authority_end != s.len() {
             return Err(ErrorKind::InvalidFormat.into());
         }
@@ -738,9 +892,9 @@ fn parse_full(mut s: Bytes) -> Result<Uri, FromStrError> {
         };
 
         return Ok(Uri {
-            scheme: Scheme { inner: scheme },
+            scheme: scheme,
             authority: authority,
-            path: Path::empty(),
+            origin_form: OriginForm::empty(),
         });
     }
 
@@ -755,9 +909,9 @@ fn parse_full(mut s: Bytes) -> Result<Uri, FromStrError> {
     };
 
     Ok(Uri {
-        scheme: Scheme { inner: scheme },
+        scheme: scheme,
         authority: authority,
-        path: try!(Path::try_from_shared(s)),
+        origin_form: try!(OriginForm::try_from_shared(s)),
     })
 }
 
@@ -847,7 +1001,7 @@ impl PartialEq<str> for Uri {
 
         if other.len() < path.len() || path.as_bytes() != &other[..path.len()] {
             if absolute && path == "/" {
-                // Path can be ommitted, fall through
+                // OriginForm can be ommitted, fall through
             } else {
                 return false;
             }
@@ -885,7 +1039,7 @@ impl Default for Uri {
         Uri {
             scheme: Scheme::empty(),
             authority: Authority::empty(),
-            path: Path::slash(),
+            origin_form: OriginForm::slash(),
         }
     }
 }
