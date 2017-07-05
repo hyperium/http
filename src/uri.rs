@@ -67,6 +67,7 @@ pub struct Authority {
 }
 
 /// Represents the path component of a URI
+/// TODO: rename OriginForm
 #[derive(Debug, Clone)]
 pub struct Path {
     data: ByteStr,
@@ -210,6 +211,14 @@ impl Uri {
         }
 
         parse_full(s)
+    }
+
+    fn origin_form(&self) -> Option<&Path> {
+        if self.scheme.inner != Scheme2::Empty || self.authority.data.is_empty() {
+            Some(&self.path)
+        } else {
+            None
+        }
     }
 
     /// Get the path of this `Uri`.
@@ -578,7 +587,7 @@ impl Authority {
     fn parse(s: &[u8]) -> Result<usize, FromStrError> {
         for (i, &b) in s.iter().enumerate() {
             match URI_CHARS[b as usize] {
-                b'/' => {
+                b'/' | b'?' | b'#' => {
                     return Ok(i);
                 }
                 0 => {
@@ -698,6 +707,19 @@ impl FromStr for Path {
     }
 }
 
+impl fmt::Display for Path {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        if !self.data.is_empty() {
+            match self.data.as_bytes()[0] {
+                b'/' | b'*' => write!(fmt, "{}", &self.data[..]),
+                _ => write!(fmt, "/{}", &self.data[..]),
+            }
+        } else {
+            write!(fmt, "/")
+        }
+    }
+}
+
 fn parse_full(mut s: Bytes) -> Result<Uri, FromStrError> {
     // Parse the scheme
     let scheme = try!(Scheme::parse(&mut s));
@@ -720,6 +742,11 @@ fn parse_full(mut s: Bytes) -> Result<Uri, FromStrError> {
             authority: authority,
             path: Path::empty(),
         });
+    }
+
+    // Authority is required when absolute
+    if authority_end == 0 {
+        return Err(ErrorKind::InvalidFormat.into());
     }
 
     let authority = s.split_to(authority_end);
@@ -1060,6 +1087,70 @@ test_parse! {
     port = None,
 }
 
+test_parse! {
+    test_uri_parse_path_with_terminating_questionmark,
+    "http://127.0.0.1/path?",
+    [],
+
+    scheme = Some("http"),
+    authority = Some("127.0.0.1"),
+    path = "/path",
+    query = Some(""),
+    port = None,
+}
+
+test_parse! {
+    test_uri_parse_absolute_form_with_empty_path_and_nonempty_query,
+    "http://127.0.0.1?foo=bar",
+    [],
+
+    scheme = Some("http"),
+    authority = Some("127.0.0.1"),
+    path = "/",
+    query = Some("foo=bar"),
+    port = None,
+}
+
+test_parse! {
+    test_uri_parse_absolute_form_with_empty_path_and_fragment_with_slash,
+    "http://127.0.0.1#foo/bar",
+    [],
+
+    scheme = Some("http"),
+    authority = Some("127.0.0.1"),
+    path = "/",
+    query = None,
+    port = None,
+}
+
+test_parse! {
+    test_uri_parse_absolute_form_with_empty_path_and_fragment_with_questionmark,
+    "http://127.0.0.1#foo?bar",
+    [],
+
+    scheme = Some("http"),
+    authority = Some("127.0.0.1"),
+    path = "/",
+    query = None,
+    port = None,
+}
+
+#[test]
+fn test_uri_parse_error() {
+    fn err(s: &str) {
+        Uri::from_str(s).unwrap_err();
+    }
+
+    err("http://");
+    err("htt:p//host");
+    err("hyper.rs/");
+    err("hyper.rs?key=val");
+    err("?key=val");
+    err("localhost/");
+    err("localhost?key=val");
+    err("\0");
+}
+
 #[test]
 fn test_max_uri_len() {
     let mut uri = vec![];
@@ -1085,7 +1176,22 @@ fn test_long_scheme() {
 }
 
 #[test]
-fn test_one_invalid_char() {
-    let res: Result<Uri, FromStrError> = "\0".parse();
-    assert!(res.is_err());
+fn test_uri_to_origin_form() {
+    let cases = vec![
+        ("/", "/"),
+        ("/foo?bar", "/foo?bar"),
+        ("/foo?bar#nope", "/foo?bar"),
+        ("http://hyper.rs", "/"),
+        ("http://hyper.rs/", "/"),
+        ("http://hyper.rs/path", "/path"),
+        ("http://hyper.rs?query", "/?query"),
+        ("*", "*"),
+    ];
+
+    for case in cases {
+        let uri = Uri::from_str(case.0).unwrap();
+        let s = uri.origin_form().unwrap().to_string();
+
+        assert_eq!(s, case.1);
+    }
 }
