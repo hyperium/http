@@ -89,6 +89,10 @@ enum ErrorKind {
 
 // u16::MAX is reserved for None
 const MAX_LEN: usize = (u16::MAX - 1) as usize;
+
+// Require the scheme to not be too long in order to enable further
+// optimizations later.
+const MAX_SCHEME_LEN: usize = 64;
 const NONE: u16 = u16::MAX;
 
 const URI_CHARS: [u8; 256] = [
@@ -243,7 +247,15 @@ impl Uri {
     /// assert_eq!(uri.path(), "/hello/world");
     /// ```
     pub fn path(&self) -> &str {
-        self.path.path()
+        if self.path.data.is_empty() {
+            if self.scheme.inner != Scheme2::Empty {
+                self.path.path()
+            } else {
+                ""
+            }
+        } else {
+            self.path.path()
+        }
     }
 
     /// Get the scheme of this `Uri`.
@@ -496,7 +508,13 @@ impl Scheme {
         }
 
         if s.len() > 3 {
-            for (i, &b) in s.iter().enumerate() {
+            for i in 0..s.len() {
+                let b = s[i];
+
+                if i == MAX_SCHEME_LEN {
+                    return Err(ErrorKind::SchemeTooLong);
+                }
+
                 match SCHEME_CHARS[b as usize] {
                     b':' => {
                         // Not enough data remaining
@@ -509,8 +527,15 @@ impl Scheme {
                             break;
                         }
 
-                        unimplemented!();
-                        // return Ok((SchemeMarks::Other(i as u8), i + 3, s));
+                        let mut scheme = s.split_to(i+3);
+
+                        // TODO: truncate!
+                        let _ = scheme.split_off(i);
+
+                        let byte_str = unsafe { ByteStr::from_utf8_unchecked(scheme) };
+
+                        // Return scheme
+                        return Ok(Scheme2::Other(Box::new(byte_str)));
                     }
                     // Invald scheme character, abort
                     0 => break,
@@ -588,10 +613,12 @@ impl FromStr for Authority {
 
 impl Path {
     /// Attempt to convert a `Path` from `Bytes`.
-    pub fn try_from_shared(src: Bytes) -> Result<Self, FromStrError> {
+    pub fn try_from_shared(mut src: Bytes) -> Result<Self, FromStrError> {
         let mut query = NONE;
 
-        for (i, &b) in src[..].iter().enumerate() {
+        for i in 0..src.len() {
+            let b = src[i];
+
             match URI_CHARS[b as usize] {
                 0 => {
                     return Err(ErrorKind::InvalidUriChar.into());
@@ -603,7 +630,8 @@ impl Path {
                 }
                 b'#' => {
                     // TODO: truncate
-                    unimplemented!();
+                    src.split_off(i);
+                    break;
                 }
                 _ => {}
             }
@@ -656,7 +684,8 @@ impl Path {
         if self.query == NONE {
             None
         } else {
-            Some(&self.data[self.query as usize..])
+            let i = self.query + 1;
+            Some(&self.data[i as usize..])
         }
     }
 }
