@@ -50,14 +50,17 @@ pub struct Scheme {
     inner: Scheme2,
 }
 
+#[derive(Debug, Clone)]
+enum Scheme2<T = Box<ByteStr>> {
+    None,
+    Standard(Protocol),
+    Other(T),
+}
+
 #[derive(Debug, Clone, Eq, PartialEq)]
-enum Scheme2 {
-    Empty,
+enum Protocol {
     Http,
     Https,
-    // TODO: Explicitly list out other schemes
-    #[allow(dead_code)]
-    Other(Box<ByteStr>),
 }
 
 /// Represents the authority component of a URI.
@@ -76,7 +79,7 @@ pub struct OriginForm {
 /// The various parts of a URI.
 ///
 /// This struct is used to provide to and retrieve from a URI.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Parts {
     /// The scheme component of a URI
     pub scheme: Option<Scheme>,
@@ -86,6 +89,8 @@ pub struct Parts {
 
     /// The origin-form component of a URI
     pub origin_form: Option<OriginForm>,
+
+    /// Allow extending in the future
     _priv: (),
 }
 
@@ -96,6 +101,7 @@ pub struct FromStrError(ErrorKind);
 #[derive(Debug, Eq, PartialEq)]
 enum ErrorKind {
     InvalidUriChar,
+    InvalidScheme,
     InvalidAuthority,
     InvalidFormat,
     TooLong,
@@ -178,6 +184,24 @@ impl Uri {
     ///
     /// This function will be replaced by a `TryFrom` implementation once the
     /// trait lands in stable.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # extern crate http;
+    /// # use http::uri::*;
+    /// extern crate bytes;
+    ///
+    /// use bytes::Bytes;
+    ///
+    /// # pub fn main() {
+    /// let bytes = Bytes::from("http://example.com/foo");
+    /// let uri = Uri::try_from_shared(bytes).unwrap();
+    ///
+    /// assert_eq!(uri.host().unwrap(), "example.com");
+    /// assert_eq!(uri.path(), "/foo");
+    /// # }
+    /// ```
     pub fn try_from_shared(s: Bytes) -> Result<Uri, FromStrError> {
         use self::ErrorKind::*;
 
@@ -235,7 +259,7 @@ impl Uri {
     ///
     /// This is the path and query string components or *.
     pub fn origin_form(&self) -> Option<&OriginForm> {
-        if self.scheme.inner != Scheme2::Empty || self.authority.data.is_empty() {
+        if !self.scheme.inner.is_none() || self.authority.data.is_empty() {
             Some(&self.origin_form)
         } else {
             None
@@ -319,7 +343,7 @@ impl Uri {
     /// assert!(uri.scheme().is_none());
     /// ```
     pub fn scheme(&self) -> Option<&str> {
-        if self.scheme.inner == Scheme2::Empty {
+        if self.scheme.inner.is_none() {
             None
         } else {
             Some(self.scheme.as_str())
@@ -508,7 +532,7 @@ impl Uri {
     }
 
     fn has_path(&self) -> bool {
-        !self.origin_form.data.is_empty() || self.scheme.inner != Scheme2::Empty
+        !self.origin_form.data.is_empty() || !self.scheme.inner.is_none()
     }
 }
 
@@ -525,7 +549,7 @@ impl From<Parts> for Uri {
 
         let scheme = match src.scheme {
             Some(scheme) => scheme,
-            None => Scheme { inner: Scheme2::Empty },
+            None => Scheme { inner: Scheme2::None },
         };
 
         let authority = match src.authority {
@@ -546,6 +570,40 @@ impl From<Parts> for Uri {
     }
 }
 
+/// Convert a `Uri` from parts
+///
+/// # Examples
+///
+/// Relative URI
+///
+/// ```
+/// # use http::uri::*;
+/// let mut parts = Parts::default();
+/// parts.origin_form = Some("/foo".parse().unwrap());
+///
+/// let uri = Uri::from(parts);
+///
+/// assert_eq!(uri.path(), "/foo");
+///
+/// assert!(uri.scheme().is_none());
+/// assert!(uri.authority().is_none());
+/// ```
+///
+/// Absolute URI
+///
+/// ```
+/// # use http::uri::*;
+/// let mut parts = Parts::default();
+/// parts.scheme = Some("http".parse().unwrap());
+/// parts.authority = Some("foo.com".parse().unwrap());
+/// parts.origin_form = Some("/foo".parse().unwrap());
+///
+/// let uri = Uri::from(parts);
+///
+/// assert_eq!(uri.scheme().unwrap(), "http");
+/// assert_eq!(uri.authority().unwrap(), "foo.com");
+/// assert_eq!(uri.path(), "/foo");
+/// ```
 impl From<Uri> for Parts {
     fn from(src: Uri) -> Self {
         let origin_form = if src.has_path() {
@@ -555,7 +613,7 @@ impl From<Uri> for Parts {
         };
 
         let scheme = match src.scheme.inner {
-            Scheme2::Empty => None,
+            Scheme2::None => None,
             _ => Some(src.scheme),
         };
 
@@ -579,31 +637,130 @@ impl Scheme {
     ///
     /// This function will be replaced by a `TryFrom` implementation once the
     /// trait lands in stable.
-    pub fn try_from_shared(mut s: Bytes) -> Result<Self, FromStrError> {
-        Scheme::parse(&mut s)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # extern crate http;
+    /// # use http::uri::*;
+    /// extern crate bytes;
+    ///
+    /// use bytes::Bytes;
+    ///
+    /// # pub fn main() {
+    /// let bytes = Bytes::from("http");
+    /// let scheme = Scheme::try_from_shared(bytes).unwrap();
+    ///
+    /// assert_eq!(scheme.as_str(), "http");
+    /// # }
+    /// ```
+    pub fn try_from_shared(s: Bytes) -> Result<Self, FromStrError> {
+        use self::Scheme2::*;
+
+        match try!(Scheme2::parse_exact(&s[..])) {
+            None => Err(ErrorKind::InvalidScheme.into()),
+            Standard(p) => Ok(Standard(p).into()),
+            Other(_) => {
+                let b = unsafe { ByteStr::from_utf8_unchecked(s) };
+                Ok(Other(Box::new(b)).into())
+            }
+        }
     }
 
     fn empty() -> Self {
         Scheme {
-            inner: Scheme2::Empty,
+            inner: Scheme2::None,
         }
     }
 
-    fn parse(s: &mut Bytes) -> Result<Scheme, FromStrError> {
+    /// Return a str representation of the scheme
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::uri::*;
+    /// let scheme: Scheme = "http".parse().unwrap();
+    /// assert_eq!(scheme.as_str(), "http");
+    /// ```
+    pub fn as_str(&self) -> &str {
+        use self::Scheme2::*;
+        use self::Protocol::*;
+
+        match self.inner {
+            Standard(Http) => "http",
+            Standard(Https) => "https",
+            Other(ref v) => &v[..],
+            None => unreachable!(),
+        }
+    }
+}
+
+impl FromStr for Scheme {
+    type Err = FromStrError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use self::Scheme2::*;
+
+        match try!(Scheme2::parse_exact(s.as_bytes())) {
+            None => Err(ErrorKind::InvalidScheme.into()),
+            Standard(p) => Ok(Standard(p).into()),
+            Other(_) => {
+                Ok(Other(Box::new(s.into())).into())
+            }
+        }
+    }
+}
+
+impl<T> Scheme2<T> {
+    fn is_none(&self) -> bool {
+        match *self {
+            Scheme2::None => true,
+            _ => false,
+        }
+    }
+}
+
+impl Scheme2<usize> {
+    fn parse_exact(s: &[u8]) -> Result<Scheme2<()>, FromStrError> {
+        match s {
+            b"http" => Ok(Protocol::Http.into()),
+            b"https" => Ok(Protocol::Https.into()),
+            _ => {
+                if s.len() > MAX_SCHEME_LEN {
+                    return Err(ErrorKind::SchemeTooLong.into());
+                }
+
+                for &b in s {
+                    match SCHEME_CHARS[b as usize] {
+                        b':' => {
+                            // Don't want :// here
+                            return Err(ErrorKind::InvalidScheme.into());
+                        }
+                        0 => {
+                            return Err(ErrorKind::InvalidScheme.into());
+                        }
+                        _ => {}
+                    }
+                }
+
+                Ok(Scheme2::Other(()))
+            }
+        }
+    }
+
+    fn parse(s: &[u8]) -> Result<Scheme2<usize>, FromStrError> {
         if s.len() >= 7 {
             // Check for HTTP
             if s[..7].eq_ignore_ascii_case(b"http://") {
-                let _ = s.split_to(7);
                 // Prefix will be striped
-                return Ok(Scheme { inner: Scheme2::Http });
+                return Ok(Protocol::Http.into());
             }
         }
 
         if s.len() >= 8 {
             // Check for HTTPs
             if s[..8].eq_ignore_ascii_case(b"https://") {
-                let _ = s.split_to(8);
-                return Ok(Scheme { inner: Scheme2::Https });
+                return Ok(Protocol::Https.into());
             }
         }
 
@@ -627,17 +784,8 @@ impl Scheme {
                             break;
                         }
 
-                        let mut scheme = s.split_to(i+3);
-
-                        // TODO: truncate!
-                        let _ = scheme.split_off(i);
-
-                        let byte_str = unsafe { ByteStr::from_utf8_unchecked(scheme) };
-
                         // Return scheme
-                        return Ok(Scheme {
-                            inner: Scheme2::Other(Box::new(byte_str)),
-                        });
+                        return Ok(Scheme2::Other(i));
                     }
                     // Invald scheme character, abort
                     0 => break,
@@ -646,16 +794,15 @@ impl Scheme {
             }
         }
 
-        Ok(Scheme { inner: Scheme2::Empty })
+        Ok(Scheme2::None)
     }
+}
 
-    /// Return a str representation of the scheme
-    pub fn as_str(&self) -> &str {
-        match self.inner {
-            Scheme2::Http => "http",
-            Scheme2::Https => "https",
-            Scheme2::Other(ref v) => &v[..],
-            Scheme2::Empty => unreachable!(),
+impl Protocol {
+    fn len(&self) -> usize {
+        match *self {
+            Protocol::Http => 4,
+            Protocol::Https => 5,
         }
     }
 }
@@ -669,6 +816,23 @@ impl Authority {
     ///
     /// This function will be replaced by a `TryFrom` implementation once the
     /// trait lands in stable.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # extern crate http;
+    /// # use http::uri::*;
+    /// extern crate bytes;
+    ///
+    /// use bytes::Bytes;
+    ///
+    /// # pub fn main() {
+    /// let bytes = Bytes::from("example.com");
+    /// let authority = Authority::try_from_shared(bytes).unwrap();
+    ///
+    /// assert_eq!(authority.host(), "example.com");
+    /// # }
+    /// ```
     pub fn try_from_shared(s: Bytes) -> Result<Self, FromStrError> {
         let authority_end = try!(Authority::parse(&s[..]));
 
@@ -697,6 +861,31 @@ impl Authority {
         Ok(s.len())
     }
 
+    /// Get the host of this `Authority`.
+    ///
+    /// The host subcomponent of authority is identified by an IP literal
+    /// encapsulated within square brackets, an IPv4 address in dotted- decimal
+    /// form, or a registered name.  The host subcomponent is **case-insensitive**.
+    ///
+    /// ```notrust
+    /// abc://username:password@example.com:123/path/data?key=value&key2=value2#fragid1
+    ///                         |---------|
+    ///                              |
+    ///                             host
+    /// ```
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::uri::*;
+    /// let authority: Authority = "example.org:80".parse().unwrap();
+    ///
+    /// assert_eq!(authority.host(), "example.org");
+    /// ```
+    pub fn host(&self) -> &str {
+        self.as_str().split(":").next().unwrap()
+    }
+
     /// Return a str representation of the authority
     pub fn as_str(&self) -> &str {
         &self.data[..]
@@ -722,6 +911,24 @@ impl OriginForm {
     ///
     /// This function will be replaced by a `TryFrom` implementation once the
     /// trait lands in stable.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # extern crate http;
+    /// # use http::uri::*;
+    /// extern crate bytes;
+    ///
+    /// use bytes::Bytes;
+    ///
+    /// # pub fn main() {
+    /// let bytes = Bytes::from("/hello?world");
+    /// let origin_form = OriginForm::try_from_shared(bytes).unwrap();
+    ///
+    /// assert_eq!(origin_form.path(), "/hello");
+    /// assert_eq!(origin_form.query(), Some("world"));
+    /// # }
+    /// ```
     pub fn try_from_shared(mut src: Bytes) -> Result<Self, FromStrError> {
         let mut query = NONE;
 
@@ -876,13 +1083,32 @@ impl fmt::Display for OriginForm {
 
 fn parse_full(mut s: Bytes) -> Result<Uri, FromStrError> {
     // Parse the scheme
-    let scheme = try!(Scheme::parse(&mut s));
+    let scheme = match try!(Scheme2::parse(&s[..])) {
+        Scheme2::None => Scheme2::None,
+        Scheme2::Standard(p) => {
+            // TODO: use truncate
+            let _ = s.split_to(p.len() + 3);
+            Scheme2::Standard(p)
+        }
+        Scheme2::Other(n) => {
+            // Grab the protocol
+            let mut scheme = s.split_to(n + 3);
+
+            // Strip ://, TODO: truncate
+            let _ = scheme.split_off(n);
+
+            // Allocate the ByteStr
+            let val = unsafe { ByteStr::from_utf8_unchecked(scheme) };
+
+            Scheme2::Other(Box::new(val))
+        }
+    };
 
     // Find the end of the authority. The scheme will already have been
     // extracted.
     let authority_end = try!(Authority::parse(&s[..]));
 
-    if scheme.inner == Scheme2::Empty {
+    if scheme.is_none() {
         if authority_end != s.len() {
             return Err(ErrorKind::InvalidFormat.into());
         }
@@ -892,7 +1118,7 @@ fn parse_full(mut s: Bytes) -> Result<Uri, FromStrError> {
         };
 
         return Ok(Uri {
-            scheme: scheme,
+            scheme: scheme.into(),
             authority: authority,
             origin_form: OriginForm::empty(),
         });
@@ -909,7 +1135,7 @@ fn parse_full(mut s: Bytes) -> Result<Uri, FromStrError> {
     };
 
     Ok(Uri {
-        scheme: scheme,
+        scheme: scheme.into(),
         authority: authority,
         origin_form: try!(OriginForm::try_from_shared(s)),
     })
@@ -1073,6 +1299,18 @@ impl fmt::Debug for Uri {
 impl From<ErrorKind> for FromStrError {
     fn from(src: ErrorKind) -> FromStrError {
         FromStrError(src)
+    }
+}
+
+impl<T> From<Protocol> for Scheme2<T> {
+    fn from(src: Protocol) -> Self {
+        Scheme2::Standard(src)
+    }
+}
+
+impl From<Scheme2> for Scheme {
+    fn from(src: Scheme2) -> Self {
+        Scheme { inner: src }
     }
 }
 
