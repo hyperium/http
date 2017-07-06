@@ -711,6 +711,20 @@ impl FromStr for Scheme {
     }
 }
 
+impl From<Scheme> for Bytes {
+    fn from(src: Scheme) -> Self {
+        use self::Scheme2::*;
+        use self::Protocol::*;
+
+        match src.inner {
+            None => Bytes::new(),
+            Standard(Http) => Bytes::from_static(b"http"),
+            Standard(Https) => Bytes::from_static(b"https"),
+            Other(v) => (*v).into(),
+        }
+    }
+}
+
 impl<T> Scheme2<T> {
     fn is_none(&self) -> bool {
         match *self {
@@ -906,6 +920,12 @@ impl FromStr for Authority {
     }
 }
 
+impl From<Authority> for Bytes {
+    fn from(src: Authority) -> Bytes {
+        src.data.into()
+    }
+}
+
 impl OriginForm {
     /// Attempt to convert a `OriginForm` from `Bytes`.
     ///
@@ -1065,6 +1085,12 @@ impl FromStr for OriginForm {
 
     fn from_str(s: &str) -> Result<Self, FromStrError> {
         OriginForm::try_from_shared(s.into())
+    }
+}
+
+impl From<OriginForm> for Bytes {
+    fn from(src: OriginForm) -> Bytes {
+        src.data.into()
     }
 }
 

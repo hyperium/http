@@ -47,3 +47,9 @@ impl<'a> From<&'a str> for ByteStr {
         ByteStr { bytes: Bytes::from(src) }
     }
 }
+
+impl From<ByteStr> for Bytes {
+    fn from(src: ByteStr) -> Self {
+        src.bytes
+    }
+}
