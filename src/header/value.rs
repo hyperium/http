@@ -2,6 +2,7 @@ use bytes::Bytes;
 
 use std::{char, cmp, fmt, str};
 use std::error::Error;
+use std::str::FromStr;
 
 /// Represents an HTTP header field value.
 ///
@@ -274,6 +275,14 @@ impl fmt::Debug for HeaderValue {
             .field("value", &EscapeBytes(self.as_ref()))
             .field("is_sensitive", &self.is_sensitive)
             .finish()
+    }
+}
+
+impl FromStr for HeaderValue {
+    type Err = InvalidValueError;
+
+    fn from_str(s: &str) -> Result<HeaderValue, InvalidValueError> {
+        HeaderValue::try_from_str(s)
     }
 }
 
