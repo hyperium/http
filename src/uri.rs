@@ -430,7 +430,7 @@ impl Uri {
     /// ```
     pub fn host(&self) -> Option<&str> {
         self.authority()
-            .and_then(|a| a.split(":").next())
+            .and_then(|a| a.rsplit("@").next().unwrap().split(":").next())
     }
 
     /// Get the port of this `Uri`.
@@ -478,7 +478,7 @@ impl Uri {
     pub fn port(&self) -> Option<u16> {
         self.authority()
             .and_then(|a| {
-                a.find(":").and_then(|i| {
+                a.rfind(":").and_then(|i| {
                     u16::from_str(&a[i+1..]).ok()
                 })
             })
@@ -1431,6 +1431,7 @@ test_parse! {
     path = "/",
     query = None,
     port = Some(61761),
+    host = Some("127.0.0.1"),
 }
 
 test_parse! {
@@ -1442,6 +1443,7 @@ test_parse! {
     authority = None,
     path = "*",
     query = None,
+    host = None,
 }
 
 test_parse! {
@@ -1454,6 +1456,7 @@ test_parse! {
     path = "",
     query = None,
     port = None,
+    host = Some("localhost"),
 }
 
 test_parse! {
@@ -1476,6 +1479,7 @@ test_parse! {
 
     scheme = Some("http"),
     authority = Some("127.0.0.1:80"),
+    host = Some("127.0.0.1"),
     path = "/",
     query = None,
     port = Some(80),
@@ -1488,6 +1492,7 @@ test_parse! {
 
     scheme = Some("https"),
     authority = Some("127.0.0.1:443"),
+    host = Some("127.0.0.1"),
     path = "/",
     query = None,
     port = Some(443),
@@ -1500,6 +1505,7 @@ test_parse! {
 
     scheme = Some("http"),
     authority = Some("127.0.0.1"),
+    host = Some("127.0.0.1"),
     path = "/",
     query = None,
     port = None,
@@ -1548,6 +1554,45 @@ test_parse! {
 
     scheme = Some("http"),
     authority = Some("127.0.0.1"),
+    path = "/",
+    query = None,
+    port = None,
+}
+
+test_parse! {
+    test_userinfo1,
+    "http://a:b@127.0.0.1:1234/",
+    [],
+
+    scheme = Some("http"),
+    authority = Some("a:b@127.0.0.1:1234"),
+    host = Some("127.0.0.1"),
+    path = "/",
+    query = None,
+    port = Some(1234),
+}
+
+test_parse! {
+    test_userinfo2,
+    "http://a:b@127.0.0.1/",
+    [],
+
+    scheme = Some("http"),
+    authority = Some("a:b@127.0.0.1"),
+    host = Some("127.0.0.1"),
+    path = "/",
+    query = None,
+    port = None,
+}
+
+test_parse! {
+    test_userinfo3,
+    "http://a@127.0.0.1/",
+    [],
+
+    scheme = Some("http"),
+    authority = Some("a@127.0.0.1"),
+    host = Some("127.0.0.1"),
     path = "/",
     query = None,
     port = None,
