@@ -1018,603 +1018,412 @@ macro_rules! to_lower {
     ($d:ident, $src:ident, 35) => { to_lower!($d, $src, 34); $d[34] = HEADER_CHARS[$src[34] as usize]; };
 }
 
-macro_rules! validate_chars {
-    ($buf:ident) => {{
-        if $buf.iter().any(|&b| b == 0) {
-            return Err(FromBytesError::new());
+fn parse_hdr<'a>(data: &'a [u8], b: &'a mut [u8; 64])
+    -> Result<HdrName<'a>, FromBytesError>
+{
+    use self::StandardHeader::*;
+
+    let len = data.len();
+
+    let validate = |buf: &'a [u8], len: usize| {
+        let buf = &buf[..len];
+        if buf.iter().any(|&b| b == 0) {
+            Err(FromBytesError::new())
+        } else {
+            Ok(HdrName::custom(buf, true))
         }
-    }};
+    };
+
+    assert!(len < super::MAX_HEADER_NAME_LEN,
+            "header name too long -- max length is {}",
+            super::MAX_HEADER_NAME_LEN);
+
+    match len {
+        0 => {
+            Err(FromBytesError::new())
+        }
+        2 => {
+            to_lower!(b, data, 2);
+
+            if eq!(b == b't' b'e') {
+                Ok(Te.into())
+            } else if eq!(b == b't' b'k') {
+                Ok(Tk.into())
+            } else {
+                validate(b, len)
+            }
+        }
+        3 => {
+            to_lower!(b, data, 3);
+
+            if eq!(b == b'a' b'g' b'e') {
+                Ok(Age.into())
+            } else if eq!(b == b't' b's' b'v') {
+                Ok(Tsv.into())
+            } else if eq!(b == b'v' b'i' b'a') {
+                Ok(Via.into())
+            } else if eq!(b == b'd' b'n' b't') {
+                Ok(Dnt.into())
+            } else {
+                validate(b, len)
+            }
+        }
+        4 => {
+            to_lower!(b, data, 4);
+
+            if eq!(b == b'd' b'a' b't' b'e') {
+                Ok(Date.into())
+            } else if eq!(b == b'e' b't' b'a' b'g') {
+                Ok(Etag.into())
+            } else if eq!(b == b'f' b'r' b'o' b'm') {
+                Ok(From.into())
+            } else if eq!(b == b'h' b'o' b's' b't') {
+                Ok(Host.into())
+            } else if eq!(b == b'l' b'i' b'n' b'k') {
+                Ok(Link.into())
+            } else if eq!(b == b'v' b'a' b'r' b'y') {
+                Ok(Vary.into())
+            } else {
+                validate(b, len)
+            }
+        }
+        5 => {
+            to_lower!(b, data, 5);
+
+            if eq!(b == b'a' b'l' b'l' b'o' b'w') {
+                Ok(Allow.into())
+            } else if eq!(b == b'r' b'a' b'n' b'g' b'e') {
+                Ok(Range.into())
+            } else {
+                validate(b, len)
+            }
+        }
+        6 => {
+            to_lower!(b, data, 6);
+
+            if eq!(b == b'a' b'c' b'c' b'e' b'p' b't') {
+                return Ok(Accept.into())
+            } else if eq!(b == b'c' b'o' b'o' b'k' b'i' b'e') {
+                return Ok(Cookie.into())
+            } else if eq!(b == b'e' b'x' b'p' b'e' b'c' b't') {
+                return Ok(Expect.into())
+            } else if eq!(b == b'o' b'r' b'i' b'g' b'i' b'n') {
+                return Ok(Origin.into())
+            } else if eq!(b == b'p' b'r' b'a' b'g' b'm' b'a') {
+                return Ok(Pragma.into())
+            } else if b[0] == b's' {
+                if eq!(b[1] == b'e' b'r' b'v' b'e' b'r') {
+                    return Ok(Server.into())
+                }
+            }
+
+            validate(b, len)
+        }
+        7 => {
+            to_lower!(b, data, 7);
+
+            if eq!(b == b'a' b'l' b't' b'-' b's' b'v' b'c') {
+                Ok(AltSvc.into())
+            } else if eq!(b == b'e' b'x' b'p' b'i' b'r' b'e' b's') {
+                Ok(Expires.into())
+            } else if eq!(b == b'r' b'e' b'f' b'e' b'r' b'e' b'r') {
+                Ok(Referer.into())
+            } else if eq!(b == b'r' b'e' b'f' b'r' b'e' b's' b'h') {
+                Ok(Refresh.into())
+            } else if eq!(b == b't' b'r' b'a' b'i' b'l' b'e' b'r') {
+                Ok(Trailer.into())
+            } else if eq!(b == b'u' b'p' b'g' b'r' b'a' b'd' b'e') {
+                Ok(Upgrade.into())
+            } else if eq!(b == b'w' b'a' b'r' b'n' b'i' b'n' b'g') {
+                Ok(Warning.into())
+            } else {
+                validate(b, len)
+            }
+        }
+        8 => {
+            to_lower!(b, data, 8);
+
+            if eq!(b == b'i' b'f' b'-') {
+                if eq!(b[3] == b'm' b'a' b't' b'c' b'h') {
+                    return Ok(IfMatch.into())
+                } else if eq!(b[3] == b'r' b'a' b'n' b'g' b'e') {
+                    return Ok(IfRange.into())
+                }
+            } else if eq!(b == b'l' b'o' b'c' b'a' b't' b'i' b'o' b'n') {
+                return Ok(Location.into())
+            }
+
+            validate(b, len)
+        }
+        9 => {
+            to_lower!(b, data, 9);
+
+            if eq!(b == b'f' b'o' b'r' b'w' b'a' b'r' b'd' b'e' b'd') {
+                Ok(Forwarded.into())
+            } else {
+                validate(b, len)
+            }
+        }
+        10 => {
+            to_lower!(b, data, 10);
+
+            if eq!(b == b'c' b'o' b'n' b'n' b'e' b'c' b't' b'i' b'o' b'n') {
+                Ok(Connection.into())
+            } else if eq!(b == b's' b'e' b't' b'-' b'c' b'o' b'o' b'k' b'i' b'e') {
+                Ok(SetCookie.into())
+            } else if eq!(b == b'u' b's' b'e' b'r' b'-' b'a' b'g' b'e' b'n' b't') {
+                Ok(UserAgent.into())
+            } else if eq!(b == b'k' b'e' b'e' b'p' b'-' b'a' b'l' b'i' b'v' b'e') {
+                Ok(KeepAlive.into())
+            } else {
+                validate(b, len)
+            }
+        }
+        11 => {
+            to_lower!(b, data, 11);
+
+            if eq!(b == b'c' b'o' b'n' b't' b'e' b'n' b't' b'-' b'm' b'd' b'5') {
+                Ok(ContentMd5.into())
+            } else if eq!(b == b'r' b'e' b't' b'r' b'y' b'-' b'a' b'f' b't' b'e' b'r') {
+                Ok(RetryAfter.into())
+            } else {
+                validate(b, len)
+            }
+        }
+        12 => {
+            to_lower!(b, data, 12);
+
+            if eq!(b == b'a' b'c' b'c' b'e' b'p' b't' b'-' b'p' b'a' b't' b'c' b'h') {
+                Ok(AcceptPatch.into())
+            } else if eq!(b == b'c' b'o' b'n' b't' b'e' b'n' b't' b'-' b't' b'y' b'p' b'e') {
+                Ok(ContentType.into())
+            } else if eq!(b == b'm' b'a' b'x' b'-' b'f' b'o' b'r' b'w' b'a' b'r' b'd' b's') {
+                Ok(MaxForwards.into())
+            } else {
+                validate(b, len)
+            }
+        }
+        13 => {
+            to_lower!(b, data, 13);
+
+            if b[0] == b'a' {
+                if eq!(b[1] == b'c' b'c' b'e' b'p' b't' b'-' b'r' b'a' b'n' b'g' b'e' b's') {
+                    return Ok(AcceptRanges.into())
+                } else if eq!(b[1] == b'u' b't' b'h' b'o' b'r' b'i' b'z' b'a' b't' b'i' b'o' b'n') {
+                    return Ok(Authorization.into())
+                }
+            } else if b[0] == b'c' {
+                if eq!(b[1] == b'a' b'c' b'h' b'e' b'-' b'c' b'o' b'n' b't' b'r' b'o' b'l') {
+                    return Ok(CacheControl.into())
+                } else if eq!(b[1] == b'o' b'n' b't' b'e' b'n' b't' b'-' b'r' b'a' b'n' b'g' b'e' ) {
+                    return Ok(ContentRange.into())
+                }
+            } else if eq!(b == b'i' b'f' b'-' b'n' b'o' b'n' b'e' b'-' b'm' b'a' b't' b'c' b'h') {
+                return Ok(IfNoneMatch.into())
+            } else if eq!(b == b'l' b'a' b's' b't' b'-' b'm' b'o' b'd' b'i' b'f' b'i' b'e' b'd') {
+                return Ok(LastModified.into())
+            }
+
+            validate(b, len)
+        }
+        14 => {
+            to_lower!(b, data, 14);
+
+            if eq!(b == b'a' b'c' b'c' b'e' b'p' b't' b'-' b'c' b'h' b'a' b'r' b's' b'e' b't') {
+                Ok(AcceptCharset.into())
+            } else if eq!(b == b'c' b'o' b'n' b't' b'e' b'n' b't' b'-' b'l' b'e' b'n' b'g' b't' b'h') {
+                Ok(ContentLength.into())
+            } else {
+                validate(b, len)
+            }
+        }
+        15 => {
+            to_lower!(b, data, 15);
+
+            if eq!(b == b'a' b'c' b'c' b'e' b'p' b't' b'-') { // accept-
+                if eq!(b[7] == b'e' b'n' b'c' b'o' b'd' b'i' b'n' b'g') {
+                    return Ok(AcceptEncoding.into())
+                } else if eq!(b[7] == b'l' b'a' b'n' b'g' b'u' b'a' b'g' b'e') {
+                    return Ok(AcceptLanguage.into())
+                }
+            } else if eq!(b == b'p' b'u' b'b' b'l' b'i' b'c' b'-' b'k' b'e' b'y' b'-' b'p' b'i' b'n' b's') {
+                return Ok(PublicKeyPins.into())
+            } else if eq!(b == b'x' b'-' b'f' b'r' b'a' b'm' b'e' b'-' b'o' b'p' b't' b'i' b'o' b'n' b's') {
+                return Ok(XFrameOptions.into())
+            }
+            else if eq!(b == b'r' b'e' b'f' b'e' b'r' b'r' b'e' b'r' b'-' b'p' b'o' b'l' b'i' b'c' b'y') {
+                return Ok(ReferrerPolicy.into())
+            }
+
+            validate(b, len)
+        }
+        16 => {
+            to_lower!(b, data, 16);
+
+            if eq!(b == b'c' b'o' b'n' b't' b'e' b'n' b't' b'-') {
+                if eq!(b[8] == b'l' b'a' b'n' b'g' b'u' b'a' b'g' b'e') {
+                    return Ok(ContentLanguage.into())
+                } else if eq!(b[8] == b'l' b'o' b'c' b'a' b't' b'i' b'o' b'n') {
+                    return Ok(ContentLocation.into())
+                } else if eq!(b[8] == b'e' b'n' b'c' b'o' b'd' b'i' b'n' b'g') {
+                    return Ok(ContentEncoding.into())
+                }
+            } else if eq!(b == b'w' b'w' b'w' b'-' b'a' b'u' b't' b'h' b'e' b'n' b't' b'i' b'c' b'a' b't' b'e') {
+                return Ok(WwwAuthenticate.into())
+            } else if eq!(b == b'x' b'-' b'x' b's' b's' b'-' b'p' b'r' b'o' b't' b'e' b'c' b't' b'i' b'o' b'n') {
+                return Ok(XXssProtection.into())
+            }
+
+            validate(b, len)
+        }
+        17 => {
+            to_lower!(b, data, 17);
+
+            if eq!(b == b't' b'r' b'a' b'n' b's' b'f' b'e' b'r' b'-' b'e' b'n' b'c' b'o' b'd' b'i' b'n' b'g') {
+                Ok(TransferEncoding.into())
+            } else if eq!(b == b'i' b'f' b'-' b'm' b'o' b'd' b'i' b'f' b'i' b'e' b'd' b'-' b's' b'i' b'n' b'c' b'e') {
+                Ok(IfModifiedSince.into())
+            } else {
+                validate(b, len)
+            }
+        }
+        18 => {
+            to_lower!(b, data, 18);
+
+            if eq!(b == b'p' b'r' b'o' b'x' b'y' b'-' b'a' b'u' b't' b'h' b'e' b'n' b't' b'i' b'c' b'a' b't' b'e') {
+                Ok(ProxyAuthenticate.into())
+            } else {
+                validate(b, len)
+            }
+        }
+        19 => {
+            to_lower!(b, data, 19);
+
+            if eq!(b == b'c' b'o' b'n' b't' b'e' b'n' b't' b'-' b'd' b'i' b's' b'p' b'o' b's' b'i' b't' b'i' b'o' b'n') {
+                Ok(ContentDisposition.into())
+            } else if eq!(b == b'i' b'f' b'-' b'u' b'n' b'm' b'o' b'd' b'i' b'f' b'i' b'e' b'd' b'-' b's' b'i' b'n' b'c' b'e') {
+                Ok(IfUnmodifiedSince.into())
+            } else if eq!(b == b'p' b'r' b'o' b'x' b'y' b'-' b'a' b'u' b't' b'h' b'o' b'r' b'i' b'z' b'a' b't' b'i' b'o' b'n') {
+                Ok(ProxyAuthorization.into())
+            } else {
+                validate(b, len)
+            }
+        }
+        22 => {
+            to_lower!(b, data, 22);
+
+            if eq!(b == b'a' b'c' b'c' b'e' b's' b's' b'-' b'c' b'o' b'n' b't' b'r' b'o' b'l' b'-' b'm' b'a' b'x' b'-' b'a' b'g' b'e') {
+                Ok(AccessControlMaxAge.into())
+            } else if eq!(b == b'x' b'-' b'c' b'o' b'n' b't' b'e' b'n' b't' b'-' b't' b'y' b'p' b'e' b'-' b'o' b'p' b't' b'i' b'o' b'n' b's') {
+                Ok(XContentTypeOptions.into())
+            } else if eq!(b == b'x' b'-' b'd' b'n' b's' b'-' b'p' b'r' b'e' b'f' b'e' b't' b'c' b'h' b'-' b'c' b'o' b'n' b't' b'r' b'o' b'l') {
+                Ok(XDnsPrefetchControl.into())
+            } else {
+                validate(b, len)
+            }
+        }
+        23 => {
+            to_lower!(b, data, 23);
+
+            if eq!(b == b'c' b'o' b'n' b't' b'e' b'n' b't' b'-' b's' b'e' b'c' b'u' b'r' b'i' b't' b'y' b'-' b'p' b'o' b'l' b'i' b'c' b'y') {
+                Ok(ContentSecurityPolicy.into())
+            } else {
+                validate(b, len)
+            }
+        }
+        25 => {
+            to_lower!(b, data, 25);
+
+            if eq!(b == b's' b't' b'r' b'i' b'c' b't' b'-' b't' b'r' b'a' b'n' b's' b'p' b'o' b'r' b't' b'-' b's' b'e' b'c' b'u' b'r' b'i' b't' b'y') {
+                Ok(StrictTransportSecurity.into())
+            } else if eq!(b == b'u' b'p' b'g' b'r' b'a' b'd' b'e' b'-' b'i' b'n' b's' b'e' b'c' b'u' b'r' b'e' b'-' b'r' b'e' b'q' b'u' b'e' b's' b't' b's') {
+                Ok(UpgradeInsecureRequests.into())
+            } else {
+                validate(b, len)
+            }
+        }
+        27 => {
+            to_lower!(b, data, 27);
+
+            if eq!(b == b'a' b'c' b'c' b'e' b's' b's' b'-' b'c' b'o' b'n' b't' b'r' b'o' b'l' b'-' b'a' b'l' b'l' b'o' b'w' b'-' b'o' b'r' b'i' b'g' b'i' b'n') {
+                Ok(AccessControlAllowOrigin.into())
+            } else if eq!(b == b'p' b'u' b'b' b'l' b'i' b'c' b'-' b'k' b'e' b'y' b'-' b'p' b'i' b'n' b's' b'-' b'r' b'e' b'p' b'o' b'r' b't' b'-' b'o' b'n' b'l' b'y') {
+                Ok(PublicKeyPinsReportOnly.into())
+            } else {
+                validate(b, len)
+            }
+        }
+        28 => {
+            to_lower!(b, data, 28);
+
+            if eq!(b == b'a' b'c' b'c' b'e' b's' b's' b'-' b'c' b'o' b'n' b't' b'r' b'o' b'l' b'-' b'a' b'l' b'l' b'o' b'w' b'-') {
+                if eq!(b[21] == b'h' b'e' b'a' b'd' b'e' b'r' b's') {
+                    return Ok(AccessControlAllowHeaders.into())
+                } else if eq!(b[21] == b'm' b'e' b't' b'h' b'o' b'd' b's') {
+                    return Ok(AccessControlAllowMethods.into())
+                }
+            }
+
+            validate(b, len)
+        }
+        29 => {
+            to_lower!(b, data, 29);
+
+            if eq!(b == b'a' b'c' b'c' b'e' b's' b's' b'-' b'c' b'o' b'n' b't' b'r' b'o' b'l' b'-') {
+                if eq!(b[15] == b'e' b'x' b'p' b'o' b's' b'e' b'-' b'h' b'e' b'a' b'd' b'e' b'r' b's') {
+                    return Ok(AccessControlExposeHeaders.into())
+                } else if eq!(b[15] == b'r' b'e' b'q' b'u' b'e' b's' b't' b'-' b'm' b'e' b't' b'h' b'o' b'd') {
+                    return Ok(AccessControlRequestMethod.into())
+                }
+            }
+
+            validate(b, len)
+        }
+        30 => {
+            to_lower!(b, data, 30);
+
+            if eq!(b == b'a' b'c' b'c' b'e' b's' b's' b'-' b'c' b'o' b'n' b't' b'r' b'o' b'l' b'-' b'r' b'e' b'q' b'u' b'e' b's' b't' b'-' b'h' b'e' b'a' b'd' b'e' b'r' b's') {
+                Ok(AccessControlRequestHeaders.into())
+            } else {
+                validate(b, len)
+            }
+        }
+        32 => {
+            to_lower!(b, data, 32);
+
+            if eq!(b == b'a' b'c' b'c' b'e' b's' b's' b'-' b'c' b'o' b'n' b't' b'r' b'o' b'l' b'-' b'a' b'l' b'l' b'o' b'w' b'-' b'c' b'r' b'e' b'd' b'e' b'n' b't' b'i' b'a' b'l' b's') {
+                Ok(AccessControlAllowCredentials.into())
+            } else {
+                validate(b, len)
+            }
+        }
+        35 => {
+            to_lower!(b, data, 35);
+
+            if eq!(b == b'c' b'o' b'n' b't' b'e' b'n' b't' b'-' b's' b'e' b'c' b'u' b'r' b'i' b't' b'y' b'-' b'p' b'o' b'l' b'i' b'c' b'y' b'-' b'r' b'e' b'p' b'o' b'r' b't' b'-' b'o' b'n' b'l' b'y') {
+                Ok(ContentSecurityPolicyReportOnly.into())
+            } else {
+                validate(b, len)
+            }
+        }
+        _ => {
+            if len < 64 {
+                for i in 0..len {
+                    b[i] = HEADER_CHARS[data[i] as usize];
+                }
+
+                validate(b, len)
+            } else {
+                Ok(HdrName::custom(data, false))
+            }
+        }
+    }
 }
 
-macro_rules! parse_hdr {
-    ($data:ident, $res:ident, $standard:expr, $short:expr, $long: expr) => {{
-        use self::StandardHeader::*;
-
-        let len = $data.len();
-
-        assert!(len < super::MAX_HEADER_NAME_LEN, "header name too long -- max length is {}", super::MAX_HEADER_NAME_LEN);
-
-        match len {
-            0 => {
-                return Err(FromBytesError::new());
-            }
-            2 => {
-                let mut b: [u8; 2] = unsafe { mem::uninitialized() };
-
-                to_lower!(b, $data, 2);
-
-                if eq!(b == b't' b'e') {
-                    let $res = Te;
-                    return $standard;
-                } else if eq!(b == b't' b'k') {
-                    let $res = Tk;
-                    return $standard;
-                } else {
-                    let $res = &b[..];
-                    validate_chars!($res);
-                    return $short;
-                }
-            }
-            3 => {
-                let mut b: [u8; 3] = unsafe { mem::uninitialized() };
-
-                to_lower!(b, $data, 3);
-
-                if eq!(b == b'a' b'g' b'e') {
-                    let $res = Age;
-                    return $standard;
-                } else if eq!(b == b't' b's' b'v') {
-                    let $res = Tsv;
-                    return $standard;
-                } else if eq!(b == b'v' b'i' b'a') {
-                    let $res = Via;
-                    return $standard;
-                } else if eq!(b == b'd' b'n' b't') {
-                    let $res = Dnt;
-                    return $standard;
-                } else {
-                    let $res = &b[..];
-                    validate_chars!($res);
-                    return $short;
-                }
-            }
-            4 => {
-                let mut b: [u8; 4] = unsafe { mem::uninitialized() };
-
-                to_lower!(b, $data, 4);
-
-                if eq!(b == b'd' b'a' b't' b'e') {
-                    let $res = Date;
-                    return $standard;
-                } else if eq!(b == b'e' b't' b'a' b'g') {
-                    let $res = Etag;
-                    return $standard;
-                } else if eq!(b == b'f' b'r' b'o' b'm') {
-                    let $res = From;
-                    return $standard;
-                } else if eq!(b == b'h' b'o' b's' b't') {
-                    let $res = Host;
-                    return $standard;
-                } else if eq!(b == b'l' b'i' b'n' b'k') {
-                    let $res = Link;
-                    return $standard;
-                } else if eq!(b == b'v' b'a' b'r' b'y') {
-                    let $res = Vary;
-                    return $standard;
-                } else {
-                    let $res = &b[..];
-                    validate_chars!($res);
-                    return $short;
-                }
-            }
-            5 => {
-                let mut b: [u8; 5] = unsafe { mem::uninitialized() };
-
-                to_lower!(b, $data, 5);
-
-                if eq!(b == b'a' b'l' b'l' b'o' b'w') {
-                    let $res = Allow;
-                    return $standard;
-                } else if eq!(b == b'r' b'a' b'n' b'g' b'e') {
-                    let $res = Range;
-                    return $standard;
-                } else {
-                    let $res = &b[..];
-                    validate_chars!($res);
-                    return $short;
-                }
-            }
-            6 => {
-                let mut b: [u8; 6] = unsafe { mem::uninitialized() };
-
-                to_lower!(b, $data, 6);
-
-                if eq!(b == b'a' b'c' b'c' b'e' b'p' b't') {
-                    let $res = Accept;
-                    return $standard;
-                } else if eq!(b == b'c' b'o' b'o' b'k' b'i' b'e') {
-                    let $res = Cookie;
-                    return $standard;
-                } else if eq!(b == b'e' b'x' b'p' b'e' b'c' b't') {
-                    let $res = Expect;
-                    return $standard;
-                } else if eq!(b == b'o' b'r' b'i' b'g' b'i' b'n') {
-                    let $res = Origin;
-                    return $standard;
-                } else if eq!(b == b'p' b'r' b'a' b'g' b'm' b'a') {
-                    let $res = Pragma;
-                    return $standard;
-                } if b[0] == b's' {
-                    if eq!(b[1] == b'e' b'r' b'v' b'e' b'r') {
-                        let $res = Server;
-                        return $standard;
-                    }
-                }
-
-                {
-                    let $res = &b[..];
-                    validate_chars!($res);
-                    return $short;
-                }
-            }
-            7 => {
-                let mut b: [u8; 7] = unsafe { mem::uninitialized() };
-
-                to_lower!(b, $data, 7);
-
-                if eq!(b == b'a' b'l' b't' b'-' b's' b'v' b'c') {
-                    let $res = AltSvc;
-                    return $standard;
-                } else if eq!(b == b'e' b'x' b'p' b'i' b'r' b'e' b's') {
-                    let $res = Expires;
-                    return $standard;
-                } else if eq!(b == b'r' b'e' b'f' b'e' b'r' b'e' b'r') {
-                    let $res = Referer;
-                    return $standard;
-                } else if eq!(b == b'r' b'e' b'f' b'r' b'e' b's' b'h') {
-                    let $res = Refresh;
-                    return $standard;
-                } else if eq!(b == b't' b'r' b'a' b'i' b'l' b'e' b'r') {
-                    let $res = Trailer;
-                    return $standard;
-                } else if eq!(b == b'u' b'p' b'g' b'r' b'a' b'd' b'e') {
-                    let $res = Upgrade;
-                    return $standard;
-                } else if eq!(b == b'w' b'a' b'r' b'n' b'i' b'n' b'g') {
-                    let $res = Warning;
-                    return $standard;
-                } else {
-                    let $res = &b[..];
-                    validate_chars!($res);
-                    return $short;
-                }
-            }
-            8 => {
-                let mut b: [u8; 8] = unsafe { mem::uninitialized() };
-
-                to_lower!(b, $data, 8);
-
-                if eq!(b == b'i' b'f' b'-') {
-                    if eq!(b[3] == b'm' b'a' b't' b'c' b'h') {
-                        let $res = IfMatch;
-                        return $standard;
-                    } else if eq!(b[3] == b'r' b'a' b'n' b'g' b'e') {
-                        let $res = IfRange;
-                        return $standard;
-                    }
-                } else if eq!(b == b'l' b'o' b'c' b'a' b't' b'i' b'o' b'n') {
-                    let $res = Location;
-                    return $standard;
-                }
-
-                {
-                    let $res = &b[..];
-                    validate_chars!($res);
-                    return $short;
-                }
-            }
-            9 => {
-                let mut b: [u8; 9] = unsafe { mem::uninitialized() };
-
-                to_lower!(b, $data, 9);
-
-                if eq!(b == b'f' b'o' b'r' b'w' b'a' b'r' b'd' b'e' b'd') {
-                    let $res = Forwarded;
-                    return $standard;
-                } else {
-                    let $res = &b[..];
-                    validate_chars!($res);
-                    return $short;
-                }
-            }
-            10 => {
-                let mut b: [u8; 10] = unsafe { mem::uninitialized() };
-
-                to_lower!(b, $data, 10);
-
-                if eq!(b == b'c' b'o' b'n' b'n' b'e' b'c' b't' b'i' b'o' b'n') {
-                    let $res = Connection;
-                    return $standard;
-                } else if eq!(b == b's' b'e' b't' b'-' b'c' b'o' b'o' b'k' b'i' b'e') {
-                    let $res = SetCookie;
-                    return $standard;
-                } else if eq!(b == b'u' b's' b'e' b'r' b'-' b'a' b'g' b'e' b'n' b't') {
-                    let $res = UserAgent;
-                    return $standard;
-                } else if eq!(b == b'k' b'e' b'e' b'p' b'-' b'a' b'l' b'i' b'v' b'e') {
-                    let $res = KeepAlive;
-                    return $standard;
-                } else {
-                    let $res = &b[..];
-                    validate_chars!($res);
-                    return $short;
-                }
-            }
-            11 => {
-                let mut b: [u8; 11] = unsafe { mem::uninitialized() };
-
-                to_lower!(b, $data, 11);
-
-                if eq!(b == b'c' b'o' b'n' b't' b'e' b'n' b't' b'-' b'm' b'd' b'5') {
-                    let $res = ContentMd5;
-                    return $standard;
-                } else if eq!(b == b'r' b'e' b't' b'r' b'y' b'-' b'a' b'f' b't' b'e' b'r') {
-                    let $res = RetryAfter;
-                    return $standard;
-                } else {
-                    let $res = &b[..];
-                    validate_chars!($res);
-                    return $short;
-                }
-            }
-            12 => {
-                let mut b: [u8; 12] = unsafe { mem::uninitialized() };
-
-                to_lower!(b, $data, 12);
-
-                if eq!(b == b'a' b'c' b'c' b'e' b'p' b't' b'-' b'p' b'a' b't' b'c' b'h') {
-                    let $res = AcceptPatch;
-                    return $standard;
-                } else if eq!(b == b'c' b'o' b'n' b't' b'e' b'n' b't' b'-' b't' b'y' b'p' b'e') {
-                    let $res = ContentType;
-                    return $standard;
-                } else if eq!(b == b'm' b'a' b'x' b'-' b'f' b'o' b'r' b'w' b'a' b'r' b'd' b's') {
-                    let $res = MaxForwards;
-                    return $standard;
-                } else {
-                    let $res = &b[..];
-                    validate_chars!($res);
-                    return $short;
-                }
-            }
-            13 => {
-                let mut b: [u8; 13] = unsafe { mem::uninitialized() };
-
-                to_lower!(b, $data, 13);
-
-                if b[0] == b'a' {
-                    if eq!(b[1] == b'c' b'c' b'e' b'p' b't' b'-' b'r' b'a' b'n' b'g' b'e' b's') {
-                        let $res = AcceptRanges;
-                        return $standard;
-                    } else if eq!(b[1] == b'u' b't' b'h' b'o' b'r' b'i' b'z' b'a' b't' b'i' b'o' b'n') {
-                        let $res = Authorization;
-                        return $standard;
-                    }
-                } else if b[0] == b'c' {
-                    if eq!(b[1] == b'a' b'c' b'h' b'e' b'-' b'c' b'o' b'n' b't' b'r' b'o' b'l') {
-                        let $res = CacheControl;
-                        return $standard;
-                    } else if eq!(b[1] == b'o' b'n' b't' b'e' b'n' b't' b'-' b'r' b'a' b'n' b'g' b'e' ) {
-                        let $res = ContentRange;
-                        return $standard;
-                    }
-                } else if eq!(b == b'i' b'f' b'-' b'n' b'o' b'n' b'e' b'-' b'm' b'a' b't' b'c' b'h') {
-                    let $res = IfNoneMatch;
-                    return $standard;
-                } else if eq!(b == b'l' b'a' b's' b't' b'-' b'm' b'o' b'd' b'i' b'f' b'i' b'e' b'd') {
-                    let $res = LastModified;
-                    return $standard;
-                }
-
-                {
-                    let $res = &b[..];
-                    validate_chars!($res);
-                    return $short;
-                }
-            }
-            14 => {
-                let mut b: [u8; 14] = unsafe { mem::uninitialized() };
-
-                to_lower!(b, $data, 14);
-
-                if eq!(b == b'a' b'c' b'c' b'e' b'p' b't' b'-' b'c' b'h' b'a' b'r' b's' b'e' b't') {
-                    let $res = AcceptCharset;
-                    return $standard;
-                } else if eq!(b == b'c' b'o' b'n' b't' b'e' b'n' b't' b'-' b'l' b'e' b'n' b'g' b't' b'h') {
-                    let $res = ContentLength;
-                    return $standard;
-                } else {
-                    let $res = &b[..];
-                    validate_chars!($res);
-                    return $short;
-                }
-            }
-            15 => {
-                let mut b: [u8; 15] = unsafe { mem::uninitialized() };
-
-                to_lower!(b, $data, 15);
-
-                if eq!(b == b'a' b'c' b'c' b'e' b'p' b't' b'-') { // accept-
-                    if eq!(b[7] == b'e' b'n' b'c' b'o' b'd' b'i' b'n' b'g') {
-                        let $res = AcceptEncoding;
-                        return $standard;
-                    } else if eq!(b[7] == b'l' b'a' b'n' b'g' b'u' b'a' b'g' b'e') {
-                        let $res = AcceptLanguage;
-                        return $standard;
-                    }
-                } else if eq!(b == b'p' b'u' b'b' b'l' b'i' b'c' b'-' b'k' b'e' b'y' b'-' b'p' b'i' b'n' b's') {
-                    let $res = PublicKeyPins;
-                    return $standard;
-                } else if eq!(b == b'x' b'-' b'f' b'r' b'a' b'm' b'e' b'-' b'o' b'p' b't' b'i' b'o' b'n' b's') {
-                    let $res = XFrameOptions;
-                    return $standard;
-                }
-                else if eq!(b == b'r' b'e' b'f' b'e' b'r' b'r' b'e' b'r' b'-' b'p' b'o' b'l' b'i' b'c' b'y') {
-                    let $res = ReferrerPolicy;
-                    return $standard;
-                }
-
-                {
-                    let $res = &b[..];
-                    validate_chars!($res);
-                    return $short;
-                }
-            }
-            16 => {
-                let mut b: [u8; 16] = unsafe { mem::uninitialized() };
-
-                to_lower!(b, $data, 16);
-
-                if eq!(b == b'c' b'o' b'n' b't' b'e' b'n' b't' b'-') {
-                    if eq!(b[8] == b'l' b'a' b'n' b'g' b'u' b'a' b'g' b'e') {
-                        let $res = ContentLanguage;
-                        return $standard;
-                    } else if eq!(b[8] == b'l' b'o' b'c' b'a' b't' b'i' b'o' b'n') {
-                        let $res = ContentLocation;
-                        return $standard;
-                    } else if eq!(b[8] == b'e' b'n' b'c' b'o' b'd' b'i' b'n' b'g') {
-                        let $res = ContentEncoding;
-                        return $standard;
-                    }
-                } else if eq!(b == b'w' b'w' b'w' b'-' b'a' b'u' b't' b'h' b'e' b'n' b't' b'i' b'c' b'a' b't' b'e') {
-                    let $res = WwwAuthenticate;
-                    return $standard;
-                } else if eq!(b == b'x' b'-' b'x' b's' b's' b'-' b'p' b'r' b'o' b't' b'e' b'c' b't' b'i' b'o' b'n') {
-                    let $res = XXssProtection;
-                    return $standard;
-                }
-
-                let $res = &b[..];
-                validate_chars!($res);
-                return $short;
-            }
-            17 => {
-                let mut b: [u8; 17] = unsafe { mem::uninitialized() };
-
-                to_lower!(b, $data, 17);
-
-                if eq!(b == b't' b'r' b'a' b'n' b's' b'f' b'e' b'r' b'-' b'e' b'n' b'c' b'o' b'd' b'i' b'n' b'g') {
-                    let $res = TransferEncoding;
-                    return $standard;
-                } else if eq!(b == b'i' b'f' b'-' b'm' b'o' b'd' b'i' b'f' b'i' b'e' b'd' b'-' b's' b'i' b'n' b'c' b'e') {
-                    let $res = IfModifiedSince;
-                    return $standard;
-                } else {
-                    let $res = &b[..];
-                    validate_chars!($res);
-                    return $short;
-                }
-            }
-            18 => {
-                let mut b: [u8; 18] = unsafe { mem::uninitialized() };
-
-                to_lower!(b, $data, 18);
-
-                if eq!(b == b'p' b'r' b'o' b'x' b'y' b'-' b'a' b'u' b't' b'h' b'e' b'n' b't' b'i' b'c' b'a' b't' b'e') {
-                    let $res = ProxyAuthenticate;
-                    return $standard;
-                } else {
-                    let $res = &b[..];
-                    validate_chars!($res);
-                    return $short;
-                }
-            }
-            19 => {
-                let mut b: [u8; 19] = unsafe { mem::uninitialized() };
-
-                to_lower!(b, $data, 19);
-
-                if eq!(b == b'c' b'o' b'n' b't' b'e' b'n' b't' b'-' b'd' b'i' b's' b'p' b'o' b's' b'i' b't' b'i' b'o' b'n') {
-                    let $res = ContentDisposition;
-                    return $standard;
-                } else if eq!(b == b'i' b'f' b'-' b'u' b'n' b'm' b'o' b'd' b'i' b'f' b'i' b'e' b'd' b'-' b's' b'i' b'n' b'c' b'e') {
-                    let $res = IfUnmodifiedSince;
-                    return $standard;
-                } else if eq!(b == b'p' b'r' b'o' b'x' b'y' b'-' b'a' b'u' b't' b'h' b'o' b'r' b'i' b'z' b'a' b't' b'i' b'o' b'n') {
-                    let $res = ProxyAuthorization;
-                    return $standard;
-                } else {
-                    let $res = &b[..];
-                    validate_chars!($res);
-                    return $short;
-                }
-            }
-            22 => {
-                let mut b: [u8; 22] = unsafe { mem::uninitialized() };
-
-                to_lower!(b, $data, 22);
-
-                if eq!(b == b'a' b'c' b'c' b'e' b's' b's' b'-' b'c' b'o' b'n' b't' b'r' b'o' b'l' b'-' b'm' b'a' b'x' b'-' b'a' b'g' b'e') {
-                    let $res = AccessControlMaxAge;
-                    return $standard;
-                } else if eq!(b == b'x' b'-' b'c' b'o' b'n' b't' b'e' b'n' b't' b'-' b't' b'y' b'p' b'e' b'-' b'o' b'p' b't' b'i' b'o' b'n' b's') {
-                    let $res = XContentTypeOptions;
-                    return $standard;
-                } else if eq!(b == b'x' b'-' b'd' b'n' b's' b'-' b'p' b'r' b'e' b'f' b'e' b't' b'c' b'h' b'-' b'c' b'o' b'n' b't' b'r' b'o' b'l') {
-                    let $res = XDnsPrefetchControl;
-                    return $standard;
-                } else {
-                    let $res = &b[..];
-                    validate_chars!($res);
-                    return $short;
-                }
-            }
-            23 => {
-                let mut b: [u8; 23] = unsafe { mem::uninitialized() };
-
-                to_lower!(b, $data, 23);
-
-                if eq!(b == b'c' b'o' b'n' b't' b'e' b'n' b't' b'-' b's' b'e' b'c' b'u' b'r' b'i' b't' b'y' b'-' b'p' b'o' b'l' b'i' b'c' b'y') {
-                    let $res = ContentSecurityPolicy;
-                    return $standard;
-                } else {
-                    let $res = &b[..];
-                    validate_chars!($res);
-                    return $short;
-                }
-            }
-            25 => {
-                let mut b: [u8; 25] = unsafe { mem::uninitialized() };
-
-                to_lower!(b, $data, 25);
-
-                if eq!(b == b's' b't' b'r' b'i' b'c' b't' b'-' b't' b'r' b'a' b'n' b's' b'p' b'o' b'r' b't' b'-' b's' b'e' b'c' b'u' b'r' b'i' b't' b'y') {
-                    let $res = StrictTransportSecurity;
-                    return $standard;
-                } else if eq!(b == b'u' b'p' b'g' b'r' b'a' b'd' b'e' b'-' b'i' b'n' b's' b'e' b'c' b'u' b'r' b'e' b'-' b'r' b'e' b'q' b'u' b'e' b's' b't' b's') {
-                    let $res = UpgradeInsecureRequests;
-                    return $standard;
-                } else {
-                    let $res = &b[..];
-                    validate_chars!($res);
-                    return $short;
-                }
-            }
-            27 => {
-                let mut b: [u8; 27] = unsafe { mem::uninitialized() };
-
-                to_lower!(b, $data, 27);
-
-                if eq!(b == b'a' b'c' b'c' b'e' b's' b's' b'-' b'c' b'o' b'n' b't' b'r' b'o' b'l' b'-' b'a' b'l' b'l' b'o' b'w' b'-' b'o' b'r' b'i' b'g' b'i' b'n') {
-                    let $res = AccessControlAllowOrigin;
-                    return $standard;
-                } else if eq!(b == b'p' b'u' b'b' b'l' b'i' b'c' b'-' b'k' b'e' b'y' b'-' b'p' b'i' b'n' b's' b'-' b'r' b'e' b'p' b'o' b'r' b't' b'-' b'o' b'n' b'l' b'y') {
-                    let $res = PublicKeyPinsReportOnly;
-                    return $standard;
-                } else {
-                    let $res = &b[..];
-                    validate_chars!($res);
-                    return $short;
-                }
-            }
-            28 => {
-                let mut b: [u8; 28] = unsafe { mem::uninitialized() };
-
-                to_lower!(b, $data, 28);
-
-                if eq!(b == b'a' b'c' b'c' b'e' b's' b's' b'-' b'c' b'o' b'n' b't' b'r' b'o' b'l' b'-' b'a' b'l' b'l' b'o' b'w' b'-') {
-                    if eq!(b[21] == b'h' b'e' b'a' b'd' b'e' b'r' b's') {
-                        let $res = AccessControlAllowHeaders;
-                        return $standard;
-                    } else if eq!(b[21] == b'm' b'e' b't' b'h' b'o' b'd' b's') {
-                        let $res = AccessControlAllowMethods;
-                        return $standard;
-                    }
-                }
-
-                let $res = &b[..];
-                validate_chars!($res);
-                return $short;
-            }
-            29 => {
-                let mut b: [u8; 29] = unsafe { mem::uninitialized() };
-
-                to_lower!(b, $data, 29);
-
-                if eq!(b == b'a' b'c' b'c' b'e' b's' b's' b'-' b'c' b'o' b'n' b't' b'r' b'o' b'l' b'-') {
-                    if eq!(b[15] == b'e' b'x' b'p' b'o' b's' b'e' b'-' b'h' b'e' b'a' b'd' b'e' b'r' b's') {
-                        let $res = AccessControlExposeHeaders;
-                        return $standard;
-                    } else if eq!(b[15] == b'r' b'e' b'q' b'u' b'e' b's' b't' b'-' b'm' b'e' b't' b'h' b'o' b'd') {
-                        let $res = AccessControlRequestMethod;
-                        return $standard;
-                    }
-                }
-
-                let $res = &b[..];
-                validate_chars!($res);
-                return $short;
-            }
-            30 => {
-                let mut b: [u8; 30] = unsafe { mem::uninitialized() };
-
-                to_lower!(b, $data, 30);
-
-                if eq!(b == b'a' b'c' b'c' b'e' b's' b's' b'-' b'c' b'o' b'n' b't' b'r' b'o' b'l' b'-' b'r' b'e' b'q' b'u' b'e' b's' b't' b'-' b'h' b'e' b'a' b'd' b'e' b'r' b's') {
-                    let $res = AccessControlRequestHeaders;
-                    return $standard;
-                } else {
-                    let $res = &b[..];
-                    validate_chars!($res);
-                    return $short;
-                }
-            }
-            32 => {
-                let mut b: [u8; 32] = unsafe { mem::uninitialized() };
-
-                to_lower!(b, $data, 32);
-
-                if eq!(b == b'a' b'c' b'c' b'e' b's' b's' b'-' b'c' b'o' b'n' b't' b'r' b'o' b'l' b'-' b'a' b'l' b'l' b'o' b'w' b'-' b'c' b'r' b'e' b'd' b'e' b'n' b't' b'i' b'a' b'l' b's') {
-                    let $res = AccessControlAllowCredentials;
-                    return $standard;
-                } else {
-                    let $res = &b[..];
-                    validate_chars!($res);
-                    return $short;
-                }
-            }
-            35 => {
-                let mut b: [u8; 35] = unsafe { mem::uninitialized() };
-
-                to_lower!(b, $data, 35);
-
-                if eq!(b == b'c' b'o' b'n' b't' b'e' b'n' b't' b'-' b's' b'e' b'c' b'u' b'r' b'i' b't' b'y' b'-' b'p' b'o' b'l' b'i' b'c' b'y' b'-' b'r' b'e' b'p' b'o' b'r' b't' b'-' b'o' b'n' b'l' b'y') {
-                    let $res = ContentSecurityPolicyReportOnly;
-                    return $standard;
-                } else {
-                    let $res = &b[..];
-                    validate_chars!($res);
-                    return $short;
-                }
-            }
-            _ => {
-                if 0 == len & !(64-1) {
-                    let mut buf: [u8; 64] = unsafe { ::std::mem::uninitialized() };
-
-                    for i in 0..len {
-                        buf[i] = HEADER_CHARS[$data[i] as usize];
-                    }
-
-                    let $res = &buf[..len];
-                    validate_chars!($res);
-                    return $short;
-                } else {
-                    let $res = $data;
-                    return $long;
-                }
-            }
-        }
-    }};
+impl<'a> From<StandardHeader> for HdrName<'a> {
+    fn from(hdr: StandardHeader) -> HdrName<'a> {
+        HdrName { inner: Repr::Standard(hdr) }
+    }
 }
 
 impl HeaderName {
@@ -1622,20 +1431,19 @@ impl HeaderName {
     ///
     /// This function normalizes the input.
     pub fn from_bytes(src: &[u8]) -> Result<HeaderName, FromBytesError> {
-        parse_hdr!(
-            src,
-            res,
-            Ok(res.into()),
-            {
-                let buf = Bytes::from(&res[..]);
+        let mut buf = unsafe { mem::uninitialized() };
+        match parse_hdr(src, &mut buf)?.inner {
+            Repr::Standard(std) => Ok(std.into()),
+            Repr::Custom(MaybeLower { buf, lower: true }) => {
+                let buf = Bytes::from(buf);
                 let val = unsafe { ByteStr::from_utf8_unchecked(buf) };
                 Ok(Custom(val).into())
-            },
-            {
+            }
+            Repr::Custom(MaybeLower { buf, lower: false }) => {
                 use bytes::{BufMut};
-                let mut dst = BytesMut::with_capacity(res.len());
+                let mut dst = BytesMut::with_capacity(buf.len());
 
-                for b in res.iter() {
+                for b in buf.iter() {
                     let b = HEADER_CHARS[*b as usize];
 
                     if b == 0 {
@@ -1648,7 +1456,8 @@ impl HeaderName {
                 let val = unsafe { ByteStr::from_utf8_unchecked(dst.freeze()) };
 
                 Ok(Custom(val).into())
-            })
+            }
+        }
     }
 
     /// Returns a `str` representation of the header.
@@ -1775,20 +1584,9 @@ impl<'a> HdrName<'a> {
     pub fn from_bytes<F, U>(hdr: &[u8], f: F) -> Result<U, FromBytesError>
         where F: FnOnce(HdrName) -> U,
     {
-        parse_hdr!(
-            hdr,
-            res,
-            {
-                Ok(f(HdrName {
-                    inner: Repr::Standard(res),
-                }))
-            },
-            {
-                Ok(f(HdrName::custom(res, true)))
-            },
-            {
-                Ok(f(HdrName::custom(res, false)))
-            })
+        let mut buf = unsafe { mem::uninitialized() };
+        let hdr = parse_hdr(hdr, &mut buf)?;
+        Ok(f(hdr))
     }
 }
 
