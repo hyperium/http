@@ -9,6 +9,11 @@ pub struct ByteStr {
 
 impl ByteStr {
     #[inline]
+    pub fn new() -> ByteStr {
+        ByteStr { bytes: Bytes::new() }
+    }
+
+    #[inline]
     pub fn from_static(val: &'static str) -> ByteStr {
         ByteStr { bytes: Bytes::from_static(val.as_bytes()) }
     }
@@ -40,5 +45,11 @@ impl<'a> From<&'a str> for ByteStr {
     #[inline]
     fn from(src: &'a str) -> ByteStr {
         ByteStr { bytes: Bytes::from(src) }
+    }
+}
+
+impl From<ByteStr> for Bytes {
+    fn from(src: ByteStr) -> Self {
+        src.bytes
     }
 }
