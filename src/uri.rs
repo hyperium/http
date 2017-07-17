@@ -8,6 +8,7 @@ use std::{fmt, u8, u16};
 use std::ascii::AsciiExt;
 use std::hash::{Hash, Hasher};
 use std::str::{self, FromStr};
+use std::error::Error;
 
 /// The URI component of a request.
 ///
@@ -1325,6 +1326,26 @@ impl fmt::Debug for Uri {
 impl From<ErrorKind> for FromStrError {
     fn from(src: ErrorKind) -> FromStrError {
         FromStrError(src)
+    }
+}
+
+impl fmt::Display for FromStrError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.description().fmt(f)
+    }
+}
+
+impl Error for FromStrError {
+    fn description(&self) -> &str {
+        match self.0 {
+            ErrorKind::InvalidUriChar => "invalid uri character",
+            ErrorKind::InvalidScheme => "invalid scheme",
+            ErrorKind::InvalidAuthority => "invalid authority",
+            ErrorKind::InvalidFormat => "invalid format",
+            ErrorKind::TooLong => "uri too long",
+            ErrorKind::Empty => "empty string",
+            ErrorKind::SchemeTooLong => "scheme too long",
+        }
     }
 }
 

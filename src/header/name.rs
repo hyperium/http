@@ -5,6 +5,7 @@ use std::{fmt, mem};
 use std::borrow::Borrow;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
+use std::error::Error;
 
 /// Represents an HTTP header field name
 ///
@@ -1566,6 +1567,30 @@ impl<'a> PartialEq<&'a str> for HeaderName {
     #[inline]
     fn eq(&self, other: &&'a str) -> bool {
         *self == **other
+    }
+}
+
+impl fmt::Display for FromBytesError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.description().fmt(f)
+    }
+}
+
+impl Error for FromBytesError {
+    fn description(&self) -> &str {
+        "failed to parse bytes as a header name"
+    }
+}
+
+impl fmt::Display for FromStrError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.description().fmt(f)
+    }
+}
+
+impl Error for FromStrError {
+    fn description(&self) -> &str {
+        "failed to parse str as header name"
     }
 }
 

@@ -1,6 +1,7 @@
 use bytes::Bytes;
 
 use std::{char, cmp, fmt, str};
+use std::error::Error;
 
 /// Represents an HTTP header field value.
 ///
@@ -298,6 +299,30 @@ fn is_visible_ascii(b: u8) -> bool {
 
 fn is_valid(b: u8) -> bool {
     b >= 32
+}
+
+impl fmt::Display for InvalidValueError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.description().fmt(f)
+    }
+}
+
+impl Error for InvalidValueError {
+    fn description(&self) -> &str {
+        "failed to parse header value"
+    }
+}
+
+impl fmt::Display for ToStrError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.description().fmt(f)
+    }
+}
+
+impl Error for ToStrError {
+    fn description(&self) -> &str {
+        "failed to convert header to a str"
+    }
 }
 
 // ===== PartialEq / PartialOrd =====

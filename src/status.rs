@@ -382,10 +382,6 @@ impl Error for FromU16Error {
     fn description(&self) -> &str {
         "invalid status code"
     }
-
-    fn cause(&self) -> Option<&Error> {
-        None
-    }
 }
 
 impl fmt::Display for FromStrError {
