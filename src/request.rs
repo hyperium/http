@@ -1,6 +1,8 @@
 //! HTTP request types.
 
-use Uri;
+use std::io;
+
+use {Uri, Error, Result, HttpTryFrom};
 use header::{HeaderMap, HeaderValue, HeaderMapKey};
 use method::Method;
 use version::Version;
@@ -38,38 +40,35 @@ pub struct Head {
     _priv: (),
 }
 
-/// An HTTP request head builder
+/// An HTTP request builder
 ///
-/// This type can be used to construct an instance of `Head` through a
-/// builder-like pattern.
+/// This type can be used to construct an instance of `Head` or `Request`
+/// through a builder-like pattern.
 #[derive(Debug)]
-pub struct HeadBuilder {
+pub struct Builder {
     head: Option<Head>,
+    err: Option<Error>,
 }
 
 impl Request<()> {
     /// Creates a new builder-style object to manufacture a `Request`
     ///
-    /// This method returns an instance of `HeadBuilder` which can be used to
+    /// This method returns an instance of `Builder` which can be used to
     /// create both the `Head` of a request or the `Request` itself.
     ///
     /// # Examples
     ///
     /// ```
     /// # use http::*;
-    /// # use std::error::Error;
-    /// # fn foo() -> Result<(), Box<Error>> {
     /// let request = Request::builder()
-    ///     .method(method::GET)
-    ///     .uri("https://www.rust-lang.org/".parse()?)
-    ///     .header("X-Custom-Foo", "Bar".parse()?)
-    ///     .request(());
-    /// # Ok(())
-    /// # }
-    /// # fn main() {}
+    ///     .method("GET")
+    ///     .uri("https://www.rust-lang.org/")
+    ///     .header("X-Custom-Foo", "Bar")
+    ///     .body(())
+    ///     .unwrap();
     /// ```
-    pub fn builder() -> HeadBuilder {
-        HeadBuilder::new()
+    pub fn builder() -> Builder {
+        Builder::new()
     }
 }
 
@@ -272,109 +271,106 @@ impl Head {
         Head::default()
     }
 
-    /// Creates a new instance of `HeadBuilder` which can be used to construct a
+    /// Creates a new instance of `Builder` which can be used to construct a
     /// `Head` with the builder pattern.
     ///
     /// # Examples
     /// ```
     /// # use http::*;
-    /// # use std::error::Error;
-    /// # fn foo() -> Result<(), Box<Error>> {
-    /// let request = request::Head::builder()
-    ///     .method(method::GET)
-    ///     .uri("https://www.rust-lang.org/".parse()?)
-    ///     .header("X-Custom-Foo", "Bar".parse()?)
-    ///     .request(());
-    /// # Ok(())
-    /// # }
-    /// # fn main() {}
+    /// let head = request::Head::builder()
+    ///     .method("GET")
+    ///     .uri("https://www.rust-lang.org")
+    ///     .header("X-Custom-Foo", "Bar")
+    ///     .head()
+    ///     .unwrap();
     /// ```
-    pub fn builder() -> HeadBuilder {
-        HeadBuilder::default()
+    pub fn builder() -> Builder {
+        Builder::default()
     }
 }
 
-impl HeadBuilder {
-    /// Creates a new default instance of `Head`
-    ///
-    /// The returned `Head` has a GET method, a `/` URI, an HTTP/1.1 version,
-    /// and no headers.
+impl Builder {
+    /// Creates a new default instance of `Builder` to construct either a
+    /// `Head` or a `Request`.
     ///
     /// # Examples
     ///
     /// ```
     /// # use http::*;
     ///
-    /// let mut head = request::Head::new();
-    /// head.method = method::POST;
+    /// let head = request::Builder::new()
+    ///     .method("POST")
+    ///     .head()
+    ///     .unwrap();
     /// ```
-    pub fn new() -> HeadBuilder {
-        HeadBuilder::default()
+    pub fn new() -> Builder {
+        Builder::default()
     }
 
     /// Set the HTTP method for this request.
     ///
     /// This function will configure the HTTP method of the `Request` that will
-    /// be returned from `HeadBuilder::build`.
+    /// be returned from `Builder::build`.
     ///
     /// By default this is `GET`.
-    ///
-    /// # Panics
-    ///
-    /// This method will panic if the `build` or `request` method has already
-    /// been called on this builder.
     ///
     /// # Examples
     ///
     /// ```
     /// # use http::*;
     ///
-    /// let head = request::Head::builder()
-    ///     .method(method::POST)
-    ///     .build();
+    /// let head = Request::builder()
+    ///     .method("POST")
+    ///     .head()
+    ///     .unwrap();
     /// ```
-    pub fn method(&mut self, method: Method) -> &mut HeadBuilder {
-        self.head().method = method;
+    pub fn method<T>(&mut self, method: T) -> &mut Builder
+        where Method: HttpTryFrom<T>,
+    {
+        if let Some(head) = head(&mut self.head, &self.err) {
+            match Method::try_from(method) {
+                Ok(s) => head.method = s,
+                Err(e) => self.err = Some(e.into()),
+            }
+        }
         self
     }
 
     /// Set the URI for this request.
     ///
     /// This function will configure the URI of the `Request` that will
-    /// be returned from `HeadBuilder::build`.
+    /// be returned from `Builder::build`.
     ///
     /// By default this is `/`.
-    ///
-    /// # Panics
-    ///
-    /// This method will panic if the `build` or `request` method has already
-    /// been called on this builder.
     ///
     /// # Examples
     ///
     /// ```
     /// # use http::*;
     ///
-    /// let head = request::Head::builder()
-    ///     .uri("https://www.rust-lang.org/".parse().unwrap())
-    ///     .build();
+    /// let head = Request::builder()
+    ///     .uri("https://www.rust-lang.org/")
+    ///     .head()
+    ///     .unwrap();
     /// ```
-    pub fn uri(&mut self, uri: Uri) -> &mut HeadBuilder {
-        self.head().uri = uri;
+    pub fn uri<T>(&mut self, uri: T) -> &mut Builder
+        where Uri: HttpTryFrom<T>,
+    {
+        if let Some(head) = head(&mut self.head, &self.err) {
+            match Uri::try_from(uri) {
+                Ok(s) => head.uri = s,
+                Err(e) => self.err = Some(e.into()),
+            }
+        }
         self
     }
 
     /// Set the HTTP version for this request.
     ///
     /// This function will configure the HTTP version of the `Request` that
-    /// will be returned from `HeadBuilder::build`.
+    /// will be returned from `Builder::build`.
     ///
     /// By default this is HTTP/1.1
-    ///
-    /// # Panics
-    ///
-    /// This method will panic if the `build` or `request` method has already
-    /// been called on this builder.
     ///
     /// # Examples
     ///
@@ -382,12 +378,15 @@ impl HeadBuilder {
     /// # use http::*;
     /// use http::version::HTTP_2;
     ///
-    /// let head = request::Head::builder()
+    /// let head = Request::builder()
     ///     .version(HTTP_2)
-    ///     .build();
+    ///     .head()
+    ///     .unwrap();
     /// ```
-    pub fn version(&mut self, version: Version) -> &mut HeadBuilder {
-        self.head().version = version;
+    pub fn version(&mut self, version: Version) -> &mut Builder {
+        if let Some(head) = head(&mut self.head, &self.err) {
+            head.version = version;
+        }
         self
     }
 
@@ -397,26 +396,28 @@ impl HeadBuilder {
     /// internal `HeaderMap` being constructed. Essentially this is equivalent
     /// to calling `HeaderMap::append`.
     ///
-    /// # Panics
-    ///
-    /// This method will panic if the `build` or `request` method has already
-    /// been called on this builder.
-    ///
     /// # Examples
     ///
     /// ```
     /// # use http::*;
     /// # use http::header::HeaderValue;
     ///
-    /// let head = request::Head::builder()
-    ///     .header("Accept", HeaderValue::from_static("text/html"))
-    ///     .header("X-Custom-Foo", HeaderValue::from_static("bar"))
-    ///     .build();
+    /// let head = Request::builder()
+    ///     .header("Accept", "text/html")
+    ///     .header("X-Custom-Foo", "bar")
+    ///     .head()
+    ///     .unwrap();
     /// ```
-    pub fn header<K>(&mut self, key: K, value: HeaderValue) -> &mut HeadBuilder
+    pub fn header<K, V>(&mut self, key: K, value: V) -> &mut Builder
         where K: HeaderMapKey,
+              HeaderValue: HttpTryFrom<V>
     {
-        self.head().headers.append(key, value);
+        if let Some(head) = head(&mut self.head, &self.err) {
+            match HeaderValue::try_from(value) {
+                Ok(value) => { head.headers.append(key, value); }
+                Err(e) => self.err = Some(e.into()),
+            }
+        }
         self
     }
 
@@ -426,33 +427,29 @@ impl HeadBuilder {
     /// `HeaderMap` being constructed. Essentially this is equivalent to calling
     /// `HeaderMap::append` a number of times.
     ///
-    /// # Panics
-    ///
-    /// This method will panic if the `build` or `request` method has already
-    /// been called on this builder.
-    ///
     /// # Examples
     ///
     /// ```
     /// # use http::*;
-    /// # use http::header::HeaderValue;
     ///
     /// let mut headers = vec![
-    ///     ("X-Custom-Foo", HeaderValue::from_static("bar")),
+    ///     ("X-Custom-Foo", "bar"),
     /// ];
     ///
     /// if needs_custom_bar_header() {
-    ///     headers.push(("X-Custom-Bar", HeaderValue::from_static("another")));
+    ///     headers.push(("X-Custom-Bar", "another"));
     /// }
     ///
-    /// let head = request::Head::builder()
+    /// let head = Request::builder()
     ///     .headers(headers)
-    ///     .build();
+    ///     .head()
+    ///     .unwrap();
     /// # fn needs_custom_bar_header() -> bool { true }
     /// ```
-    pub fn headers<I, K>(&mut self, headers: I) -> &mut HeadBuilder
-        where I: IntoIterator<Item = (K, HeaderValue)>,
+    pub fn headers<I, K, V>(&mut self, headers: I) -> &mut Builder
+        where I: IntoIterator<Item = (K, V)>,
               K: HeaderMapKey,
+              HeaderValue: HttpTryFrom<V>,
     {
         for (key, value) in headers {
             self.header(key, value);
@@ -460,82 +457,77 @@ impl HeadBuilder {
         self
     }
 
-    /// Clears all headers contained in this builder.
-    ///
-    /// This function will clear out all stored headers in this `Head` builder,
-    /// erasing all previously configured values through `header` or `headers`.
-    ///
-    /// # Panics
-    ///
-    /// This method will panic if the `build` or `request` method has already
-    /// been called on this builder.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use http::*;
-    /// # use http::header::HeaderValue;
-    /// let head = request::Head::builder()
-    ///     .header("Accept", HeaderValue::from_static("text/html"))
-    ///     .header("X-Custom-Foo", HeaderValue::from_static("bar"))
-    ///     .headers_clear()
-    ///     .header("X-Custom-Bar", HeaderValue::from_static("foo"))
-    ///     .build();
-    /// ```
-    pub fn headers_clear(&mut self) -> &mut HeadBuilder {
-        self.head().headers.clear();
-        self
-    }
-
     /// "Consumes" this builder, returning the constructed `Head`.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// This method will panic if the `build` or `request` method has already
-    /// been called on this builder.
+    /// This function may return an error if any previously configured argument
+    /// failed to parse or get converted to the internal representation. For
+    /// example if an invalid `head` was specified via `header("Foo",
+    /// "Bar\r\n")` the error will be returned when this function is called
+    /// rather than when `header` was called.
     ///
     /// # Examples
     ///
     /// ```
     /// # use http::*;
     ///
-    /// let head = request::Head::builder().build();
+    /// let head = request::Head::builder()
+    ///     .head()
+    ///     .unwrap();
     /// ```
-    pub fn build(&mut self) -> Head {
-        self.head.take().expect("cannot re-build a builder after it's been used")
+    pub fn head(&mut self) -> Result<Head> {
+        if let Some(e) = self.err.take() {
+            return Err(e)
+        }
+        self.head.take().ok_or_else(|| {
+            io::Error::new(io::ErrorKind::Other, "cannot reuse `Builder`")
+                .into()
+        })
     }
 
     /// "Consumes" this builder, using the provided `body` to return a
     /// constructed `Request`.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// This method will panic if the `build` or `request` method has already
-    /// been called on this builder.
+    /// This function may return an error if any previously configured argument
+    /// failed to parse or get converted to the internal representation. For
+    /// example if an invalid `head` was specified via `header("Foo",
+    /// "Bar\r\n")` the error will be returned when this function is called
+    /// rather than when `header` was called.
     ///
     /// # Examples
     ///
     /// ```
     /// # use http::*;
     ///
-    /// let request = request::Head::builder().request(());
+    /// let request = Request::builder()
+    ///     .body(())
+    ///     .unwrap();
     /// ```
-    pub fn request<T>(&mut self, body: T) -> Request<T> {
-        Request {
-            head: self.build(),
+    pub fn body<T>(&mut self, body: T) -> Result<Request<T>> {
+        Ok(Request {
+            head: self.head()?,
             body: body,
-        }
-    }
-
-    fn head(&mut self) -> &mut Head {
-        self.head.as_mut().expect("cannot configure a builder after it's been used")
+        })
     }
 }
 
-impl Default for HeadBuilder {
-    fn default() -> HeadBuilder {
-        HeadBuilder {
+fn head<'a>(head: &'a mut Option<Head>, err: &Option<Error>)
+    -> Option<&'a mut Head>
+{
+    if err.is_some() {
+        return None
+    }
+    head.as_mut()
+}
+
+impl Default for Builder {
+    fn default() -> Builder {
+        Builder {
             head: Some(Head::default()),
+            err: None,
         }
     }
 }

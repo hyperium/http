@@ -1,4 +1,5 @@
 use super::name::{HeaderName, HdrName};
+use sealed::Sealed;
 
 use std::{fmt, mem, ops, ptr, vec};
 use std::collections::hash_map::RandomState;
@@ -3111,9 +3112,6 @@ pub trait HeaderMapKey: Sealed {
     fn find<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)>;
 }
 
-// Prevent users from implementing the `HeaderMapKey` trait.
-pub trait Sealed {}
-
 impl HeaderMapKey for HeaderName {
     #[doc(hidden)]
     #[inline]
@@ -3145,8 +3143,6 @@ impl HeaderMapKey for HeaderName {
         map.find(self)
     }
 }
-
-impl Sealed for HeaderName {}
 
 impl<'a> HeaderMapKey for &'a HeaderName {
     #[doc(hidden)]
