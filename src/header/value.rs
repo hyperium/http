@@ -148,6 +148,28 @@ impl HeaderValue {
         })
     }
 
+    /// Attempt to convert a `Bytes` buffer to a `HeaderValue`.
+    ///
+    /// If the argument contains invalid header value bytes, an error is
+    /// returned. Only byte values between 32 and 255 (inclusive) are permitted.
+    ///
+    /// This function is intended to be replaced in the future by a `TryFrom`
+    /// implementation once the trait is stabilized in std.
+    pub fn try_from_shared(src: Bytes) -> Result<HeaderValue, InvalidValueError> {
+        for b in &src {
+            if !is_valid(b) {
+                return Err(InvalidValueError {
+                    _priv: (),
+                });
+            }
+        }
+
+        Ok(HeaderValue {
+            inner: src,
+            is_sensitive: false,
+        })
+    }
+
     /// Yields a `&str` slice if the `HeaderValue` only contains visible ASCII
     /// chars.
     ///
