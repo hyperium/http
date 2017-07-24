@@ -94,20 +94,7 @@ impl HeaderValue {
     /// assert!(val.is_err());
     /// ```
     pub fn try_from_str(src: &str) -> Result<HeaderValue, InvalidValueError> {
-        let bytes = src.as_bytes();
-
-        for &b in bytes {
-            if !is_visible_ascii(b) {
-                return Err(InvalidValueError {
-                    _priv: (),
-                });
-            }
-        }
-
-        Ok(HeaderValue {
-            inner: Bytes::from(bytes),
-            is_sensitive: false,
-        })
+        HeaderValue::try_from(src)
     }
 
     /// Attempt to convert a byte slice to a `HeaderValue`.
@@ -134,18 +121,7 @@ impl HeaderValue {
     /// assert!(val.is_err());
     /// ```
     pub fn try_from_bytes(src: &[u8]) -> Result<HeaderValue, InvalidValueError> {
-        for &b in src {
-            if !is_valid(b) {
-                return Err(InvalidValueError {
-                    _priv: (),
-                });
-            }
-        }
-
-        Ok(HeaderValue {
-            inner: Bytes::from(src),
-            is_sensitive: false,
-        })
+        HeaderValue::try_from(src)
     }
 
     /// Attempt to convert a `Bytes` buffer to a `HeaderValue`.
@@ -156,16 +132,19 @@ impl HeaderValue {
     /// This function is intended to be replaced in the future by a `TryFrom`
     /// implementation once the trait is stabilized in std.
     pub fn try_from_shared(src: Bytes) -> Result<HeaderValue, InvalidValueError> {
-        for b in &src {
+        HeaderValue::try_from(src)
+    }
+
+    fn try_from<T: AsRef<[u8]> + Into<Bytes>>(src: T) -> Result<HeaderValue, InvalidValueError> {
+        for &b in src.as_ref() {
             if !is_valid(b) {
                 return Err(InvalidValueError {
                     _priv: (),
                 });
             }
         }
-
         Ok(HeaderValue {
-            inner: src,
+            inner: src.into(),
             is_sensitive: false,
         })
     }
