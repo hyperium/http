@@ -18,13 +18,6 @@ pub struct HeaderValue {
     is_sensitive: bool,
 }
 
-impl convert::Into<Bytes> for HeaderValue {
-    #[inline]
-    fn into(self) -> Bytes {
-        self.inner
-    }
-}
-
 /// A possible error when converting a `HeaderValue` from a string or byte
 /// slice.
 #[derive(Debug)]
@@ -281,6 +274,13 @@ impl fmt::Debug for HeaderValue {
             .field("value", &EscapeBytes(self.as_ref()))
             .field("is_sensitive", &self.is_sensitive)
             .finish()
+    }
+}
+
+impl convert::Into<Bytes> for HeaderValue {
+    #[inline]
+    fn into(self) -> Bytes {
+        self.inner
     }
 }
 
