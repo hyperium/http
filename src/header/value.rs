@@ -1,6 +1,6 @@
 use bytes::Bytes;
 
-use std::{char, cmp, convert, fmt, str};
+use std::{char, cmp, fmt, str};
 use std::error::Error;
 use std::str::FromStr;
 
@@ -287,10 +287,10 @@ impl FromStr for HeaderValue {
     }
 }
 
-impl convert::Into<Bytes> for HeaderValue {
+impl From<HeaderValue> for Bytes {
     #[inline]
-    fn into(self) -> Bytes {
-        self.inner
+    fn from(value: HeaderValue) -> Bytes {
+        value.inner
     }
 }
 
