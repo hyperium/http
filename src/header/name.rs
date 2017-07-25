@@ -1522,10 +1522,10 @@ impl<'a> From<&'a HeaderName> for HeaderName {
 }
 
 #[doc(hidden)]
-impl<T> Into<Bytes> for Repr<T>
+impl<T> From<Repr<T>> for Bytes
 where T: Into<Bytes> {
-    fn into(self) -> Bytes {
-        match self {
+    fn from(repr: Repr<T>) -> Bytes {
+        match repr {
             Repr::Standard(header) =>
                 Bytes::from_static(header.as_str().as_bytes()),
             Repr::Custom(header) => header.into()
@@ -1533,17 +1533,17 @@ where T: Into<Bytes> {
     }
 }
 
-impl Into<Bytes> for Custom {
+impl From<Custom> for Bytes {
     #[inline]
-    fn into(self) -> Bytes {
-        self.0.into()
+    fn from(Custom(inner): Custom) -> Bytes {
+        Bytes::from(inner)
     }
 }
 
-impl Into<Bytes> for HeaderName {
+impl From<HeaderName> for Bytes {
     #[inline]
-    fn into(self) -> Bytes {
-        self.inner.into()
+    fn from(name: HeaderName) -> Bytes {
+        name.inner.into()
     }
 }
 
