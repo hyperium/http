@@ -1,6 +1,6 @@
 use bytes::Bytes;
 
-use std::{char, cmp, fmt, str};
+use std::{char, cmp, convert, fmt, str};
 use std::error::Error;
 use std::str::FromStr;
 
@@ -17,6 +17,13 @@ use std::str::FromStr;
 pub struct HeaderValue {
     inner: Bytes,
     is_sensitive: bool,
+}
+
+impl convert::Into<Bytes> for HeaderValue {
+    #[inline]
+    fn into(self) -> Bytes {
+        self.inner
+    }
 }
 
 /// A possible error when converting a `HeaderValue` from a string or byte
