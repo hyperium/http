@@ -1,7 +1,7 @@
 use byte_str::ByteStr;
 use bytes::{Bytes, BytesMut};
 
-use std::{convert, fmt, mem};
+use std::{fmt, mem};
 use std::borrow::Borrow;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
@@ -32,13 +32,6 @@ pub struct HeaderName {
     inner: Repr<Custom>,
 }
 
-impl convert::Into<Bytes> for HeaderName {
-    #[inline]
-    fn into(self) -> Bytes {
-        self.inner.into()
-    }
-}
-
 /// Almost a full `HeaderName`
 #[derive(Debug, Hash)]
 pub struct HdrName<'a> {
@@ -51,27 +44,9 @@ enum Repr<T> {
     Custom(T),
 }
 
-impl<T> convert::Into<Bytes> for Repr<T>
-where T: convert::Into<Bytes> {
-    fn into(self) -> Bytes {
-        match self {
-            Repr::Standard(header) =>
-                Bytes::from_static(header.as_str().as_bytes()),
-            Repr::Custom(header) => header.into()
-        }
-    }
-}
-
 // Used to hijack the Hash impl
 #[derive(Debug, Clone, Eq, PartialEq)]
 struct Custom(ByteStr);
-
-impl convert::Into<Bytes> for Custom {
-    #[inline]
-    fn into(self) -> Bytes {
-        self.0.into()
-    }
-}
 
 #[derive(Debug, Clone)]
 struct MaybeLower<'a> {
@@ -1537,6 +1512,33 @@ impl<'a> From<&'a HeaderName> for HeaderName {
         src.clone()
     }
 }
+
+#[doc(hidden)]
+impl<T> Into<Bytes> for Repr<T>
+where T: Into<Bytes> {
+    fn into(self) -> Bytes {
+        match self {
+            Repr::Standard(header) =>
+                Bytes::from_static(header.as_str().as_bytes()),
+            Repr::Custom(header) => header.into()
+        }
+    }
+}
+
+impl Into<Bytes> for Custom {
+    #[inline]
+    fn into(self) -> Bytes {
+        self.0.into()
+    }
+}
+
+impl Into<Bytes> for HeaderName {
+    #[inline]
+    fn into(self) -> Bytes {
+        self.inner.into()
+    }
+}
+
 
 #[doc(hidden)]
 impl From<StandardHeader> for HeaderName {
