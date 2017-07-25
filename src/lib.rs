@@ -27,6 +27,7 @@ pub use request::Request;
 pub use response::Response;
 pub use status::StatusCode;
 pub use uri::Uri;
+pub use version::Version;
 
 fn _assert_types() {
     fn assert_send<T: Send>() {}
@@ -37,12 +38,10 @@ fn _assert_types() {
 
     assert_sync::<Request<()>>();
     assert_sync::<Response<()>>();
-=======
-pub use version::Version;
+}
 
 mod sealed {
     /// Private trait to this crate to prevent traits from being implemented in
     /// downstream crates.
     pub trait Sealed {}
->>>>>>> Defer errors until `build`
 }

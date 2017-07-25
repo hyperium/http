@@ -1,8 +1,9 @@
 //! HTTP request types.
 
+use std::any::Any;
 use std::io;
 
-use {Uri, Error, Result, HttpTryFrom};
+use {Uri, Error, Result, HttpTryFrom, Extensions};
 use header::{HeaderMap, HeaderValue, HeaderMapKey};
 use method::Method;
 use version::Version;
@@ -302,23 +303,6 @@ impl Head {
     pub fn new() -> Head {
         Head::default()
     }
-
-    /// Creates a new instance of `Builder` which can be used to construct a
-    /// `Head` with the builder pattern.
-    ///
-    /// # Examples
-    /// ```
-    /// # use http::*;
-    /// let head = request::Head::builder()
-    ///     .method("GET")
-    ///     .uri("https://www.rust-lang.org")
-    ///     .header("X-Custom-Foo", "Bar")
-    ///     .head()
-    ///     .unwrap();
-    /// ```
-    pub fn builder() -> Builder {
-        Builder::default()
-    }
 }
 
 impl Builder {
@@ -330,9 +314,9 @@ impl Builder {
     /// ```
     /// # use http::*;
     ///
-    /// let head = request::Builder::new()
+    /// let req = request::Builder::new()
     ///     .method("POST")
-    ///     .head()
+    ///     .body(())
     ///     .unwrap();
     /// ```
     pub fn new() -> Builder {
@@ -351,9 +335,9 @@ impl Builder {
     /// ```
     /// # use http::*;
     ///
-    /// let head = Request::builder()
+    /// let req = Request::builder()
     ///     .method("POST")
-    ///     .head()
+    ///     .body(())
     ///     .unwrap();
     /// ```
     pub fn method<T>(&mut self, method: T) -> &mut Builder
@@ -380,9 +364,9 @@ impl Builder {
     /// ```
     /// # use http::*;
     ///
-    /// let head = Request::builder()
+    /// let req = Request::builder()
     ///     .uri("https://www.rust-lang.org/")
-    ///     .head()
+    ///     .body(())
     ///     .unwrap();
     /// ```
     pub fn uri<T>(&mut self, uri: T) -> &mut Builder
@@ -410,9 +394,9 @@ impl Builder {
     /// # use http::*;
     /// use http::version::HTTP_2;
     ///
-    /// let head = Request::builder()
+    /// let req = Request::builder()
     ///     .version(HTTP_2)
-    ///     .head()
+    ///     .body(())
     ///     .unwrap();
     /// ```
     pub fn version(&mut self, version: Version) -> &mut Builder {
@@ -434,10 +418,10 @@ impl Builder {
     /// # use http::*;
     /// # use http::header::HeaderValue;
     ///
-    /// let head = Request::builder()
+    /// let req = Request::builder()
     ///     .header("Accept", "text/html")
     ///     .header("X-Custom-Foo", "bar")
-    ///     .head()
+    ///     .body(())
     ///     .unwrap();
     /// ```
     pub fn header<K, V>(&mut self, key: K, value: V) -> &mut Builder
@@ -472,9 +456,9 @@ impl Builder {
     ///     headers.push(("X-Custom-Bar", "another"));
     /// }
     ///
-    /// let head = Request::builder()
+    /// let req = Request::builder()
     ///     .headers(headers)
-    ///     .head()
+    ///     .body(())
     ///     .unwrap();
     /// # fn needs_custom_bar_header() -> bool { true }
     /// ```
@@ -489,26 +473,32 @@ impl Builder {
         self
     }
 
-    /// "Consumes" this builder, returning the constructed `Head`.
-    ///
-    /// # Errors
-    ///
-    /// This function may return an error if any previously configured argument
-    /// failed to parse or get converted to the internal representation. For
-    /// example if an invalid `head` was specified via `header("Foo",
-    /// "Bar\r\n")` the error will be returned when this function is called
-    /// rather than when `header` was called.
+    /// Adds an extension to this builder
     ///
     /// # Examples
     ///
     /// ```
     /// # use http::*;
     ///
-    /// let head = request::Head::builder()
-    ///     .head()
+    /// let req = Request::builder()
+    ///     .extension("My Extension")
+    ///     .body(())
     ///     .unwrap();
+    ///
+    /// assert_eq!(req.extensions().get::<&'static str>(),
+    ///            Some(&"My Extension"));
     /// ```
-    pub fn head(&mut self) -> Result<Head> {
+    pub fn extension<T>(&mut self, extension: T) -> &mut Builder
+        where T: Any + Send + Sync + 'static,
+    {
+        if let Some(head) = head(&mut self.head, &self.err) {
+            head.extensions.insert(extension);
+        }
+        self
+    }
+
+    /// "Consumes" this builder, returning the constructed `Head`.
+    fn head(&mut self) -> Result<Head> {
         if let Some(e) = self.err.take() {
             return Err(e)
         }
