@@ -1539,6 +1539,15 @@ impl Into<Bytes> for HeaderName {
     }
 }
 
+impl From<Bytes> for HeaderName {
+    // this is a falliable conversion, so it *might* be better
+    // represented as `TryFrom`?
+    #[inline]
+    fn from(bytes: Bytes) -> Self {
+        Self::from_bytes(bytes.as_ref()).unwrap()
+    }
+}
+
 
 #[doc(hidden)]
 impl From<StandardHeader> for HeaderName {
@@ -1913,17 +1922,23 @@ fn test_standard_headers_into_bytes() {
         (XXssProtection, "x-xss-protection"),
     ];
 
-    for &(_, name) in HEADERS {
+    for &(std, name) in HEADERS {
+        let std = HeaderName::from(std);
         // Test lower case
+        let name_bytes = name.as_bytes();
         let bytes: Bytes =
-            HeaderName::from_bytes(name.as_bytes()).unwrap().into();
-        assert_eq!(bytes, name.as_bytes());
+            HeaderName::from_bytes(name_bytes).unwrap().into();
+        assert_eq!(bytes, name_bytes);
+        assert_eq!(HeaderName::from(Bytes::from(name_bytes)), std);
 
         // Test upper case
         let upper = name.to_uppercase().to_string();
         let bytes: Bytes =
             HeaderName::from_bytes(upper.as_bytes()).unwrap().into();
         assert_eq!(bytes, name.as_bytes());
+        assert_eq!(HeaderName::from(Bytes::from(upper.as_bytes())), std);
+
+
     }
 }
 
