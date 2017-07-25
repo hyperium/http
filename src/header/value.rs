@@ -1,6 +1,6 @@
 use bytes::Bytes;
 
-use std::{char, cmp, fmt, str};
+use std::{char, cmp, convert, fmt, str};
 use std::error::Error;
 
 /// Represents an HTTP header field value.
@@ -16,6 +16,13 @@ use std::error::Error;
 pub struct HeaderValue {
     inner: Bytes,
     is_sensitive: bool,
+}
+
+impl convert::Into<Bytes> for HeaderValue {
+    #[inline]
+    fn into(self) -> Bytes {
+        self.inner
+    }
 }
 
 /// A possible error when converting a `HeaderValue` from a string or byte
