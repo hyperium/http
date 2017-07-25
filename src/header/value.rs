@@ -55,7 +55,6 @@ impl HeaderValue {
     /// ```
     pub fn from_static(src: &'static str) -> HeaderValue {
         let bytes = src.as_bytes();
-
         for &b in bytes {
             if !is_visible_ascii(b) {
                 panic!("invalid header value");
@@ -283,6 +282,24 @@ impl convert::Into<Bytes> for HeaderValue {
         self.inner
     }
 }
+
+impl convert::From<Bytes> for HeaderValue {
+    fn from(bytes: Bytes) -> Self {
+        // alternatively, this could probably just be
+        // `HeaderValue::try_from_bytes(bytes.as_ref()).unwrap()`...
+        for b in &bytes {
+            if !is_visible_ascii(b) {
+                panic!("invalid header value");
+            }
+        }
+
+        HeaderValue {
+            inner: bytes,
+            is_sensitive: false,
+        }
+    }
+}
+
 
 struct EscapeBytes<'a>(&'a [u8]);
 
