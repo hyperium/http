@@ -7,6 +7,7 @@ use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 use std::error::Error;
 
+use ::convert::HttpTryFrom;
 /// Represents an HTTP header field name
 ///
 /// Header field names identify the header. Header sets may include multiple
@@ -1546,12 +1547,11 @@ impl Into<Bytes> for HeaderName {
     }
 }
 
-impl From<Bytes> for HeaderName {
-    // this is a falliable conversion, so it *might* be better
-    // represented as `TryFrom`?
+impl HttpTryFrom<Bytes> for HeaderName {
+    type Error = FromBytesError;
     #[inline]
-    fn from(bytes: Bytes) -> Self {
-        Self::from_bytes(bytes.as_ref()).unwrap()
+    fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
+        Self::from_bytes(bytes.as_ref())
     }
 }
 
@@ -1948,14 +1948,15 @@ fn test_standard_headers_into_bytes() {
         let bytes: Bytes =
             HeaderName::from_bytes(name_bytes).unwrap().into();
         assert_eq!(bytes, name_bytes);
-        assert_eq!(HeaderName::from(Bytes::from(name_bytes)), std);
+        assert_eq!(HeaderName::try_from(Bytes::from(name_bytes)).unwrap(), std);
 
         // Test upper case
         let upper = name.to_uppercase().to_string();
         let bytes: Bytes =
             HeaderName::from_bytes(upper.as_bytes()).unwrap().into();
         assert_eq!(bytes, name.as_bytes());
-        assert_eq!(HeaderName::from(Bytes::from(upper.as_bytes())), std);
+        assert_eq!(HeaderName::try_from(Bytes::from(upper.as_bytes())).unwrap(),
+                   std);
 
 
     }

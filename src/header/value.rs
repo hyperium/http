@@ -4,6 +4,8 @@ use std::{char, cmp, convert, fmt, str};
 use std::error::Error;
 use std::str::FromStr;
 
+use ::convert::HttpTryFrom;
+
 /// Represents an HTTP header field value.
 ///
 /// In practice, HTTP header field values are usually valid ASCII. However, the
@@ -292,23 +294,14 @@ impl convert::Into<Bytes> for HeaderValue {
     }
 }
 
-impl convert::From<Bytes> for HeaderValue {
-    fn from(bytes: Bytes) -> Self {
-        // alternatively, this could probably just be
-        // `HeaderValue::try_from_bytes(bytes.as_ref()).unwrap()`...
-        for b in &bytes {
-            if !is_visible_ascii(b) {
-                panic!("invalid header value");
-            }
-        }
+impl HttpTryFrom<Bytes> for HeaderValue {
+    type Error = InvalidValueError;
 
-        HeaderValue {
-            inner: bytes,
-            is_sensitive: false,
-        }
+    #[inline]
+    fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
+        HeaderValue::try_from(bytes)
     }
 }
-
 
 struct EscapeBytes<'a>(&'a [u8]);
 
