@@ -1,8 +1,7 @@
 //! HTTP response types.
 
+use {Extensions, StatusCode, Version};
 use header::{HeaderMap, HeaderValue};
-use status::StatusCode;
-use version::Version;
 
 /// Represents an HTTP response
 ///
@@ -10,7 +9,7 @@ use version::Version;
 /// component is generic, enabling arbitrary types to represent the HTTP body.
 /// For example, the body could be `Vec<u8>`, a `Stream` of byte chunks, or a
 /// value that has been deserialized.
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[derive(Debug, Default)]
 pub struct Response<T> {
     head: Head,
     body: T,
@@ -20,7 +19,7 @@ pub struct Response<T> {
 ///
 /// The HTTP response head consists of a status, version, and a set of
 /// header fields.
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[derive(Debug, Default)]
 pub struct Head {
     /// The response's status
     pub status: StatusCode,
@@ -30,6 +29,9 @@ pub struct Head {
 
     /// The response's headers
     pub headers: HeaderMap<HeaderValue>,
+
+    /// The response's extensions
+    pub extensions: Extensions,
 
     _priv: (),
 }
@@ -134,6 +136,34 @@ impl<T> Response<T> {
     /// ```
     pub fn headers_mut(&mut self) -> &mut HeaderMap<HeaderValue> {
         &mut self.head.headers
+    }
+
+    /// Returns a reference to the associated extensions.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    /// let response: Response<()> = Response::default();
+    /// assert!(response.extensions().get::<i32>().is_none());
+    /// ```
+    pub fn extensions(&self) -> &Extensions {
+        &self.head.extensions
+    }
+
+    /// Returns a mutable reference to the associated extensions.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    /// # use http::header::*;
+    /// let mut response: Response<()> = Response::default();
+    /// response.extensions_mut().insert("hello");
+    /// assert_eq!(response.extensions().get(), Some(&"hello"));
+    /// ```
+    pub fn extensions_mut(&mut self) -> &mut Extensions {
+        &mut self.head.extensions
     }
 
     /// Returns a reference to the associated HTTP body.

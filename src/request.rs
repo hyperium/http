@@ -1,9 +1,7 @@
 //! HTTP request types.
 
-use Uri;
+use {Extensions, Method, Uri, Version};
 use header::{HeaderMap, HeaderValue};
-use method::Method;
-use version::Version;
 
 /// Represents an HTTP request.
 ///
@@ -11,7 +9,7 @@ use version::Version;
 /// component is generic, enabling arbitrary types to represent the HTTP body.
 /// For example, the body could be `Vec<u8>`, a `Stream` of byte chunks, or a
 /// value that has been deserialized.
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[derive(Debug, Default)]
 pub struct Request<T> {
     head: Head,
     body: T,
@@ -21,7 +19,7 @@ pub struct Request<T> {
 ///
 /// The HTTP request head consists of a method, uri, version, and a set of
 /// header fields.
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[derive(Debug, Default)]
 pub struct Head {
     /// The request's method
     pub method: Method,
@@ -34,6 +32,9 @@ pub struct Head {
 
     /// The request's headers
     pub headers: HeaderMap<HeaderValue>,
+
+    /// The request's extensions
+    pub extensions: Extensions,
 
     _priv: (),
 }
@@ -165,6 +166,35 @@ impl<T> Request<T> {
     /// ```
     pub fn headers_mut(&mut self) -> &mut HeaderMap<HeaderValue> {
         &mut self.head.headers
+    }
+
+
+    /// Returns a reference to the associated extensions.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    /// let request: Request<()> = Request::default();
+    /// assert!(request.extensions().get::<i32>().is_none());
+    /// ```
+    pub fn extensions(&self) -> &Extensions {
+        &self.head.extensions
+    }
+
+    /// Returns a mutable reference to the associated extensions.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    /// # use http::header::*;
+    /// let mut request: Request<()> = Request::default();
+    /// request.extensions_mut().insert("hello");
+    /// assert_eq!(request.extensions().get(), Some(&"hello"));
+    /// ```
+    pub fn extensions_mut(&mut self) -> &mut Extensions {
+        &mut self.head.extensions
     }
 
     /// Returns a reference to the associated HTTP body.
