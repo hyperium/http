@@ -54,6 +54,7 @@ struct MaybeLower<'a> {
     lower: bool,
 }
 
+
 /// A possible error when converting a `HeaderName` from `[u8]`.
 #[derive(Debug)]
 pub struct FromBytesError {
@@ -1520,6 +1521,42 @@ impl<'a> From<&'a HeaderName> for HeaderName {
 }
 
 #[doc(hidden)]
+impl<T> Into<Bytes> for Repr<T>
+where T: Into<Bytes> {
+    fn into(self) -> Bytes {
+        match self {
+            Repr::Standard(header) =>
+                Bytes::from_static(header.as_str().as_bytes()),
+            Repr::Custom(header) => header.into()
+        }
+    }
+}
+
+impl Into<Bytes> for Custom {
+    #[inline]
+    fn into(self) -> Bytes {
+        self.0.into()
+    }
+}
+
+impl Into<Bytes> for HeaderName {
+    #[inline]
+    fn into(self) -> Bytes {
+        self.inner.into()
+    }
+}
+
+impl From<Bytes> for HeaderName {
+    // this is a falliable conversion, so it *might* be better
+    // represented as `TryFrom`?
+    #[inline]
+    fn from(bytes: Bytes) -> Self {
+        Self::from_bytes(bytes.as_ref()).unwrap()
+    }
+}
+
+
+#[doc(hidden)]
 impl From<StandardHeader> for HeaderName {
     fn from(src: StandardHeader) -> HeaderName {
         HeaderName {
@@ -1813,6 +1850,114 @@ fn test_parse_standard_headers() {
         // Test upper case
         let upper = name.to_uppercase().to_string();
         assert_eq!(HeaderName::from_bytes(upper.as_bytes()).unwrap(), HeaderName::from(std));
+    }
+}
+
+
+#[test]
+fn test_standard_headers_into_bytes() {
+    use self::StandardHeader::*;
+    use std::convert::Into;
+
+    const HEADERS: &'static [(StandardHeader, &'static str)] = &[
+        (Accept, "accept"),
+        (AcceptCharset, "accept-charset"),
+        (AcceptEncoding, "accept-encoding"),
+        (AcceptLanguage, "accept-language"),
+        (AcceptPatch, "accept-patch"),
+        (AcceptRanges, "accept-ranges"),
+        (AccessControlAllowCredentials, "access-control-allow-credentials"),
+        (AccessControlAllowHeaders, "access-control-allow-headers"),
+        (AccessControlAllowMethods, "access-control-allow-methods"),
+        (AccessControlAllowOrigin, "access-control-allow-origin"),
+        (AccessControlExposeHeaders, "access-control-expose-headers"),
+        (AccessControlMaxAge, "access-control-max-age"),
+        (AccessControlRequestHeaders, "access-control-request-headers"),
+        (AccessControlRequestMethod, "access-control-request-method"),
+        (Age, "age"),
+        (Allow, "allow"),
+        (AltSvc, "alt-svc"),
+        (Authorization, "authorization"),
+        (CacheControl, "cache-control"),
+        (Connection, "connection"),
+        (ContentDisposition, "content-disposition"),
+        (ContentEncoding, "content-encoding"),
+        (ContentLanguage, "content-language"),
+        (ContentLength, "content-length"),
+        (ContentLocation, "content-location"),
+        (ContentMd5, "content-md5"),
+        (ContentRange, "content-range"),
+        (ContentSecurityPolicy, "content-security-policy"),
+        (ContentSecurityPolicyReportOnly, "content-security-policy-report-only"),
+        (ContentType, "content-type"),
+        (Cookie, "cookie"),
+        (Dnt, "dnt"),
+        (Date, "date"),
+        (Etag, "etag"),
+        (Expect, "expect"),
+        (Expires, "expires"),
+        (Forwarded, "forwarded"),
+        (From, "from"),
+        (Host, "host"),
+        (IfMatch, "if-match"),
+        (IfModifiedSince, "if-modified-since"),
+        (IfNoneMatch, "if-none-match"),
+        (IfRange, "if-range"),
+        (IfUnmodifiedSince, "if-unmodified-since"),
+        (LastModified, "last-modified"),
+        (KeepAlive, "keep-alive"),
+        (Link, "link"),
+        (Location, "location"),
+        (MaxForwards, "max-forwards"),
+        (Origin, "origin"),
+        (Pragma, "pragma"),
+        (ProxyAuthenticate, "proxy-authenticate"),
+        (ProxyAuthorization, "proxy-authorization"),
+        (PublicKeyPins, "public-key-pins"),
+        (PublicKeyPinsReportOnly, "public-key-pins-report-only"),
+        (Range, "range"),
+        (Referer, "referer"),
+        (ReferrerPolicy, "referrer-policy"),
+        (Refresh, "refresh"),
+        (RetryAfter, "retry-after"),
+        (Server, "server"),
+        (SetCookie, "set-cookie"),
+        (StrictTransportSecurity, "strict-transport-security"),
+        (Te, "te"),
+        (Tk, "tk"),
+        (Trailer, "trailer"),
+        (TransferEncoding, "transfer-encoding"),
+        (Tsv, "tsv"),
+        (UserAgent, "user-agent"),
+        (Upgrade, "upgrade"),
+        (UpgradeInsecureRequests, "upgrade-insecure-requests"),
+        (Vary, "vary"),
+        (Via, "via"),
+        (Warning, "warning"),
+        (WwwAuthenticate, "www-authenticate"),
+        (XContentTypeOptions, "x-content-type-options"),
+        (XDnsPrefetchControl, "x-dns-prefetch-control"),
+        (XFrameOptions, "x-frame-options"),
+        (XXssProtection, "x-xss-protection"),
+    ];
+
+    for &(std, name) in HEADERS {
+        let std = HeaderName::from(std);
+        // Test lower case
+        let name_bytes = name.as_bytes();
+        let bytes: Bytes =
+            HeaderName::from_bytes(name_bytes).unwrap().into();
+        assert_eq!(bytes, name_bytes);
+        assert_eq!(HeaderName::from(Bytes::from(name_bytes)), std);
+
+        // Test upper case
+        let upper = name.to_uppercase().to_string();
+        let bytes: Bytes =
+            HeaderName::from_bytes(upper.as_bytes()).unwrap().into();
+        assert_eq!(bytes, name.as_bytes());
+        assert_eq!(HeaderName::from(Bytes::from(upper.as_bytes())), std);
+
+
     }
 }
 
