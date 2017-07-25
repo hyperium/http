@@ -1823,6 +1823,108 @@ fn test_parse_standard_headers() {
     }
 }
 
+
+#[test]
+fn test_standard_headers_into_bytes() {
+    use self::StandardHeader::*;
+    use std::convert::Into;
+
+    const HEADERS: &'static [(StandardHeader, &'static str)] = &[
+        (Accept, "accept"),
+        (AcceptCharset, "accept-charset"),
+        (AcceptEncoding, "accept-encoding"),
+        (AcceptLanguage, "accept-language"),
+        (AcceptPatch, "accept-patch"),
+        (AcceptRanges, "accept-ranges"),
+        (AccessControlAllowCredentials, "access-control-allow-credentials"),
+        (AccessControlAllowHeaders, "access-control-allow-headers"),
+        (AccessControlAllowMethods, "access-control-allow-methods"),
+        (AccessControlAllowOrigin, "access-control-allow-origin"),
+        (AccessControlExposeHeaders, "access-control-expose-headers"),
+        (AccessControlMaxAge, "access-control-max-age"),
+        (AccessControlRequestHeaders, "access-control-request-headers"),
+        (AccessControlRequestMethod, "access-control-request-method"),
+        (Age, "age"),
+        (Allow, "allow"),
+        (AltSvc, "alt-svc"),
+        (Authorization, "authorization"),
+        (CacheControl, "cache-control"),
+        (Connection, "connection"),
+        (ContentDisposition, "content-disposition"),
+        (ContentEncoding, "content-encoding"),
+        (ContentLanguage, "content-language"),
+        (ContentLength, "content-length"),
+        (ContentLocation, "content-location"),
+        (ContentMd5, "content-md5"),
+        (ContentRange, "content-range"),
+        (ContentSecurityPolicy, "content-security-policy"),
+        (ContentSecurityPolicyReportOnly, "content-security-policy-report-only"),
+        (ContentType, "content-type"),
+        (Cookie, "cookie"),
+        (Dnt, "dnt"),
+        (Date, "date"),
+        (Etag, "etag"),
+        (Expect, "expect"),
+        (Expires, "expires"),
+        (Forwarded, "forwarded"),
+        (From, "from"),
+        (Host, "host"),
+        (IfMatch, "if-match"),
+        (IfModifiedSince, "if-modified-since"),
+        (IfNoneMatch, "if-none-match"),
+        (IfRange, "if-range"),
+        (IfUnmodifiedSince, "if-unmodified-since"),
+        (LastModified, "last-modified"),
+        (KeepAlive, "keep-alive"),
+        (Link, "link"),
+        (Location, "location"),
+        (MaxForwards, "max-forwards"),
+        (Origin, "origin"),
+        (Pragma, "pragma"),
+        (ProxyAuthenticate, "proxy-authenticate"),
+        (ProxyAuthorization, "proxy-authorization"),
+        (PublicKeyPins, "public-key-pins"),
+        (PublicKeyPinsReportOnly, "public-key-pins-report-only"),
+        (Range, "range"),
+        (Referer, "referer"),
+        (ReferrerPolicy, "referrer-policy"),
+        (Refresh, "refresh"),
+        (RetryAfter, "retry-after"),
+        (Server, "server"),
+        (SetCookie, "set-cookie"),
+        (StrictTransportSecurity, "strict-transport-security"),
+        (Te, "te"),
+        (Tk, "tk"),
+        (Trailer, "trailer"),
+        (TransferEncoding, "transfer-encoding"),
+        (Tsv, "tsv"),
+        (UserAgent, "user-agent"),
+        (Upgrade, "upgrade"),
+        (UpgradeInsecureRequests, "upgrade-insecure-requests"),
+        (Vary, "vary"),
+        (Via, "via"),
+        (Warning, "warning"),
+        (WwwAuthenticate, "www-authenticate"),
+        (XContentTypeOptions, "x-content-type-options"),
+        (XDnsPrefetchControl, "x-dns-prefetch-control"),
+        (XFrameOptions, "x-frame-options"),
+        (XXssProtection, "x-xss-protection"),
+    ];
+
+    for &(_, name) in HEADERS {
+        // Test lower case
+        let bytes: Bytes =
+            HeaderName::from_bytes(name.as_bytes()).unwrap().into();
+        assert_eq!(bytes, name.as_bytes());
+
+        // Test upper case
+        let upper = name.to_uppercase().to_string();
+        let bytes: Bytes =
+            HeaderName::from_bytes(upper.as_bytes()).unwrap().into();
+        assert_eq!(bytes, name.as_bytes());
+    }
+}
+
 #[test]
 fn test_parse_invalid_headers() {
     for i in 0..128 {
