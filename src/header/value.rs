@@ -19,13 +19,6 @@ pub struct HeaderValue {
     is_sensitive: bool,
 }
 
-impl convert::Into<Bytes> for HeaderValue {
-    #[inline]
-    fn into(self) -> Bytes {
-        self.inner
-    }
-}
-
 /// A possible error when converting a `HeaderValue` from a string or byte
 /// slice.
 #[derive(Debug)]
@@ -290,6 +283,13 @@ impl FromStr for HeaderValue {
 
     fn from_str(s: &str) -> Result<HeaderValue, InvalidValueError> {
         HeaderValue::try_from_str(s)
+    }
+}
+
+impl convert::Into<Bytes> for HeaderValue {
+    #[inline]
+    fn into(self) -> Bytes {
+        self.inner
     }
 }
 
