@@ -21,7 +21,7 @@ pub struct HeaderValue {
 /// A possible error when converting a `HeaderValue` from a string or byte
 /// slice.
 #[derive(Debug)]
-pub struct InvalidValueError {
+pub struct InvalidHeaderValue {
     _priv: (),
 }
 
@@ -93,7 +93,7 @@ impl HeaderValue {
     /// let val = HeaderValue::try_from_str("\n");
     /// assert!(val.is_err());
     /// ```
-    pub fn try_from_str(src: &str) -> Result<HeaderValue, InvalidValueError> {
+    pub fn try_from_str(src: &str) -> Result<HeaderValue, InvalidHeaderValue> {
         HeaderValue::try_from(src)
     }
 
@@ -120,7 +120,7 @@ impl HeaderValue {
     /// let val = HeaderValue::try_from_bytes(b"\n");
     /// assert!(val.is_err());
     /// ```
-    pub fn try_from_bytes(src: &[u8]) -> Result<HeaderValue, InvalidValueError> {
+    pub fn try_from_bytes(src: &[u8]) -> Result<HeaderValue, InvalidHeaderValue> {
         HeaderValue::try_from(src)
     }
 
@@ -131,14 +131,14 @@ impl HeaderValue {
     ///
     /// This function is intended to be replaced in the future by a `TryFrom`
     /// implementation once the trait is stabilized in std.
-    pub fn try_from_shared(src: Bytes) -> Result<HeaderValue, InvalidValueError> {
+    pub fn try_from_shared(src: Bytes) -> Result<HeaderValue, InvalidHeaderValue> {
         HeaderValue::try_from(src)
     }
 
-    fn try_from<T: AsRef<[u8]> + Into<Bytes>>(src: T) -> Result<HeaderValue, InvalidValueError> {
+    fn try_from<T: AsRef<[u8]> + Into<Bytes>>(src: T) -> Result<HeaderValue, InvalidHeaderValue> {
         for &b in src.as_ref() {
             if !is_valid(b) {
-                return Err(InvalidValueError {
+                return Err(InvalidHeaderValue {
                     _priv: (),
                 });
             }
@@ -302,13 +302,13 @@ fn is_valid(b: u8) -> bool {
     b >= 32
 }
 
-impl fmt::Display for InvalidValueError {
+impl fmt::Display for InvalidHeaderValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.description().fmt(f)
     }
 }
 
-impl Error for InvalidValueError {
+impl Error for InvalidHeaderValue {
     fn description(&self) -> &str {
         "failed to parse header value"
     }
