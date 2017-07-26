@@ -450,8 +450,7 @@ impl Builder {
         self
     }
 
-    /// "Consumes" this builder, returning the constructed `Parts`.
-    fn head(&mut self) -> Result<Parts> {
+    fn take_parts(&mut self) -> Result<Parts> {
         let ret = self.head.take().expect("cannot reuse response builder");
         if let Some(e) = self.err.take() {
             return Err(e)
@@ -486,7 +485,7 @@ impl Builder {
     /// ```
     pub fn body<T>(&mut self, body: T) -> Result<Response<T>> {
         Ok(Response {
-            head: self.head()?,
+            head: self.take_parts()?,
             body: body,
         })
     }

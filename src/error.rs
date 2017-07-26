@@ -32,11 +32,7 @@ enum ErrorKind {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", error::Error::description(self))?;
-        match self.inner {
-            ErrorKind::Io(ref e) => write!(f, ": {}", e),
-            _ => Ok(())
-        }
+        error::Error::description(self).fmt(f)
     }
 }
 
