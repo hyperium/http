@@ -24,14 +24,11 @@ pub type Result<T> = result::Result<T, Error>;
 
 #[derive(Debug)]
 enum ErrorKind {
-    StatusU16(status::FromU16Error),
-    StatusStr(status::FromStrError),
-    MethodBytes(method::FromBytesError),
-    UriStr(uri::FromStrError),
-    HeaderInvalid(header::InvalidValueError),
-    HeaderStr(header::ToStrError),
-    HeaderNameBytes(header::FromBytesError),
-    HeaderNameStr(header::FromStrError),
+    StatusCode(status::InvalidStatusCode),
+    Method(method::InvalidMethod),
+    Uri(uri::InvalidUri),
+    HeaderName(header::InvalidHeaderName),
+    HeaderValue(header::InvalidHeaderValue),
     Io(io::Error),
 }
 
@@ -50,14 +47,11 @@ impl error::Error for Error {
         use self::ErrorKind::*;
 
         match self.inner {
-            StatusU16(ref e) => e.description(),
-            StatusStr(ref e) => e.description(),
-            MethodBytes(ref e) => e.description(),
-            UriStr(ref e) => e.description(),
-            HeaderInvalid(ref e) => e.description(),
-            HeaderStr(ref e) => e.description(),
-            HeaderNameBytes(ref e) => e.description(),
-            HeaderNameStr(ref e) => e.description(),
+            StatusCode(ref e) => e.description(),
+            Method(ref e) => e.description(),
+            Uri(ref e) => e.description(),
+            HeaderName(ref e) => e.description(),
+            HeaderValue(ref e) => e.description(),
             Io(_) => "I/O error"
         }
     }
@@ -72,51 +66,33 @@ impl error::Error for Error {
     }
 }
 
-impl From<status::FromU16Error> for Error {
-    fn from(err: status::FromU16Error) -> Error {
-        Error { inner: ErrorKind::StatusU16(err) }
+impl From<status::InvalidStatusCode> for Error {
+    fn from(err: status::InvalidStatusCode) -> Error {
+        Error { inner: ErrorKind::StatusCode(err) }
     }
 }
 
-impl From<status::FromStrError> for Error {
-    fn from(err: status::FromStrError) -> Error {
-        Error { inner: ErrorKind::StatusStr(err) }
+impl From<method::InvalidMethod> for Error {
+    fn from(err: method::InvalidMethod) -> Error {
+        Error { inner: ErrorKind::Method(err) }
     }
 }
 
-impl From<method::FromBytesError> for Error {
-    fn from(err: method::FromBytesError) -> Error {
-        Error { inner: ErrorKind::MethodBytes(err) }
+impl From<uri::InvalidUri> for Error {
+    fn from(err: uri::InvalidUri) -> Error {
+        Error { inner: ErrorKind::Uri(err) }
     }
 }
 
-impl From<uri::FromStrError> for Error {
-    fn from(err: uri::FromStrError) -> Error {
-        Error { inner: ErrorKind::UriStr(err) }
+impl From<header::InvalidHeaderName> for Error {
+    fn from(err: header::InvalidHeaderName) -> Error {
+        Error { inner: ErrorKind::HeaderName(err) }
     }
 }
 
-impl From<header::InvalidValueError> for Error {
-    fn from(err: header::InvalidValueError) -> Error {
-        Error { inner: ErrorKind::HeaderInvalid(err) }
-    }
-}
-
-impl From<header::ToStrError> for Error {
-    fn from(err: header::ToStrError) -> Error {
-        Error { inner: ErrorKind::HeaderStr(err) }
-    }
-}
-
-impl From<header::FromBytesError> for Error {
-    fn from(err: header::FromBytesError) -> Error {
-        Error { inner: ErrorKind::HeaderNameBytes(err) }
-    }
-}
-
-impl From<header::FromStrError> for Error {
-    fn from(err: header::FromStrError) -> Error {
-        Error { inner: ErrorKind::HeaderNameStr(err) }
+impl From<header::InvalidHeaderValue> for Error {
+    fn from(err: header::InvalidHeaderValue) -> Error {
+        Error { inner: ErrorKind::HeaderValue(err) }
     }
 }
 

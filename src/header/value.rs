@@ -279,9 +279,9 @@ impl fmt::Debug for HeaderValue {
 }
 
 impl FromStr for HeaderValue {
-    type Err = InvalidValueError;
+    type Err = InvalidHeaderValue;
 
-    fn from_str(s: &str) -> Result<HeaderValue, InvalidValueError> {
+    fn from_str(s: &str) -> Result<HeaderValue, Self::Err> {
         HeaderValue::try_from_str(s)
     }
 }

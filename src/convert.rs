@@ -39,7 +39,7 @@ reflexive! {
 }
 
 impl<'a> HttpTryFrom<&'a str> for Uri {
-    type Error = uri::FromStrError;
+    type Error = uri::InvalidUri;
 
     fn try_from(t: &'a str) -> Result<Self, Self::Error> {
         t.parse()
@@ -47,7 +47,7 @@ impl<'a> HttpTryFrom<&'a str> for Uri {
 }
 
 impl HttpTryFrom<Bytes> for Uri {
-    type Error = uri::FromStrError;
+    type Error = uri::InvalidUri;
 
     fn try_from(t: Bytes) -> Result<Self, Self::Error> {
         Uri::try_from_shared(t)
@@ -55,7 +55,7 @@ impl HttpTryFrom<Bytes> for Uri {
 }
 
 impl<'a> HttpTryFrom<&'a [u8]> for Method {
-    type Error = method::FromBytesError;
+    type Error = method::InvalidMethod;
 
     fn try_from(t: &'a [u8]) -> Result<Self, Self::Error> {
         Method::from_bytes(t)
@@ -63,7 +63,7 @@ impl<'a> HttpTryFrom<&'a [u8]> for Method {
 }
 
 impl<'a> HttpTryFrom<&'a str> for Method {
-    type Error = method::FromBytesError;
+    type Error = method::InvalidMethod;
 
     fn try_from(t: &'a str) -> Result<Self, Self::Error> {
         Method::try_from(t.as_bytes())
@@ -71,7 +71,7 @@ impl<'a> HttpTryFrom<&'a str> for Method {
 }
 
 impl<'a> HttpTryFrom<&'a [u8]> for StatusCode {
-    type Error = status::FromStrError;
+    type Error = status::InvalidStatusCode;
 
     fn try_from(t: &'a [u8]) -> Result<Self, Self::Error> {
         StatusCode::from_bytes(t)
@@ -79,7 +79,7 @@ impl<'a> HttpTryFrom<&'a [u8]> for StatusCode {
 }
 
 impl<'a> HttpTryFrom<&'a str> for StatusCode {
-    type Error = status::FromStrError;
+    type Error = status::InvalidStatusCode;
 
     fn try_from(t: &'a str) -> Result<Self, Self::Error> {
         t.parse()
@@ -87,7 +87,7 @@ impl<'a> HttpTryFrom<&'a str> for StatusCode {
 }
 
 impl HttpTryFrom<u16> for StatusCode {
-    type Error = status::FromU16Error;
+    type Error = status::InvalidStatusCode;
 
     fn try_from(t: u16) -> Result<Self, Self::Error> {
         StatusCode::from_u16(t)
@@ -95,7 +95,7 @@ impl HttpTryFrom<u16> for StatusCode {
 }
 
 impl<'a> HttpTryFrom<&'a str> for HeaderValue {
-    type Error = header::InvalidValueError;
+    type Error = header::InvalidHeaderValue;
 
     fn try_from(t: &'a str) -> Result<Self, Self::Error> {
         t.parse()
@@ -103,7 +103,7 @@ impl<'a> HttpTryFrom<&'a str> for HeaderValue {
 }
 
 impl<'a> HttpTryFrom<&'a [u8]> for HeaderValue {
-    type Error = header::InvalidValueError;
+    type Error = header::InvalidHeaderValue;
 
     fn try_from(t: &'a [u8]) -> Result<Self, Self::Error> {
         HeaderValue::try_from_bytes(t)
