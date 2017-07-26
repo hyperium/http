@@ -54,15 +54,9 @@ struct MaybeLower<'a> {
     lower: bool,
 }
 
-/// A possible error when converting a `HeaderName` from `[u8]`.
+/// A possible error when converting a `HeaderName` from another type.
 #[derive(Debug)]
-pub struct FromBytesError {
-    _priv: (),
-}
-
-/// A possible error when converting a `HeaderName` from a string.
-#[derive(Debug)]
-pub struct FromStrError {
+pub struct InvalidHeaderName {
     _priv: (),
 }
 
@@ -1020,7 +1014,7 @@ macro_rules! to_lower {
 }
 
 fn parse_hdr<'a>(data: &'a [u8], b: &'a mut [u8; 64])
-    -> Result<HdrName<'a>, FromBytesError>
+    -> Result<HdrName<'a>, InvalidHeaderName>
 {
     use self::StandardHeader::*;
 
@@ -1029,7 +1023,7 @@ fn parse_hdr<'a>(data: &'a [u8], b: &'a mut [u8; 64])
     let validate = |buf: &'a [u8], len: usize| {
         let buf = &buf[..len];
         if buf.iter().any(|&b| b == 0) {
-            Err(FromBytesError::new())
+            Err(InvalidHeaderName::new())
         } else {
             Ok(HdrName::custom(buf, true))
         }
@@ -1041,7 +1035,7 @@ fn parse_hdr<'a>(data: &'a [u8], b: &'a mut [u8; 64])
 
     match len {
         0 => {
-            Err(FromBytesError::new())
+            Err(InvalidHeaderName::new())
         }
         2 => {
             to_lower!(b, data, 2);
@@ -1431,7 +1425,7 @@ impl HeaderName {
     /// Converts a slice of bytes to an HTTP header name.
     ///
     /// This function normalizes the input.
-    pub fn from_bytes(src: &[u8]) -> Result<HeaderName, FromBytesError> {
+    pub fn from_bytes(src: &[u8]) -> Result<HeaderName, InvalidHeaderName> {
         let mut buf = unsafe { mem::uninitialized() };
         match parse_hdr(src, &mut buf)?.inner {
             Repr::Standard(std) => Ok(std.into()),
@@ -1448,7 +1442,7 @@ impl HeaderName {
                     let b = HEADER_CHARS[*b as usize];
 
                     if b == 0 {
-                        return Err(FromBytesError::new());
+                        return Err(InvalidHeaderName::new());
                     }
 
                     dst.put(b);
@@ -1473,11 +1467,11 @@ impl HeaderName {
 }
 
 impl FromStr for HeaderName {
-    type Err = FromStrError;
+    type Err = InvalidHeaderName;
 
-    fn from_str(s: &str) -> Result<HeaderName, FromStrError> {
+    fn from_str(s: &str) -> Result<HeaderName, InvalidHeaderName> {
         HeaderName::from_bytes(s.as_bytes())
-            .map_err(|_| FromStrError {
+            .map_err(|_| InvalidHeaderName {
                 _priv: (),
             })
     }
@@ -1507,9 +1501,9 @@ impl fmt::Debug for HeaderName {
     }
 }
 
-impl FromBytesError {
-    fn new() -> FromBytesError {
-        FromBytesError { _priv: () }
+impl InvalidHeaderName {
+    fn new() -> InvalidHeaderName {
+        InvalidHeaderName { _priv: () }
     }
 }
 
@@ -1570,27 +1564,15 @@ impl<'a> PartialEq<&'a str> for HeaderName {
     }
 }
 
-impl fmt::Display for FromBytesError {
+impl fmt::Display for InvalidHeaderName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.description().fmt(f)
     }
 }
 
-impl Error for FromBytesError {
+impl Error for InvalidHeaderName {
     fn description(&self) -> &str {
-        "failed to parse bytes as a header name"
-    }
-}
-
-impl fmt::Display for FromStrError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.description().fmt(f)
-    }
-}
-
-impl Error for FromStrError {
-    fn description(&self) -> &str {
-        "failed to parse str as header name"
+        "invalid HTTP header name"
     }
 }
 
@@ -1606,7 +1588,7 @@ impl<'a> HdrName<'a> {
         }
     }
 
-    pub fn from_bytes<F, U>(hdr: &[u8], f: F) -> Result<U, FromBytesError>
+    pub fn from_bytes<F, U>(hdr: &[u8], f: F) -> Result<U, InvalidHeaderName>
         where F: FnOnce(HdrName) -> U,
     {
         let mut buf = unsafe { mem::uninitialized() };

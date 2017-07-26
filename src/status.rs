@@ -19,21 +19,12 @@ use std::str::FromStr;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StatusCode(u16);
 
-/// A possible error value when converting a `StatusCode` from a `u16`.
+/// A possible error value when converting a `StatusCode` from a `u16` or `&str`
 ///
-/// This type is returned from `StatusCode::from_u16` when the supplied input is
-/// less than 100 or greater than 599.
+/// This error indicates that the supplied input was not a valid number, was less
+/// than 100, or was greater than 599.
 #[derive(Debug)]
-pub struct FromU16Error {
-    _priv: (),
-}
-
-/// A possible error value when converting a `StatusCode` from a `&str`.
-///
-/// This type is returned from `StatusCode::from_str` when the supplied input is
-/// not a valid number, less than 100 or greater than 599.
-#[derive(Debug)]
-pub struct FromStrError {
+pub struct InvalidStatus {
     _priv: (),
 }
 
@@ -42,18 +33,18 @@ impl StatusCode {
     ///
     /// The function validates the correctness of the supplied u16. It must be
     /// greater or equal to 100 but less than 600.
-    pub fn from_u16(src: u16) -> Result<StatusCode, FromU16Error> {
+    pub fn from_u16(src: u16) -> Result<StatusCode, InvalidStatus> {
         if src < 100 || src >= 600 {
-            return Err(FromU16Error::new());
+            return Err(InvalidStatus::new());
         }
 
         Ok(StatusCode(src))
     }
 
     /// Converts a &[u8] to a status code
-    pub fn from_bytes(src: &[u8]) -> Result<StatusCode, FromStrError> {
+    pub fn from_bytes(src: &[u8]) -> Result<StatusCode, InvalidStatus> {
         if src.len() != 3 {
-            return Err(FromStrError::new());
+            return Err(InvalidStatus::new());
         }
 
         let a = src[0].wrapping_sub(b'0') as u16;
@@ -61,7 +52,7 @@ impl StatusCode {
         let c = src[2].wrapping_sub(b'0') as u16;
 
         if a == 0 || a > 5 || b > 9 || c > 9 {
-            return Err(FromStrError::new());
+            return Err(InvalidStatus::new());
         }
 
         let status = (a * 100) + (b * 10) + c;
@@ -120,24 +111,16 @@ impl From<StatusCode> for u16 {
 }
 
 impl FromStr for StatusCode {
-    type Err = FromStrError;
+    type Err = InvalidStatus;
 
-    fn from_str(s: &str) -> Result<StatusCode, FromStrError> {
+    fn from_str(s: &str) -> Result<StatusCode, InvalidStatus> {
         StatusCode::from_bytes(s.as_ref())
     }
 }
 
-impl FromU16Error {
-    fn new() -> FromU16Error {
-        FromU16Error {
-            _priv: (),
-        }
-    }
-}
-
-impl FromStrError {
-    fn new() -> FromStrError {
-        FromStrError {
+impl InvalidStatus {
+    fn new() -> InvalidStatus {
+        InvalidStatus {
             _priv: (),
         }
     }
@@ -372,25 +355,13 @@ status_codes! {
     (511, NETWORK_AUTHENTICATION_REQUIRED, "Network Authentication Required");
 }
 
-impl fmt::Display for FromU16Error {
+impl fmt::Display for InvalidStatus {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(self.description())
     }
 }
 
-impl Error for FromU16Error {
-    fn description(&self) -> &str {
-        "invalid status code"
-    }
-}
-
-impl fmt::Display for FromStrError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(self.description())
-    }
-}
-
-impl Error for FromStrError {
+impl Error for InvalidStatus {
     fn description(&self) -> &str {
         "invalid status code"
     }
