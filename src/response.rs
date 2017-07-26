@@ -15,18 +15,18 @@ use version::Version;
 /// component is generic, enabling arbitrary types to represent the HTTP body.
 /// For example, the body could be `Vec<u8>`, a `Stream` of byte chunks, or a
 /// value that has been deserialized.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Response<T> {
-    head: Head,
+    head: Parts,
     body: T,
 }
 
-/// An HTTP response head
+/// Component parts of an HTTP `Response`
 ///
 /// The HTTP response head consists of a status, version, and a set of
 /// header fields.
-#[derive(Debug, Default)]
-pub struct Head {
+#[derive(Debug)]
+pub struct Parts {
     /// The response's status
     pub status: StatusCode,
 
@@ -44,11 +44,11 @@ pub struct Head {
 
 /// An HTTP response builder
 ///
-/// This type can be used to construct an instance of `Head` or `Response`
-/// through a builder-like pattern.
+/// This type can be used to construct an instance of `Response` through a
+/// builder-like pattern.
 #[derive(Debug)]
 pub struct Builder {
-    head: Option<Head>,
+    head: Option<Parts>,
     err: Option<Error>,
 }
 
@@ -56,7 +56,7 @@ impl Response<()> {
     /// Creates a new builder-style object to manufacture a `Response`
     ///
     /// This method returns an instance of `Builder` which can be used to
-    /// create both the `Head` of a request or the `Response` itself.
+    /// create both the `Parts` of a request or the `Response` itself.
     ///
     /// # Examples
     ///
@@ -74,21 +74,42 @@ impl Response<()> {
 }
 
 impl<T> Response<T> {
+    /// Creates a new blank `Response` with the body
+    ///
+    /// The component ports of this request will be set to their default, e.g.
+    /// the ok status, no headers, etc.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    /// let request = Response::new("hello world");
+    ///
+    /// assert_eq!(*request.status(), status::OK);
+    /// assert_eq!(*request.body(), "hello world");
+    /// ```
+    pub fn new(body: T) -> Response<T> {
+        Response {
+            head: Parts::new(),
+            body: body,
+        }
+    }
+
     /// Creates a new `Response` with the given head and body
     ///
     /// # Examples
     ///
     /// ```
     /// # use http::*;
-    /// let head = response::Head::default();
+    /// let head = response::Parts::default();
     /// let response = Response::from_parts(head, "hello world");
     ///
     /// assert_eq!(response.status(), status::OK);
     /// assert_eq!(*response.body(), "hello world");
     /// ```
-    pub fn from_parts(head: Head, body: T) -> Response<T> {
+    pub fn from_parts(parts: Parts, body: T) -> Response<T> {
         Response {
-            head: head,
+            head: parts,
             body: body,
         }
     }
@@ -237,20 +258,29 @@ impl<T> Response<T> {
     /// ```
     /// # use http::*;
     /// let response: Response<()> = Response::default();
-    /// let (head, body) = response.into_parts();
-    /// let response::Head { status, .. } = head;
-    /// assert_eq!(status, status::OK);
+    /// let (parts, body) = response.into_parts();
+    /// assert_eq!(parts.status, status::OK);
     /// ```
-    pub fn into_parts(self) -> (Head, T) {
+    pub fn into_parts(self) -> (Parts, T) {
         (self.head, self.body)
     }
 }
 
-impl<T: Default> From<Head> for Response<T> {
-    fn from(src: Head) -> Response<T> {
-        Response {
-            head: src,
-            body: T::default(),
+impl<T: Default> Default for Response<T> {
+    fn default() -> Response<T> {
+        Response::new(T::default())
+    }
+}
+
+impl Parts {
+    /// Creates a new default instance of `Parts`
+    fn new() -> Parts {
+        Parts{
+            status: StatusCode::default(),
+            version: Version::default(),
+            headers: HeaderMap::default(),
+            extensions: Extensions::default(),
+            _priv: (),
         }
     }
 }
@@ -418,8 +448,8 @@ impl Builder {
         self
     }
 
-    /// "Consumes" this builder, returning the constructed `Head`.
-    fn head(&mut self) -> Result<Head> {
+    /// "Consumes" this builder, returning the constructed `Parts`.
+    fn head(&mut self) -> Result<Parts> {
         if let Some(e) = self.err.take() {
             return Err(e)
         }
@@ -457,8 +487,8 @@ impl Builder {
     }
 }
 
-fn head<'a>(head: &'a mut Option<Head>, err: &Option<Error>)
-    -> Option<&'a mut Head>
+fn head<'a>(head: &'a mut Option<Parts>, err: &Option<Error>)
+    -> Option<&'a mut Parts>
 {
     if err.is_some() {
         return None
@@ -469,7 +499,7 @@ fn head<'a>(head: &'a mut Option<Head>, err: &Option<Error>)
 impl Default for Builder {
     fn default() -> Builder {
         Builder {
-            head: Some(Head::default()),
+            head: Some(Parts::new()),
             err: None,
         }
     }

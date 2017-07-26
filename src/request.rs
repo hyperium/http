@@ -14,18 +14,18 @@ use version::Version;
 /// component is generic, enabling arbitrary types to represent the HTTP body.
 /// For example, the body could be `Vec<u8>`, a `Stream` of byte chunks, or a
 /// value that has been deserialized.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Request<T> {
-    head: Head,
+    head: Parts,
     body: T,
 }
 
-/// An HTTP request head
+/// Component parts of an HTTP `Request`
 ///
 /// The HTTP request head consists of a method, uri, version, and a set of
 /// header fields.
-#[derive(Debug, Default)]
-pub struct Head {
+#[derive(Debug)]
+pub struct Parts {
     /// The request's method
     pub method: Method,
 
@@ -46,11 +46,11 @@ pub struct Head {
 
 /// An HTTP request builder
 ///
-/// This type can be used to construct an instance of `Head` or `Request`
+/// This type can be used to construct an instance or `Request`
 /// through a builder-like pattern.
 #[derive(Debug)]
 pub struct Builder {
-    head: Option<Head>,
+    head: Option<Parts>,
     err: Option<Error>,
 }
 
@@ -58,7 +58,7 @@ impl Request<()> {
     /// Creates a new builder-style object to manufacture a `Request`
     ///
     /// This method returns an instance of `Builder` which can be used to
-    /// create both the `Head` of a request or the `Request` itself.
+    /// create a `Request`.
     ///
     /// # Examples
     ///
@@ -77,21 +77,42 @@ impl Request<()> {
 }
 
 impl<T> Request<T> {
-    /// Creates a new `Request` with the given head and body
+    /// Creates a new blank `Request` with the body
+    ///
+    /// The component ports of this request will be set to their default, e.g.
+    /// the GET method, no headers, etc.
     ///
     /// # Examples
     ///
     /// ```
     /// # use http::*;
-    /// let head = request::Head::default();
-    /// let request = Request::from_parts(head, "hello world");
+    /// let request = Request::new("hello world");
     ///
     /// assert_eq!(*request.method(), method::GET);
     /// assert_eq!(*request.body(), "hello world");
     /// ```
-    pub fn from_parts(head: Head, body: T) -> Request<T> {
+    pub fn new(body: T) -> Request<T> {
         Request {
-            head: head,
+            head: Parts::new(),
+            body: body,
+        }
+    }
+
+    /// Creates a new `Request` with the given components parts and body.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    /// let request = Request::new("hello world");
+    /// let (mut parts, body) = request.into_parts();
+    /// parts.method = method::POST;
+    ///
+    /// let request = Request::from_parts(parts, body);
+    /// ```
+    pub fn from_parts(parts: Parts, body: T) -> Request<T> {
+        Request {
+            head: parts,
             body: body,
         }
     }
@@ -267,41 +288,32 @@ impl<T> Request<T> {
     ///
     /// ```
     /// # use http::*;
-    /// let request: Request<()> = Request::default();
-    /// let (head, body) = request.into_parts();
-    /// let request::Head { method, .. } = head;
-    /// assert_eq!(method, method::GET);
+    /// let request = Request::new(());
+    /// let (parts, body) = request.into_parts();
+    /// assert_eq!(parts.method, method::GET);
     /// ```
-    pub fn into_parts(self) -> (Head, T) {
+    pub fn into_parts(self) -> (Parts, T) {
         (self.head, self.body)
     }
 }
 
-impl<T: Default> From<Head> for Request<T> {
-    fn from(src: Head) -> Request<T> {
-        Request {
-            head: src,
-            body: T::default(),
-        }
+impl<T: Default> Default for Request<T> {
+    fn default() -> Request<T> {
+        Request::new(T::default())
     }
 }
 
-impl Head {
-    /// Creates a new default instance of `Head`
-    ///
-    /// The returned `Head` has a GET method, a `/` URI, an HTTP/1.1 version,
-    /// and no headers.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use http::*;
-    ///
-    /// let mut head = request::Head::new();
-    /// head.method = method::POST;
-    /// ```
-    pub fn new() -> Head {
-        Head::default()
+impl Parts {
+    /// Creates a new default instance of `Parts`
+    fn new() -> Parts {
+        Parts{
+            method: Method::default(),
+            uri: Uri::default(),
+            version: Version::default(),
+            headers: HeaderMap::default(),
+            extensions: Extensions::default(),
+            _priv: (),
+        }
     }
 }
 
@@ -498,7 +510,7 @@ impl Builder {
     }
 
     /// "Consumes" this builder, returning the constructed `Head`.
-    fn head(&mut self) -> Result<Head> {
+    fn head(&mut self) -> Result<Parts> {
         if let Some(e) = self.err.take() {
             return Err(e)
         }
@@ -536,8 +548,8 @@ impl Builder {
     }
 }
 
-fn head<'a>(head: &'a mut Option<Head>, err: &Option<Error>)
-    -> Option<&'a mut Head>
+fn head<'a>(head: &'a mut Option<Parts>, err: &Option<Error>)
+    -> Option<&'a mut Parts>
 {
     if err.is_some() {
         return None
@@ -548,7 +560,7 @@ fn head<'a>(head: &'a mut Option<Head>, err: &Option<Error>)
 impl Default for Builder {
     fn default() -> Builder {
         Builder {
-            head: Some(Head::default()),
+            head: Some(Parts::new()),
             err: None,
         }
     }
