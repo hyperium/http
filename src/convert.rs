@@ -1,15 +1,21 @@
-use bytes::Bytes;
-
 use Error;
-use header::{self, HeaderName, HeaderValue};
-use method::{self, Method};
+use header::{HeaderName, HeaderValue};
+use method::Method;
 use sealed::Sealed;
-use status::{self, StatusCode};
-use uri::{self, Uri};
+use status::StatusCode;
+use uri::Uri;
 
-/// dox
+/// Private trait for the `http` crate to have generic methods with fallible
+/// conversions.
+///
+/// This trait is similar to the `TryFrom` trait proposed in the standard
+/// library, except this is specialized for the `http` crate and isn't intended
+/// for general consumption.
+///
+/// This trait cannot be implemented types outside of the `http` crate, and is
+/// only intended for use as a generic bound on methods in the `http` crate.
 pub trait HttpTryFrom<T>: Sized + Sealed {
-    /// dox
+    /// Associated error with the conversion this implementation represents.
     type Error: Into<Error>;
 
     #[doc(hidden)]
@@ -36,76 +42,4 @@ reflexive! {
     StatusCode,
     HeaderName,
     HeaderValue,
-}
-
-impl<'a> HttpTryFrom<&'a str> for Uri {
-    type Error = uri::InvalidUri;
-
-    fn try_from(t: &'a str) -> Result<Self, Self::Error> {
-        t.parse()
-    }
-}
-
-impl HttpTryFrom<Bytes> for Uri {
-    type Error = uri::InvalidUri;
-
-    fn try_from(t: Bytes) -> Result<Self, Self::Error> {
-        Uri::try_from_shared(t)
-    }
-}
-
-impl<'a> HttpTryFrom<&'a [u8]> for Method {
-    type Error = method::InvalidMethod;
-
-    fn try_from(t: &'a [u8]) -> Result<Self, Self::Error> {
-        Method::from_bytes(t)
-    }
-}
-
-impl<'a> HttpTryFrom<&'a str> for Method {
-    type Error = method::InvalidMethod;
-
-    fn try_from(t: &'a str) -> Result<Self, Self::Error> {
-        Method::try_from(t.as_bytes())
-    }
-}
-
-impl<'a> HttpTryFrom<&'a [u8]> for StatusCode {
-    type Error = status::InvalidStatusCode;
-
-    fn try_from(t: &'a [u8]) -> Result<Self, Self::Error> {
-        StatusCode::from_bytes(t)
-    }
-}
-
-impl<'a> HttpTryFrom<&'a str> for StatusCode {
-    type Error = status::InvalidStatusCode;
-
-    fn try_from(t: &'a str) -> Result<Self, Self::Error> {
-        t.parse()
-    }
-}
-
-impl HttpTryFrom<u16> for StatusCode {
-    type Error = status::InvalidStatusCode;
-
-    fn try_from(t: u16) -> Result<Self, Self::Error> {
-        StatusCode::from_u16(t)
-    }
-}
-
-impl<'a> HttpTryFrom<&'a str> for HeaderValue {
-    type Error = header::InvalidHeaderValue;
-
-    fn try_from(t: &'a str) -> Result<Self, Self::Error> {
-        t.parse()
-    }
-}
-
-impl<'a> HttpTryFrom<&'a [u8]> for HeaderValue {
-    type Error = header::InvalidHeaderValue;
-
-    fn try_from(t: &'a [u8]) -> Result<Self, Self::Error> {
-        HeaderValue::try_from_bytes(t)
-    }
 }

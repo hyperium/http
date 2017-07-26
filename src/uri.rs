@@ -1,5 +1,6 @@
 //! URI component of request and response lines
 
+use HttpTryFrom;
 use byte_str::ByteStr;
 
 use bytes::Bytes;
@@ -534,6 +535,22 @@ impl Uri {
 
     fn has_path(&self) -> bool {
         !self.origin_form.data.is_empty() || !self.scheme.inner.is_none()
+    }
+}
+
+impl<'a> HttpTryFrom<&'a str> for Uri {
+    type Error = InvalidUri;
+
+    fn try_from(t: &'a str) -> Result<Self, Self::Error> {
+        t.parse()
+    }
+}
+
+impl HttpTryFrom<Bytes> for Uri {
+    type Error = InvalidUri;
+
+    fn try_from(t: Bytes) -> Result<Self, Self::Error> {
+        Uri::try_from_shared(t)
     }
 }
 

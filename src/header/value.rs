@@ -294,6 +294,22 @@ impl From<HeaderValue> for Bytes {
     }
 }
 
+impl<'a> HttpTryFrom<&'a str> for HeaderValue {
+    type Error = InvalidHeaderValue;
+
+    fn try_from(t: &'a str) -> Result<Self, Self::Error> {
+        t.parse()
+    }
+}
+
+impl<'a> HttpTryFrom<&'a [u8]> for HeaderValue {
+    type Error = InvalidHeaderValue;
+
+    fn try_from(t: &'a [u8]) -> Result<Self, Self::Error> {
+        HeaderValue::try_from_bytes(t)
+    }
+}
+
 impl HttpTryFrom<Bytes> for HeaderValue {
     type Error = InvalidHeaderValue;
 

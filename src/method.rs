@@ -1,5 +1,6 @@
 //! The HTTP request method
 
+use HttpTryFrom;
 use self::Inner::*;
 
 use std::{fmt, str};
@@ -263,6 +264,22 @@ impl fmt::Display for Method {
 impl Default for Method {
     fn default() -> Method {
         GET
+    }
+}
+
+impl<'a> HttpTryFrom<&'a [u8]> for Method {
+    type Error = InvalidMethod;
+
+    fn try_from(t: &'a [u8]) -> Result<Self, Self::Error> {
+        Method::from_bytes(t)
+    }
+}
+
+impl<'a> HttpTryFrom<&'a str> for Method {
+    type Error = InvalidMethod;
+
+    fn try_from(t: &'a str) -> Result<Self, Self::Error> {
+        Method::try_from(t.as_bytes())
     }
 }
 

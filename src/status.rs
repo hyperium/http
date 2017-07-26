@@ -4,6 +4,8 @@ use std::fmt;
 use std::error::Error;
 use std::str::FromStr;
 
+use HttpTryFrom;
+
 /// An HTTP status code (`status-code` in RFC 7230 et al.).
 ///
 /// This type contains constructor functions for  all common status codes.
@@ -115,6 +117,30 @@ impl FromStr for StatusCode {
 
     fn from_str(s: &str) -> Result<StatusCode, InvalidStatusCode> {
         StatusCode::from_bytes(s.as_ref())
+    }
+}
+
+impl<'a> HttpTryFrom<&'a [u8]> for StatusCode {
+    type Error = InvalidStatusCode;
+
+    fn try_from(t: &'a [u8]) -> Result<Self, Self::Error> {
+        StatusCode::from_bytes(t)
+    }
+}
+
+impl<'a> HttpTryFrom<&'a str> for StatusCode {
+    type Error = InvalidStatusCode;
+
+    fn try_from(t: &'a str) -> Result<Self, Self::Error> {
+        t.parse()
+    }
+}
+
+impl HttpTryFrom<u16> for StatusCode {
+    type Error = InvalidStatusCode;
+
+    fn try_from(t: u16) -> Result<Self, Self::Error> {
+        StatusCode::from_u16(t)
     }
 }
 
