@@ -1,6 +1,5 @@
 use std::error;
 use std::fmt;
-use std::io;
 use std::result;
 
 use header;
@@ -29,7 +28,6 @@ enum ErrorKind {
     Uri(uri::InvalidUri),
     HeaderName(header::InvalidHeaderName),
     HeaderValue(header::InvalidHeaderValue),
-    Io(io::Error),
 }
 
 impl fmt::Display for Error {
@@ -52,16 +50,6 @@ impl error::Error for Error {
             Uri(ref e) => e.description(),
             HeaderName(ref e) => e.description(),
             HeaderValue(ref e) => e.description(),
-            Io(_) => "I/O error"
-        }
-    }
-
-    fn cause(&self) -> Option<&error::Error> {
-        use self::ErrorKind::*;
-
-        match self.inner {
-            Io(ref e) => Some(e),
-            _ => None,
         }
     }
 }
@@ -93,11 +81,5 @@ impl From<header::InvalidHeaderName> for Error {
 impl From<header::InvalidHeaderValue> for Error {
     fn from(err: header::InvalidHeaderValue) -> Error {
         Error { inner: ErrorKind::HeaderValue(err) }
-    }
-}
-
-impl From<io::Error> for Error {
-    fn from(err: io::Error) -> Error {
-        Error { inner: ErrorKind::Io(err) }
     }
 }
