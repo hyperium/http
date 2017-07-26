@@ -61,6 +61,11 @@ impl StatusCode {
         Ok(StatusCode(status))
     }
 
+    /// Returns the u16 corresponding to this status code
+    pub fn as_u16(&self) -> u16 {
+        (*self).into()
+    }
+
     /// Check if class is Informational.
     pub fn is_informational(&self) -> bool {
         200 > self.0 && self.0 >= 100

@@ -711,6 +711,11 @@ impl Scheme {
             None => unreachable!(),
         }
     }
+
+    /// Converts this `Scheme` back to a sequence of bytes
+    pub fn into_bytes(self) -> Bytes {
+        self.into()
+    }
 }
 
 impl FromStr for Scheme {
@@ -922,6 +927,11 @@ impl Authority {
     pub fn as_str(&self) -> &str {
         &self.data[..]
     }
+
+    /// Converts this `Authority` back to a sequence of bytes
+    pub fn into_bytes(self) -> Bytes {
+        self.into()
+    }
 }
 
 impl FromStr for Authority {
@@ -1095,6 +1105,11 @@ impl OriginForm {
             let i = self.query + 1;
             Some(&self.data[i as usize..])
         }
+    }
+
+    /// Converts this `OriginForm` back to a sequence of bytes
+    pub fn into_bytes(self) -> Bytes {
+        self.into()
     }
 }
 
