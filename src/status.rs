@@ -24,7 +24,7 @@ pub struct StatusCode(u16);
 /// This error indicates that the supplied input was not a valid number, was less
 /// than 100, or was greater than 599.
 #[derive(Debug)]
-pub struct InvalidStatus {
+pub struct InvalidStatusCode {
     _priv: (),
 }
 
@@ -33,18 +33,18 @@ impl StatusCode {
     ///
     /// The function validates the correctness of the supplied u16. It must be
     /// greater or equal to 100 but less than 600.
-    pub fn from_u16(src: u16) -> Result<StatusCode, InvalidStatus> {
+    pub fn from_u16(src: u16) -> Result<StatusCode, InvalidStatusCode> {
         if src < 100 || src >= 600 {
-            return Err(InvalidStatus::new());
+            return Err(InvalidStatusCode::new());
         }
 
         Ok(StatusCode(src))
     }
 
     /// Converts a &[u8] to a status code
-    pub fn from_bytes(src: &[u8]) -> Result<StatusCode, InvalidStatus> {
+    pub fn from_bytes(src: &[u8]) -> Result<StatusCode, InvalidStatusCode> {
         if src.len() != 3 {
-            return Err(InvalidStatus::new());
+            return Err(InvalidStatusCode::new());
         }
 
         let a = src[0].wrapping_sub(b'0') as u16;
@@ -52,7 +52,7 @@ impl StatusCode {
         let c = src[2].wrapping_sub(b'0') as u16;
 
         if a == 0 || a > 5 || b > 9 || c > 9 {
-            return Err(InvalidStatus::new());
+            return Err(InvalidStatusCode::new());
         }
 
         let status = (a * 100) + (b * 10) + c;
@@ -111,16 +111,16 @@ impl From<StatusCode> for u16 {
 }
 
 impl FromStr for StatusCode {
-    type Err = InvalidStatus;
+    type Err = InvalidStatusCode;
 
-    fn from_str(s: &str) -> Result<StatusCode, InvalidStatus> {
+    fn from_str(s: &str) -> Result<StatusCode, InvalidStatusCode> {
         StatusCode::from_bytes(s.as_ref())
     }
 }
 
-impl InvalidStatus {
-    fn new() -> InvalidStatus {
-        InvalidStatus {
+impl InvalidStatusCode {
+    fn new() -> InvalidStatusCode {
+        InvalidStatusCode {
             _priv: (),
         }
     }
@@ -355,13 +355,13 @@ status_codes! {
     (511, NETWORK_AUTHENTICATION_REQUIRED, "Network Authentication Required");
 }
 
-impl fmt::Display for InvalidStatus {
+impl fmt::Display for InvalidStatusCode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(self.description())
     }
 }
 
-impl Error for InvalidStatus {
+impl Error for InvalidStatusCode {
     fn description(&self) -> &str {
         "invalid status code"
     }
