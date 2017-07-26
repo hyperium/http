@@ -85,7 +85,7 @@ impl<T> Response<T> {
     /// # use http::*;
     /// let request = Response::new("hello world");
     ///
-    /// assert_eq!(*request.status(), status::OK);
+    /// assert_eq!(request.status(), status::OK);
     /// assert_eq!(*request.body(), "hello world");
     /// ```
     pub fn new(body: T) -> Response<T> {
@@ -101,10 +101,13 @@ impl<T> Response<T> {
     ///
     /// ```
     /// # use http::*;
-    /// let head = response::Parts::default();
-    /// let response = Response::from_parts(head, "hello world");
+    /// let response = Response::new("hello world");
+    /// let (mut parts, body) = response.into_parts();
     ///
-    /// assert_eq!(response.status(), status::OK);
+    /// parts.status = status::BAD_REQUEST;
+    /// let response = Response::from_parts(parts, body);
+    ///
+    /// assert_eq!(response.status(), status::BAD_REQUEST);
     /// assert_eq!(*response.body(), "hello world");
     /// ```
     pub fn from_parts(parts: Parts, body: T) -> Response<T> {
