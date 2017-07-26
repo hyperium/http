@@ -1541,7 +1541,7 @@ impl From<HeaderName> for Bytes {
 }
 
 impl HttpTryFrom<Bytes> for HeaderName {
-    type Error = FromBytesError;
+    type Error = InvalidHeaderName;
     #[inline]
     fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
         Self::from_bytes(bytes.as_ref())
