@@ -1,3 +1,4 @@
+use HttpTryFrom;
 use byte_str::ByteStr;
 use bytes::{Bytes, BytesMut};
 
@@ -7,7 +8,6 @@ use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 use std::error::Error;
 
-use ::convert::HttpTryFrom;
 /// Represents an HTTP header field name
 ///
 /// Header field names identify the header. Header sets may include multiple
@@ -1540,6 +1540,22 @@ impl From<HeaderName> for Bytes {
     }
 }
 
+impl<'a> HttpTryFrom<&'a str> for HeaderName {
+    type Error = InvalidHeaderName;
+    #[inline]
+    fn try_from(s: &'a str) -> Result<Self, Self::Error> {
+        Self::from_bytes(s.as_bytes())
+    }
+}
+
+impl<'a> HttpTryFrom<&'a [u8]> for HeaderName {
+    type Error = InvalidHeaderName;
+    #[inline]
+    fn try_from(s: &'a [u8]) -> Result<Self, Self::Error> {
+        Self::from_bytes(s)
+    }
+}
+
 impl HttpTryFrom<Bytes> for HeaderName {
     type Error = InvalidHeaderName;
     #[inline]
@@ -1547,7 +1563,6 @@ impl HttpTryFrom<Bytes> for HeaderName {
         Self::from_bytes(bytes.as_ref())
     }
 }
-
 
 #[doc(hidden)]
 impl From<StandardHeader> for HeaderName {

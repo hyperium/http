@@ -315,7 +315,7 @@ impl HttpTryFrom<Bytes> for HeaderValue {
 
     #[inline]
     fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
-        HeaderValue::try_from(bytes)
+        <HeaderValue>::try_from(bytes)
     }
 }
 
