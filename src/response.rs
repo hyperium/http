@@ -1,7 +1,6 @@
 //! HTTP response types.
 
 use std::any::Any;
-use std::io;
 
 use {Error, Result, HttpTryFrom, Extensions};
 use header::{HeaderMap, HeaderValue};
@@ -453,13 +452,11 @@ impl Builder {
 
     /// "Consumes" this builder, returning the constructed `Parts`.
     fn head(&mut self) -> Result<Parts> {
+        let ret = self.head.take().expect("cannot reuse response builder");
         if let Some(e) = self.err.take() {
             return Err(e)
         }
-        self.head.take().ok_or_else(|| {
-            io::Error::new(io::ErrorKind::Other, "cannot reuse `Builder`")
-                .into()
-        })
+        Ok(ret)
     }
 
     /// "Consumes" this builder, using the provided `body` to return a
@@ -472,6 +469,11 @@ impl Builder {
     /// example if an invalid `head` was specified via `header("Foo",
     /// "Bar\r\n")` the error will be returned when this function is called
     /// rather than when `header` was called.
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if the builder is reused. The `body` function can
+    /// only be called once.
     ///
     /// # Examples
     ///
