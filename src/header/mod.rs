@@ -92,12 +92,11 @@ pub use self::map::{
 };
 pub use self::name::{
     HeaderName,
-    FromBytesError,
-    FromStrError,
+    InvalidHeaderName,
 };
 pub use self::value::{
     HeaderValue,
-    InvalidValueError,
+    InvalidHeaderValue,
     ToStrError,
 };
 
