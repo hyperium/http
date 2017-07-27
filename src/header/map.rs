@@ -1,5 +1,5 @@
 use super::name::{HeaderName, HdrName};
-use sealed::Sealed;
+use self::sealed::Sealed;
 
 use std::{fmt, mem, ops, ptr, vec};
 use std::collections::hash_map::RandomState;
@@ -3025,56 +3025,65 @@ fn hash_elem_using<K: ?Sized>(danger: &Danger, k: &K) -> HashValue
  *
  */
 
+mod sealed {
+    use super::{HeaderMap, Entry};
+
+    pub trait Sealed {
+
+        // This trait is implemented both for types that are passed by value
+        // (argument to `entry`) and types that are passed by reference (argument to
+        // `get`). This means we only need one trait vs. two.
+        //
+        // In order to be able to implement `HeaderMapKey` for dynamically sized
+        // types, the functions that take `self` are guarded with `where Self:
+        // Sized`. However, an implementation is still required, so we have an
+        // unreachable default implementation for these functions.
+        //
+        // The alternative would be to provide a separate `AsHeaderName` trait for
+        // cases where DST values can be passed in.
+
+        #[doc(hidden)]
+        fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<T>
+            where Self: Sized
+        {
+            drop(map);
+            drop(val);
+            unreachable!();
+        }
+
+        #[doc(hidden)]
+        fn append<T>(self, map: &mut HeaderMap<T>, val: T) -> bool
+            where Self: Sized
+        {
+            drop(map);
+            drop(val);
+            unreachable!();
+        }
+
+        #[doc(hidden)]
+        fn append_ref<T>(&self, map: &mut HeaderMap<T>, val: T);
+
+        #[doc(hidden)]
+        fn entry<T>(self, map: &mut HeaderMap<T>) -> Entry<T> where Self: Sized {
+            drop(map);
+            unreachable!();
+        }
+
+        #[doc(hidden)]
+        fn find<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)>;
+    }
+}
+
 /// A marker trait used to identify values that can be used as keys to a
 /// `HeaderMap`.
 ///
 /// Types that implement this trait can be used as a `HeaderMap` key.
 pub trait HeaderMapKey: Sealed {
-
-    // This trait is implemented both for types that are passed by value
-    // (argument to `entry`) and types that are passed by reference (argument to
-    // `get`). This means we only need one trait vs. two.
-    //
-    // In order to be able to implement `HeaderMapKey` for dynamically sized
-    // types, the functions that take `self` are guarded with `where Self:
-    // Sized`. However, an implementation is still required, so we have an
-    // unreachable default implementation for these functions.
-    //
-    // The alternative would be to provide a separate `AsHeaderName` trait for
-    // cases where DST values can be passed in.
-
-    #[doc(hidden)]
-    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<T>
-        where Self: Sized
-    {
-        drop(map);
-        drop(val);
-        unreachable!();
-    }
-
-    #[doc(hidden)]
-    fn append<T>(self, map: &mut HeaderMap<T>, val: T) -> bool
-        where Self: Sized
-    {
-        drop(map);
-        drop(val);
-        unreachable!();
-    }
-
-    #[doc(hidden)]
-    fn append_ref<T>(&self, map: &mut HeaderMap<T>, val: T);
-
-    #[doc(hidden)]
-    fn entry<T>(self, map: &mut HeaderMap<T>) -> Entry<T> where Self: Sized {
-        drop(map);
-        unreachable!();
-    }
-
-    #[doc(hidden)]
-    fn find<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)>;
+    // All methods are in the `Sealed` trait, so that they aren't accessible
+    // from outside this module.
 }
 
-impl HeaderMapKey for HeaderName {
+impl Sealed for HeaderName {
     #[doc(hidden)]
     #[inline]
     fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<T> {
@@ -3106,7 +3115,9 @@ impl HeaderMapKey for HeaderName {
     }
 }
 
-impl<'a> HeaderMapKey for &'a HeaderName {
+impl HeaderMapKey for HeaderName {}
+
+impl<'a> Sealed for &'a HeaderName {
     #[doc(hidden)]
     #[inline]
     fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<T> {
@@ -3138,9 +3149,9 @@ impl<'a> HeaderMapKey for &'a HeaderName {
     }
 }
 
-impl<'a> Sealed for &'a HeaderName {}
+impl<'a> HeaderMapKey for &'a HeaderName {}
 
-impl HeaderMapKey for str {
+impl Sealed for str {
     #[doc(hidden)]
     #[inline]
     fn append_ref<T>(&self, map: &mut HeaderMap<T>, val: T) {
@@ -3154,9 +3165,9 @@ impl HeaderMapKey for str {
     }
 }
 
-impl Sealed for str {}
+impl HeaderMapKey for str {}
 
-impl<'a> HeaderMapKey for &'a str {
+impl<'a> Sealed for &'a str {
     #[doc(hidden)]
     #[inline]
     fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<T> {
@@ -3184,13 +3195,13 @@ impl<'a> HeaderMapKey for &'a str {
     #[doc(hidden)]
     #[inline]
     fn find<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)> {
-        HeaderMapKey::find(*self, map)
+        Sealed::find(*self, map)
     }
 }
 
-impl<'a> Sealed for &'a str {}
+impl<'a> HeaderMapKey for &'a str {}
 
-impl HeaderMapKey for String {
+impl Sealed for String {
     #[doc(hidden)]
     #[inline]
     fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<T> {
@@ -3218,13 +3229,13 @@ impl HeaderMapKey for String {
     #[doc(hidden)]
     #[inline]
     fn find<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)> {
-        HeaderMapKey::find(self.as_str(), map)
+        Sealed::find(self.as_str(), map)
     }
 }
 
-impl Sealed for String {}
+impl HeaderMapKey for String {}
 
-impl<'a> HeaderMapKey for &'a String {
+impl<'a> Sealed for &'a String {
     #[doc(hidden)]
     #[inline]
     fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<T> {
@@ -3252,11 +3263,11 @@ impl<'a> HeaderMapKey for &'a String {
     #[doc(hidden)]
     #[inline]
     fn find<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)> {
-        HeaderMapKey::find(self.as_str(), map)
+        Sealed::find(self.as_str(), map)
     }
 }
 
-impl<'a> Sealed for &'a String {}
+impl<'a> HeaderMapKey for &'a String {}
 
 #[test]
 fn test_bounds() {
