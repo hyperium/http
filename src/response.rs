@@ -1,6 +1,7 @@
 //! HTTP response types.
 
 use std::any::Any;
+use std::fmt;
 
 use {Error, Result, HttpTryFrom, Extensions};
 use header::{HeaderMap, HeaderValue};
@@ -14,7 +15,6 @@ use version::Version;
 /// component is generic, enabling arbitrary types to represent the HTTP body.
 /// For example, the body could be `Vec<u8>`, a `Stream` of byte chunks, or a
 /// value that has been deserialized.
-#[derive(Debug)]
 pub struct Response<T> {
     head: Parts,
     body: T,
@@ -67,6 +67,7 @@ impl Response<()> {
     ///     .body(())
     ///     .unwrap();
     /// ```
+    #[inline]
     pub fn builder() -> Builder {
         Builder::new()
     }
@@ -87,6 +88,7 @@ impl<T> Response<T> {
     /// assert_eq!(request.status(), status::OK);
     /// assert_eq!(*request.body(), "hello world");
     /// ```
+    #[inline]
     pub fn new(body: T) -> Response<T> {
         Response {
             head: Parts::new(),
@@ -109,6 +111,7 @@ impl<T> Response<T> {
     /// assert_eq!(response.status(), status::BAD_REQUEST);
     /// assert_eq!(*response.body(), "hello world");
     /// ```
+    #[inline]
     pub fn from_parts(parts: Parts, body: T) -> Response<T> {
         Response {
             head: parts,
@@ -125,6 +128,7 @@ impl<T> Response<T> {
     /// let response: Response<()> = Response::default();
     /// assert_eq!(response.status(), status::OK);
     /// ```
+    #[inline]
     pub fn status(&self) -> StatusCode {
         self.head.status
     }
@@ -139,6 +143,7 @@ impl<T> Response<T> {
     /// *response.status_mut() = status::CREATED;
     /// assert_eq!(response.status(), status::CREATED);
     /// ```
+    #[inline]
     pub fn status_mut(&mut self) -> &mut StatusCode {
         &mut self.head.status
     }
@@ -152,6 +157,7 @@ impl<T> Response<T> {
     /// let response: Response<()> = Response::default();
     /// assert_eq!(response.version(), version::HTTP_11);
     /// ```
+    #[inline]
     pub fn version(&self) -> Version {
         self.head.version
     }
@@ -166,6 +172,7 @@ impl<T> Response<T> {
     /// *response.version_mut() = version::HTTP_2;
     /// assert_eq!(response.version(), version::HTTP_2);
     /// ```
+    #[inline]
     pub fn version_mut(&mut self) -> &mut Version {
         &mut self.head.version
     }
@@ -179,6 +186,7 @@ impl<T> Response<T> {
     /// let response: Response<()> = Response::default();
     /// assert!(response.headers().is_empty());
     /// ```
+    #[inline]
     pub fn headers(&self) -> &HeaderMap<HeaderValue> {
         &self.head.headers
     }
@@ -194,6 +202,7 @@ impl<T> Response<T> {
     /// response.headers_mut().insert("hello", HeaderValue::from_static("world"));
     /// assert!(!response.headers().is_empty());
     /// ```
+    #[inline]
     pub fn headers_mut(&mut self) -> &mut HeaderMap<HeaderValue> {
         &mut self.head.headers
     }
@@ -207,6 +216,7 @@ impl<T> Response<T> {
     /// let response: Response<()> = Response::default();
     /// assert!(response.extensions().get::<i32>().is_none());
     /// ```
+    #[inline]
     pub fn extensions(&self) -> &Extensions {
         &self.head.extensions
     }
@@ -222,6 +232,7 @@ impl<T> Response<T> {
     /// response.extensions_mut().insert("hello");
     /// assert_eq!(response.extensions().get(), Some(&"hello"));
     /// ```
+    #[inline]
     pub fn extensions_mut(&mut self) -> &mut Extensions {
         &mut self.head.extensions
     }
@@ -235,6 +246,7 @@ impl<T> Response<T> {
     /// let response: Response<String> = Response::default();
     /// assert!(response.body().is_empty());
     /// ```
+    #[inline]
     pub fn body(&self) -> &T {
         &self.body
     }
@@ -249,6 +261,7 @@ impl<T> Response<T> {
     /// response.body_mut().push_str("hello world");
     /// assert!(!response.body().is_empty());
     /// ```
+    #[inline]
     pub fn body_mut(&mut self) -> &mut T {
         &mut self.body
     }
@@ -263,14 +276,28 @@ impl<T> Response<T> {
     /// let (parts, body) = response.into_parts();
     /// assert_eq!(parts.status, status::OK);
     /// ```
+    #[inline]
     pub fn into_parts(self) -> (Parts, T) {
         (self.head, self.body)
     }
 }
 
 impl<T: Default> Default for Response<T> {
+    #[inline]
     fn default() -> Response<T> {
         Response::new(T::default())
+    }
+}
+
+impl<T: fmt::Debug> fmt::Debug for Response<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Response")
+            .field("status", &self.status())
+            .field("version", &self.version())
+            .field("headers", self.headers())
+            // omits Extensions because not useful
+            .field("body", self.body())
+            .finish()
     }
 }
 
@@ -301,6 +328,7 @@ impl Builder {
     ///     .body(())
     ///     .unwrap();
     /// ```
+    #[inline]
     pub fn new() -> Builder {
         Builder::default()
     }
@@ -501,6 +529,7 @@ fn head<'a>(head: &'a mut Option<Parts>, err: &Option<Error>)
 }
 
 impl Default for Builder {
+    #[inline]
     fn default() -> Builder {
         Builder {
             head: Some(Parts::new()),
