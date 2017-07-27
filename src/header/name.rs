@@ -33,7 +33,7 @@ pub struct HeaderName {
     inner: Repr<Custom>,
 }
 
-/// Almost a full `HeaderName`
+// Almost a full `HeaderName`
 #[derive(Debug, Hash)]
 pub struct HdrName<'a> {
     inner: Repr<MaybeLower<'a>>,
@@ -1459,6 +1459,7 @@ impl HeaderName {
     /// Returns a `str` representation of the header.
     ///
     /// The returned string will always be lower case.
+    #[inline]
     pub fn as_str(&self) -> &str {
         match self.inner {
             Repr::Standard(v) => v.as_str(),

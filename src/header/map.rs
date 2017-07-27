@@ -500,7 +500,6 @@ impl<T> HeaderMap<T> {
     ///
     /// assert_eq!(3, map.len());
     /// ```
-    #[inline]
     pub fn len(&self) -> usize {
         self.entries.len() + self.extra_values.len()
     }
@@ -527,7 +526,6 @@ impl<T> HeaderMap<T> {
     ///
     /// assert_eq!(2, map.keys_len());
     /// ```
-    #[inline]
     pub fn keys_len(&self) -> usize {
         self.entries.len()
     }
@@ -546,7 +544,6 @@ impl<T> HeaderMap<T> {
     ///
     /// assert!(!map.is_empty());
     /// ```
-    #[inline]
     pub fn is_empty(&self) -> bool {
         self.entries.len() == 0
     }
@@ -591,7 +588,6 @@ impl<T> HeaderMap<T> {
     /// map.insert("x-hello", "world");
     /// assert_eq!(6, map.capacity());
     /// ```
-    #[inline]
     pub fn capacity(&self) -> usize {
         usable_capacity(self.indices.len())
     }
@@ -987,7 +983,6 @@ impl<T> HeaderMap<T> {
     /// assert_eq!(map["content-length"], 2);
     /// assert_eq!(map["x-hello"], 1);
     /// ```
-    #[inline]
     pub fn entry<K>(&mut self, key: K) -> Entry<T>
         where K: HeaderMapKey,
     {
@@ -2171,7 +2166,6 @@ impl<'a, T> VacantEntry<'a, T> {
     ///
     /// assert_eq!(map.entry("x-hello").key().as_str(), "x-hello");
     /// ```
-    #[inline]
     pub fn key(&self) -> &HeaderName {
         &self.key
     }
@@ -2188,7 +2182,6 @@ impl<'a, T> VacantEntry<'a, T> {
     ///     assert_eq!(v.into_key().as_str(), "x-hello");
     /// }
     /// ```
-    #[inline]
     pub fn into_key(self) -> HeaderName {
         self.key
     }
@@ -2272,7 +2265,6 @@ impl<'a, T> GetAll<'a, T> {
     ///
     /// assert_eq!("x-hello", map.get_all("x-hello").unwrap().key().as_str());
     /// ```
-    #[inline]
     pub fn key(&self) -> &HeaderName {
         &self.map.entries[self.index].key
     }
@@ -2298,7 +2290,6 @@ impl<'a, T> GetAll<'a, T> {
     ///     map.get_all("x-hello").unwrap().get(),
     ///     &"world");
     /// ```
-    #[inline]
     pub fn get(&self) -> &T {
         &self.map.entries[self.index].value
     }
@@ -2321,7 +2312,6 @@ impl<'a, T> GetAll<'a, T> {
     /// assert_eq!(&"earth", iter.next().unwrap());
     /// assert!(iter.next().is_none());
     /// ```
-    #[inline]
     pub fn iter(&self) -> ValueIter<T> {
         self.into_iter()
     }
@@ -2337,7 +2327,6 @@ impl<'a, T> IntoIterator for GetAll<'a, T> {
     type Item = &'a T;
     type IntoIter = ValueIter<'a, T>;
 
-    #[inline]
     fn into_iter(self) -> ValueIter<'a, T> {
         self.map.value_iter(self.index)
     }
@@ -2347,7 +2336,6 @@ impl<'a, 'b: 'a, T> IntoIterator for &'b GetAll<'a, T> {
     type Item = &'a T;
     type IntoIter = ValueIter<'a, T>;
 
-    #[inline]
     fn into_iter(self) -> ValueIter<'a, T> {
         self.map.value_iter(self.index)
     }
@@ -2569,7 +2557,6 @@ impl<'a, T> OccupiedEntry<'a, T> {
     ///     assert_eq!("x-hello", e.key().as_str());
     /// }
     /// ```
-    #[inline]
     pub fn key(&self) -> &HeaderName {
         &self.map.entries[self.index].key
     }
@@ -2597,7 +2584,6 @@ impl<'a, T> OccupiedEntry<'a, T> {
     ///     assert_eq!(e.get(), &"world");
     /// }
     /// ```
-    #[inline]
     pub fn get(&self) -> &T {
         &self.map.entries[self.index].value
     }
@@ -2622,7 +2608,6 @@ impl<'a, T> OccupiedEntry<'a, T> {
     ///     assert_eq!(e.get(), &"world-2");
     /// }
     /// ```
-    #[inline]
     pub fn get_mut(&mut self) -> &mut T {
         &mut self.map.entries[self.index].value
     }
@@ -2673,7 +2658,6 @@ impl<'a, T> OccupiedEntry<'a, T> {
     ///
     /// assert_eq!("earth", map["x-hello"]);
     /// ```
-    #[inline]
     pub fn insert(&mut self, value: T) -> T {
         self.map.insert_occupied(self.index, value.into())
     }
@@ -2788,23 +2772,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// Remove the entry from the map.
     ///
     /// The key and all values associated with the entry are removed and
-    /// returned. See `remove_entry_mult` for an API that returns all values.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use http::header::{HeaderMap, Entry};
-    /// let mut map = HeaderMap::new();
-    /// map.insert("x-hello", "world");
-    ///
-    /// if let Entry::Occupied(e) = map.entry("x-hello") {
-    ///     let (key, mut prev) = e.remove_entry();
-    ///     assert_eq!("x-hello", key.as_str());
-    ///     assert_eq!("world", prev);
-    /// }
-    ///
-    /// assert!(!map.contains_key("x-hello"));
-    /// ```
+    /// returned.
     pub fn remove_entry_mult(self) -> (HeaderName, ValueDrain<'a, T>) {
         let entry = self.map.remove_found(self.probe, self.index);
         let drain = ValueDrain {
@@ -2835,7 +2803,6 @@ impl<'a, T> OccupiedEntry<'a, T> {
     ///     assert!(iter.next().is_none());
     /// }
     /// ```
-    #[inline]
     pub fn iter(&self) -> ValueIter<T> {
         self.map.value_iter(self.index)
     }
@@ -2864,7 +2831,6 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// assert_eq!(&"world-boop", i.next().unwrap());
     /// assert_eq!(&"earth-boop", i.next().unwrap());
     /// ```
-    #[inline]
     pub fn iter_mut(&mut self) -> ValueIterMut<T> {
         self.map.value_iter_mut(self.index)
     }
@@ -2874,7 +2840,6 @@ impl<'a, T> IntoIterator for OccupiedEntry<'a, T> {
     type Item = &'a mut T;
     type IntoIter = ValueIterMut<'a, T>;
 
-    #[inline]
     fn into_iter(self) -> ValueIterMut<'a, T> {
         self.map.value_iter_mut(self.index)
     }
@@ -2884,7 +2849,6 @@ impl<'a, 'b: 'a, T> IntoIterator for &'b OccupiedEntry<'a, T> {
     type Item = &'a T;
     type IntoIter = ValueIter<'a, T>;
 
-    #[inline]
     fn into_iter(self) -> ValueIter<'a, T> {
         self.iter()
     }
@@ -2894,7 +2858,6 @@ impl<'a, 'b: 'a, T> IntoIterator for &'b mut OccupiedEntry<'a, T> {
     type Item = &'a mut T;
     type IntoIter = ValueIterMut<'a, T>;
 
-    #[inline]
     fn into_iter(self) -> ValueIterMut<'a, T> {
         self.iter_mut()
     }
@@ -2905,7 +2868,6 @@ impl<'a, 'b: 'a, T> IntoIterator for &'b mut OccupiedEntry<'a, T> {
 impl<'a, T> Iterator for ValueDrain<'a, T> {
     type Item = T;
 
-    #[inline]
     fn next(&mut self) -> Option<T> {
         if self.first.is_some() {
             self.first.take()
