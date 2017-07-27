@@ -431,8 +431,7 @@ impl Uri {
     /// assert!(uri.host().is_none());
     /// ```
     pub fn host(&self) -> Option<&str> {
-        self.authority()
-            .and_then(|a| a.rsplit("@").next().unwrap().split(":").next())
+        self.authority().map(host)
     }
 
     /// Get the port of this `Uri`.
@@ -883,10 +882,21 @@ impl Authority {
     }
 
     fn parse(s: &[u8]) -> Result<usize, InvalidUri> {
+        let mut start_bracket = false;
+        let mut end_bracket = false;
+        let mut end = s.len();
+
         for (i, &b) in s.iter().enumerate() {
             match URI_CHARS[b as usize] {
                 b'/' | b'?' | b'#' => {
-                    return Ok(i);
+                    end = i;
+                    break;
+                }
+                b'[' => {
+                    start_bracket = true;
+                }
+                b']' => {
+                    end_bracket = true;
                 }
                 0 => {
                     return Err(ErrorKind::InvalidUriChar.into());
@@ -895,7 +905,11 @@ impl Authority {
             }
         }
 
-        Ok(s.len())
+        if start_bracket ^ end_bracket {
+            return Err(ErrorKind::InvalidAuthority.into());
+        }
+
+        Ok(end)
     }
 
     /// Get the host of this `Authority`.
@@ -920,7 +934,7 @@ impl Authority {
     /// assert_eq!(authority.host(), "example.org");
     /// ```
     pub fn host(&self) -> &str {
-        self.as_str().split(":").next().unwrap()
+        host(self.as_str())
     }
 
     /// Return a str representation of the authority
@@ -1200,6 +1214,21 @@ fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUri> {
     })
 }
 
+fn host(auth: &str) -> &str {
+    let host_port = auth.rsplitn(2, '@')
+        .next()
+        .expect("split always has at least 1 item");
+    if host_port.as_bytes()[0] == b'[' {
+        let i = host_port.find(']')
+            .expect("parsing should validate brackets");
+        &host_port[1..i]
+    } else {
+        host_port.split(':')
+            .next()
+            .expect("split always has at least 1 item")
+    }
+}
+
 
 impl FromStr for Uri {
     type Err = InvalidUri;
@@ -1433,7 +1462,7 @@ macro_rules! test_parse {
         fn $test_name() {
             let uri = Uri::from_str($str).unwrap();
             $(
-            assert_eq!(uri.$method(), $value);
+            assert_eq!(uri.$method(), $value, stringify!($method));
             )+
             assert_eq!(uri, *$str);
             assert_eq!(uri, uri.clone());
@@ -1651,6 +1680,72 @@ test_parse! {
     port = None,
 }
 
+test_parse! {
+    test_ipv6,
+    "http://[2001:0db8:85a3:0000:0000:8a2e:0370:7334]/",
+    [],
+
+    scheme = Some("http"),
+    authority = Some("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]"),
+    host = Some("2001:0db8:85a3:0000:0000:8a2e:0370:7334"),
+    path = "/",
+    query = None,
+    port = None,
+}
+
+test_parse! {
+    test_ipv6_shorthand,
+    "http://[::1]/",
+    [],
+
+    scheme = Some("http"),
+    authority = Some("[::1]"),
+    host = Some("::1"),
+    path = "/",
+    query = None,
+    port = None,
+}
+
+
+test_parse! {
+    test_ipv6_shorthand2,
+    "http://[::]/",
+    [],
+
+    scheme = Some("http"),
+    authority = Some("[::]"),
+    host = Some("::"),
+    path = "/",
+    query = None,
+    port = None,
+}
+
+test_parse! {
+    test_ipv6_shorthand3,
+    "http://[2001:db8::2:1]/",
+    [],
+
+    scheme = Some("http"),
+    authority = Some("[2001:db8::2:1]"),
+    host = Some("2001:db8::2:1"),
+    path = "/",
+    query = None,
+    port = None,
+}
+
+test_parse! {
+    test_ipv6_with_port,
+    "http://[2001:0db8:85a3:0000:0000:8a2e:0370:7334]:8008/",
+    [],
+
+    scheme = Some("http"),
+    authority = Some("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]:8008"),
+    host = Some("2001:0db8:85a3:0000:0000:8a2e:0370:7334"),
+    path = "/",
+    query = None,
+    port = Some(8008),
+}
+
 #[test]
 fn test_uri_parse_error() {
     fn err(s: &str) {
@@ -1665,6 +1760,8 @@ fn test_uri_parse_error() {
     err("localhost/");
     err("localhost?key=val");
     err("\0");
+    err("http://[::1");
+    err("http://::1]");
 }
 
 #[test]
