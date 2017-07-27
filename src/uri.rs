@@ -1,5 +1,6 @@
 //! URI component of request and response lines
 
+use HttpTryFrom;
 use byte_str::ByteStr;
 
 use bytes::Bytes;
@@ -95,9 +96,9 @@ pub struct Parts {
     _priv: (),
 }
 
-/// An error resulting from a failed convertion of a URI from a &str.
+/// An error resulting from a failed attempt to construct a URI.
 #[derive(Debug)]
-pub struct FromStrError(ErrorKind);
+pub struct InvalidUri(ErrorKind);
 
 #[derive(Debug, Eq, PartialEq)]
 enum ErrorKind {
@@ -203,7 +204,7 @@ impl Uri {
     /// assert_eq!(uri.path(), "/foo");
     /// # }
     /// ```
-    pub fn try_from_shared(s: Bytes) -> Result<Uri, FromStrError> {
+    pub fn try_from_shared(s: Bytes) -> Result<Uri, InvalidUri> {
         use self::ErrorKind::*;
 
         if s.len() > MAX_LEN {
@@ -537,6 +538,22 @@ impl Uri {
     }
 }
 
+impl<'a> HttpTryFrom<&'a str> for Uri {
+    type Error = InvalidUri;
+
+    fn try_from(t: &'a str) -> Result<Self, Self::Error> {
+        t.parse()
+    }
+}
+
+impl HttpTryFrom<Bytes> for Uri {
+    type Error = InvalidUri;
+
+    fn try_from(t: Bytes) -> Result<Self, Self::Error> {
+        Uri::try_from_shared(t)
+    }
+}
+
 impl From<Parts> for Uri {
     fn from(src: Parts) -> Self {
         if src.scheme.is_some() {
@@ -655,7 +672,7 @@ impl Scheme {
     /// assert_eq!(scheme.as_str(), "http");
     /// # }
     /// ```
-    pub fn try_from_shared(s: Bytes) -> Result<Self, FromStrError> {
+    pub fn try_from_shared(s: Bytes) -> Result<Self, InvalidUri> {
         use self::Scheme2::*;
 
         match try!(Scheme2::parse_exact(&s[..])) {
@@ -694,10 +711,15 @@ impl Scheme {
             None => unreachable!(),
         }
     }
+
+    /// Converts this `Scheme` back to a sequence of bytes
+    pub fn into_bytes(self) -> Bytes {
+        self.into()
+    }
 }
 
 impl FromStr for Scheme {
-    type Err = FromStrError;
+    type Err = InvalidUri;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         use self::Scheme2::*;
@@ -736,7 +758,7 @@ impl<T> Scheme2<T> {
 }
 
 impl Scheme2<usize> {
-    fn parse_exact(s: &[u8]) -> Result<Scheme2<()>, FromStrError> {
+    fn parse_exact(s: &[u8]) -> Result<Scheme2<()>, InvalidUri> {
         match s {
             b"http" => Ok(Protocol::Http.into()),
             b"https" => Ok(Protocol::Https.into()),
@@ -763,7 +785,7 @@ impl Scheme2<usize> {
         }
     }
 
-    fn parse(s: &[u8]) -> Result<Scheme2<usize>, FromStrError> {
+    fn parse(s: &[u8]) -> Result<Scheme2<usize>, InvalidUri> {
         if s.len() >= 7 {
             // Check for HTTP
             if s[..7].eq_ignore_ascii_case(b"http://") {
@@ -848,7 +870,7 @@ impl Authority {
     /// assert_eq!(authority.host(), "example.com");
     /// # }
     /// ```
-    pub fn try_from_shared(s: Bytes) -> Result<Self, FromStrError> {
+    pub fn try_from_shared(s: Bytes) -> Result<Self, InvalidUri> {
         let authority_end = try!(Authority::parse(&s[..]));
 
         if authority_end != s.len() {
@@ -860,7 +882,7 @@ impl Authority {
         })
     }
 
-    fn parse(s: &[u8]) -> Result<usize, FromStrError> {
+    fn parse(s: &[u8]) -> Result<usize, InvalidUri> {
         for (i, &b) in s.iter().enumerate() {
             match URI_CHARS[b as usize] {
                 b'/' | b'?' | b'#' => {
@@ -905,12 +927,17 @@ impl Authority {
     pub fn as_str(&self) -> &str {
         &self.data[..]
     }
+
+    /// Converts this `Authority` back to a sequence of bytes
+    pub fn into_bytes(self) -> Bytes {
+        self.into()
+    }
 }
 
 impl FromStr for Authority {
-    type Err = FromStrError;
+    type Err = InvalidUri;
 
-    fn from_str(s: &str) -> Result<Self, FromStrError> {
+    fn from_str(s: &str) -> Result<Self, InvalidUri> {
         let end = try!(Authority::parse(s.as_bytes()));
 
         if end != s.len() {
@@ -950,7 +977,7 @@ impl OriginForm {
     /// assert_eq!(origin_form.query(), Some("world"));
     /// # }
     /// ```
-    pub fn try_from_shared(mut src: Bytes) -> Result<Self, FromStrError> {
+    pub fn try_from_shared(mut src: Bytes) -> Result<Self, InvalidUri> {
         let mut query = NONE;
 
         for i in 0..src.len() {
@@ -1079,12 +1106,17 @@ impl OriginForm {
             Some(&self.data[i as usize..])
         }
     }
+
+    /// Converts this `OriginForm` back to a sequence of bytes
+    pub fn into_bytes(self) -> Bytes {
+        self.into()
+    }
 }
 
 impl FromStr for OriginForm {
-    type Err = FromStrError;
+    type Err = InvalidUri;
 
-    fn from_str(s: &str) -> Result<Self, FromStrError> {
+    fn from_str(s: &str) -> Result<Self, InvalidUri> {
         OriginForm::try_from_shared(s.into())
     }
 }
@@ -1108,7 +1140,7 @@ impl fmt::Display for OriginForm {
     }
 }
 
-fn parse_full(mut s: Bytes) -> Result<Uri, FromStrError> {
+fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUri> {
     // Parse the scheme
     let scheme = match try!(Scheme2::parse(&s[..])) {
         Scheme2::None => Scheme2::None,
@@ -1170,9 +1202,9 @@ fn parse_full(mut s: Bytes) -> Result<Uri, FromStrError> {
 
 
 impl FromStr for Uri {
-    type Err = FromStrError;
+    type Err = InvalidUri;
 
-    fn from_str(s: &str) -> Result<Uri, FromStrError> {
+    fn from_str(s: &str) -> Result<Uri, InvalidUri> {
         Uri::try_from_shared(s.into())
     }
 }
@@ -1323,19 +1355,19 @@ impl fmt::Debug for Uri {
     }
 }
 
-impl From<ErrorKind> for FromStrError {
-    fn from(src: ErrorKind) -> FromStrError {
-        FromStrError(src)
+impl From<ErrorKind> for InvalidUri {
+    fn from(src: ErrorKind) -> InvalidUri {
+        InvalidUri(src)
     }
 }
 
-impl fmt::Display for FromStrError {
+impl fmt::Display for InvalidUri {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.description().fmt(f)
     }
 }
 
-impl Error for FromStrError {
+impl Error for InvalidUri {
     fn description(&self) -> &str {
         match self.0 {
             ErrorKind::InvalidUriChar => "invalid uri character",
@@ -1642,7 +1674,7 @@ fn test_max_uri_len() {
     uri.extend(vec![b'a'; 70 * 1024]);
 
     let uri = String::from_utf8(uri).unwrap();
-    let res: Result<Uri, FromStrError> = uri.parse();
+    let res: Result<Uri, InvalidUri> = uri.parse();
 
     assert_eq!(res.unwrap_err().0, ErrorKind::TooLong);
 }
@@ -1654,7 +1686,7 @@ fn test_long_scheme() {
     uri.extend(b"://localhost/");
 
     let uri = String::from_utf8(uri).unwrap();
-    let res: Result<Uri, FromStrError> = uri.parse();
+    let res: Result<Uri, InvalidUri> = uri.parse();
 
     assert_eq!(res.unwrap_err().0, ErrorKind::SchemeTooLong);
 }

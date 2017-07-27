@@ -14,16 +14,20 @@ pub mod version;
 pub mod uri;
 
 mod byte_str;
+mod convert;
+mod error;
 mod extensions;
 
+pub use convert::HttpTryFrom;
+pub use error::{Error, Result};
 pub use extensions::Extensions;
 pub use header::HeaderMap;
 pub use method::Method;
 pub use request::Request;
 pub use response::Response;
 pub use status::StatusCode;
-pub use version::Version;
 pub use uri::Uri;
+pub use version::Version;
 
 fn _assert_types() {
     fn assert_send<T: Send>() {}
@@ -34,4 +38,10 @@ fn _assert_types() {
 
     assert_sync::<Request<()>>();
     assert_sync::<Response<()>>();
+}
+
+mod sealed {
+    /// Private trait to this crate to prevent traits from being implemented in
+    /// downstream crates.
+    pub trait Sealed {}
 }

@@ -4,6 +4,8 @@ use std::fmt;
 use std::error::Error;
 use std::str::FromStr;
 
+use HttpTryFrom;
+
 /// An HTTP status code (`status-code` in RFC 7230 et al.).
 ///
 /// This type contains constructor functions for  all common status codes.
@@ -19,21 +21,12 @@ use std::str::FromStr;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StatusCode(u16);
 
-/// A possible error value when converting a `StatusCode` from a `u16`.
+/// A possible error value when converting a `StatusCode` from a `u16` or `&str`
 ///
-/// This type is returned from `StatusCode::from_u16` when the supplied input is
-/// less than 100 or greater than 599.
+/// This error indicates that the supplied input was not a valid number, was less
+/// than 100, or was greater than 599.
 #[derive(Debug)]
-pub struct FromU16Error {
-    _priv: (),
-}
-
-/// A possible error value when converting a `StatusCode` from a `&str`.
-///
-/// This type is returned from `StatusCode::from_str` when the supplied input is
-/// not a valid number, less than 100 or greater than 599.
-#[derive(Debug)]
-pub struct FromStrError {
+pub struct InvalidStatusCode {
     _priv: (),
 }
 
@@ -42,18 +35,18 @@ impl StatusCode {
     ///
     /// The function validates the correctness of the supplied u16. It must be
     /// greater or equal to 100 but less than 600.
-    pub fn from_u16(src: u16) -> Result<StatusCode, FromU16Error> {
+    pub fn from_u16(src: u16) -> Result<StatusCode, InvalidStatusCode> {
         if src < 100 || src >= 600 {
-            return Err(FromU16Error::new());
+            return Err(InvalidStatusCode::new());
         }
 
         Ok(StatusCode(src))
     }
 
     /// Converts a &[u8] to a status code
-    pub fn from_bytes(src: &[u8]) -> Result<StatusCode, FromStrError> {
+    pub fn from_bytes(src: &[u8]) -> Result<StatusCode, InvalidStatusCode> {
         if src.len() != 3 {
-            return Err(FromStrError::new());
+            return Err(InvalidStatusCode::new());
         }
 
         let a = src[0].wrapping_sub(b'0') as u16;
@@ -61,11 +54,16 @@ impl StatusCode {
         let c = src[2].wrapping_sub(b'0') as u16;
 
         if a == 0 || a > 5 || b > 9 || c > 9 {
-            return Err(FromStrError::new());
+            return Err(InvalidStatusCode::new());
         }
 
         let status = (a * 100) + (b * 10) + c;
         Ok(StatusCode(status))
+    }
+
+    /// Returns the u16 corresponding to this status code
+    pub fn as_u16(&self) -> u16 {
+        (*self).into()
     }
 
     /// Check if class is Informational.
@@ -120,24 +118,40 @@ impl From<StatusCode> for u16 {
 }
 
 impl FromStr for StatusCode {
-    type Err = FromStrError;
+    type Err = InvalidStatusCode;
 
-    fn from_str(s: &str) -> Result<StatusCode, FromStrError> {
+    fn from_str(s: &str) -> Result<StatusCode, InvalidStatusCode> {
         StatusCode::from_bytes(s.as_ref())
     }
 }
 
-impl FromU16Error {
-    fn new() -> FromU16Error {
-        FromU16Error {
-            _priv: (),
-        }
+impl<'a> HttpTryFrom<&'a [u8]> for StatusCode {
+    type Error = InvalidStatusCode;
+
+    fn try_from(t: &'a [u8]) -> Result<Self, Self::Error> {
+        StatusCode::from_bytes(t)
     }
 }
 
-impl FromStrError {
-    fn new() -> FromStrError {
-        FromStrError {
+impl<'a> HttpTryFrom<&'a str> for StatusCode {
+    type Error = InvalidStatusCode;
+
+    fn try_from(t: &'a str) -> Result<Self, Self::Error> {
+        t.parse()
+    }
+}
+
+impl HttpTryFrom<u16> for StatusCode {
+    type Error = InvalidStatusCode;
+
+    fn try_from(t: u16) -> Result<Self, Self::Error> {
+        StatusCode::from_u16(t)
+    }
+}
+
+impl InvalidStatusCode {
+    fn new() -> InvalidStatusCode {
+        InvalidStatusCode {
             _priv: (),
         }
     }
@@ -372,25 +386,13 @@ status_codes! {
     (511, NETWORK_AUTHENTICATION_REQUIRED, "Network Authentication Required");
 }
 
-impl fmt::Display for FromU16Error {
+impl fmt::Display for InvalidStatusCode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(self.description())
     }
 }
 
-impl Error for FromU16Error {
-    fn description(&self) -> &str {
-        "invalid status code"
-    }
-}
-
-impl fmt::Display for FromStrError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(self.description())
-    }
-}
-
-impl Error for FromStrError {
+impl Error for InvalidStatusCode {
     fn description(&self) -> &str {
         "invalid status code"
     }

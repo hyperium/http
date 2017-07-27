@@ -1,3 +1,4 @@
+use HttpTryFrom;
 use byte_str::ByteStr;
 use bytes::{Bytes, BytesMut};
 
@@ -54,15 +55,9 @@ struct MaybeLower<'a> {
     lower: bool,
 }
 
-/// A possible error when converting a `HeaderName` from `[u8]`.
+/// A possible error when converting a `HeaderName` from another type.
 #[derive(Debug)]
-pub struct FromBytesError {
-    _priv: (),
-}
-
-/// A possible error when converting a `HeaderName` from a string.
-#[derive(Debug)]
-pub struct FromStrError {
+pub struct InvalidHeaderName {
     _priv: (),
 }
 
@@ -1020,7 +1015,7 @@ macro_rules! to_lower {
 }
 
 fn parse_hdr<'a>(data: &'a [u8], b: &'a mut [u8; 64])
-    -> Result<HdrName<'a>, FromBytesError>
+    -> Result<HdrName<'a>, InvalidHeaderName>
 {
     use self::StandardHeader::*;
 
@@ -1029,7 +1024,7 @@ fn parse_hdr<'a>(data: &'a [u8], b: &'a mut [u8; 64])
     let validate = |buf: &'a [u8], len: usize| {
         let buf = &buf[..len];
         if buf.iter().any(|&b| b == 0) {
-            Err(FromBytesError::new())
+            Err(InvalidHeaderName::new())
         } else {
             Ok(HdrName::custom(buf, true))
         }
@@ -1041,7 +1036,7 @@ fn parse_hdr<'a>(data: &'a [u8], b: &'a mut [u8; 64])
 
     match len {
         0 => {
-            Err(FromBytesError::new())
+            Err(InvalidHeaderName::new())
         }
         2 => {
             to_lower!(b, data, 2);
@@ -1431,7 +1426,7 @@ impl HeaderName {
     /// Converts a slice of bytes to an HTTP header name.
     ///
     /// This function normalizes the input.
-    pub fn from_bytes(src: &[u8]) -> Result<HeaderName, FromBytesError> {
+    pub fn from_bytes(src: &[u8]) -> Result<HeaderName, InvalidHeaderName> {
         let mut buf = unsafe { mem::uninitialized() };
         match parse_hdr(src, &mut buf)?.inner {
             Repr::Standard(std) => Ok(std.into()),
@@ -1448,7 +1443,7 @@ impl HeaderName {
                     let b = HEADER_CHARS[*b as usize];
 
                     if b == 0 {
-                        return Err(FromBytesError::new());
+                        return Err(InvalidHeaderName::new());
                     }
 
                     dst.put(b);
@@ -1473,11 +1468,11 @@ impl HeaderName {
 }
 
 impl FromStr for HeaderName {
-    type Err = FromStrError;
+    type Err = InvalidHeaderName;
 
-    fn from_str(s: &str) -> Result<HeaderName, FromStrError> {
+    fn from_str(s: &str) -> Result<HeaderName, InvalidHeaderName> {
         HeaderName::from_bytes(s.as_bytes())
-            .map_err(|_| FromStrError {
+            .map_err(|_| InvalidHeaderName {
                 _priv: (),
             })
     }
@@ -1507,15 +1502,65 @@ impl fmt::Debug for HeaderName {
     }
 }
 
-impl FromBytesError {
-    fn new() -> FromBytesError {
-        FromBytesError { _priv: () }
+impl InvalidHeaderName {
+    fn new() -> InvalidHeaderName {
+        InvalidHeaderName { _priv: () }
     }
 }
 
 impl<'a> From<&'a HeaderName> for HeaderName {
     fn from(src: &'a HeaderName) -> HeaderName {
         src.clone()
+    }
+}
+
+#[doc(hidden)]
+impl<T> From<Repr<T>> for Bytes
+where T: Into<Bytes> {
+    fn from(repr: Repr<T>) -> Bytes {
+        match repr {
+            Repr::Standard(header) =>
+                Bytes::from_static(header.as_str().as_bytes()),
+            Repr::Custom(header) => header.into()
+        }
+    }
+}
+
+impl From<Custom> for Bytes {
+    #[inline]
+    fn from(Custom(inner): Custom) -> Bytes {
+        Bytes::from(inner)
+    }
+}
+
+impl From<HeaderName> for Bytes {
+    #[inline]
+    fn from(name: HeaderName) -> Bytes {
+        name.inner.into()
+    }
+}
+
+impl<'a> HttpTryFrom<&'a str> for HeaderName {
+    type Error = InvalidHeaderName;
+    #[inline]
+    fn try_from(s: &'a str) -> Result<Self, Self::Error> {
+        Self::from_bytes(s.as_bytes())
+    }
+}
+
+impl<'a> HttpTryFrom<&'a [u8]> for HeaderName {
+    type Error = InvalidHeaderName;
+    #[inline]
+    fn try_from(s: &'a [u8]) -> Result<Self, Self::Error> {
+        Self::from_bytes(s)
+    }
+}
+
+impl HttpTryFrom<Bytes> for HeaderName {
+    type Error = InvalidHeaderName;
+    #[inline]
+    fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
+        Self::from_bytes(bytes.as_ref())
     }
 }
 
@@ -1570,27 +1615,15 @@ impl<'a> PartialEq<&'a str> for HeaderName {
     }
 }
 
-impl fmt::Display for FromBytesError {
+impl fmt::Display for InvalidHeaderName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.description().fmt(f)
     }
 }
 
-impl Error for FromBytesError {
+impl Error for InvalidHeaderName {
     fn description(&self) -> &str {
-        "failed to parse bytes as a header name"
-    }
-}
-
-impl fmt::Display for FromStrError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.description().fmt(f)
-    }
-}
-
-impl Error for FromStrError {
-    fn description(&self) -> &str {
-        "failed to parse str as header name"
+        "invalid HTTP header name"
     }
 }
 
@@ -1606,7 +1639,7 @@ impl<'a> HdrName<'a> {
         }
     }
 
-    pub fn from_bytes<F, U>(hdr: &[u8], f: F) -> Result<U, FromBytesError>
+    pub fn from_bytes<F, U>(hdr: &[u8], f: F) -> Result<U, InvalidHeaderName>
         where F: FnOnce(HdrName) -> U,
     {
         let mut buf = unsafe { mem::uninitialized() };
@@ -1813,6 +1846,115 @@ fn test_parse_standard_headers() {
         // Test upper case
         let upper = name.to_uppercase().to_string();
         assert_eq!(HeaderName::from_bytes(upper.as_bytes()).unwrap(), HeaderName::from(std));
+    }
+}
+
+
+#[test]
+fn test_standard_headers_into_bytes() {
+    use self::StandardHeader::*;
+    use std::convert::Into;
+
+    const HEADERS: &'static [(StandardHeader, &'static str)] = &[
+        (Accept, "accept"),
+        (AcceptCharset, "accept-charset"),
+        (AcceptEncoding, "accept-encoding"),
+        (AcceptLanguage, "accept-language"),
+        (AcceptPatch, "accept-patch"),
+        (AcceptRanges, "accept-ranges"),
+        (AccessControlAllowCredentials, "access-control-allow-credentials"),
+        (AccessControlAllowHeaders, "access-control-allow-headers"),
+        (AccessControlAllowMethods, "access-control-allow-methods"),
+        (AccessControlAllowOrigin, "access-control-allow-origin"),
+        (AccessControlExposeHeaders, "access-control-expose-headers"),
+        (AccessControlMaxAge, "access-control-max-age"),
+        (AccessControlRequestHeaders, "access-control-request-headers"),
+        (AccessControlRequestMethod, "access-control-request-method"),
+        (Age, "age"),
+        (Allow, "allow"),
+        (AltSvc, "alt-svc"),
+        (Authorization, "authorization"),
+        (CacheControl, "cache-control"),
+        (Connection, "connection"),
+        (ContentDisposition, "content-disposition"),
+        (ContentEncoding, "content-encoding"),
+        (ContentLanguage, "content-language"),
+        (ContentLength, "content-length"),
+        (ContentLocation, "content-location"),
+        (ContentMd5, "content-md5"),
+        (ContentRange, "content-range"),
+        (ContentSecurityPolicy, "content-security-policy"),
+        (ContentSecurityPolicyReportOnly, "content-security-policy-report-only"),
+        (ContentType, "content-type"),
+        (Cookie, "cookie"),
+        (Dnt, "dnt"),
+        (Date, "date"),
+        (Etag, "etag"),
+        (Expect, "expect"),
+        (Expires, "expires"),
+        (Forwarded, "forwarded"),
+        (From, "from"),
+        (Host, "host"),
+        (IfMatch, "if-match"),
+        (IfModifiedSince, "if-modified-since"),
+        (IfNoneMatch, "if-none-match"),
+        (IfRange, "if-range"),
+        (IfUnmodifiedSince, "if-unmodified-since"),
+        (LastModified, "last-modified"),
+        (KeepAlive, "keep-alive"),
+        (Link, "link"),
+        (Location, "location"),
+        (MaxForwards, "max-forwards"),
+        (Origin, "origin"),
+        (Pragma, "pragma"),
+        (ProxyAuthenticate, "proxy-authenticate"),
+        (ProxyAuthorization, "proxy-authorization"),
+        (PublicKeyPins, "public-key-pins"),
+        (PublicKeyPinsReportOnly, "public-key-pins-report-only"),
+        (Range, "range"),
+        (Referer, "referer"),
+        (ReferrerPolicy, "referrer-policy"),
+        (Refresh, "refresh"),
+        (RetryAfter, "retry-after"),
+        (Server, "server"),
+        (SetCookie, "set-cookie"),
+        (StrictTransportSecurity, "strict-transport-security"),
+        (Te, "te"),
+        (Tk, "tk"),
+        (Trailer, "trailer"),
+        (TransferEncoding, "transfer-encoding"),
+        (Tsv, "tsv"),
+        (UserAgent, "user-agent"),
+        (Upgrade, "upgrade"),
+        (UpgradeInsecureRequests, "upgrade-insecure-requests"),
+        (Vary, "vary"),
+        (Via, "via"),
+        (Warning, "warning"),
+        (WwwAuthenticate, "www-authenticate"),
+        (XContentTypeOptions, "x-content-type-options"),
+        (XDnsPrefetchControl, "x-dns-prefetch-control"),
+        (XFrameOptions, "x-frame-options"),
+        (XXssProtection, "x-xss-protection"),
+    ];
+
+    for &(std, name) in HEADERS {
+        let std = HeaderName::from(std);
+        // Test lower case
+        let name_bytes = name.as_bytes();
+        let bytes: Bytes =
+            HeaderName::from_bytes(name_bytes).unwrap().into();
+        assert_eq!(bytes, name_bytes);
+        assert_eq!(HeaderName::try_from(Bytes::from(name_bytes)).unwrap(), std);
+
+        // Test upper case
+        let upper = name.to_uppercase().to_string();
+        let bytes: Bytes =
+            HeaderName::from_bytes(upper.as_bytes()).unwrap().into();
+        assert_eq!(bytes, name.as_bytes());
+        assert_eq!(HeaderName::try_from(Bytes::from(upper.as_bytes())).unwrap(),
+                   std);
+
+
     }
 }
 

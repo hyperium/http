@@ -2,6 +2,9 @@ use bytes::Bytes;
 
 use std::{char, cmp, fmt, str};
 use std::error::Error;
+use std::str::FromStr;
+
+use ::convert::HttpTryFrom;
 
 /// Represents an HTTP header field value.
 ///
@@ -21,7 +24,7 @@ pub struct HeaderValue {
 /// A possible error when converting a `HeaderValue` from a string or byte
 /// slice.
 #[derive(Debug)]
-pub struct InvalidValueError {
+pub struct InvalidHeaderValue {
     _priv: (),
 }
 
@@ -55,7 +58,6 @@ impl HeaderValue {
     /// ```
     pub fn from_static(src: &'static str) -> HeaderValue {
         let bytes = src.as_bytes();
-
         for &b in bytes {
             if !is_visible_ascii(b) {
                 panic!("invalid header value");
@@ -93,7 +95,7 @@ impl HeaderValue {
     /// let val = HeaderValue::try_from_str("\n");
     /// assert!(val.is_err());
     /// ```
-    pub fn try_from_str(src: &str) -> Result<HeaderValue, InvalidValueError> {
+    pub fn try_from_str(src: &str) -> Result<HeaderValue, InvalidHeaderValue> {
         HeaderValue::try_from(src)
     }
 
@@ -120,7 +122,7 @@ impl HeaderValue {
     /// let val = HeaderValue::try_from_bytes(b"\n");
     /// assert!(val.is_err());
     /// ```
-    pub fn try_from_bytes(src: &[u8]) -> Result<HeaderValue, InvalidValueError> {
+    pub fn try_from_bytes(src: &[u8]) -> Result<HeaderValue, InvalidHeaderValue> {
         HeaderValue::try_from(src)
     }
 
@@ -131,14 +133,14 @@ impl HeaderValue {
     ///
     /// This function is intended to be replaced in the future by a `TryFrom`
     /// implementation once the trait is stabilized in std.
-    pub fn try_from_shared(src: Bytes) -> Result<HeaderValue, InvalidValueError> {
+    pub fn try_from_shared(src: Bytes) -> Result<HeaderValue, InvalidHeaderValue> {
         HeaderValue::try_from(src)
     }
 
-    fn try_from<T: AsRef<[u8]> + Into<Bytes>>(src: T) -> Result<HeaderValue, InvalidValueError> {
+    fn try_from<T: AsRef<[u8]> + Into<Bytes>>(src: T) -> Result<HeaderValue, InvalidHeaderValue> {
         for &b in src.as_ref() {
             if !is_valid(b) {
-                return Err(InvalidValueError {
+                return Err(InvalidHeaderValue {
                     _priv: (),
                 });
             }
@@ -277,6 +279,46 @@ impl fmt::Debug for HeaderValue {
     }
 }
 
+impl FromStr for HeaderValue {
+    type Err = InvalidHeaderValue;
+
+    fn from_str(s: &str) -> Result<HeaderValue, Self::Err> {
+        HeaderValue::try_from_str(s)
+    }
+}
+
+impl From<HeaderValue> for Bytes {
+    #[inline]
+    fn from(value: HeaderValue) -> Bytes {
+        value.inner
+    }
+}
+
+impl<'a> HttpTryFrom<&'a str> for HeaderValue {
+    type Error = InvalidHeaderValue;
+
+    fn try_from(t: &'a str) -> Result<Self, Self::Error> {
+        t.parse()
+    }
+}
+
+impl<'a> HttpTryFrom<&'a [u8]> for HeaderValue {
+    type Error = InvalidHeaderValue;
+
+    fn try_from(t: &'a [u8]) -> Result<Self, Self::Error> {
+        HeaderValue::try_from_bytes(t)
+    }
+}
+
+impl HttpTryFrom<Bytes> for HeaderValue {
+    type Error = InvalidHeaderValue;
+
+    #[inline]
+    fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
+        <HeaderValue>::try_from(bytes)
+    }
+}
+
 struct EscapeBytes<'a>(&'a [u8]);
 
 impl<'a> fmt::Debug for EscapeBytes<'a> {
@@ -302,13 +344,13 @@ fn is_valid(b: u8) -> bool {
     b >= 32
 }
 
-impl fmt::Display for InvalidValueError {
+impl fmt::Display for InvalidHeaderValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.description().fmt(f)
     }
 }
 
-impl Error for InvalidValueError {
+impl Error for InvalidHeaderValue {
     fn description(&self) -> &str {
         "failed to parse header value"
     }

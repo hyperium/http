@@ -1,5 +1,6 @@
 //! The HTTP request method
 
+use HttpTryFrom;
 use self::Inner::*;
 
 use std::{fmt, str};
@@ -16,7 +17,7 @@ pub struct Method(Inner);
 
 /// A possible error value when converting `Method` from bytes.
 #[derive(Debug)]
-pub struct FromBytesError {
+pub struct InvalidMethod {
     _priv: (),
 }
 
@@ -110,7 +111,7 @@ pub const TRACE: Method = Method(Trace);
 
 impl Method {
     /// Converts a slice of bytes to an HTTP method.
-    pub fn from_bytes(src: &[u8]) -> Result<Method, FromBytesError> {
+    pub fn from_bytes(src: &[u8]) -> Result<Method, InvalidMethod> {
         match src.len() {
             3 => {
                 match src {
@@ -160,7 +161,7 @@ impl Method {
         }
     }
 
-    fn extension_inline(src: &[u8]) -> Result<Method, FromBytesError> {
+    fn extension_inline(src: &[u8]) -> Result<Method, InvalidMethod> {
         let mut data: [u8; MAX_INLINE] = Default::default();
 
         try!(write_checked(src, &mut data));
@@ -222,12 +223,12 @@ impl Method {
     }
 }
 
-fn write_checked(src: &[u8], dst: &mut [u8]) -> Result<(), FromBytesError> {
+fn write_checked(src: &[u8], dst: &mut [u8]) -> Result<(), InvalidMethod> {
     for (i, &b) in src.iter().enumerate() {
         let b = METHOD_CHARS[b as usize];
 
         if b == 0 {
-            return Err(FromBytesError::new());
+            return Err(InvalidMethod::new());
         }
 
         dst[i] = b;
@@ -266,21 +267,37 @@ impl Default for Method {
     }
 }
 
-impl FromBytesError {
-    fn new() -> FromBytesError {
-        FromBytesError {
+impl<'a> HttpTryFrom<&'a [u8]> for Method {
+    type Error = InvalidMethod;
+
+    fn try_from(t: &'a [u8]) -> Result<Self, Self::Error> {
+        Method::from_bytes(t)
+    }
+}
+
+impl<'a> HttpTryFrom<&'a str> for Method {
+    type Error = InvalidMethod;
+
+    fn try_from(t: &'a str) -> Result<Self, Self::Error> {
+        Method::try_from(t.as_bytes())
+    }
+}
+
+impl InvalidMethod {
+    fn new() -> InvalidMethod {
+        InvalidMethod {
             _priv: (),
         }
     }
 }
 
-impl fmt::Display for FromBytesError {
+impl fmt::Display for InvalidMethod {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.description())
     }
 }
 
-impl Error for FromBytesError {
+impl Error for InvalidMethod {
     fn description(&self) -> &str {
         "invalid HTTP method"
     }
