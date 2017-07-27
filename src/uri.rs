@@ -47,32 +47,32 @@ pub struct Uri {
 }
 
 /// Represents the scheme component of a URI
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Scheme {
     inner: Scheme2,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 enum Scheme2<T = Box<ByteStr>> {
     None,
     Standard(Protocol),
     Other(T),
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug)]
 enum Protocol {
     Http,
     Https,
 }
 
 /// Represents the authority component of a URI.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Authority {
     data: ByteStr,
 }
 
 /// Represents the path component of a URI
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct OriginForm {
     data: ByteStr,
     query: u16,
@@ -260,6 +260,7 @@ impl Uri {
     /// Returns the origin form component of the Uri
     ///
     /// This is the path and query string components or *.
+    #[inline]
     pub fn origin_form(&self) -> Option<&OriginForm> {
         if !self.scheme.inner.is_none() || self.authority.data.is_empty() {
             Some(&self.origin_form)
@@ -302,6 +303,7 @@ impl Uri {
     ///
     /// assert_eq!(uri.path(), "/hello/world");
     /// ```
+    #[inline]
     pub fn path(&self) -> &str {
         if self.has_path() {
             self.origin_form.path()
@@ -344,6 +346,7 @@ impl Uri {
     ///
     /// assert!(uri.scheme().is_none());
     /// ```
+    #[inline]
     pub fn scheme(&self) -> Option<&str> {
         if self.scheme.inner.is_none() {
             None
@@ -389,6 +392,7 @@ impl Uri {
     ///
     /// assert!(uri.authority().is_none());
     /// ```
+    #[inline]
     pub fn authority(&self) -> Option<&str> {
         if self.authority.data.is_empty() {
             None
@@ -430,6 +434,7 @@ impl Uri {
     ///
     /// assert!(uri.host().is_none());
     /// ```
+    #[inline]
     pub fn host(&self) -> Option<&str> {
         self.authority().map(host)
     }
@@ -528,6 +533,7 @@ impl Uri {
     ///
     /// assert!(uri.query().is_none());
     /// ```
+    #[inline]
     pub fn query(&self) -> Option<&str> {
         self.origin_form.query()
     }
@@ -540,6 +546,7 @@ impl Uri {
 impl<'a> HttpTryFrom<&'a str> for Uri {
     type Error = InvalidUri;
 
+    #[inline]
     fn try_from(t: &'a str) -> Result<Self, Self::Error> {
         t.parse()
     }
@@ -548,6 +555,7 @@ impl<'a> HttpTryFrom<&'a str> for Uri {
 impl HttpTryFrom<Bytes> for Uri {
     type Error = InvalidUri;
 
+    #[inline]
     fn try_from(t: Bytes) -> Result<Self, Self::Error> {
         Uri::try_from_shared(t)
     }
@@ -699,6 +707,7 @@ impl Scheme {
     /// let scheme: Scheme = "http".parse().unwrap();
     /// assert_eq!(scheme.as_str(), "http");
     /// ```
+    #[inline]
     pub fn as_str(&self) -> &str {
         use self::Scheme2::*;
         use self::Protocol::*;
@@ -712,6 +721,7 @@ impl Scheme {
     }
 
     /// Converts this `Scheme` back to a sequence of bytes
+    #[inline]
     pub fn into_bytes(self) -> Bytes {
         self.into()
     }
@@ -734,6 +744,7 @@ impl FromStr for Scheme {
 }
 
 impl From<Scheme> for Bytes {
+    #[inline]
     fn from(src: Scheme) -> Self {
         use self::Scheme2::*;
         use self::Protocol::*;
@@ -744,6 +755,18 @@ impl From<Scheme> for Bytes {
             Standard(Https) => Bytes::from_static(b"https"),
             Other(v) => (*v).into(),
         }
+    }
+}
+
+impl fmt::Debug for Scheme {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl fmt::Display for Scheme {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
@@ -933,16 +956,19 @@ impl Authority {
     ///
     /// assert_eq!(authority.host(), "example.org");
     /// ```
+    #[inline]
     pub fn host(&self) -> &str {
         host(self.as_str())
     }
 
     /// Return a str representation of the authority
+    #[inline]
     pub fn as_str(&self) -> &str {
         &self.data[..]
     }
 
     /// Converts this `Authority` back to a sequence of bytes
+    #[inline]
     pub fn into_bytes(self) -> Bytes {
         self.into()
     }
@@ -963,8 +989,22 @@ impl FromStr for Authority {
 }
 
 impl From<Authority> for Bytes {
+    #[inline]
     fn from(src: Authority) -> Bytes {
         src.data.into()
+    }
+}
+
+
+impl fmt::Debug for Authority {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl fmt::Display for Authority {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
@@ -1064,6 +1104,7 @@ impl OriginForm {
     ///
     /// assert_eq!(origin_form.path(), "/hello/world");
     /// ```
+    #[inline]
     pub fn path(&self) -> &str {
         let ret = if self.query == NONE {
             &self.data[..]
@@ -1112,6 +1153,7 @@ impl OriginForm {
     ///
     /// assert!(origin_form.query().is_none());
     /// ```
+    #[inline]
     pub fn query(&self) -> Option<&str> {
         if self.query == NONE {
             None
@@ -1122,6 +1164,7 @@ impl OriginForm {
     }
 
     /// Converts this `OriginForm` back to a sequence of bytes
+    #[inline]
     pub fn into_bytes(self) -> Bytes {
         self.into()
     }
@@ -1138,6 +1181,12 @@ impl FromStr for OriginForm {
 impl From<OriginForm> for Bytes {
     fn from(src: OriginForm) -> Bytes {
         src.data.into()
+    }
+}
+
+impl fmt::Debug for OriginForm {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(self, f)
     }
 }
 
@@ -1233,6 +1282,7 @@ fn host(auth: &str) -> &str {
 impl FromStr for Uri {
     type Err = InvalidUri;
 
+    #[inline]
     fn from_str(s: &str) -> Result<Uri, InvalidUri> {
         Uri::try_from_shared(s.into())
     }
@@ -1349,6 +1399,7 @@ impl Eq for Uri {}
 
 /// Returns a `Uri` representing `/`
 impl Default for Uri {
+    #[inline]
     fn default() -> Uri {
         Uri {
             scheme: Scheme::empty(),
