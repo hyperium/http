@@ -1,4 +1,68 @@
 //! HTTP response types.
+//!
+//! This module contains structs related to HTTP responses, notably the
+//! `Response` type itself as well as a builder to create responses. Typically
+//! you'll import the `http::Response` type rather than reaching into this
+//! module itself.
+//!
+//! # Examples
+//!
+//! Creating a `Response` to return
+//!
+//! ```
+//! use http::{Request, Response};
+//! use http::status::OK;
+//!
+//! fn respond_to(req: Request<()>) -> http::Result<Response<()>> {
+//!     let mut response = Response::builder();
+//!     response.header("Foo", "Bar")
+//!             .status(OK);
+//!
+//!     if req.headers().contains_key("Another-Header") {
+//!         response.header("Another-Header", "Ack");
+//!     }
+//!
+//!     response.body(())
+//! }
+//! ```
+//!
+//! A simple 404 handler
+//!
+//! ```
+//! use http::{Request, Response};
+//! use http::status::NOT_FOUND;
+//!
+//! fn not_found(_req: Request<()>) -> http::Result<Response<()>> {
+//!     Response::builder()
+//!         .status(NOT_FOUND)
+//!         .body(())
+//! }
+//! ```
+//!
+//! Or otherwise inspecting the result of a request:
+//!
+//! ```no_run
+//! use http::{Request, Response};
+//! use http::status::NOT_FOUND;
+//!
+//! fn get(url: &str) -> http::Result<Response<()>> {
+//!     // ...
+//! # panic!()
+//! }
+//!
+//! let response = get("https://www.rust-lang.org/").unwrap();
+//!
+//! if !response.status().is_success() {
+//!     panic!("failed to get a successful response status!");
+//! }
+//!
+//! if let Some(date) = response.headers().get("Date") {
+//!     // we've got a `Date` header!
+//! }
+//!
+//! let body = response.body();
+//! // ...
+//! ```
 
 use std::any::Any;
 use std::fmt;
@@ -15,6 +79,65 @@ use version::Version;
 /// component is generic, enabling arbitrary types to represent the HTTP body.
 /// For example, the body could be `Vec<u8>`, a `Stream` of byte chunks, or a
 /// value that has been deserialized.
+///
+/// # Examples
+///
+/// Creating a `Response` to return
+///
+/// ```
+/// use http::{Request, Response};
+/// use http::status::OK;
+///
+/// fn respond_to(req: Request<()>) -> http::Result<Response<()>> {
+///     let mut response = Response::builder();
+///     response.header("Foo", "Bar")
+///             .status(OK);
+///
+///     if req.headers().contains_key("Another-Header") {
+///         response.header("Another-Header", "Ack");
+///     }
+///
+///     response.body(())
+/// }
+/// ```
+///
+/// A simple 404 handler
+///
+/// ```
+/// use http::{Request, Response};
+/// use http::status::NOT_FOUND;
+///
+/// fn not_found(_req: Request<()>) -> http::Result<Response<()>> {
+///     Response::builder()
+///         .status(NOT_FOUND)
+///         .body(())
+/// }
+/// ```
+///
+/// Or otherwise inspecting the result of a request:
+///
+/// ```no_run
+/// use http::{Request, Response};
+/// use http::status::NOT_FOUND;
+///
+/// fn get(url: &str) -> http::Result<Response<()>> {
+///     // ...
+/// # panic!()
+/// }
+///
+/// let response = get("https://www.rust-lang.org/").unwrap();
+///
+/// if !response.status().is_success() {
+///     panic!("failed to get a successful response status!");
+/// }
+///
+/// if let Some(date) = response.headers().get("Date") {
+///     // we've got a `Date` header!
+/// }
+///
+/// let body = response.body();
+/// // ...
+/// ```
 pub struct Response<T> {
     head: Parts,
     body: T,
