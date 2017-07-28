@@ -55,13 +55,13 @@ impl Response<()> {
     /// Creates a new builder-style object to manufacture a `Response`
     ///
     /// This method returns an instance of `Builder` which can be used to
-    /// create both the `Parts` of a request or the `Response` itself.
+    /// create a `Response`.
     ///
     /// # Examples
     ///
     /// ```
     /// # use http::*;
-    /// let request = Response::builder()
+    /// let response = Response::builder()
     ///     .status(200)
     ///     .header("X-Custom-Foo", "Bar")
     ///     .body(())
@@ -76,17 +76,17 @@ impl Response<()> {
 impl<T> Response<T> {
     /// Creates a new blank `Response` with the body
     ///
-    /// The component ports of this request will be set to their default, e.g.
+    /// The component ports of this response will be set to their default, e.g.
     /// the ok status, no headers, etc.
     ///
     /// # Examples
     ///
     /// ```
     /// # use http::*;
-    /// let request = Response::new("hello world");
+    /// let response = Response::new("hello world");
     ///
-    /// assert_eq!(request.status(), status::OK);
-    /// assert_eq!(*request.body(), "hello world");
+    /// assert_eq!(response.status(), status::OK);
+    /// assert_eq!(*response.body(), "hello world");
     /// ```
     #[inline]
     pub fn new(body: T) -> Response<T> {
@@ -333,10 +333,10 @@ impl Builder {
         Builder::default()
     }
 
-    /// Set the HTTP method for this request.
+    /// Set the HTTP method for this response.
     ///
-    /// This function will configure the HTTP method of the `Request` that will
-    /// be returned from `Builder::build`.
+    /// This function will configure the HTTP status code of the `Response` that
+    /// will be returned from `Builder::build`.
     ///
     /// By default this is `GET`.
     ///
@@ -362,9 +362,9 @@ impl Builder {
         self
     }
 
-    /// Set the HTTP version for this request.
+    /// Set the HTTP version for this response.
     ///
-    /// This function will configure the HTTP version of the `Request` that
+    /// This function will configure the HTTP version of the `Response` that
     /// will be returned from `Builder::build`.
     ///
     /// By default this is HTTP/1.1
@@ -387,7 +387,7 @@ impl Builder {
         self
     }
 
-    /// Appends a header to this request builder.
+    /// Appends a header to this response builder.
     ///
     /// This function will append the provided key/value as a header to the
     /// internal `HeaderMap` being constructed. Essentially this is equivalent
@@ -418,7 +418,7 @@ impl Builder {
         self
     }
 
-    /// Appends a list of headersc to this request builder.
+    /// Appends a list of headersc to this response builder.
     ///
     /// This function will append the provided key/value pairs to the internal
     /// `HeaderMap` being constructed. Essentially this is equivalent to calling
@@ -487,7 +487,7 @@ impl Builder {
     }
 
     /// "Consumes" this builder, using the provided `body` to return a
-    /// constructed `Request`.
+    /// constructed `Response`.
     ///
     /// # Errors
     ///
@@ -507,7 +507,7 @@ impl Builder {
     /// ```
     /// # use http::*;
     ///
-    /// let request = Response::builder()
+    /// let response = Response::builder()
     ///     .body(())
     ///     .unwrap();
     /// ```
