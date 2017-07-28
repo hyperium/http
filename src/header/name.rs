@@ -61,6 +61,10 @@ pub struct InvalidHeaderName {
     _priv: (),
 }
 
+/// A possible error when converting a `HeaderName` from another type.
+#[derive(Debug)]
+pub struct InvalidHeaderNameBytes(InvalidHeaderName) ;
+
 macro_rules! standard_headers {
     (
         $(
@@ -1558,10 +1562,10 @@ impl<'a> HttpTryFrom<&'a [u8]> for HeaderName {
 }
 
 impl HttpTryFrom<Bytes> for HeaderName {
-    type Error = InvalidHeaderName;
+    type Error = InvalidHeaderNameBytes;
     #[inline]
     fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
-        Self::from_bytes(bytes.as_ref())
+        Self::from_bytes(bytes.as_ref()).map_err(InvalidHeaderNameBytes)
     }
 }
 
@@ -1625,6 +1629,18 @@ impl fmt::Display for InvalidHeaderName {
 impl Error for InvalidHeaderName {
     fn description(&self) -> &str {
         "invalid HTTP header name"
+    }
+}
+
+impl fmt::Display for InvalidHeaderNameBytes {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl Error for InvalidHeaderNameBytes {
+    fn description(&self) -> &str {
+        self.0.description()
     }
 }
 

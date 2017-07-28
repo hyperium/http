@@ -93,10 +93,12 @@ pub use self::map::{
 pub use self::name::{
     HeaderName,
     InvalidHeaderName,
+    InvalidHeaderNameBytes,
 };
 pub use self::value::{
     HeaderValue,
     InvalidHeaderValue,
+    InvalidHeaderValueBytes,
     ToStrError,
 };
 

@@ -28,6 +28,11 @@ pub struct InvalidHeaderValue {
     _priv: (),
 }
 
+/// A possible error when converting a `HeaderValue` from a string or byte
+/// slice.
+#[derive(Debug)]
+pub struct InvalidHeaderValueBytes(InvalidHeaderValue);
+
 /// A possible error when converting a `HeaderValue` to a string representation.
 ///
 /// Header field values may contain opaque bytes, in which case it is not
@@ -137,8 +142,8 @@ impl HeaderValue {
     /// This function is intended to be replaced in the future by a `TryFrom`
     /// implementation once the trait is stabilized in std.
     #[inline]
-    pub fn try_from_shared(src: Bytes) -> Result<HeaderValue, InvalidHeaderValue> {
-        HeaderValue::try_from(src)
+    pub fn try_from_shared(src: Bytes) -> Result<HeaderValue, InvalidHeaderValueBytes> {
+        HeaderValue::try_from(src).map_err(InvalidHeaderValueBytes)
     }
 
     fn try_from<T: AsRef<[u8]> + Into<Bytes>>(src: T) -> Result<HeaderValue, InvalidHeaderValue> {
@@ -324,11 +329,11 @@ impl<'a> HttpTryFrom<&'a [u8]> for HeaderValue {
 }
 
 impl HttpTryFrom<Bytes> for HeaderValue {
-    type Error = InvalidHeaderValue;
+    type Error = InvalidHeaderValueBytes;
 
     #[inline]
     fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
-        <HeaderValue>::try_from(bytes)
+        HeaderValue::try_from_shared(bytes)
     }
 }
 
@@ -366,6 +371,18 @@ impl fmt::Display for InvalidHeaderValue {
 impl Error for InvalidHeaderValue {
     fn description(&self) -> &str {
         "failed to parse header value"
+    }
+}
+
+impl fmt::Display for InvalidHeaderValueBytes {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl Error for InvalidHeaderValueBytes {
+    fn description(&self) -> &str {
+        self.0.description()
     }
 }
 
