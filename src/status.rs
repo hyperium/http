@@ -18,7 +18,7 @@ use HttpTryFrom;
 /// Registry](http://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml) which is
 /// the source for this enum (with one exception, 418 I'm a teapot, which is
 /// inexplicably not in the register).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StatusCode(u16);
 
 /// A possible error value when converting a `StatusCode` from a `u16` or `&str`
@@ -35,6 +35,19 @@ impl StatusCode {
     ///
     /// The function validates the correctness of the supplied u16. It must be
     /// greater or equal to 100 but less than 600.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use http::{status, StatusCode};
+    ///
+    /// let ok = StatusCode::from_u16(200).unwrap();
+    /// assert_eq!(ok, status::OK);
+    ///
+    /// let err = StatusCode::from_u16(99);
+    /// assert!(err.is_err());
+    /// ```
+    #[inline]
     pub fn from_u16(src: u16) -> Result<StatusCode, InvalidStatusCode> {
         if src < 100 || src >= 600 {
             return Err(InvalidStatusCode::new());
@@ -61,34 +74,53 @@ impl StatusCode {
         Ok(StatusCode(status))
     }
 
-    /// Returns the u16 corresponding to this status code
+    /// Returns the `u16` corresponding to this `StatusCode`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let status = http::status::OK;
+    /// assert_eq!(status.as_u16(), 200);
+    /// ```
+    #[inline]
     pub fn as_u16(&self) -> u16 {
         (*self).into()
     }
 
-    /// Check if class is Informational.
+    /// Check if status is within 100-199.
+    #[inline]
     pub fn is_informational(&self) -> bool {
         200 > self.0 && self.0 >= 100
     }
 
-    /// Check if class is Success.
+    /// Check if status is within 200-299.
+    #[inline]
     pub fn is_success(&self) -> bool {
         300 > self.0 && self.0 >= 200
     }
 
-    /// Check if class is Redirection.
+    /// Check if status is within 300-399.
+    #[inline]
     pub fn is_redirection(&self) -> bool {
         400 > self.0 && self.0 >= 300
     }
 
-    /// Check if class is ClientError.
+    /// Check if status is within 400-499.
+    #[inline]
     pub fn is_client_error(&self) -> bool {
         500 > self.0 && self.0 >= 400
     }
 
-    /// Check if class is ServerError.
+    /// Check if status is within 500-599.
+    #[inline]
     pub fn is_server_error(&self) -> bool {
         600 > self.0 && self.0 >= 500
+    }
+}
+
+impl fmt::Debug for StatusCode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(&self.0, f)
     }
 }
 
@@ -106,12 +138,14 @@ impl fmt::Display for StatusCode {
 }
 
 impl Default for StatusCode {
+    #[inline]
     fn default() -> StatusCode {
         OK
     }
 }
 
 impl From<StatusCode> for u16 {
+    #[inline]
     fn from(status: StatusCode) -> u16 {
         status.0
     }
@@ -128,6 +162,7 @@ impl FromStr for StatusCode {
 impl<'a> HttpTryFrom<&'a [u8]> for StatusCode {
     type Error = InvalidStatusCode;
 
+    #[inline]
     fn try_from(t: &'a [u8]) -> Result<Self, Self::Error> {
         StatusCode::from_bytes(t)
     }
@@ -136,6 +171,7 @@ impl<'a> HttpTryFrom<&'a [u8]> for StatusCode {
 impl<'a> HttpTryFrom<&'a str> for StatusCode {
     type Error = InvalidStatusCode;
 
+    #[inline]
     fn try_from(t: &'a str) -> Result<Self, Self::Error> {
         t.parse()
     }
@@ -144,6 +180,7 @@ impl<'a> HttpTryFrom<&'a str> for StatusCode {
 impl HttpTryFrom<u16> for StatusCode {
     type Error = InvalidStatusCode;
 
+    #[inline]
     fn try_from(t: u16) -> Result<Self, Self::Error> {
         StatusCode::from_u16(t)
     }
@@ -405,6 +442,7 @@ macro_rules! status_code_strs {
             ///
             /// The return value only includes a numerical representation of the
             /// status code. The canonical reason is not included.
+            #[inline]
             pub fn as_str(&self) -> &str {
                 const CODES: [&'static str; 500] = [ $( stringify!($num), )+ ];
                 CODES[(self.0 - 100) as usize]

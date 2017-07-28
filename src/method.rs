@@ -12,7 +12,7 @@ use std::error::Error;
 /// Currently includes 8 variants representing the 8 methods defined in
 /// [RFC 7230](https://tools.ietf.org/html/rfc7231#section-4.1), plus PATCH,
 /// and an Extension variant for all extensions.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Method(Inner);
 
 /// A possible error value when converting `Method` from bytes.
@@ -21,7 +21,7 @@ pub struct InvalidMethod {
     _priv: (),
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 enum Inner {
     Options,
     Get,
@@ -198,6 +198,7 @@ impl Method {
     }
 
     /// Return a &str representation of the HTTP method
+    #[inline]
     pub fn as_str(&self) -> &str {
         match self.0 {
             Options => "OPTIONS",
@@ -238,20 +239,29 @@ fn write_checked(src: &[u8], dst: &mut [u8]) -> Result<(), InvalidMethod> {
 }
 
 impl AsRef<str> for Method {
+    #[inline]
     fn as_ref(&self) -> &str {
         self.as_str()
     }
 }
 
 impl PartialEq<str> for Method {
+    #[inline]
     fn eq(&self, other: &str) -> bool {
         self.as_ref() == other
     }
 }
 
 impl<'a> PartialEq<&'a str> for Method {
+    #[inline]
     fn eq(&self, other: &&'a str) -> bool {
         self.as_ref() == *other
+    }
+}
+
+impl fmt::Debug for Method {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(self.as_ref())
     }
 }
 
@@ -262,6 +272,7 @@ impl fmt::Display for Method {
 }
 
 impl Default for Method {
+    #[inline]
     fn default() -> Method {
         GET
     }
@@ -270,6 +281,7 @@ impl Default for Method {
 impl<'a> HttpTryFrom<&'a [u8]> for Method {
     type Error = InvalidMethod;
 
+    #[inline]
     fn try_from(t: &'a [u8]) -> Result<Self, Self::Error> {
         Method::from_bytes(t)
     }
@@ -278,6 +290,7 @@ impl<'a> HttpTryFrom<&'a [u8]> for Method {
 impl<'a> HttpTryFrom<&'a str> for Method {
     type Error = InvalidMethod;
 
+    #[inline]
     fn try_from(t: &'a str) -> Result<Self, Self::Error> {
         Method::try_from(t.as_bytes())
     }
