@@ -213,7 +213,7 @@ pub struct Parts {
 /// This type can be used to construct an instance of `Response` through a
 /// builder-like pattern.
 #[derive(Debug)]
-pub struct Builder {
+pub struct ResponseBuilder {
     head: Option<Parts>,
     err: Option<Error>,
 }
@@ -221,7 +221,7 @@ pub struct Builder {
 impl Response<()> {
     /// Creates a new builder-style object to manufacture a `Response`
     ///
-    /// This method returns an instance of `Builder` which can be used to
+    /// This method returns an instance of `ResponseBuilder` which can be used to
     /// create a `Response`.
     ///
     /// # Examples
@@ -235,8 +235,8 @@ impl Response<()> {
     ///     .unwrap();
     /// ```
     #[inline]
-    pub fn builder() -> Builder {
-        Builder::new()
+    pub fn builder() -> ResponseBuilder {
+        ResponseBuilder::new()
     }
 }
 
@@ -481,8 +481,8 @@ impl Parts {
     }
 }
 
-impl Builder {
-    /// Creates a new default instance of `Builder` to construct either a
+impl ResponseBuilder {
+    /// Creates a new default instance of `ResponseBuilder` to construct either a
     /// `Head` or a `Response`.
     ///
     /// # Examples
@@ -490,20 +490,20 @@ impl Builder {
     /// ```
     /// # use http::*;
     ///
-    /// let response = response::Builder::new()
+    /// let response = response::ResponseBuilder::new()
     ///     .status(200)
     ///     .body(())
     ///     .unwrap();
     /// ```
     #[inline]
-    pub fn new() -> Builder {
-        Builder::default()
+    pub fn new() -> ResponseBuilder {
+        ResponseBuilder::default()
     }
 
     /// Set the HTTP method for this response.
     ///
     /// This function will configure the HTTP status code of the `Response` that
-    /// will be returned from `Builder::build`.
+    /// will be returned from `ResponseBuilder::build`.
     ///
     /// By default this is `GET`.
     ///
@@ -517,7 +517,7 @@ impl Builder {
     ///     .body(())
     ///     .unwrap();
     /// ```
-    pub fn status<T>(&mut self, status: T) -> &mut Builder
+    pub fn status<T>(&mut self, status: T) -> &mut ResponseBuilder
         where StatusCode: HttpTryFrom<T>,
     {
         if let Some(head) = head(&mut self.head, &self.err) {
@@ -532,7 +532,7 @@ impl Builder {
     /// Set the HTTP version for this response.
     ///
     /// This function will configure the HTTP version of the `Response` that
-    /// will be returned from `Builder::build`.
+    /// will be returned from `ResponseBuilder::build`.
     ///
     /// By default this is HTTP/1.1
     ///
@@ -547,7 +547,7 @@ impl Builder {
     ///     .body(())
     ///     .unwrap();
     /// ```
-    pub fn version(&mut self, version: Version) -> &mut Builder {
+    pub fn version(&mut self, version: Version) -> &mut ResponseBuilder {
         if let Some(head) = head(&mut self.head, &self.err) {
             head.version = version;
         }
@@ -572,7 +572,7 @@ impl Builder {
     ///     .body(())
     ///     .unwrap();
     /// ```
-    pub fn header<K, V>(&mut self, key: K, value: V) -> &mut Builder
+    pub fn header<K, V>(&mut self, key: K, value: V) -> &mut ResponseBuilder
         where K: HeaderMapKey,
               HeaderValue: HttpTryFrom<V>
     {
@@ -610,7 +610,7 @@ impl Builder {
     ///     .unwrap();
     /// # fn needs_custom_bar_header() -> bool { true }
     /// ```
-    pub fn headers<I, K, V>(&mut self, headers: I) -> &mut Builder
+    pub fn headers<I, K, V>(&mut self, headers: I) -> &mut ResponseBuilder
         where I: IntoIterator<Item = (K, V)>,
               K: HeaderMapKey,
               HeaderValue: HttpTryFrom<V>,
@@ -636,7 +636,7 @@ impl Builder {
     /// assert_eq!(response.extensions().get::<&'static str>(),
     ///            Some(&"My Extension"));
     /// ```
-    pub fn extension<T>(&mut self, extension: T) -> &mut Builder
+    pub fn extension<T>(&mut self, extension: T) -> &mut ResponseBuilder
         where T: Any + Send + Sync + 'static,
     {
         if let Some(head) = head(&mut self.head, &self.err) {
@@ -695,10 +695,10 @@ fn head<'a>(head: &'a mut Option<Parts>, err: &Option<Error>)
     head.as_mut()
 }
 
-impl Default for Builder {
+impl Default for ResponseBuilder {
     #[inline]
-    fn default() -> Builder {
-        Builder {
+    fn default() -> ResponseBuilder {
+        ResponseBuilder {
             head: Some(Parts::new()),
             err: None,
         }
