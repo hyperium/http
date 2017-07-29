@@ -1,4 +1,26 @@
 //! URI component of request and response lines
+//!
+//! This module primarily contains the `Uri` type which is a component of all
+//! HTTP requests and also reexports this type at the root of the crate. A URI
+//! is not always a "full URL" in the sense of something you'd type into a web
+//! browser, but HTTP reqeusts may only have paths on servers but may have full
+//! schemes and hostnames on clients.
+//!
+//! # Examples
+//!
+//! ```
+//! use http::Uri;
+//!
+//! let uri = "/foo/bar?baz".parse::<Uri>().unwrap();
+//! assert_eq!(uri.path(), "/foo/bar");
+//! assert_eq!(uri.query(), Some("baz"));
+//! assert_eq!(uri.host(), None);
+//!
+//! let uri = "https://www.rust-lang.org/install.html".parse::<Uri>().unwrap();
+//! assert_eq!(uri.scheme(), Some("https"));
+//! assert_eq!(uri.host(), Some("www.rust-lang.org"));
+//! assert_eq!(uri.path(), "/install.html");
+//! ```
 
 use HttpTryFrom;
 use byte_str::ByteStr;
@@ -39,6 +61,22 @@ use std::error::Error;
 /// ```
 ///
 /// For HTTP 2.0, the URI is encoded using pseudoheaders.
+///
+/// # Examples
+///
+/// ```
+/// use http::Uri;
+///
+/// let uri = "/foo/bar?baz".parse::<Uri>().unwrap();
+/// assert_eq!(uri.path(), "/foo/bar");
+/// assert_eq!(uri.query(), Some("baz"));
+/// assert_eq!(uri.host(), None);
+///
+/// let uri = "https://www.rust-lang.org/install.html".parse::<Uri>().unwrap();
+/// assert_eq!(uri.scheme(), Some("https"));
+/// assert_eq!(uri.host(), Some("www.rust-lang.org"));
+/// assert_eq!(uri.path(), "/install.html");
+/// ```
 #[derive(Clone)]
 pub struct Uri {
     scheme: Scheme,

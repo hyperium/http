@@ -1,4 +1,22 @@
 //! The HTTP request method
+//!
+//! This module contains HTTP-method related structs and errors and such. The
+//! main type of this module, `Method`, is also reexported at the root of the
+//! crate as `http::Method` and is intended for import through that location
+//! primarily.
+//!
+//! This module also contains constants for a number of common HTTP methods such
+//! as GET, POST, etc.
+//!
+//! # Examples
+//!
+//! ```
+//! use http::{method, Method};
+//!
+//! assert_eq!(method::GET, Method::from_bytes(b"GET").unwrap());
+//! assert!(method::GET.is_idempotent());
+//! assert_eq!(method::POST.as_str(), "POST");
+//! ```
 
 use HttpTryFrom;
 use self::Inner::*;
@@ -12,6 +30,16 @@ use std::error::Error;
 /// Currently includes 8 variants representing the 8 methods defined in
 /// [RFC 7230](https://tools.ietf.org/html/rfc7231#section-4.1), plus PATCH,
 /// and an Extension variant for all extensions.
+///
+/// # Examples
+///
+/// ```
+/// use http::{method, Method};
+///
+/// assert_eq!(method::GET, Method::from_bytes(b"GET").unwrap());
+/// assert!(method::GET.is_idempotent());
+/// assert_eq!(method::POST.as_str(), "POST");
+/// ```
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Method(Inner);
 

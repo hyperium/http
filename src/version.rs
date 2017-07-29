@@ -1,4 +1,22 @@
 //! HTTP version
+//!
+//! This module contains a definition of the `Version` type and various
+//! constants associated with it as well. The `Version` type is intended to be
+//! accessed through the root of the crate (`http::Version`) rather than this
+//! module.
+//!
+//! # Examples
+//!
+//! ```
+//! use http::{version, Version};
+//!
+//! let http11 = version::HTTP_11;
+//! let http2 = version::HTTP_2;
+//! assert!(http11 != http2);
+//!
+//! println!("{:?}", http2);
+//! ```
+
 use std::fmt;
 
 /// Represents a version of the HTTP spec.

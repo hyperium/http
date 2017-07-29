@@ -80,6 +80,10 @@ use version::Version;
 /// For example, the body could be `Vec<u8>`, a `Stream` of byte chunks, or a
 /// value that has been deserialized.
 ///
+/// Typically you'll work with responses on the client side as the result of
+/// sending a `Request` and on the server you'll be generating a `Request` to
+/// send back to the client.
+///
 /// # Examples
 ///
 /// Creating a `Response` to return
@@ -137,6 +141,46 @@ use version::Version;
 ///
 /// let body = response.body();
 /// // ...
+/// ```
+///
+/// Deserialize a response of bytes via json:
+///
+/// ```
+/// # extern crate serde;
+/// # extern crate serde_json;
+/// # extern crate http;
+/// use http::Response;
+/// use serde::de;
+///
+/// fn deserialize<T>(req: Response<Vec<u8>>) -> serde_json::Result<Response<T>>
+///     where for<'de> T: de::Deserialize<'de>,
+/// {
+///     let (parts, body) = req.into_parts();
+///     let body = serde_json::from_slice(&body)?;
+///     Ok(Response::from_parts(parts, body))
+/// }
+/// #
+/// # fn main() {}
+/// ```
+///
+/// Or alternatively, serialize the body of a response to json
+///
+/// ```
+/// # extern crate serde;
+/// # extern crate serde_json;
+/// # extern crate http;
+/// use http::Response;
+/// use serde::ser;
+///
+/// fn serialize<T>(req: Response<T>) -> serde_json::Result<Response<Vec<u8>>>
+///     where T: ser::Serialize,
+/// {
+///     let (parts, body) = req.into_parts();
+///     let body = serde_json::to_vec(&body)?;
+///     Ok(Response::from_parts(parts, body))
+/// }
+/// #
+/// # fn main() {}
 /// ```
 pub struct Response<T> {
     head: Parts,

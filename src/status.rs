@@ -1,4 +1,20 @@
 //! HTTP status codes
+//!
+//! This module contains HTTP-status code related structs an errors. The main
+//! type in this module is `StatusCode` which is not intended to be used through
+//! this module but rather the `http::StatusCode` type. This module also
+//! primarily contains a number of predefined constants for common HTTP status
+//! codes.
+//!
+//! # Examples
+//!
+//! ```
+//! use http::{status, StatusCode};
+//!
+//! assert_eq!(StatusCode::from_u16(200).unwrap(), status::OK);
+//! assert_eq!(status::NOT_FOUND.as_u16(), 404);
+//! assert!(status::OK.is_success());
+//! ```
 
 use std::fmt;
 use std::error::Error;
@@ -18,6 +34,16 @@ use HttpTryFrom;
 /// Registry](http://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml) which is
 /// the source for this enum (with one exception, 418 I'm a teapot, which is
 /// inexplicably not in the register).
+///
+/// # Examples
+///
+/// ```
+/// use http::{status, StatusCode};
+///
+/// assert_eq!(StatusCode::from_u16(200).unwrap(), status::OK);
+/// assert_eq!(status::NOT_FOUND.as_u16(), 404);
+/// assert!(status::OK.is_success());
+/// ```
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StatusCode(u16);
 

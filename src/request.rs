@@ -1,4 +1,57 @@
 //! HTTP request types.
+//!
+//! This module contains structs related to HTTP requests, notably the
+//! `Request` type itself as well as a builder to create requests. Typically
+//! you'll import the `http::Request` type rather than reaching into this
+//! module itself.
+//!
+//! # Examples
+//!
+//! Creating a `Request` to send
+//!
+//! ```no_run
+//! use http::{Request, Response};
+//!
+//! let mut request = Request::builder();
+//! request.uri("https://www.rust-lang.org/")
+//!        .header("User-Agent", "my-awesome-agent/1.0");
+//!
+//! if needs_awesome_header() {
+//!     request.header("Awesome", "yes");
+//! }
+//!
+//! let response = send(request.body(()).unwrap());
+//!
+//! # fn needs_awesome_header() -> bool {
+//! #     true
+//! # }
+//! #
+//! fn send(req: Request<()>) -> Response<()> {
+//!     // ...
+//! # panic!()
+//! }
+//! ```
+//!
+//! Inspecting a request to see what was sent.
+//!
+//! ```
+//! use http::{Request, Response};
+//! use http::status::NOT_FOUND;
+//!
+//! fn respond_to(req: Request<()>) -> http::Result<Response<()>> {
+//!     if req.uri() != "/awesome-url" {
+//!         return Response::builder()
+//!             .status(NOT_FOUND)
+//!             .body(())
+//!     }
+//!
+//!     let has_awesome_header = req.headers().contains_key("Awesome");
+//!     let body = req.body();
+//!
+//!     // ...
+//! # panic!()
+//! }
+//! ```
 
 use std::any::Any;
 use std::fmt;
@@ -14,6 +67,94 @@ use version::Version;
 /// component is generic, enabling arbitrary types to represent the HTTP body.
 /// For example, the body could be `Vec<u8>`, a `Stream` of byte chunks, or a
 /// value that has been deserialized.
+///
+/// # Examples
+///
+/// Creating a `Request` to send
+///
+/// ```no_run
+/// use http::{Request, Response};
+///
+/// let mut request = Request::builder();
+/// request.uri("https://www.rust-lang.org/")
+///        .header("User-Agent", "my-awesome-agent/1.0");
+///
+/// if needs_awesome_header() {
+///     request.header("Awesome", "yes");
+/// }
+///
+/// let response = send(request.body(()).unwrap());
+///
+/// # fn needs_awesome_header() -> bool {
+/// #     true
+/// # }
+/// #
+/// fn send(req: Request<()>) -> Response<()> {
+///     // ...
+/// # panic!()
+/// }
+/// ```
+///
+/// Inspecting a request to see what was sent.
+///
+/// ```
+/// use http::{Request, Response};
+/// use http::status::NOT_FOUND;
+///
+/// fn respond_to(req: Request<()>) -> http::Result<Response<()>> {
+///     if req.uri() != "/awesome-url" {
+///         return Response::builder()
+///             .status(NOT_FOUND)
+///             .body(())
+///     }
+///
+///     let has_awesome_header = req.headers().contains_key("Awesome");
+///     let body = req.body();
+///
+///     // ...
+/// # panic!()
+/// }
+/// ```
+///
+/// Deserialize a request of bytes via json:
+///
+/// ```
+/// # extern crate serde;
+/// # extern crate serde_json;
+/// # extern crate http;
+/// use http::Request;
+/// use serde::de;
+///
+/// fn deserialize<T>(req: Request<Vec<u8>>) -> serde_json::Result<Request<T>>
+///     where for<'de> T: de::Deserialize<'de>,
+/// {
+///     let (parts, body) = req.into_parts();
+///     let body = serde_json::from_slice(&body)?;
+///     Ok(Request::from_parts(parts, body))
+/// }
+/// #
+/// # fn main() {}
+/// ```
+///
+/// Or alternatively, serialize the body of a request to json
+///
+/// ```
+/// # extern crate serde;
+/// # extern crate serde_json;
+/// # extern crate http;
+/// use http::Request;
+/// use serde::ser;
+///
+/// fn serialize<T>(req: Request<T>) -> serde_json::Result<Request<Vec<u8>>>
+///     where T: ser::Serialize,
+/// {
+///     let (parts, body) = req.into_parts();
+///     let body = serde_json::to_vec(&body)?;
+///     Ok(Request::from_parts(parts, body))
+/// }
+/// #
+/// # fn main() {}
+/// ```
 pub struct Request<T> {
     head: Parts,
     body: T,
