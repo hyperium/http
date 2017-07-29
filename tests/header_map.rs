@@ -198,12 +198,11 @@ fn custom_std(n: usize) -> Vec<HeaderName> {
     }).collect()
 }
 
-const STD: [HeaderName; 79] = [
+const STD: &'static [HeaderName] = &[
     ACCEPT,
     ACCEPT_CHARSET,
     ACCEPT_ENCODING,
     ACCEPT_LANGUAGE,
-    ACCEPT_PATCH,
     ACCEPT_RANGES,
     ACCESS_CONTROL_ALLOW_CREDENTIALS,
     ACCESS_CONTROL_ALLOW_HEADERS,
@@ -224,7 +223,6 @@ const STD: [HeaderName; 79] = [
     CONTENT_LANGUAGE,
     CONTENT_LENGTH,
     CONTENT_LOCATION,
-    CONTENT_MD5,
     CONTENT_RANGE,
     CONTENT_SECURITY_POLICY,
     CONTENT_SECURITY_POLICY_REPORT_ONLY,
@@ -244,7 +242,6 @@ const STD: [HeaderName; 79] = [
     IF_RANGE,
     IF_UNMODIFIED_SINCE,
     LAST_MODIFIED,
-    KEEP_ALIVE,
     LINK,
     LOCATION,
     MAX_FORWARDS,
@@ -257,16 +254,13 @@ const STD: [HeaderName; 79] = [
     RANGE,
     REFERER,
     REFERRER_POLICY,
-    REFRESH,
     RETRY_AFTER,
     SERVER,
     SET_COOKIE,
     STRICT_TRANSPORT_SECURITY,
     TE,
-    TK,
     TRAILER,
     TRANSFER_ENCODING,
-    TSV,
     USER_AGENT,
     UPGRADE,
     UPGRADE_INSECURE_REQUESTS,
