@@ -96,6 +96,49 @@ macro_rules! standard_headers {
                 }
             }
         }
+
+        #[cfg(test)]
+        const TEST_HEADERS: &'static [(StandardHeader, &'static str)] = &[
+            $(
+            (StandardHeader::$konst, $name),
+            )+
+        ];
+
+        #[test]
+        fn test_parse_standard_headers() {
+            for &(std, name) in TEST_HEADERS {
+                // Test lower case
+                assert_eq!(HeaderName::from_bytes(name.as_bytes()).unwrap(), HeaderName::from(std));
+
+                // Test upper case
+                let upper = name.to_uppercase().to_string();
+                assert_eq!(HeaderName::from_bytes(upper.as_bytes()).unwrap(), HeaderName::from(std));
+            }
+        }
+
+        #[test]
+        fn test_standard_headers_into_bytes() {
+            for &(std, name) in TEST_HEADERS {
+                let std = HeaderName::from(std);
+                // Test lower case
+                let name_bytes = name.as_bytes();
+                let bytes: Bytes =
+                    HeaderName::from_bytes(name_bytes).unwrap().into();
+                assert_eq!(bytes, name_bytes);
+                assert_eq!(HeaderName::try_from(Bytes::from(name_bytes)).unwrap(), std);
+
+                // Test upper case
+                let upper = name.to_uppercase().to_string();
+                let bytes: Bytes =
+                    HeaderName::from_bytes(upper.as_bytes()).unwrap().into();
+                assert_eq!(bytes, name.as_bytes());
+                assert_eq!(HeaderName::try_from(Bytes::from(upper.as_bytes())).unwrap(),
+                           std);
+
+
+            }
+
+        }
     }
 }
 
@@ -185,17 +228,6 @@ standard_headers! {
     /// experience, this is rarely done and more common way is to ignore the
     /// Accept-Language header in this case.
     (AcceptLanguage, ACCEPT_LANGUAGE, "accept-language");
-
-    /// Advertises which patch formats the server is able to understand.
-    ///
-    /// Accept-Patch should appear in the OPTIONS response for any resource that
-    /// supports the use of the PATCH method. The presence of the
-    /// Accept-Patch header in response to any method is an implicit indication
-    /// that PATCH is allowed on the resource identified by the URI. The
-    /// presence of a specific patch document format in this header indicates
-    /// that that specific format is allowed on the resource identified by the
-    /// URI.
-    (AcceptPatch, ACCEPT_PATCH, "accept-patch");
 
     /// Marker used by the server to advertise partial request support.
     ///
@@ -388,15 +420,6 @@ standard_headers! {
     /// associated with the response, while Content-Location is associated with
     /// the entity returned.
     (ContentLocation, CONTENT_LOCATION, "content-location");
-
-    /// Contains the MD5 digest of the entity-body.
-    ///
-    /// The Content-MD5 entity-header field, as defined in RFC 1864 [23], is an
-    /// MD5 digest of the entity-body for the purpose of providing an end-to-end
-    /// message integrity check (MIC) of the entity-body. (Note: a MIC is good
-    /// for detecting accidental modification of the entity-body in transit, but
-    /// is not proof against malicious attacks.)
-    (ContentMd5, CONTENT_MD5, "content-md5");
 
     /// Indicates where in a full body message a partial message belongs.
     (ContentRange, CONTENT_RANGE, "content-range");
@@ -639,10 +662,6 @@ standard_headers! {
     /// Content-Types that are acceptable for the response.
     (LastModified, LAST_MODIFIED, "last-modified");
 
-    /// Hint about how the connection and may be used to set a timeout and a
-    /// maximum amount of requests.
-    (KeepAlive, KEEP_ALIVE, "keep-alive");
-
     /// Allows the server to point an interested client to another resource
     /// containing metadata about the requested resource.
     (Link, LINK, "link");
@@ -760,10 +779,6 @@ standard_headers! {
     /// made.
     (ReferrerPolicy, REFERRER_POLICY, "referrer-policy");
 
-    /// Informs the web browser that the current page or frame should be
-    /// refreshed.
-    (Refresh, REFRESH, "refresh");
-
     /// The Retry-After response HTTP header indicates how long the user agent
     /// should wait before making a follow-up request. There are two main cases
     /// this header is used:
@@ -801,9 +816,6 @@ standard_headers! {
     /// trailer fields in a chunked transfer coding using the "trailers" value.
     (Te, TE, "te");
 
-    /// Indicates the tracking status that applied to the corresponding request.
-    (Tk, TK, "tk");
-
     /// Allows the sender to include additional fields at the end of chunked
     /// messages.
     (Trailer, TRAILER, "trailer");
@@ -821,18 +833,6 @@ standard_headers! {
     /// indicates the value that would have applied to the corresponding `GET`
     /// message.
     (TransferEncoding, TRANSFER_ENCODING, "transfer-encoding");
-
-    /// A response to the client's tracking preference.
-    ///
-    /// A tracking status value (TSV) is a single character response to the
-    /// user's tracking preference with regard to data collected via the
-    /// designated resource. For a site-wide tracking status resource, the
-    /// designated resource is any resource on the same origin server. For a Tk
-    /// response header field, the target resource of the corresponding request
-    /// is the designated resource, and remains so for any subsequent
-    /// request-specific tracking status resource referred to by the Tk field
-    /// value.
-    (Tsv, TSV, "tsv");
 
     /// Contains a string that allows identifying the requesting client's
     /// software.
@@ -1047,8 +1047,6 @@ fn parse_hdr<'a>(data: &'a [u8], b: &'a mut [u8; 64])
 
             if eq!(b == b't' b'e') {
                 Ok(Te.into())
-            } else if eq!(b == b't' b'k') {
-                Ok(Tk.into())
             } else {
                 validate(b, len)
             }
@@ -1058,8 +1056,6 @@ fn parse_hdr<'a>(data: &'a [u8], b: &'a mut [u8; 64])
 
             if eq!(b == b'a' b'g' b'e') {
                 Ok(Age.into())
-            } else if eq!(b == b't' b's' b'v') {
-                Ok(Tsv.into())
             } else if eq!(b == b'v' b'i' b'a') {
                 Ok(Via.into())
             } else if eq!(b == b'd' b'n' b't') {
@@ -1128,8 +1124,6 @@ fn parse_hdr<'a>(data: &'a [u8], b: &'a mut [u8; 64])
                 Ok(Expires.into())
             } else if eq!(b == b'r' b'e' b'f' b'e' b'r' b'e' b'r') {
                 Ok(Referer.into())
-            } else if eq!(b == b'r' b'e' b'f' b'r' b'e' b's' b'h') {
-                Ok(Refresh.into())
             } else if eq!(b == b't' b'r' b'a' b'i' b'l' b'e' b'r') {
                 Ok(Trailer.into())
             } else if eq!(b == b'u' b'p' b'g' b'r' b'a' b'd' b'e') {
@@ -1173,8 +1167,6 @@ fn parse_hdr<'a>(data: &'a [u8], b: &'a mut [u8; 64])
                 Ok(SetCookie.into())
             } else if eq!(b == b'u' b's' b'e' b'r' b'-' b'a' b'g' b'e' b'n' b't') {
                 Ok(UserAgent.into())
-            } else if eq!(b == b'k' b'e' b'e' b'p' b'-' b'a' b'l' b'i' b'v' b'e') {
-                Ok(KeepAlive.into())
             } else {
                 validate(b, len)
             }
@@ -1182,9 +1174,7 @@ fn parse_hdr<'a>(data: &'a [u8], b: &'a mut [u8; 64])
         11 => {
             to_lower!(b, data, 11);
 
-            if eq!(b == b'c' b'o' b'n' b't' b'e' b'n' b't' b'-' b'm' b'd' b'5') {
-                Ok(ContentMd5.into())
-            } else if eq!(b == b'r' b'e' b't' b'r' b'y' b'-' b'a' b'f' b't' b'e' b'r') {
+            if eq!(b == b'r' b'e' b't' b'r' b'y' b'-' b'a' b'f' b't' b'e' b'r') {
                 Ok(RetryAfter.into())
             } else {
                 validate(b, len)
@@ -1193,9 +1183,7 @@ fn parse_hdr<'a>(data: &'a [u8], b: &'a mut [u8; 64])
         12 => {
             to_lower!(b, data, 12);
 
-            if eq!(b == b'a' b'c' b'c' b'e' b'p' b't' b'-' b'p' b'a' b't' b'c' b'h') {
-                Ok(AcceptPatch.into())
-            } else if eq!(b == b'c' b'o' b'n' b't' b'e' b'n' b't' b'-' b't' b'y' b'p' b'e') {
+            if eq!(b == b'c' b'o' b'n' b't' b'e' b'n' b't' b'-' b't' b'y' b'p' b'e') {
                 Ok(ContentType.into())
             } else if eq!(b == b'm' b'a' b'x' b'-' b'f' b'o' b'r' b'w' b'a' b'r' b'd' b's') {
                 Ok(MaxForwards.into())
@@ -1768,211 +1756,6 @@ fn eq_ignore_ascii_case(lower: &[u8], s: &[u8]) -> bool {
 fn test_bounds() {
     fn check_bounds<T: Sync + Send>() {}
     check_bounds::<HeaderName>();
-}
-
-#[test]
-fn test_parse_standard_headers() {
-    use self::StandardHeader::*;
-
-    const HEADERS: &'static [(StandardHeader, &'static str)] = &[
-        (Accept, "accept"),
-        (AcceptCharset, "accept-charset"),
-        (AcceptEncoding, "accept-encoding"),
-        (AcceptLanguage, "accept-language"),
-        (AcceptPatch, "accept-patch"),
-        (AcceptRanges, "accept-ranges"),
-        (AccessControlAllowCredentials, "access-control-allow-credentials"),
-        (AccessControlAllowHeaders, "access-control-allow-headers"),
-        (AccessControlAllowMethods, "access-control-allow-methods"),
-        (AccessControlAllowOrigin, "access-control-allow-origin"),
-        (AccessControlExposeHeaders, "access-control-expose-headers"),
-        (AccessControlMaxAge, "access-control-max-age"),
-        (AccessControlRequestHeaders, "access-control-request-headers"),
-        (AccessControlRequestMethod, "access-control-request-method"),
-        (Age, "age"),
-        (Allow, "allow"),
-        (AltSvc, "alt-svc"),
-        (Authorization, "authorization"),
-        (CacheControl, "cache-control"),
-        (Connection, "connection"),
-        (ContentDisposition, "content-disposition"),
-        (ContentEncoding, "content-encoding"),
-        (ContentLanguage, "content-language"),
-        (ContentLength, "content-length"),
-        (ContentLocation, "content-location"),
-        (ContentMd5, "content-md5"),
-        (ContentRange, "content-range"),
-        (ContentSecurityPolicy, "content-security-policy"),
-        (ContentSecurityPolicyReportOnly, "content-security-policy-report-only"),
-        (ContentType, "content-type"),
-        (Cookie, "cookie"),
-        (Dnt, "dnt"),
-        (Date, "date"),
-        (Etag, "etag"),
-        (Expect, "expect"),
-        (Expires, "expires"),
-        (Forwarded, "forwarded"),
-        (From, "from"),
-        (Host, "host"),
-        (IfMatch, "if-match"),
-        (IfModifiedSince, "if-modified-since"),
-        (IfNoneMatch, "if-none-match"),
-        (IfRange, "if-range"),
-        (IfUnmodifiedSince, "if-unmodified-since"),
-        (LastModified, "last-modified"),
-        (KeepAlive, "keep-alive"),
-        (Link, "link"),
-        (Location, "location"),
-        (MaxForwards, "max-forwards"),
-        (Origin, "origin"),
-        (Pragma, "pragma"),
-        (ProxyAuthenticate, "proxy-authenticate"),
-        (ProxyAuthorization, "proxy-authorization"),
-        (PublicKeyPins, "public-key-pins"),
-        (PublicKeyPinsReportOnly, "public-key-pins-report-only"),
-        (Range, "range"),
-        (Referer, "referer"),
-        (ReferrerPolicy, "referrer-policy"),
-        (Refresh, "refresh"),
-        (RetryAfter, "retry-after"),
-        (Server, "server"),
-        (SetCookie, "set-cookie"),
-        (StrictTransportSecurity, "strict-transport-security"),
-        (Te, "te"),
-        (Tk, "tk"),
-        (Trailer, "trailer"),
-        (TransferEncoding, "transfer-encoding"),
-        (Tsv, "tsv"),
-        (UserAgent, "user-agent"),
-        (Upgrade, "upgrade"),
-        (UpgradeInsecureRequests, "upgrade-insecure-requests"),
-        (Vary, "vary"),
-        (Via, "via"),
-        (Warning, "warning"),
-        (WwwAuthenticate, "www-authenticate"),
-        (XContentTypeOptions, "x-content-type-options"),
-        (XDnsPrefetchControl, "x-dns-prefetch-control"),
-        (XFrameOptions, "x-frame-options"),
-        (XXssProtection, "x-xss-protection"),
-    ];
-
-    for &(std, name) in HEADERS {
-        // Test lower case
-        assert_eq!(HeaderName::from_bytes(name.as_bytes()).unwrap(), HeaderName::from(std));
-
-        // Test upper case
-        let upper = name.to_uppercase().to_string();
-        assert_eq!(HeaderName::from_bytes(upper.as_bytes()).unwrap(), HeaderName::from(std));
-    }
-}
-
-
-#[test]
-fn test_standard_headers_into_bytes() {
-    use self::StandardHeader::*;
-    use std::convert::Into;
-
-    const HEADERS: &'static [(StandardHeader, &'static str)] = &[
-        (Accept, "accept"),
-        (AcceptCharset, "accept-charset"),
-        (AcceptEncoding, "accept-encoding"),
-        (AcceptLanguage, "accept-language"),
-        (AcceptPatch, "accept-patch"),
-        (AcceptRanges, "accept-ranges"),
-        (AccessControlAllowCredentials, "access-control-allow-credentials"),
-        (AccessControlAllowHeaders, "access-control-allow-headers"),
-        (AccessControlAllowMethods, "access-control-allow-methods"),
-        (AccessControlAllowOrigin, "access-control-allow-origin"),
-        (AccessControlExposeHeaders, "access-control-expose-headers"),
-        (AccessControlMaxAge, "access-control-max-age"),
-        (AccessControlRequestHeaders, "access-control-request-headers"),
-        (AccessControlRequestMethod, "access-control-request-method"),
-        (Age, "age"),
-        (Allow, "allow"),
-        (AltSvc, "alt-svc"),
-        (Authorization, "authorization"),
-        (CacheControl, "cache-control"),
-        (Connection, "connection"),
-        (ContentDisposition, "content-disposition"),
-        (ContentEncoding, "content-encoding"),
-        (ContentLanguage, "content-language"),
-        (ContentLength, "content-length"),
-        (ContentLocation, "content-location"),
-        (ContentMd5, "content-md5"),
-        (ContentRange, "content-range"),
-        (ContentSecurityPolicy, "content-security-policy"),
-        (ContentSecurityPolicyReportOnly, "content-security-policy-report-only"),
-        (ContentType, "content-type"),
-        (Cookie, "cookie"),
-        (Dnt, "dnt"),
-        (Date, "date"),
-        (Etag, "etag"),
-        (Expect, "expect"),
-        (Expires, "expires"),
-        (Forwarded, "forwarded"),
-        (From, "from"),
-        (Host, "host"),
-        (IfMatch, "if-match"),
-        (IfModifiedSince, "if-modified-since"),
-        (IfNoneMatch, "if-none-match"),
-        (IfRange, "if-range"),
-        (IfUnmodifiedSince, "if-unmodified-since"),
-        (LastModified, "last-modified"),
-        (KeepAlive, "keep-alive"),
-        (Link, "link"),
-        (Location, "location"),
-        (MaxForwards, "max-forwards"),
-        (Origin, "origin"),
-        (Pragma, "pragma"),
-        (ProxyAuthenticate, "proxy-authenticate"),
-        (ProxyAuthorization, "proxy-authorization"),
-        (PublicKeyPins, "public-key-pins"),
-        (PublicKeyPinsReportOnly, "public-key-pins-report-only"),
-        (Range, "range"),
-        (Referer, "referer"),
-        (ReferrerPolicy, "referrer-policy"),
-        (Refresh, "refresh"),
-        (RetryAfter, "retry-after"),
-        (Server, "server"),
-        (SetCookie, "set-cookie"),
-        (StrictTransportSecurity, "strict-transport-security"),
-        (Te, "te"),
-        (Tk, "tk"),
-        (Trailer, "trailer"),
-        (TransferEncoding, "transfer-encoding"),
-        (Tsv, "tsv"),
-        (UserAgent, "user-agent"),
-        (Upgrade, "upgrade"),
-        (UpgradeInsecureRequests, "upgrade-insecure-requests"),
-        (Vary, "vary"),
-        (Via, "via"),
-        (Warning, "warning"),
-        (WwwAuthenticate, "www-authenticate"),
-        (XContentTypeOptions, "x-content-type-options"),
-        (XDnsPrefetchControl, "x-dns-prefetch-control"),
-        (XFrameOptions, "x-frame-options"),
-        (XXssProtection, "x-xss-protection"),
-    ];
-
-    for &(std, name) in HEADERS {
-        let std = HeaderName::from(std);
-        // Test lower case
-        let name_bytes = name.as_bytes();
-        let bytes: Bytes =
-            HeaderName::from_bytes(name_bytes).unwrap().into();
-        assert_eq!(bytes, name_bytes);
-        assert_eq!(HeaderName::try_from(Bytes::from(name_bytes)).unwrap(), std);
-
-        // Test upper case
-        let upper = name.to_uppercase().to_string();
-        let bytes: Bytes =
-            HeaderName::from_bytes(upper.as_bytes()).unwrap().into();
-        assert_eq!(bytes, name.as_bytes());
-        assert_eq!(HeaderName::try_from(Bytes::from(upper.as_bytes())).unwrap(),
-                   std);
-
-
-    }
 }
 
 #[test]
