@@ -189,7 +189,7 @@ pub struct Parts {
 /// This type can be used to construct an instance or `Request`
 /// through a builder-like pattern.
 #[derive(Debug)]
-pub struct Builder {
+pub struct RequestBuilder {
     head: Option<Parts>,
     err: Option<Error>,
 }
@@ -197,7 +197,7 @@ pub struct Builder {
 impl Request<()> {
     /// Creates a new builder-style object to manufacture a `Request`
     ///
-    /// This method returns an instance of `Builder` which can be used to
+    /// This method returns an instance of `RequestBuilder` which can be used to
     /// create a `Request`.
     ///
     /// # Examples
@@ -212,8 +212,8 @@ impl Request<()> {
     ///     .unwrap();
     /// ```
     #[inline]
-    pub fn builder() -> Builder {
-        Builder::new()
+    pub fn builder() -> RequestBuilder {
+        RequestBuilder::new()
     }
 }
 
@@ -486,8 +486,8 @@ impl Parts {
     }
 }
 
-impl Builder {
-    /// Creates a new default instance of `Builder` to construct either a
+impl RequestBuilder {
+    /// Creates a new default instance of `RequestBuilder` to construct either a
     /// `Head` or a `Request`.
     ///
     /// # Examples
@@ -495,20 +495,20 @@ impl Builder {
     /// ```
     /// # use http::*;
     ///
-    /// let req = request::Builder::new()
+    /// let req = request::RequestBuilder::new()
     ///     .method("POST")
     ///     .body(())
     ///     .unwrap();
     /// ```
     #[inline]
-    pub fn new() -> Builder {
-        Builder::default()
+    pub fn new() -> RequestBuilder {
+        RequestBuilder::default()
     }
 
     /// Set the HTTP method for this request.
     ///
     /// This function will configure the HTTP method of the `Request` that will
-    /// be returned from `Builder::build`.
+    /// be returned from `RequestBuilder::build`.
     ///
     /// By default this is `GET`.
     ///
@@ -522,7 +522,7 @@ impl Builder {
     ///     .body(())
     ///     .unwrap();
     /// ```
-    pub fn method<T>(&mut self, method: T) -> &mut Builder
+    pub fn method<T>(&mut self, method: T) -> &mut RequestBuilder
         where Method: HttpTryFrom<T>,
     {
         if let Some(head) = head(&mut self.head, &self.err) {
@@ -537,7 +537,7 @@ impl Builder {
     /// Set the URI for this request.
     ///
     /// This function will configure the URI of the `Request` that will
-    /// be returned from `Builder::build`.
+    /// be returned from `RequestBuilder::build`.
     ///
     /// By default this is `/`.
     ///
@@ -551,7 +551,7 @@ impl Builder {
     ///     .body(())
     ///     .unwrap();
     /// ```
-    pub fn uri<T>(&mut self, uri: T) -> &mut Builder
+    pub fn uri<T>(&mut self, uri: T) -> &mut RequestBuilder
         where Uri: HttpTryFrom<T>,
     {
         if let Some(head) = head(&mut self.head, &self.err) {
@@ -566,7 +566,7 @@ impl Builder {
     /// Set the HTTP version for this request.
     ///
     /// This function will configure the HTTP version of the `Request` that
-    /// will be returned from `Builder::build`.
+    /// will be returned from `RequestBuilder::build`.
     ///
     /// By default this is HTTP/1.1
     ///
@@ -581,7 +581,7 @@ impl Builder {
     ///     .body(())
     ///     .unwrap();
     /// ```
-    pub fn version(&mut self, version: Version) -> &mut Builder {
+    pub fn version(&mut self, version: Version) -> &mut RequestBuilder {
         if let Some(head) = head(&mut self.head, &self.err) {
             head.version = version;
         }
@@ -606,7 +606,7 @@ impl Builder {
     ///     .body(())
     ///     .unwrap();
     /// ```
-    pub fn header<K, V>(&mut self, key: K, value: V) -> &mut Builder
+    pub fn header<K, V>(&mut self, key: K, value: V) -> &mut RequestBuilder
         where K: HeaderMapKey,
               HeaderValue: HttpTryFrom<V>
     {
@@ -644,7 +644,7 @@ impl Builder {
     ///     .unwrap();
     /// # fn needs_custom_bar_header() -> bool { true }
     /// ```
-    pub fn headers<I, K, V>(&mut self, headers: I) -> &mut Builder
+    pub fn headers<I, K, V>(&mut self, headers: I) -> &mut RequestBuilder
         where I: IntoIterator<Item = (K, V)>,
               K: HeaderMapKey,
               HeaderValue: HttpTryFrom<V>,
@@ -670,7 +670,7 @@ impl Builder {
     /// assert_eq!(req.extensions().get::<&'static str>(),
     ///            Some(&"My Extension"));
     /// ```
-    pub fn extension<T>(&mut self, extension: T) -> &mut Builder
+    pub fn extension<T>(&mut self, extension: T) -> &mut RequestBuilder
         where T: Any + Send + Sync + 'static,
     {
         if let Some(head) = head(&mut self.head, &self.err) {
@@ -729,10 +729,10 @@ fn head<'a>(head: &'a mut Option<Parts>, err: &Option<Error>)
     head.as_mut()
 }
 
-impl Default for Builder {
+impl Default for RequestBuilder {
     #[inline]
-    fn default() -> Builder {
-        Builder {
+    fn default() -> RequestBuilder {
+        RequestBuilder {
             head: Some(Parts::new()),
             err: None,
         }
