@@ -500,12 +500,12 @@ impl Builder {
         Builder::default()
     }
 
-    /// Set the HTTP method for this response.
+    /// Set the HTTP status for this response.
     ///
     /// This function will configure the HTTP status code of the `Response` that
     /// will be returned from `Builder::build`.
     ///
-    /// By default this is `GET`.
+    /// By default this is `200`.
     ///
     /// # Examples
     ///
