@@ -64,7 +64,7 @@
 //! }
 //! ```
 //!
-//! And finally, one of the most imporatnt aspects of requests/responses, the
+//! And finally, one of the most important aspects of requests/responses, the
 //! body! The `Request` and `Response` types in this crate are *generic* in
 //! what their body is. This allows downstream libraries to use different
 //! representations such as `Request<Vec<u8>>`, `Response<impl Read>`,
