@@ -24,6 +24,10 @@ Next, add this to your crate:
 extern crate http;
 
 use http::{Request, Response};
+
+fn main() {
+    // ...
+}
 ```
 
 ## Examples
@@ -31,26 +35,34 @@ use http::{Request, Response};
 Create an HTTP request:
 
 ```
+extern crate http;
+
 use http::Request;
 
-let request = Request::builder()
-  .uri("https://www.rust-lang.org/")
-  .header("User-Agent", "awsome/1.0")
-  .build()
-  .unwrap();
+fn main() {
+    let request = Request::builder()
+      .uri("https://www.rust-lang.org/")
+      .header("User-Agent", "awsome/1.0")
+      .body(())
+      .unwrap();
+}
 ```
 
 Create an HTTP resposne:
 
 ```
+extern crate http;
+
 use http::Response;
 use http::status;
 
-let response = Response::builder()
-  .status(status::MOVED_PERMANENTLY)
-  .header("Location", "https://www.rust-lang.org/install.html")
-  .build()
-  .unwrap();
+fn main() {
+    let response = Response::builder()
+      .status(status::MOVED_PERMANENTLY)
+      .header("Location", "https://www.rust-lang.org/install.html")
+      .body(())
+      .unwrap();
+}
 ```
 
 # License
