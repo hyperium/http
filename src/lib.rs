@@ -4,7 +4,7 @@
 //! with the HTTP protocol. You'll find `Request` and `Response` types for
 //! working as either a client or a server as well as all of their components.
 //! Notably you'll find `Uri` for what a `Request` is requesting, a `Method`
-//! for how it's being requsted, a `StatusCode` for what sort of response came
+//! for how it's being requested, a `StatusCode` for what sort of response came
 //! back, a `Version` for how this was communicated, and
 //! `HeaderName`/`HeaderValue` definitions to get grouped in a `HeaderMap` to
 //! work with request/response headers.
@@ -49,8 +49,8 @@
 //! `Method` and `headers` to inspect the various headers. A `Response`
 //! has similar methods for headers, the status code, etc.
 //!
-//! In addition to getters each reqeust/response type also have mutable
-//! accessors to edit the request/response:
+//! In addition to getters, request/response types also have mutable accessors 
+//! to edit the request/response:
 //!
 //! ```
 //! use http::Response;
@@ -71,17 +71,15 @@
 //! `Request<impl Stream<Item = Vec<u8>, Error = _>>`, or even
 //! `Response<MyCustomType>` where the custom type was deserialized from JSON.
 //!
-//! The body representation is intentionally flexible to all downstream
-//! libraries maximal flexibility for how the body is implemented as
-//! appropriate.
+//! The body representation is intentionally flexible to give downstream
+//! libraries maximal flexibility in implementing the body as appropriate.
 //!
 //! ## HTTP Headers
 //!
-//! Another major piece of functionality in this library is the implementation
-//! of interpreting and generating HTTP headers. The `HeaderName` type serves
-//! as a way to define header *names*, or what's to the left of the colon. A
-//! `HeaderValue` conversely is the header *value*, or what's to the right of a
-//! colon.
+//! Another major piece of functionality in this library is HTTP header
+//! interpretation and generation. The `HeaderName` type serves as a way to
+//! define header *names*, or what's to the left of the colon. A `HeaderValue`
+//! conversely is the header *value*, or what's to the right of a colon.
 //!
 //! For example, if you have an HTTP request that looks like:
 //!

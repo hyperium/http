@@ -3,7 +3,7 @@
 //! This module primarily contains the `Uri` type which is a component of all
 //! HTTP requests and also reexports this type at the root of the crate. A URI
 //! is not always a "full URL" in the sense of something you'd type into a web
-//! browser, but HTTP reqeusts may only have paths on servers but may have full
+//! browser, but HTTP requests may only have paths on servers but may have full
 //! schemes and hostnames on clients.
 //!
 //! # Examples
