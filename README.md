@@ -50,7 +50,7 @@ fn main() {
 }
 ```
 
-Create an HTTP resposne:
+Create an HTTP response:
 
 ```rust
 extern crate http;
