@@ -36,7 +36,7 @@ fn main() {
 
 Create an HTTP request:
 
-```
+```rust
 extern crate http;
 
 use http::Request;
@@ -52,7 +52,7 @@ fn main() {
 
 Create an HTTP resposne:
 
-```
+```rust
 extern crate http;
 
 use http::Response;
