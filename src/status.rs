@@ -378,7 +378,7 @@ status_codes! {
     /// [[RFC7231, Section 6.5.14](https://tools.ietf.org/html/rfc7231#section-6.5.14)]
     (417, EXPECTATION_FAILED, "Expectation Failed");
     /// 418 I'm a teapot
-    /// [curiously not registered by IANA but [RF C2324](https://tools.ietf.org/html/rfc2324)]
+    /// [curiously not registered by IANA but [RFC2324](https://tools.ietf.org/html/rfc2324)]
     (418, IM_A_TEAPOT, "I'm a teapot");
 
     /// 421 Misdirected Request
