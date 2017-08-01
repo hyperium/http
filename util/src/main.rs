@@ -309,7 +309,7 @@ standard_headers! {
     "content-encoding";
 
     r#"
-    /// Used to describe the languages indtended for the audience.
+    /// Used to describe the languages intended for the audience.
     ///
     /// This header allows a user to differentiate according to the users' own
     /// preferred language. For example, if "Content-Language: de-DE" is set, it
