@@ -159,6 +159,7 @@ pub use self::name::{
     RANGE,
     REFERER,
     REFERRER_POLICY,
+    REFRESH,
     RETRY_AFTER,
     SERVER,
     SET_COOKIE,
