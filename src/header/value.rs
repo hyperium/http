@@ -109,7 +109,8 @@ impl HeaderValue {
     /// Attempt to convert a byte slice to a `HeaderValue`.
     ///
     /// If the argument contains invalid header value bytes, an error is
-    /// returned. Only byte values between 32 and 255 (inclusive) are permitted.
+    /// returned. Only byte values between 32 and 255 (inclusive) are permitted,
+    /// excluding byte 127 (DEL).
     ///
     /// This function is intended to be replaced in the future by a `TryFrom`
     /// implementation once the trait is stabilized in std.
@@ -137,7 +138,8 @@ impl HeaderValue {
     /// Attempt to convert a `Bytes` buffer to a `HeaderValue`.
     ///
     /// If the argument contains invalid header value bytes, an error is
-    /// returned. Only byte values between 32 and 255 (inclusive) are permitted.
+    /// returned. Only byte values between 32 and 255 (inclusive) are permitted,
+    /// excluding byte 127 (DEL).
     ///
     /// This function is intended to be replaced in the future by a `TryFrom`
     /// implementation once the trait is stabilized in std.
@@ -355,11 +357,11 @@ impl<'a> fmt::Debug for EscapeBytes<'a> {
 }
 
 fn is_visible_ascii(b: u8) -> bool {
-    is_valid(b) && b < 127
+    b >= 32 && b < 127
 }
 
 fn is_valid(b: u8) -> bool {
-    b >= 32
+    b >= 32 && b != 127
 }
 
 impl fmt::Display for InvalidHeaderValue {
@@ -551,4 +553,9 @@ impl<'a> PartialOrd<HeaderValue> for &'a str {
     fn partial_cmp(&self, other: &HeaderValue) -> Option<cmp::Ordering> {
         self.as_bytes().partial_cmp(other.as_bytes())
     }
+}
+
+#[test]
+fn test_try_from() {
+    HeaderValue::try_from(vec![127]).unwrap_err();
 }
