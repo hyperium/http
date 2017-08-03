@@ -779,6 +779,10 @@ standard_headers! {
     /// made.
     (ReferrerPolicy, REFERRER_POLICY, "referrer-policy");
 
+    /// Informs the web browser that the current page or frame should be
+    /// refreshed.
+    (Refresh, REFRESH, "refresh");
+
     /// The Retry-After response HTTP header indicates how long the user agent
     /// should wait before making a follow-up request. There are two main cases
     /// this header is used:
@@ -1124,6 +1128,8 @@ fn parse_hdr<'a>(data: &'a [u8], b: &'a mut [u8; 64])
                 Ok(Expires.into())
             } else if eq!(b == b'r' b'e' b'f' b'e' b'r' b'e' b'r') {
                 Ok(Referer.into())
+            } else if eq!(b == b'r' b'e' b'f' b'r' b'e' b's' b'h') {
+                Ok(Refresh.into())
             } else if eq!(b == b't' b'r' b'a' b'i' b'l' b'e' b'r') {
                 Ok(Trailer.into())
             } else if eq!(b == b'u' b'p' b'g' b'r' b'a' b'd' b'e') {
