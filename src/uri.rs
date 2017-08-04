@@ -637,6 +637,15 @@ impl From<Parts> for Uri {
     }
 }
 
+impl HttpTryFrom<Parts> for Uri {
+    type Error = InvalidUri;
+
+    #[inline]
+    fn try_from(t: Parts) -> Result<Self, Self::Error> {
+        Ok(t.into())
+    }
+}
+
 /// Convert a `Uri` from parts
 ///
 /// # Examples
