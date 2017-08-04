@@ -1695,6 +1695,15 @@ impl<'a> HdrName<'a> {
         let hdr = parse_hdr(hdr, &mut buf)?;
         Ok(f(hdr))
     }
+
+    pub fn from_static<F, U>(hdr: &'static str, f: F) -> U
+        where F: FnOnce(HdrName) -> U,
+    {
+        let mut buf = unsafe { mem::uninitialized() };
+        let hdr = parse_hdr(hdr.as_bytes(), &mut buf)
+            .expect("static str is invalid name");
+        f(hdr)
+    }
 }
 
 #[doc(hidden)]

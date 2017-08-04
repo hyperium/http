@@ -54,12 +54,12 @@
 //!
 //! ```
 //! use http::Response;
-//! use http::header::HeaderValue;
+//! use http::header::{CONTENT_TYPE, HeaderValue};
 //! use http::status;
 //!
 //! fn add_server_headers<T>(response: &mut Response<T>) {
 //!     response.headers_mut()
-//!         .insert("Content-Type", HeaderValue::from_static("text/html"));
+//!         .insert(CONTENT_TYPE, HeaderValue::from_static("text/html"));
 //!     *response.status_mut() = status::OK;
 //! }
 //! ```

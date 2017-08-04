@@ -76,6 +76,8 @@ mod value;
 
 pub use self::map::{
     HeaderMap,
+    AsHeaderName,
+    IntoHeaderName,
     Iter,
     Keys,
     Values,
@@ -87,7 +89,6 @@ pub use self::map::{
     ValueIter,
     ValueIterMut,
     ValueDrain,
-    HeaderMapKey,
     IntoIter,
 };
 pub use self::name::{
