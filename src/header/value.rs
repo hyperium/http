@@ -346,9 +346,9 @@ impl<'a> fmt::Debug for EscapeBytes<'a> {
         for &b in self.0 {
             if is_visible_ascii(b) {
                 let ch = unsafe { char::from_u32_unchecked(b as u32) };
-                try!(write!(f, "{}", ch));
+                write!(f, "{}", ch)?;
             } else {
-                try!(write!(f, "\\x{:x}", b));
+                write!(f, "\\x{:x}", b)?;
             }
         }
 
