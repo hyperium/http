@@ -585,42 +585,6 @@ impl Builder {
         self
     }
 
-    /// Appends a list of headersc to this response builder.
-    ///
-    /// This function will append the provided key/value pairs to the internal
-    /// `HeaderMap` being constructed. Essentially this is equivalent to calling
-    /// `HeaderMap::append` a number of times.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use http::*;
-    ///
-    /// let mut headers = vec![
-    ///     ("X-Custom-Foo", "bar"),
-    /// ];
-    ///
-    /// if needs_custom_bar_header() {
-    ///     headers.push(("X-Custom-Bar", "another"));
-    /// }
-    ///
-    /// let response = Response::builder()
-    ///     .headers(headers)
-    ///     .body(())
-    ///     .unwrap();
-    /// # fn needs_custom_bar_header() -> bool { true }
-    /// ```
-    pub fn headers<I, K, V>(&mut self, headers: I) -> &mut Builder
-        where I: IntoIterator<Item = (K, V)>,
-              K: HeaderMapKey,
-              HeaderValue: HttpTryFrom<V>,
-    {
-        for (key, value) in headers {
-            self.header(key, value);
-        }
-        self
-    }
-
     /// Adds an extension to this builder
     ///
     /// # Examples
