@@ -181,7 +181,7 @@ impl Method {
                 } else {
                     let mut data: Vec<u8> = vec![0; src.len()];
 
-                    try!(write_checked(src, &mut data));
+                    write_checked(src, &mut data)?;
 
                     Ok(Method(ExtensionAllocated(data.into_boxed_slice())))
                 }
@@ -192,7 +192,7 @@ impl Method {
     fn extension_inline(src: &[u8]) -> Result<Method, InvalidMethod> {
         let mut data: [u8; MAX_INLINE] = Default::default();
 
-        try!(write_checked(src, &mut data));
+        write_checked(src, &mut data)?;
 
         Ok(Method(ExtensionInline(data, src.len() as u8)))
     }
