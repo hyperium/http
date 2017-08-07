@@ -80,7 +80,7 @@ impl HeaderValue {
     ///
     /// If the argument contains invalid header value characters, an error is
     /// returned. Only visible ASCII characters (32-127) are permitted. Use
-    /// `try_from_bytes` to create a `HeaderValue` that includes opaque octets
+    /// `from_bytes` to create a `HeaderValue` that includes opaque octets
     /// (128-255).
     ///
     /// This function is intended to be replaced in the future by a `TryFrom`
@@ -90,7 +90,7 @@ impl HeaderValue {
     ///
     /// ```
     /// # use http::header::HeaderValue;
-    /// let val = HeaderValue::try_from_str("hello").unwrap();
+    /// let val = HeaderValue::from_str("hello").unwrap();
     /// assert_eq!(val, "hello");
     /// ```
     ///
@@ -98,12 +98,12 @@ impl HeaderValue {
     ///
     /// ```
     /// # use http::header::HeaderValue;
-    /// let val = HeaderValue::try_from_str("\n");
+    /// let val = HeaderValue::from_str("\n");
     /// assert!(val.is_err());
     /// ```
     #[inline]
-    pub fn try_from_str(src: &str) -> Result<HeaderValue, InvalidHeaderValue> {
-        HeaderValue::try_from(src)
+    pub fn from_str(src: &str) -> Result<HeaderValue, InvalidHeaderValue> {
+        HeaderValue::from(src)
     }
 
     /// Attempt to convert a byte slice to a `HeaderValue`.
@@ -119,7 +119,7 @@ impl HeaderValue {
     ///
     /// ```
     /// # use http::header::HeaderValue;
-    /// let val = HeaderValue::try_from_bytes(b"hello\xfa").unwrap();
+    /// let val = HeaderValue::from_bytes(b"hello\xfa").unwrap();
     /// assert_eq!(val, &b"hello\xfa"[..]);
     /// ```
     ///
@@ -127,12 +127,12 @@ impl HeaderValue {
     ///
     /// ```
     /// # use http::header::HeaderValue;
-    /// let val = HeaderValue::try_from_bytes(b"\n");
+    /// let val = HeaderValue::from_bytes(b"\n");
     /// assert!(val.is_err());
     /// ```
     #[inline]
-    pub fn try_from_bytes(src: &[u8]) -> Result<HeaderValue, InvalidHeaderValue> {
-        HeaderValue::try_from(src)
+    pub fn from_bytes(src: &[u8]) -> Result<HeaderValue, InvalidHeaderValue> {
+        HeaderValue::from(src)
     }
 
     /// Attempt to convert a `Bytes` buffer to a `HeaderValue`.
@@ -144,11 +144,11 @@ impl HeaderValue {
     /// This function is intended to be replaced in the future by a `TryFrom`
     /// implementation once the trait is stabilized in std.
     #[inline]
-    pub fn try_from_shared(src: Bytes) -> Result<HeaderValue, InvalidHeaderValueBytes> {
-        HeaderValue::try_from(src).map_err(InvalidHeaderValueBytes)
+    pub fn from_shared(src: Bytes) -> Result<HeaderValue, InvalidHeaderValueBytes> {
+        HeaderValue::from(src).map_err(InvalidHeaderValueBytes)
     }
 
-    fn try_from<T: AsRef<[u8]> + Into<Bytes>>(src: T) -> Result<HeaderValue, InvalidHeaderValue> {
+    fn from<T: AsRef<[u8]> + Into<Bytes>>(src: T) -> Result<HeaderValue, InvalidHeaderValue> {
         for &b in src.as_ref() {
             if !is_valid(b) {
                 return Err(InvalidHeaderValue {
@@ -301,7 +301,7 @@ impl FromStr for HeaderValue {
 
     #[inline]
     fn from_str(s: &str) -> Result<HeaderValue, Self::Err> {
-        HeaderValue::try_from_str(s)
+        HeaderValue::from_str(s)
     }
 }
 
@@ -326,7 +326,7 @@ impl<'a> HttpTryFrom<&'a [u8]> for HeaderValue {
 
     #[inline]
     fn try_from(t: &'a [u8]) -> Result<Self, Self::Error> {
-        HeaderValue::try_from_bytes(t)
+        HeaderValue::from_bytes(t)
     }
 }
 
@@ -335,7 +335,7 @@ impl HttpTryFrom<Bytes> for HeaderValue {
 
     #[inline]
     fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
-        HeaderValue::try_from_shared(bytes)
+        HeaderValue::from_shared(bytes)
     }
 }
 
@@ -556,6 +556,6 @@ impl<'a> PartialOrd<HeaderValue> for &'a str {
 }
 
 #[test]
-fn test_try_from() {
-    HeaderValue::try_from(vec![127]).unwrap_err();
+fn test_from() {
+    HeaderValue::from(vec![127]).unwrap_err();
 }
