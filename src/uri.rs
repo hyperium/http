@@ -1444,6 +1444,24 @@ impl PartialEq<str> for Uri {
     }
 }
 
+impl PartialEq<Uri> for str {
+    fn eq(&self, uri: &Uri) -> bool {
+        uri == self
+    }
+}
+
+impl<'a> PartialEq<&'a str> for Uri {
+    fn eq(&self, other: & &'a str) -> bool {
+        self == *other
+    }
+}
+
+impl<'a> PartialEq<Uri> for &'a str {
+    fn eq(&self, uri: &Uri) -> bool {
+        uri == *self
+    }
+}
+
 impl Eq for Uri {}
 
 /// Returns a `Uri` representing `/`
