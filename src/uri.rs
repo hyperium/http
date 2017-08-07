@@ -81,7 +81,7 @@ use std::error::Error;
 pub struct Uri {
     scheme: Scheme,
     authority: Authority,
-    origin_form: OriginForm,
+    path_and_query: PathAndQuery,
 }
 
 /// Represents the scheme component of a URI
@@ -111,7 +111,7 @@ pub struct Authority {
 
 /// Represents the path component of a URI
 #[derive(Clone)]
-pub struct OriginForm {
+pub struct PathAndQuery {
     data: ByteStr,
     query: u16,
 }
@@ -128,7 +128,7 @@ pub struct Parts {
     pub authority: Option<Authority>,
 
     /// The origin-form component of a URI
-    pub origin_form: Option<OriginForm>,
+    pub path_and_query: Option<PathAndQuery>,
 
     /// Allow extending in the future
     _priv: (),
@@ -263,14 +263,14 @@ impl Uri {
                         return Ok(Uri {
                             scheme: Scheme::empty(),
                             authority: Authority::empty(),
-                            origin_form: OriginForm::slash(),
+                            path_and_query: PathAndQuery::slash(),
                         });
                     }
                     b'*' => {
                         return Ok(Uri {
                             scheme: Scheme::empty(),
                             authority: Authority::empty(),
-                            origin_form: OriginForm::star(),
+                            path_and_query: PathAndQuery::star(),
                         });
                     }
                     _ => {
@@ -280,7 +280,7 @@ impl Uri {
                             scheme: Scheme::empty(),
                             authority: authority,
                             // TODO: Should this be empty instead?
-                            origin_form: OriginForm::slash(),
+                            path_and_query: PathAndQuery::slash(),
                         });
                     }
                 }
@@ -292,20 +292,18 @@ impl Uri {
             return Ok(Uri {
                 scheme: Scheme::empty(),
                 authority: Authority::empty(),
-                origin_form: try!(OriginForm::try_from_shared(s)),
+                path_and_query: try!(PathAndQuery::try_from_shared(s)),
             });
         }
 
         parse_full(s)
     }
 
-    /// Returns the origin form component of the Uri
-    ///
-    /// This is the path and query string components or *.
+    /// Returns the path & query components of the Uri
     #[inline]
-    pub fn origin_form(&self) -> Option<&OriginForm> {
+    pub fn path_and_query(&self) -> Option<&PathAndQuery> {
         if !self.scheme.inner.is_none() || self.authority.data.is_empty() {
-            Some(&self.origin_form)
+            Some(&self.path_and_query)
         } else {
             None
         }
@@ -348,7 +346,7 @@ impl Uri {
     #[inline]
     pub fn path(&self) -> &str {
         if self.has_path() {
-            self.origin_form.path()
+            self.path_and_query.path()
         } else {
             ""
         }
@@ -577,11 +575,11 @@ impl Uri {
     /// ```
     #[inline]
     pub fn query(&self) -> Option<&str> {
-        self.origin_form.query()
+        self.path_and_query.query()
     }
 
     fn has_path(&self) -> bool {
-        !self.origin_form.data.is_empty() || !self.scheme.inner.is_none()
+        !self.path_and_query.data.is_empty() || !self.scheme.inner.is_none()
     }
 }
 
@@ -607,10 +605,10 @@ impl From<Parts> for Uri {
     fn from(src: Parts) -> Self {
         if src.scheme.is_some() {
             assert!(src.authority.is_some(), "an authority must be provided if a scheme is provided");
-            assert!(src.origin_form.is_some(), "an `OriginForm` must be provided if a scheme is provided");
+            assert!(src.path_and_query.is_some(), "a `PathAndQuery` must be provided if a scheme is provided");
         } else {
             if src.authority.is_some() {
-                assert!(src.origin_form.is_none(), "`OriginForm` missing");
+                assert!(src.path_and_query.is_none(), "`PathAndQuery` missing");
             }
         }
 
@@ -624,15 +622,15 @@ impl From<Parts> for Uri {
             None => Authority::empty(),
         };
 
-        let origin_form = match src.origin_form {
-            Some(origin_form) => origin_form,
-            None => OriginForm::empty(),
+        let path_and_query = match src.path_and_query {
+            Some(path_and_query) => path_and_query,
+            None => PathAndQuery::empty(),
         };
 
         Uri {
             scheme: scheme,
             authority: authority,
-            origin_form: origin_form,
+            path_and_query: path_and_query,
         }
     }
 }
@@ -655,7 +653,7 @@ impl HttpTryFrom<Parts> for Uri {
 /// ```
 /// # use http::uri::*;
 /// let mut parts = Parts::default();
-/// parts.origin_form = Some("/foo".parse().unwrap());
+/// parts.path_and_query = Some("/foo".parse().unwrap());
 ///
 /// let uri = Uri::from(parts);
 ///
@@ -672,7 +670,7 @@ impl HttpTryFrom<Parts> for Uri {
 /// let mut parts = Parts::default();
 /// parts.scheme = Some("http".parse().unwrap());
 /// parts.authority = Some("foo.com".parse().unwrap());
-/// parts.origin_form = Some("/foo".parse().unwrap());
+/// parts.path_and_query = Some("/foo".parse().unwrap());
 ///
 /// let uri = Uri::from(parts);
 ///
@@ -682,8 +680,8 @@ impl HttpTryFrom<Parts> for Uri {
 /// ```
 impl From<Uri> for Parts {
     fn from(src: Uri) -> Self {
-        let origin_form = if src.has_path() {
-            Some(src.origin_form)
+        let path_and_query = if src.has_path() {
+            Some(src.path_and_query)
         } else {
             None
         };
@@ -702,7 +700,7 @@ impl From<Uri> for Parts {
         Parts {
             scheme: scheme,
             authority: authority,
-            origin_form: origin_form,
+            path_and_query: path_and_query,
             _priv: (),
         }
     }
@@ -1059,8 +1057,8 @@ impl fmt::Display for Authority {
     }
 }
 
-impl OriginForm {
-    /// Attempt to convert a `OriginForm` from `Bytes`.
+impl PathAndQuery {
+    /// Attempt to convert a `PathAndQuery` from `Bytes`.
     ///
     /// This function will be replaced by a `TryFrom` implementation once the
     /// trait lands in stable.
@@ -1076,10 +1074,10 @@ impl OriginForm {
     ///
     /// # pub fn main() {
     /// let bytes = Bytes::from("/hello?world");
-    /// let origin_form = OriginForm::try_from_shared(bytes).unwrap();
+    /// let path_and_query = PathAndQuery::try_from_shared(bytes).unwrap();
     ///
-    /// assert_eq!(origin_form.path(), "/hello");
-    /// assert_eq!(origin_form.query(), Some("world"));
+    /// assert_eq!(path_and_query.path(), "/hello");
+    /// assert_eq!(path_and_query.query(), Some("world"));
     /// # }
     /// ```
     pub fn try_from_shared(mut src: Bytes) -> Result<Self, InvalidUriBytes> {
@@ -1106,28 +1104,28 @@ impl OriginForm {
             }
         }
 
-        Ok(OriginForm {
+        Ok(PathAndQuery {
             data: unsafe { ByteStr::from_utf8_unchecked(src) },
             query: query,
         })
     }
 
     fn empty() -> Self {
-        OriginForm {
+        PathAndQuery {
             data: ByteStr::new(),
             query: NONE,
         }
     }
 
     fn slash() -> Self {
-        OriginForm {
+        PathAndQuery {
             data: ByteStr::from_static("/"),
             query: NONE,
         }
     }
 
     fn star() -> Self {
-        OriginForm {
+        PathAndQuery {
             data: ByteStr::from_static("*"),
             query: NONE,
         }
@@ -1151,9 +1149,9 @@ impl OriginForm {
     /// ```
     /// # use http::uri::*;
     ///
-    /// let origin_form: OriginForm = "/hello/world".parse().unwrap();
+    /// let path_and_query: PathAndQuery = "/hello/world".parse().unwrap();
     ///
-    /// assert_eq!(origin_form.path(), "/hello/world");
+    /// assert_eq!(path_and_query.path(), "/hello/world");
     /// ```
     #[inline]
     pub fn path(&self) -> &str {
@@ -1191,18 +1189,18 @@ impl OriginForm {
     ///
     /// ```
     /// # use http::uri::*;
-    /// let origin_form: OriginForm = "/hello/world?key=value&foo=bar".parse().unwrap();
+    /// let path_and_query: PathAndQuery = "/hello/world?key=value&foo=bar".parse().unwrap();
     ///
-    /// assert_eq!(origin_form.query(), Some("key=value&foo=bar"));
+    /// assert_eq!(path_and_query.query(), Some("key=value&foo=bar"));
     /// ```
     ///
     /// Without a query string component
     ///
     /// ```
     /// # use http::uri::*;
-    /// let origin_form: OriginForm = "/hello/world".parse().unwrap();
+    /// let path_and_query: PathAndQuery = "/hello/world".parse().unwrap();
     ///
-    /// assert!(origin_form.query().is_none());
+    /// assert!(path_and_query.query().is_none());
     /// ```
     #[inline]
     pub fn query(&self) -> Option<&str> {
@@ -1214,34 +1212,34 @@ impl OriginForm {
         }
     }
 
-    /// Converts this `OriginForm` back to a sequence of bytes
+    /// Converts this `PathAndQuery` back to a sequence of bytes
     #[inline]
     pub fn into_bytes(self) -> Bytes {
         self.into()
     }
 }
 
-impl FromStr for OriginForm {
+impl FromStr for PathAndQuery {
     type Err = InvalidUri;
 
     fn from_str(s: &str) -> Result<Self, InvalidUri> {
-        OriginForm::try_from_shared(s.into()).map_err(|e| e.0)
+        PathAndQuery::try_from_shared(s.into()).map_err(|e| e.0)
     }
 }
 
-impl From<OriginForm> for Bytes {
-    fn from(src: OriginForm) -> Bytes {
+impl From<PathAndQuery> for Bytes {
+    fn from(src: PathAndQuery) -> Bytes {
         src.data.into()
     }
 }
 
-impl fmt::Debug for OriginForm {
+impl fmt::Debug for PathAndQuery {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(self, f)
     }
 }
 
-impl fmt::Display for OriginForm {
+impl fmt::Display for PathAndQuery {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         if !self.data.is_empty() {
             match self.data.as_bytes()[0] {
@@ -1293,7 +1291,7 @@ fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUriBytes> {
         return Ok(Uri {
             scheme: scheme.into(),
             authority: authority,
-            origin_form: OriginForm::empty(),
+            path_and_query: PathAndQuery::empty(),
         });
     }
 
@@ -1310,7 +1308,7 @@ fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUriBytes> {
     Ok(Uri {
         scheme: scheme.into(),
         authority: authority,
-        origin_form: try!(OriginForm::try_from_shared(s)),
+        path_and_query: try!(PathAndQuery::try_from_shared(s)),
     })
 }
 
@@ -1416,7 +1414,7 @@ impl PartialEq<str> for Uri {
 
         if other.len() < path.len() || path.as_bytes() != &other[..path.len()] {
             if absolute && path == "/" {
-                // OriginForm can be ommitted, fall through
+                // PathAndQuery can be ommitted, fall through
             } else {
                 return false;
             }
@@ -1455,7 +1453,7 @@ impl Default for Uri {
         Uri {
             scheme: Scheme::empty(),
             authority: Authority::empty(),
-            origin_form: OriginForm::slash(),
+            path_and_query: PathAndQuery::slash(),
         }
     }
 }
@@ -1599,7 +1597,7 @@ macro_rules! test_parse {
 }
 
 test_parse! {
-    test_uri_parse_origin_form,
+    test_uri_parse_path_and_query,
     "/some/path/here?and=then&hello#and-bye",
     [],
 
@@ -1909,7 +1907,7 @@ fn test_long_scheme() {
 }
 
 #[test]
-fn test_uri_to_origin_form() {
+fn test_uri_to_path_and_query() {
     let cases = vec![
         ("/", "/"),
         ("/foo?bar", "/foo?bar"),
@@ -1923,7 +1921,7 @@ fn test_uri_to_origin_form() {
 
     for case in cases {
         let uri = Uri::from_str(case.0).unwrap();
-        let s = uri.origin_form().unwrap().to_string();
+        let s = uri.path_and_query().unwrap().to_string();
 
         assert_eq!(s, case.1);
     }
