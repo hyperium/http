@@ -274,7 +274,7 @@ impl Uri {
                         });
                     }
                     _ => {
-                        let authority = try!(Authority::try_from_shared(s));
+                        let authority = Authority::try_from_shared(s)?;
 
                         return Ok(Uri {
                             scheme: Scheme::empty(),
@@ -292,7 +292,7 @@ impl Uri {
             return Ok(Uri {
                 scheme: Scheme::empty(),
                 authority: Authority::empty(),
-                path_and_query: try!(PathAndQuery::try_from_shared(s)),
+                path_and_query: PathAndQuery::try_from_shared(s)?,
             });
         }
 
@@ -731,7 +731,7 @@ impl Scheme {
     pub fn try_from_shared(s: Bytes) -> Result<Self, InvalidUriBytes> {
         use self::Scheme2::*;
 
-        match try!(Scheme2::parse_exact(&s[..]).map_err(InvalidUriBytes)) {
+        match Scheme2::parse_exact(&s[..]).map_err(InvalidUriBytes)? {
             None => Err(ErrorKind::InvalidScheme.into()),
             Standard(p) => Ok(Standard(p).into()),
             Other(_) => {
@@ -782,7 +782,7 @@ impl FromStr for Scheme {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         use self::Scheme2::*;
 
-        match try!(Scheme2::parse_exact(s.as_bytes())) {
+        match Scheme2::parse_exact(s.as_bytes())? {
             None => Err(ErrorKind::InvalidScheme.into()),
             Standard(p) => Ok(Standard(p).into()),
             Other(_) => {
@@ -942,7 +942,7 @@ impl Authority {
     /// # }
     /// ```
     pub fn try_from_shared(s: Bytes) -> Result<Self, InvalidUriBytes> {
-        let authority_end = try!(Authority::parse(&s[..]).map_err(InvalidUriBytes));
+        let authority_end = Authority::parse(&s[..]).map_err(InvalidUriBytes)?;
 
         if authority_end != s.len() {
             return Err(ErrorKind::InvalidUriChar.into());
@@ -1027,7 +1027,7 @@ impl FromStr for Authority {
     type Err = InvalidUri;
 
     fn from_str(s: &str) -> Result<Self, InvalidUri> {
-        let end = try!(Authority::parse(s.as_bytes()));
+        let end = Authority::parse(s.as_bytes())?;
 
         if end != s.len() {
             return Err(ErrorKind::InvalidAuthority.into());
@@ -1254,7 +1254,7 @@ impl fmt::Display for PathAndQuery {
 
 fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUriBytes> {
     // Parse the scheme
-    let scheme = match try!(Scheme2::parse(&s[..]).map_err(InvalidUriBytes)) {
+    let scheme = match Scheme2::parse(&s[..]).map_err(InvalidUriBytes)? {
         Scheme2::None => Scheme2::None,
         Scheme2::Standard(p) => {
             // TODO: use truncate
@@ -1277,7 +1277,7 @@ fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUriBytes> {
 
     // Find the end of the authority. The scheme will already have been
     // extracted.
-    let authority_end = try!(Authority::parse(&s[..]).map_err(InvalidUriBytes));
+    let authority_end = Authority::parse(&s[..]).map_err(InvalidUriBytes)?;
 
     if scheme.is_none() {
         if authority_end != s.len() {
@@ -1308,7 +1308,7 @@ fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUriBytes> {
     Ok(Uri {
         scheme: scheme.into(),
         authority: authority,
-        path_and_query: try!(PathAndQuery::try_from_shared(s)),
+        path_and_query: PathAndQuery::try_from_shared(s)?,
     })
 }
 
@@ -1479,17 +1479,17 @@ impl Default for Uri {
 impl fmt::Display for Uri {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if let Some(scheme) = self.scheme() {
-            try!(write!(f, "{}://", scheme));
+            write!(f, "{}://", scheme)?;
         }
 
         if let Some(authority) = self.authority() {
-            try!(write!(f, "{}", authority));
+            write!(f, "{}", authority)?;
         }
 
-        try!(write!(f, "{}", self.path()));
+        write!(f, "{}", self.path())?;
 
         if let Some(query) = self.query() {
-            try!(write!(f, "?{}", query));
+            write!(f, "?{}", query)?;
         }
 
         Ok(())
