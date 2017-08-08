@@ -652,7 +652,7 @@ impl<T> HeaderMap<T> {
     /// map.append("x-hello", "world");
     /// assert_eq!(map.get("x-hello").unwrap(), &"hello");
     /// ```
-    pub fn get<K: ?Sized>(&self, key: &K) -> Option<&T>
+    pub fn get<K>(&self, key: K) -> Option<&T>
         where K: HeaderMapKey
     {
         match key.find(self) {
@@ -680,7 +680,7 @@ impl<T> HeaderMap<T> {
     ///
     /// assert_eq!(map.get("x-hello").unwrap(), &"hello-world");
     /// ```
-    pub fn get_mut<K: ?Sized>(&mut self, key: &K) -> Option<&mut T>
+    pub fn get_mut<K>(&mut self, key: K) -> Option<&mut T>
         where K: HeaderMapKey
     {
         match key.find(self) {
@@ -717,7 +717,7 @@ impl<T> HeaderMap<T> {
     /// assert_eq!(&"goodbye", iter.next().unwrap());
     /// assert!(iter.next().is_none());
     /// ```
-    pub fn get_all<K: ?Sized>(&self, key: &K) -> Option<GetAll<T>>
+    pub fn get_all<K>(&self, key: K) -> Option<GetAll<T>>
         where K: HeaderMapKey
     {
         match key.find(self) {
@@ -743,7 +743,7 @@ impl<T> HeaderMap<T> {
     /// map.insert("x-hello", "world");
     /// assert!(map.contains_key("x-hello"));
     /// ```
-    pub fn contains_key<K: ?Sized>(&self, key: &K) -> bool
+    pub fn contains_key<K>(&self, key: K) -> bool
         where K: HeaderMapKey
     {
         key.find(self).is_some()
@@ -1260,7 +1260,7 @@ impl<T> HeaderMap<T> {
     ///
     /// assert!(map.remove("x-hello").is_none());
     /// ```
-    pub fn remove<K: ?Sized>(&mut self, key: &K) -> Option<T>
+    pub fn remove<K>(&mut self, key: K) -> Option<T>
         where K: HeaderMapKey
     {
         match key.find(self) {
@@ -1834,13 +1834,13 @@ impl<T> Default for HeaderMap<T> {
     }
 }
 
-impl<'a, K: ?Sized, T> ops::Index<&'a K> for HeaderMap<T>
+impl<K, T> ops::Index<K> for HeaderMap<T>
     where K: HeaderMapKey,
 {
     type Output = T;
 
     #[inline]
-    fn index(&self, index: &K) -> &T {
+    fn index(&self, index: K) -> &T {
         self.get(index).expect("no entry found for key")
     }
 }
@@ -3167,7 +3167,7 @@ impl Sealed for str {
 
 impl HeaderMapKey for str {}
 
-impl<'a> Sealed for &'a str {
+impl Sealed for &'static str {
     #[doc(hidden)]
     #[inline]
     fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<T> {
@@ -3183,7 +3183,7 @@ impl<'a> Sealed for &'a str {
     #[doc(hidden)]
     #[inline]
     fn append_ref<T>(&self, map: &mut HeaderMap<T>, val: T) {
-        (*self).append_ref(map, val)
+        HdrName::from_bytes(self.as_bytes(), move |hdr| map.append2(hdr, val)).unwrap();
     }
 
     #[doc(hidden)]
@@ -3195,79 +3195,11 @@ impl<'a> Sealed for &'a str {
     #[doc(hidden)]
     #[inline]
     fn find<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)> {
-        Sealed::find(*self, map)
+        HdrName::from_bytes(self.as_bytes(), |hdr| map.find(&hdr)).unwrap()
     }
 }
 
-impl<'a> HeaderMapKey for &'a str {}
-
-impl Sealed for String {
-    #[doc(hidden)]
-    #[inline]
-    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<T> {
-        self.as_str().insert(map, val)
-    }
-
-    #[doc(hidden)]
-    #[inline]
-    fn append<T>(self, map: &mut HeaderMap<T>, val: T) -> bool {
-        self.as_str().append(map, val)
-    }
-
-    #[doc(hidden)]
-    #[inline]
-    fn append_ref<T>(&self, map: &mut HeaderMap<T>, val: T) {
-        self.as_str().append_ref(map, val)
-    }
-
-    #[doc(hidden)]
-    #[inline]
-    fn entry<T>(self, map: &mut HeaderMap<T>) -> Entry<T> {
-        self.as_str().entry(map)
-    }
-
-    #[doc(hidden)]
-    #[inline]
-    fn find<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)> {
-        Sealed::find(self.as_str(), map)
-    }
-}
-
-impl HeaderMapKey for String {}
-
-impl<'a> Sealed for &'a String {
-    #[doc(hidden)]
-    #[inline]
-    fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<T> {
-        self.as_str().insert(map, val)
-    }
-
-    #[doc(hidden)]
-    #[inline]
-    fn append<T>(self, map: &mut HeaderMap<T>, val: T) -> bool {
-        self.as_str().append(map, val)
-    }
-
-    #[doc(hidden)]
-    #[inline]
-    fn append_ref<T>(&self, map: &mut HeaderMap<T>, val: T) {
-        self.as_str().append_ref(map, val)
-    }
-
-    #[doc(hidden)]
-    #[inline]
-    fn entry<T>(self, map: &mut HeaderMap<T>) -> Entry<T> {
-        self.as_str().entry(map)
-    }
-
-    #[doc(hidden)]
-    #[inline]
-    fn find<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)> {
-        Sealed::find(self.as_str(), map)
-    }
-}
-
-impl<'a> HeaderMapKey for &'a String {}
+impl HeaderMapKey for &'static str {}
 
 #[test]
 fn test_bounds() {
