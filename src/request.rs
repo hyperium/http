@@ -164,7 +164,6 @@ pub struct Request<T> {
 ///
 /// The HTTP request head consists of a method, uri, version, and a set of
 /// header fields.
-#[derive(Debug)]
 pub struct Parts {
     /// The request's method
     pub method: Method,
@@ -483,6 +482,19 @@ impl Parts {
             extensions: Extensions::default(),
             _priv: (),
         }
+    }
+}
+
+impl fmt::Debug for Parts {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Parts")
+            .field("method", &self.method)
+            .field("uri", &self.uri)
+            .field("version", &self.version)
+            .field("headers", &self.headers)
+            // omits Extensions because not useful
+            // omits _priv because not useful
+            .finish()
     }
 }
 

@@ -191,7 +191,6 @@ pub struct Response<T> {
 ///
 /// The HTTP response head consists of a status, version, and a set of
 /// header fields.
-#[derive(Debug)]
 pub struct Parts {
     /// The response's status
     pub status: StatusCode,
@@ -478,6 +477,18 @@ impl Parts {
             extensions: Extensions::default(),
             _priv: (),
         }
+    }
+}
+
+impl fmt::Debug for Parts {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Parts")
+            .field("status", &self.status)
+            .field("version", &self.version)
+            .field("headers", &self.headers)
+            // omits Extensions because not useful
+            // omits _priv because not useful
+            .finish()
     }
 }
 
