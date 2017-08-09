@@ -11,7 +11,7 @@ fn smoke() {
 
     let name: HeaderName = "hello".parse().unwrap();
 
-    match headers.entry(&name) {
+    match headers.entry(&name).unwrap() {
         Entry::Vacant(e) => {
             e.insert("world");
         }
@@ -20,7 +20,7 @@ fn smoke() {
 
     assert!(headers.get("hello").is_some());
 
-    match headers.entry(&name) {
+    match headers.entry(&name).unwrap() {
         Entry::Occupied(mut e) => {
             assert_eq!(e.get(), &"world");
 
@@ -42,7 +42,8 @@ fn drain() {
     let mut headers = HeaderMap::new();
 
     // Insert a single value
-    headers.insert("hello", "world");
+    let name: HeaderName = "hello".parse().unwrap();
+    headers.insert(name, "world");
 
     {
         let mut iter = headers.drain();
@@ -59,9 +60,9 @@ fn drain() {
     assert!(headers.is_empty());
 
     // Insert two sequential values
-    headers.insert("hello", "world");
-    headers.insert("zomg", "bar");
-    headers.append("hello", "world2");
+    headers.insert("hello".parse::<HeaderName>().unwrap(), "world");
+    headers.insert("zomg".parse::<HeaderName>().unwrap(), "bar");
+    headers.append("hello".parse::<HeaderName>().unwrap(), "world2");
 
     // Drain...
     {
@@ -89,15 +90,15 @@ fn drain() {
 fn drain_entry() {
     let mut headers = HeaderMap::new();
 
-    headers.insert("hello", "world");
-    headers.insert("zomg", "foo");
-    headers.append("hello", "world2");
-    headers.insert("more", "words");
-    headers.append("more", "insertions");
+    headers.insert("hello".parse::<HeaderName>().unwrap(), "world");
+    headers.insert("zomg".parse::<HeaderName>().unwrap(), "foo");
+    headers.append("hello".parse::<HeaderName>().unwrap(), "world2");
+    headers.insert("more".parse::<HeaderName>().unwrap(), "words");
+    headers.append("more".parse::<HeaderName>().unwrap(), "insertions");
 
     // Using insert
     {
-        let mut e = match headers.entry("hello") {
+        let mut e = match headers.entry("hello").unwrap() {
             Entry::Occupied(e) => e,
             _ => panic!(),
         };
@@ -116,28 +117,58 @@ fn eq() {
 
     assert_eq!(a, b);
 
-    a.insert("hello", "world");
+    a.insert("hello".parse::<HeaderName>().unwrap(), "world");
     assert_ne!(a, b);
 
-    b.insert("hello", "world");
+    b.insert("hello".parse::<HeaderName>().unwrap(), "world");
     assert_eq!(a, b);
 
-    a.insert("foo", "bar");
-    a.append("foo", "baz");
+    a.insert("foo".parse::<HeaderName>().unwrap(), "bar");
+    a.append("foo".parse::<HeaderName>().unwrap(), "baz");
     assert_ne!(a, b);
 
-    b.insert("foo", "bar");
+    b.insert("foo".parse::<HeaderName>().unwrap(), "bar");
     assert_ne!(a, b);
 
-    b.append("foo", "baz");
+    b.append("foo".parse::<HeaderName>().unwrap(), "baz");
     assert_eq!(a, b);
 
-    a.append("a", "a");
-    a.append("a", "b");
-    b.append("a", "b");
-    b.append("a", "a");
+    a.append("a".parse::<HeaderName>().unwrap(), "a");
+    a.append("a".parse::<HeaderName>().unwrap(), "b");
+    b.append("a".parse::<HeaderName>().unwrap(), "b");
+    b.append("a".parse::<HeaderName>().unwrap(), "a");
 
     assert_ne!(a, b);
+}
+
+#[test]
+fn into_header_name() {
+    let mut m = HeaderMap::new();
+    m.insert(HOST, "localhost");
+    m.insert(&ACCEPT, "*/*");
+    m.insert("connection", "keep-alive");
+
+    m.append(LOCATION, "/");
+    m.append(&VIA, "bob");
+    m.append("transfer-encoding", "chunked");
+
+    assert_eq!(m.len(), 6);
+}
+
+#[test]
+fn as_header_name() {
+    let mut m = HeaderMap::new();
+    let v = "localhost";
+    m.insert(HOST, v);
+
+    let expected = Some(&v);
+ 
+    assert_eq!(m.get("host"), expected);
+    assert_eq!(m.get(&HOST), expected);
+
+    let s = String::from("host");
+    assert_eq!(m.get(&s), expected);
+    assert_eq!(m.get(s.as_str()), expected);
 }
 
 #[test]
@@ -273,3 +304,17 @@ const STD: &'static [HeaderName] = &[
     X_FRAME_OPTIONS,
     X_XSS_PROTECTION,
 ];
+
+#[test]
+fn get_invalid() {
+    let mut headers = HeaderMap::new();
+    headers.insert("foo", "bar");
+    assert!(headers.get("Evil\r\nKey").is_none());
+}
+
+#[test]
+#[should_panic]
+fn insert_invalid() {
+    let mut headers = HeaderMap::new();
+    headers.insert("evil\r\nfoo", "bar");
+}
