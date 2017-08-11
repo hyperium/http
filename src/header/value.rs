@@ -80,7 +80,7 @@ impl HeaderValue {
     ///
     /// If the argument contains invalid header value characters, an error is
     /// returned. Only visible ASCII characters (32-127) are permitted. Use
-    /// `try_from_bytes` to create a `HeaderValue` that includes opaque octets
+    /// `from_bytes` to create a `HeaderValue` that includes opaque octets
     /// (128-255).
     ///
     /// This function is intended to be replaced in the future by a `TryFrom`
@@ -90,7 +90,7 @@ impl HeaderValue {
     ///
     /// ```
     /// # use http::header::HeaderValue;
-    /// let val = HeaderValue::try_from_str("hello").unwrap();
+    /// let val = HeaderValue::from_str("hello").unwrap();
     /// assert_eq!(val, "hello");
     /// ```
     ///
@@ -98,11 +98,11 @@ impl HeaderValue {
     ///
     /// ```
     /// # use http::header::HeaderValue;
-    /// let val = HeaderValue::try_from_str("\n");
+    /// let val = HeaderValue::from_str("\n");
     /// assert!(val.is_err());
     /// ```
     #[inline]
-    pub fn try_from_str(src: &str) -> Result<HeaderValue, InvalidHeaderValue> {
+    pub fn from_str(src: &str) -> Result<HeaderValue, InvalidHeaderValue> {
         HeaderValue::try_from(src)
     }
 
@@ -119,7 +119,7 @@ impl HeaderValue {
     ///
     /// ```
     /// # use http::header::HeaderValue;
-    /// let val = HeaderValue::try_from_bytes(b"hello\xfa").unwrap();
+    /// let val = HeaderValue::from_bytes(b"hello\xfa").unwrap();
     /// assert_eq!(val, &b"hello\xfa"[..]);
     /// ```
     ///
@@ -127,11 +127,11 @@ impl HeaderValue {
     ///
     /// ```
     /// # use http::header::HeaderValue;
-    /// let val = HeaderValue::try_from_bytes(b"\n");
+    /// let val = HeaderValue::from_bytes(b"\n");
     /// assert!(val.is_err());
     /// ```
     #[inline]
-    pub fn try_from_bytes(src: &[u8]) -> Result<HeaderValue, InvalidHeaderValue> {
+    pub fn from_bytes(src: &[u8]) -> Result<HeaderValue, InvalidHeaderValue> {
         HeaderValue::try_from(src)
     }
 
@@ -144,7 +144,7 @@ impl HeaderValue {
     /// This function is intended to be replaced in the future by a `TryFrom`
     /// implementation once the trait is stabilized in std.
     #[inline]
-    pub fn try_from_shared(src: Bytes) -> Result<HeaderValue, InvalidHeaderValueBytes> {
+    pub fn from_shared(src: Bytes) -> Result<HeaderValue, InvalidHeaderValueBytes> {
         HeaderValue::try_from(src).map_err(InvalidHeaderValueBytes)
     }
 
@@ -301,7 +301,7 @@ impl FromStr for HeaderValue {
 
     #[inline]
     fn from_str(s: &str) -> Result<HeaderValue, Self::Err> {
-        HeaderValue::try_from_str(s)
+        HeaderValue::from_str(s)
     }
 }
 
@@ -326,7 +326,7 @@ impl<'a> HttpTryFrom<&'a [u8]> for HeaderValue {
 
     #[inline]
     fn try_from(t: &'a [u8]) -> Result<Self, Self::Error> {
-        HeaderValue::try_from_bytes(t)
+        HeaderValue::from_bytes(t)
     }
 }
 
@@ -335,7 +335,7 @@ impl HttpTryFrom<Bytes> for HeaderValue {
 
     #[inline]
     fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
-        HeaderValue::try_from_shared(bytes)
+        HeaderValue::from_shared(bytes)
     }
 }
 
