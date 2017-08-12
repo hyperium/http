@@ -1,6 +1,6 @@
 use bytes::Bytes;
 
-use std::{char, cmp, fmt, str};
+use std::{cmp, fmt, str};
 use std::error::Error;
 use std::str::FromStr;
 
@@ -289,10 +289,33 @@ impl AsRef<[u8]> for HeaderValue {
 
 impl fmt::Debug for HeaderValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("HeaderValue")
-            .field("value", &EscapeBytes(self.as_ref()))
-            .field("is_sensitive", &self.is_sensitive)
-            .finish()
+        if self.is_sensitive {
+            f.write_str("Sensitive")
+        } else {
+            f.write_str("\"")?;
+            let mut from = 0;
+            let bytes = self.as_bytes();
+            for (i, &b) in bytes.iter().enumerate() {
+                if !is_visible_ascii(b) || b == b'"' {
+                    if from != i {
+                        f.write_str(unsafe {
+                            str::from_utf8_unchecked(&bytes[from..i])
+                        })?;
+                    }
+                    if b == b'"' {
+                        f.write_str("\\\"")?;
+                    } else {
+                        write!(f, "\\x{:x}", b)?;
+                    }
+                    from = i + 1;
+                }
+            }
+
+            f.write_str(unsafe {
+                str::from_utf8_unchecked(&bytes[from..])
+            })?;
+            f.write_str("\"")
+        }
     }
 }
 
@@ -336,23 +359,6 @@ impl HttpTryFrom<Bytes> for HeaderValue {
     #[inline]
     fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
         HeaderValue::from_shared(bytes)
-    }
-}
-
-struct EscapeBytes<'a>(&'a [u8]);
-
-impl<'a> fmt::Debug for EscapeBytes<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for &b in self.0 {
-            if is_visible_ascii(b) {
-                let ch = unsafe { char::from_u32_unchecked(b as u32) };
-                write!(f, "{}", ch)?;
-            } else {
-                write!(f, "\\x{:x}", b)?;
-            }
-        }
-
-        Ok(())
     }
 }
 
@@ -558,4 +564,23 @@ impl<'a> PartialOrd<HeaderValue> for &'a str {
 #[test]
 fn test_try_from() {
     HeaderValue::try_from(vec![127]).unwrap_err();
+}
+
+#[test]
+fn test_debug() {
+    let cases = &[
+        ("hello", "\"hello\""),
+        ("hello \"world\"", "\"hello \\\"world\\\"\""),
+        ("\u{7FFF}hello", "\"\\xe7\\xbf\\xbfhello\""),
+    ];
+
+    for &(value, expected) in cases {
+        let val = HeaderValue::try_from_bytes(value.as_bytes()).unwrap();
+        let actual = format!("{:?}", val);
+        assert_eq!(expected, actual);
+    }
+
+    let mut sensitive = HeaderValue::from_static("password");
+    sensitive.set_sensitive(true);
+    assert_eq!("Sensitive", format!("{:?}", sensitive));
 }
