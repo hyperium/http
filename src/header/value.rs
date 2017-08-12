@@ -575,7 +575,7 @@ fn test_debug() {
     ];
 
     for &(value, expected) in cases {
-        let val = HeaderValue::try_from_bytes(value.as_bytes()).unwrap();
+        let val = HeaderValue::from_bytes(value.as_bytes()).unwrap();
         let actual = format!("{:?}", val);
         assert_eq!(expected, actual);
     }
