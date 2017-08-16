@@ -142,12 +142,18 @@ pub struct InvalidUri(ErrorKind);
 #[derive(Debug)]
 pub struct InvalidUriBytes(InvalidUri);
 
+/// An error resulting from a failed attempt to construct a URI.
+#[derive(Debug)]
+pub struct InvalidUriParts(InvalidUri);
+
 #[derive(Debug, Eq, PartialEq)]
 enum ErrorKind {
     InvalidUriChar,
     InvalidScheme,
     InvalidAuthority,
     InvalidFormat,
+    AuthorityMissing,
+    PathAndQueryMissing,
     TooLong,
     Empty,
     SchemeTooLong,
@@ -224,6 +230,44 @@ const SCHEME_CHARS: [u8; 256] = [
 ];
 
 impl Uri {
+    /// Attempt to convert a `Uri` from `Parts`
+    pub fn from_parts(src: Parts) -> Result<Uri, InvalidUriParts> {
+        if src.scheme.is_some() {
+            if src.authority.is_none() {
+                return Err(ErrorKind::AuthorityMissing.into());
+            }
+
+            if src.path_and_query.is_none() {
+                return Err(ErrorKind::PathAndQueryMissing.into());
+            }
+        } else {
+            if src.authority.is_some() && src.path_and_query.is_none() {
+                return Err(ErrorKind::PathAndQueryMissing.into());
+            }
+        }
+
+        let scheme = match src.scheme {
+            Some(scheme) => scheme,
+            None => Scheme { inner: Scheme2::None },
+        };
+
+        let authority = match src.authority {
+            Some(authority) => authority,
+            None => Authority::empty(),
+        };
+
+        let path_and_query = match src.path_and_query {
+            Some(path_and_query) => path_and_query,
+            None => PathAndQuery::empty(),
+        };
+
+        Ok(Uri {
+            scheme: scheme,
+            authority: authority,
+            path_and_query: path_and_query,
+        })
+    }
+
     /// Attempt to convert a `Uri` from `Bytes`
     ///
     /// This function will be replaced by a `TryFrom` implementation once the
@@ -601,46 +645,12 @@ impl HttpTryFrom<Bytes> for Uri {
     }
 }
 
-impl From<Parts> for Uri {
-    fn from(src: Parts) -> Self {
-        if src.scheme.is_some() {
-            assert!(src.authority.is_some(), "an authority must be provided if a scheme is provided");
-            assert!(src.path_and_query.is_some(), "a `PathAndQuery` must be provided if a scheme is provided");
-        } else {
-            if src.authority.is_some() {
-                assert!(src.path_and_query.is_none(), "`PathAndQuery` missing");
-            }
-        }
-
-        let scheme = match src.scheme {
-            Some(scheme) => scheme,
-            None => Scheme { inner: Scheme2::None },
-        };
-
-        let authority = match src.authority {
-            Some(authority) => authority,
-            None => Authority::empty(),
-        };
-
-        let path_and_query = match src.path_and_query {
-            Some(path_and_query) => path_and_query,
-            None => PathAndQuery::empty(),
-        };
-
-        Uri {
-            scheme: scheme,
-            authority: authority,
-            path_and_query: path_and_query,
-        }
-    }
-}
-
 impl HttpTryFrom<Parts> for Uri {
-    type Error = InvalidUri;
+    type Error = InvalidUriParts;
 
     #[inline]
-    fn try_from(t: Parts) -> Result<Self, Self::Error> {
-        Ok(t.into())
+    fn try_from(src: Parts) -> Result<Self, Self::Error> {
+        Uri::from_parts(src)
     }
 }
 
@@ -655,7 +665,7 @@ impl HttpTryFrom<Parts> for Uri {
 /// let mut parts = Parts::default();
 /// parts.path_and_query = Some("/foo".parse().unwrap());
 ///
-/// let uri = Uri::from(parts);
+/// let uri = Uri::from_parts(parts).unwrap();
 ///
 /// assert_eq!(uri.path(), "/foo");
 ///
@@ -672,7 +682,7 @@ impl HttpTryFrom<Parts> for Uri {
 /// parts.authority = Some("foo.com".parse().unwrap());
 /// parts.path_and_query = Some("/foo".parse().unwrap());
 ///
-/// let uri = Uri::from(parts);
+/// let uri = Uri::from_parts(parts).unwrap();
 ///
 /// assert_eq!(uri.scheme().unwrap(), "http");
 /// assert_eq!(uri.authority().unwrap(), "foo.com");
@@ -1514,6 +1524,12 @@ impl From<ErrorKind> for InvalidUriBytes {
     }
 }
 
+impl From<ErrorKind> for InvalidUriParts {
+    fn from(src: ErrorKind) -> InvalidUriParts {
+        InvalidUriParts(src.into())
+    }
+}
+
 impl fmt::Display for InvalidUri {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.description().fmt(f)
@@ -1527,6 +1543,8 @@ impl Error for InvalidUri {
             ErrorKind::InvalidScheme => "invalid scheme",
             ErrorKind::InvalidAuthority => "invalid authority",
             ErrorKind::InvalidFormat => "invalid format",
+            ErrorKind::AuthorityMissing => "authority missing",
+            ErrorKind::PathAndQueryMissing => "path missing",
             ErrorKind::TooLong => "uri too long",
             ErrorKind::Empty => "empty string",
             ErrorKind::SchemeTooLong => "scheme too long",
@@ -1540,7 +1558,19 @@ impl fmt::Display for InvalidUriBytes {
     }
 }
 
+impl fmt::Display for InvalidUriParts {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
 impl Error for InvalidUriBytes {
+    fn description(&self) -> &str {
+        self.0.description()
+    }
+}
+
+impl Error for InvalidUriParts {
     fn description(&self) -> &str {
         self.0.description()
     }

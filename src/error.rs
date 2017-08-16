@@ -27,6 +27,7 @@ enum ErrorKind {
     Method(method::InvalidMethod),
     Uri(uri::InvalidUri),
     UriShared(uri::InvalidUriBytes),
+    UriParts(uri::InvalidUriParts),
     HeaderName(header::InvalidHeaderName),
     HeaderNameShared(header::InvalidHeaderNameBytes),
     HeaderValue(header::InvalidHeaderValue),
@@ -48,6 +49,7 @@ impl error::Error for Error {
             Method(ref e) => e.description(),
             Uri(ref e) => e.description(),
             UriShared(ref e) => e.description(),
+            UriParts(ref e) => e.description(),
             HeaderName(ref e) => e.description(),
             HeaderNameShared(ref e) => e.description(),
             HeaderValue(ref e) => e.description(),
@@ -77,6 +79,12 @@ impl From<uri::InvalidUri> for Error {
 impl From<uri::InvalidUriBytes> for Error {
     fn from(err: uri::InvalidUriBytes) -> Error {
         Error { inner: ErrorKind::UriShared(err) }
+    }
+}
+
+impl From<uri::InvalidUriParts> for Error {
+    fn from(err: uri::InvalidUriParts) -> Error {
+        Error { inner: ErrorKind::UriParts(err) }
     }
 }
 
