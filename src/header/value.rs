@@ -148,6 +148,18 @@ impl HeaderValue {
         HeaderValue::try_from(src).map_err(InvalidHeaderValueBytes)
     }
 
+    /// Convert a `Bytes` directly into a `HeaderValue` without validating.
+    ///
+    /// This function does NOT validate that illegal bytes are not contained
+    /// within the buffer.
+    #[inline]
+    pub unsafe fn from_shared_unchecked(src: Bytes) -> HeaderValue {
+        HeaderValue {
+            inner: src,
+            is_sensitive: false,
+        }
+    }
+
     fn try_from<T: AsRef<[u8]> + Into<Bytes>>(src: T) -> Result<HeaderValue, InvalidHeaderValue> {
         for &b in src.as_ref() {
             if !is_valid(b) {
