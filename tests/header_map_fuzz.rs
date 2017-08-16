@@ -239,7 +239,7 @@ impl AltMap {
             assert_eq!(other.get(key), val.get(0));
 
             // Test get_all
-            let vals = other.get_all(key).unwrap();
+            let vals = other.get_all(key);
             let actual: Vec<_> = vals.iter().collect();
             assert_eq!(&actual[..], &val[..]);
         }
@@ -255,9 +255,7 @@ impl Action {
             }
             Action::Remove { name, val } => {
                 // Just to help track the state, load all associated values.
-                if let Some(v) = map.get_all(&name) {
-                    let _: Vec<_> = v.iter().collect();
-                }
+                map.get_all(&name).iter().collect::<Vec<_>>();
 
                 let actual = map.remove(&name);
                 assert_eq!(actual, val);
