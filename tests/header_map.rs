@@ -13,7 +13,7 @@ fn smoke() {
 
     match headers.entry(&name).unwrap() {
         Entry::Vacant(e) => {
-            e.insert("world");
+            e.insert("world".parse().unwrap());
         }
         _ => panic!(),
     }
@@ -25,7 +25,7 @@ fn smoke() {
             assert_eq!(e.get(), &"world");
 
             // Push another value
-            e.append("zomg");
+            e.append("zomg".parse().unwrap());
 
             let mut i = e.iter();
 
@@ -43,7 +43,7 @@ fn drain() {
 
     // Insert a single value
     let name: HeaderName = "hello".parse().unwrap();
-    headers.insert(name, "world");
+    headers.insert(name, "world".parse().unwrap());
 
     {
         let mut iter = headers.drain();
@@ -60,9 +60,9 @@ fn drain() {
     assert!(headers.is_empty());
 
     // Insert two sequential values
-    headers.insert("hello".parse::<HeaderName>().unwrap(), "world");
-    headers.insert("zomg".parse::<HeaderName>().unwrap(), "bar");
-    headers.append("hello".parse::<HeaderName>().unwrap(), "world2");
+    headers.insert("hello".parse::<HeaderName>().unwrap(), "world".parse().unwrap());
+    headers.insert("zomg".parse::<HeaderName>().unwrap(), "bar".parse().unwrap());
+    headers.append("hello".parse::<HeaderName>().unwrap(), "world2".parse().unwrap());
 
     // Drain...
     {
@@ -90,11 +90,11 @@ fn drain() {
 fn drain_entry() {
     let mut headers = HeaderMap::new();
 
-    headers.insert("hello".parse::<HeaderName>().unwrap(), "world");
-    headers.insert("zomg".parse::<HeaderName>().unwrap(), "foo");
-    headers.append("hello".parse::<HeaderName>().unwrap(), "world2");
-    headers.insert("more".parse::<HeaderName>().unwrap(), "words");
-    headers.append("more".parse::<HeaderName>().unwrap(), "insertions");
+    headers.insert("hello".parse::<HeaderName>().unwrap(), "world".parse().unwrap());
+    headers.insert("zomg".parse::<HeaderName>().unwrap(), "foo".parse().unwrap());
+    headers.append("hello".parse::<HeaderName>().unwrap(), "world2".parse().unwrap());
+    headers.insert("more".parse::<HeaderName>().unwrap(), "words".parse().unwrap());
+    headers.append("more".parse::<HeaderName>().unwrap(), "insertions".parse().unwrap());
 
     // Using insert
     {
@@ -103,7 +103,7 @@ fn drain_entry() {
             _ => panic!(),
         };
 
-        let vals: Vec<_> = e.insert_mult("wat").collect();
+        let vals: Vec<_> = e.insert_mult("wat".parse().unwrap()).collect();
         assert_eq!(2, vals.len());
         assert_eq!(vals[0], "world");
         assert_eq!(vals[1], "world2");
@@ -117,26 +117,26 @@ fn eq() {
 
     assert_eq!(a, b);
 
-    a.insert("hello".parse::<HeaderName>().unwrap(), "world");
+    a.insert("hello".parse::<HeaderName>().unwrap(), "world".parse().unwrap());
     assert_ne!(a, b);
 
-    b.insert("hello".parse::<HeaderName>().unwrap(), "world");
+    b.insert("hello".parse::<HeaderName>().unwrap(), "world".parse().unwrap());
     assert_eq!(a, b);
 
-    a.insert("foo".parse::<HeaderName>().unwrap(), "bar");
-    a.append("foo".parse::<HeaderName>().unwrap(), "baz");
+    a.insert("foo".parse::<HeaderName>().unwrap(), "bar".parse().unwrap());
+    a.append("foo".parse::<HeaderName>().unwrap(), "baz".parse().unwrap());
     assert_ne!(a, b);
 
-    b.insert("foo".parse::<HeaderName>().unwrap(), "bar");
+    b.insert("foo".parse::<HeaderName>().unwrap(), "bar".parse().unwrap());
     assert_ne!(a, b);
 
-    b.append("foo".parse::<HeaderName>().unwrap(), "baz");
+    b.append("foo".parse::<HeaderName>().unwrap(), "baz".parse().unwrap());
     assert_eq!(a, b);
 
-    a.append("a".parse::<HeaderName>().unwrap(), "a");
-    a.append("a".parse::<HeaderName>().unwrap(), "b");
-    b.append("a".parse::<HeaderName>().unwrap(), "b");
-    b.append("a".parse::<HeaderName>().unwrap(), "a");
+    a.append("a".parse::<HeaderName>().unwrap(), "a".parse().unwrap());
+    a.append("a".parse::<HeaderName>().unwrap(), "b".parse().unwrap());
+    b.append("a".parse::<HeaderName>().unwrap(), "b".parse().unwrap());
+    b.append("a".parse::<HeaderName>().unwrap(), "a".parse().unwrap());
 
     assert_ne!(a, b);
 }
@@ -144,13 +144,13 @@ fn eq() {
 #[test]
 fn into_header_name() {
     let mut m = HeaderMap::new();
-    m.insert(HOST, "localhost");
-    m.insert(&ACCEPT, "*/*");
-    m.insert("connection", "keep-alive");
+    m.insert(HOST, "localhost".parse().unwrap());
+    m.insert(&ACCEPT, "*/*".parse().unwrap());
+    m.insert("connection", "keep-alive".parse().unwrap());
 
-    m.append(LOCATION, "/");
-    m.append(&VIA, "bob");
-    m.append("transfer-encoding", "chunked");
+    m.append(LOCATION, "/".parse().unwrap());
+    m.append(&VIA, "bob".parse().unwrap());
+    m.append("transfer-encoding", "chunked".parse().unwrap());
 
     assert_eq!(m.len(), 6);
 }
@@ -158,11 +158,11 @@ fn into_header_name() {
 #[test]
 fn as_header_name() {
     let mut m = HeaderMap::new();
-    let v = "localhost";
-    m.insert(HOST, v);
+    let v: HeaderValue = "localhost".parse().unwrap();
+    m.insert(HOST, v.clone());
 
     let expected = Some(&v);
- 
+
     assert_eq!(m.get("host"), expected);
     assert_eq!(m.get(&HOST), expected);
 
@@ -176,7 +176,7 @@ fn insert_all_std_headers() {
     let mut m = HeaderMap::new();
 
     for (i, hdr) in STD.iter().enumerate() {
-        m.insert(hdr.clone(), hdr.as_str().to_string());
+        m.insert(hdr.clone(), hdr.as_str().parse().unwrap());
 
         for j in 0..(i+1) {
             assert_eq!(m[&STD[j]], STD[j].as_str());
@@ -196,7 +196,7 @@ fn insert_79_custom_std_headers() {
     let hdrs = custom_std(79);
 
     for (i, hdr) in hdrs.iter().enumerate() {
-        h.insert(hdr.clone(), hdr.as_str().to_string());
+        h.insert(hdr.clone(), hdr.as_str().parse().unwrap());
 
         for j in 0..(i+1) {
             assert_eq!(h[&hdrs[j]], hdrs[j].as_str());
@@ -212,9 +212,9 @@ fn insert_79_custom_std_headers() {
 fn append_multiple_values() {
     let mut map = HeaderMap::new();
 
-    map.append(header::CONTENT_TYPE, "json");
-    map.append(header::CONTENT_TYPE, "html");
-    map.append(header::CONTENT_TYPE, "xml");
+    map.append(header::CONTENT_TYPE, "json".parse().unwrap());
+    map.append(header::CONTENT_TYPE, "html".parse().unwrap());
+    map.append(header::CONTENT_TYPE, "xml".parse().unwrap());
 
     let vals = map.get_all(&header::CONTENT_TYPE)
         .iter()
@@ -309,7 +309,7 @@ const STD: &'static [HeaderName] = &[
 #[test]
 fn get_invalid() {
     let mut headers = HeaderMap::new();
-    headers.insert("foo", "bar");
+    headers.insert("foo", "bar".parse().unwrap());
     assert!(headers.get("Evil\r\nKey").is_none());
 }
 
@@ -317,5 +317,5 @@ fn get_invalid() {
 #[should_panic]
 fn insert_invalid() {
     let mut headers = HeaderMap::new();
-    headers.insert("evil\r\nfoo", "bar");
+    headers.insert("evil\r\nfoo", "bar".parse().unwrap());
 }

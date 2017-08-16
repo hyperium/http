@@ -1,3 +1,4 @@
+use super::HeaderValue;
 use super::name::{HeaderName, HdrName, InvalidHeaderName};
 
 use std::{fmt, mem, ops, ptr, vec};
@@ -22,8 +23,8 @@ pub use self::into_header_name::IntoHeaderName;
 /// # use http::header::{CONTENT_LENGTH, HOST, LOCATION};
 /// let mut headers = HeaderMap::new();
 ///
-/// headers.insert(HOST, "example.com");
-/// headers.insert(CONTENT_LENGTH, "123");
+/// headers.insert(HOST, "example.com".parse().unwrap());
+/// headers.insert(CONTENT_LENGTH, "123".parse().unwrap());
 ///
 /// assert!(headers.contains_key(HOST));
 /// assert!(!headers.contains_key(LOCATION));
@@ -35,7 +36,7 @@ pub use self::into_header_name::IntoHeaderName;
 /// assert!(!headers.contains_key(HOST));
 /// ```
 #[derive(Clone)]
-pub struct HeaderMap<T> {
+pub struct HeaderMap<T = HeaderValue> {
     // Used to mask values to get an index
     mask: Size,
     indices: Vec<Pos>,
@@ -411,7 +412,7 @@ macro_rules! insert_phase_one {
 
 // ===== impl HeaderMap =====
 
-impl<T> HeaderMap<T> {
+impl HeaderMap {
     /// Create an empty `HeaderMap`.
     ///
     /// The map will be created without any capacity. This function will not
@@ -421,15 +422,17 @@ impl<T> HeaderMap<T> {
     ///
     /// ```
     /// # use http::HeaderMap;
-    /// let map: HeaderMap<u32> = HeaderMap::new();
+    /// let map = HeaderMap::new();
     ///
     /// assert!(map.is_empty());
     /// assert_eq!(0, map.capacity());
     /// ```
-    pub fn new() -> HeaderMap<T> {
+    pub fn new() -> Self {
         HeaderMap::with_capacity(0)
     }
+}
 
+impl<T> HeaderMap<T> {
     /// Create an empty `HeaderMap` with the specified capacity.
     ///
     /// The returned map will allocate internal storage in order to hold about
@@ -495,12 +498,12 @@ impl<T> HeaderMap<T> {
     ///
     /// assert_eq!(0, map.len());
     ///
-    /// map.insert(ACCEPT, "text/plain");
-    /// map.insert(HOST, "localhost");
+    /// map.insert(ACCEPT, "text/plain".parse().unwrap());
+    /// map.insert(HOST, "localhost".parse().unwrap());
     ///
     /// assert_eq!(2, map.len());
     ///
-    /// map.append(ACCEPT, "text/html");
+    /// map.append(ACCEPT, "text/html".parse().unwrap());
     ///
     /// assert_eq!(3, map.len());
     /// ```
@@ -522,12 +525,12 @@ impl<T> HeaderMap<T> {
     ///
     /// assert_eq!(0, map.keys_len());
     ///
-    /// map.insert(ACCEPT, "text/plain");
-    /// map.insert(HOST, "localhost");
+    /// map.insert(ACCEPT, "text/plain".parse().unwrap());
+    /// map.insert(HOST, "localhost".parse().unwrap());
     ///
     /// assert_eq!(2, map.keys_len());
     ///
-    /// map.insert(ACCEPT, "text/html");
+    /// map.insert(ACCEPT, "text/html".parse().unwrap());
     ///
     /// assert_eq!(2, map.keys_len());
     /// ```
@@ -546,7 +549,7 @@ impl<T> HeaderMap<T> {
     ///
     /// assert!(map.is_empty());
     ///
-    /// map.insert(HOST, "hello.world");
+    /// map.insert(HOST, "hello.world".parse().unwrap());
     ///
     /// assert!(!map.is_empty());
     /// ```
@@ -563,7 +566,7 @@ impl<T> HeaderMap<T> {
     /// # use http::HeaderMap;
     /// # use http::header::HOST;
     /// let mut map = HeaderMap::new();
-    /// map.insert(HOST, "hello.world");
+    /// map.insert(HOST, "hello.world".parse().unwrap());
     ///
     /// map.clear();
     /// assert!(map.is_empty());
@@ -593,7 +596,7 @@ impl<T> HeaderMap<T> {
     ///
     /// assert_eq!(0, map.capacity());
     ///
-    /// map.insert(HOST, "hello.world");
+    /// map.insert(HOST, "hello.world".parse().unwrap());
     /// assert_eq!(6, map.capacity());
     /// ```
     pub fn capacity(&self) -> usize {
@@ -620,7 +623,7 @@ impl<T> HeaderMap<T> {
     /// # use http::header::HOST;
     /// let mut map = HeaderMap::new();
     /// map.reserve(10);
-    /// # map.insert(HOST, "bar");
+    /// # map.insert(HOST, "bar".parse().unwrap());
     /// ```
     pub fn reserve(&mut self, additional: usize) {
         // TODO: This can't overflow if done properly... since the max # of
@@ -656,11 +659,11 @@ impl<T> HeaderMap<T> {
     /// let mut map = HeaderMap::new();
     /// assert!(map.get("host").is_none());
     ///
-    /// map.insert(HOST, "hello");
+    /// map.insert(HOST, "hello".parse().unwrap());
     /// assert_eq!(map.get(HOST).unwrap(), &"hello");
     /// assert_eq!(map.get("host").unwrap(), &"hello");
     ///
-    /// map.append(HOST, "world");
+    /// map.append(HOST, "world".parse().unwrap());
     /// assert_eq!(map.get("host").unwrap(), &"hello");
     /// ```
     pub fn get<K>(&self, key: K) -> Option<&T>
@@ -686,7 +689,7 @@ impl<T> HeaderMap<T> {
     /// ```
     /// # use http::HeaderMap;
     /// # use http::header::HOST;
-    /// let mut map = HeaderMap::new();
+    /// let mut map = HeaderMap::default();
     /// map.insert(HOST, "hello".to_string());
     /// map.get_mut("host").unwrap().push_str("-world");
     ///
@@ -719,8 +722,8 @@ impl<T> HeaderMap<T> {
     /// # use http::header::HOST;
     /// let mut map = HeaderMap::new();
     ///
-    /// map.insert(HOST, "hello");
-    /// map.append(HOST, "goodbye");
+    /// map.insert(HOST, "hello".parse().unwrap());
+    /// map.append(HOST, "goodbye".parse().unwrap());
     ///
     /// let view = map.get_all("host");
     ///
@@ -748,7 +751,7 @@ impl<T> HeaderMap<T> {
     /// let mut map = HeaderMap::new();
     /// assert!(!map.contains_key(HOST));
     ///
-    /// map.insert(HOST, "world");
+    /// map.insert(HOST, "world".parse().unwrap());
     /// assert!(map.contains_key("host"));
     /// ```
     pub fn contains_key<K>(&self, key: K) -> bool
@@ -770,12 +773,12 @@ impl<T> HeaderMap<T> {
     /// # use http::header::{CONTENT_LENGTH, HOST};
     /// let mut map = HeaderMap::new();
     ///
-    /// map.insert(HOST, "hello");
-    /// map.append(HOST, "goodbye");
-    /// map.insert(CONTENT_LENGTH, "123");
+    /// map.insert(HOST, "hello".parse().unwrap());
+    /// map.append(HOST, "goodbye".parse().unwrap());
+    /// map.insert(CONTENT_LENGTH, "123".parse().unwrap());
     ///
     /// for (key, value) in map.iter() {
-    ///     println!("{:?}: {}", key, value);
+    ///     println!("{:?}: {:?}", key, value);
     /// }
     /// ```
     pub fn iter(&self) -> Iter<T> {
@@ -800,7 +803,7 @@ impl<T> HeaderMap<T> {
     /// ```
     /// # use http::HeaderMap;
     /// # use http::header::{CONTENT_LENGTH, HOST};
-    /// let mut map = HeaderMap::new();
+    /// let mut map = HeaderMap::default();
     ///
     /// map.insert(HOST, "hello".to_string());
     /// map.append(HOST, "goodbye".to_string());
@@ -832,9 +835,9 @@ impl<T> HeaderMap<T> {
     /// # use http::header::{CONTENT_LENGTH, HOST};
     /// let mut map = HeaderMap::new();
     ///
-    /// map.insert(HOST, "hello");
-    /// map.append(HOST, "goodbye");
-    /// map.insert(CONTENT_LENGTH, "123");
+    /// map.insert(HOST, "hello".parse().unwrap());
+    /// map.append(HOST, "goodbye".parse().unwrap());
+    /// map.insert(CONTENT_LENGTH, "123".parse().unwrap());
     ///
     /// for key in map.keys() {
     ///     println!("{:?}", key);
@@ -856,12 +859,12 @@ impl<T> HeaderMap<T> {
     /// # use http::header::{CONTENT_LENGTH, HOST};
     /// let mut map = HeaderMap::new();
     ///
-    /// map.insert(HOST, "hello");
-    /// map.append(HOST, "goodbye");
-    /// map.insert(CONTENT_LENGTH, "123");
+    /// map.insert(HOST, "hello".parse().unwrap());
+    /// map.append(HOST, "goodbye".parse().unwrap());
+    /// map.insert(CONTENT_LENGTH, "123".parse().unwrap());
     ///
     /// for value in map.values() {
-    ///     println!("{}", value);
+    ///     println!("{:?}", value);
     /// }
     /// ```
     pub fn values(&self) -> Values<T> {
@@ -877,8 +880,8 @@ impl<T> HeaderMap<T> {
     ///
     /// ```
     /// # use http::HeaderMap;
-    /// let mut map = HeaderMap::new();
     /// # use http::header::{CONTENT_LENGTH, HOST};
+    /// let mut map = HeaderMap::default();
     ///
     /// map.insert(HOST, "hello".to_string());
     /// map.append(HOST, "goodbye".to_string());
@@ -903,9 +906,9 @@ impl<T> HeaderMap<T> {
     /// # use http::header::{CONTENT_LENGTH, HOST};
     /// let mut map = HeaderMap::new();
     ///
-    /// map.insert(HOST, "hello");
-    /// map.append(HOST, "goodbye");
-    /// map.insert(CONTENT_LENGTH, "123");
+    /// map.insert(HOST, "hello".parse().unwrap());
+    /// map.append(HOST, "goodbye".parse().unwrap());
+    /// map.insert(CONTENT_LENGTH, "123".parse().unwrap());
     ///
     /// let mut drain = map.drain();
     ///
@@ -989,7 +992,7 @@ impl<T> HeaderMap<T> {
     ///
     /// ```
     /// # use http::HeaderMap;
-    /// let mut map = HeaderMap::new();
+    /// let mut map: HeaderMap<u32> = HeaderMap::default();
     ///
     /// let headers = &[
     ///     "content-length",
@@ -1068,10 +1071,10 @@ impl<T> HeaderMap<T> {
     /// # use http::HeaderMap;
     /// # use http::header::HOST;
     /// let mut map = HeaderMap::new();
-    /// assert!(map.insert(HOST, "world").is_none());
+    /// assert!(map.insert(HOST, "world".parse().unwrap()).is_none());
     /// assert!(!map.is_empty());
     ///
-    /// let mut prev = map.insert(HOST, "earth").unwrap();
+    /// let mut prev = map.insert(HOST, "earth".parse().unwrap()).unwrap();
     /// assert_eq!("world", prev);
     /// ```
     pub fn insert<K>(&mut self, key: K, val: T) -> Option<T>
@@ -1157,10 +1160,10 @@ impl<T> HeaderMap<T> {
     /// # use http::HeaderMap;
     /// # use http::header::HOST;
     /// let mut map = HeaderMap::new();
-    /// assert!(map.insert(HOST, "world").is_none());
+    /// assert!(map.insert(HOST, "world".parse().unwrap()).is_none());
     /// assert!(!map.is_empty());
     ///
-    /// map.append(HOST, "earth");
+    /// map.append(HOST, "earth".parse().unwrap());
     ///
     /// let values = map.get_all("host");
     /// let mut i = values.iter();
@@ -1279,7 +1282,7 @@ impl<T> HeaderMap<T> {
     /// # use http::HeaderMap;
     /// # use http::header::HOST;
     /// let mut map = HeaderMap::new();
-    /// map.insert(HOST, "hello.world");
+    /// map.insert(HOST, "hello.world".parse().unwrap());
     ///
     /// let prev = map.remove(HOST).unwrap();
     /// assert_eq!("hello.world", prev);
@@ -1670,12 +1673,12 @@ impl<T> IntoIterator for HeaderMap<T> {
     /// # use http::header;
     /// # use http::header::*;
     /// let mut map = HeaderMap::new();
-    /// map.insert(header::CONTENT_LENGTH, "123");
-    /// map.insert(header::CONTENT_TYPE, "json");
+    /// map.insert(header::CONTENT_LENGTH, "123".parse().unwrap());
+    /// map.insert(header::CONTENT_TYPE, "json".parse().unwrap());
     ///
     /// let mut iter = map.into_iter();
-    /// assert_eq!(iter.next(), Some((Some(header::CONTENT_LENGTH), "123")));
-    /// assert_eq!(iter.next(), Some((Some(header::CONTENT_TYPE), "json")));
+    /// assert_eq!(iter.next(), Some((Some(header::CONTENT_LENGTH), "123".parse().unwrap())));
+    /// assert_eq!(iter.next(), Some((Some(header::CONTENT_TYPE), "json".parse().unwrap())));
     /// assert!(iter.next().is_none());
     /// ```
     ///
@@ -1686,21 +1689,21 @@ impl<T> IntoIterator for HeaderMap<T> {
     /// # use http::header::*;
     /// let mut map = HeaderMap::new();
     ///
-    /// map.append(header::CONTENT_LENGTH, "123");
-    /// map.append(header::CONTENT_LENGTH, "456");
+    /// map.append(header::CONTENT_LENGTH, "123".parse().unwrap());
+    /// map.append(header::CONTENT_LENGTH, "456".parse().unwrap());
     ///
-    /// map.append(header::CONTENT_TYPE, "json");
-    /// map.append(header::CONTENT_TYPE, "html");
-    /// map.append(header::CONTENT_TYPE, "xml");
+    /// map.append(header::CONTENT_TYPE, "json".parse().unwrap());
+    /// map.append(header::CONTENT_TYPE, "html".parse().unwrap());
+    /// map.append(header::CONTENT_TYPE, "xml".parse().unwrap());
     ///
     /// let mut iter = map.into_iter();
     ///
-    /// assert_eq!(iter.next(), Some((Some(header::CONTENT_LENGTH), "123")));
-    /// assert_eq!(iter.next(), Some((None, "456")));
+    /// assert_eq!(iter.next(), Some((Some(header::CONTENT_LENGTH), "123".parse().unwrap())));
+    /// assert_eq!(iter.next(), Some((None, "456".parse().unwrap())));
     ///
-    /// assert_eq!(iter.next(), Some((Some(header::CONTENT_TYPE), "json")));
-    /// assert_eq!(iter.next(), Some((None, "html")));
-    /// assert_eq!(iter.next(), Some((None, "xml")));
+    /// assert_eq!(iter.next(), Some((Some(header::CONTENT_TYPE), "json".parse().unwrap())));
+    /// assert_eq!(iter.next(), Some((None, "html".parse().unwrap())));
+    /// assert_eq!(iter.next(), Some((None, "xml".parse().unwrap())));
     /// assert!(iter.next().is_none());
     /// ```
     fn into_iter(self) -> IntoIter<T> {
@@ -1717,7 +1720,7 @@ impl<T> FromIterator<(HeaderName, T)> for HeaderMap<T>
     fn from_iter<I>(iter: I) -> Self
         where I: IntoIterator<Item = (HeaderName, T)>
     {
-       let mut map = HeaderMap::new();
+       let mut map = HeaderMap::default();
        map.extend(iter);
        map
     }
@@ -1739,14 +1742,14 @@ impl<T> Extend<(Option<HeaderName>, T)> for HeaderMap<T> {
     /// # use http::header::*;
     /// let mut map = HeaderMap::new();
     ///
-    /// map.insert(ACCEPT, "text/plain");
-    /// map.insert(HOST, "hello.world");
+    /// map.insert(ACCEPT, "text/plain".parse().unwrap());
+    /// map.insert(HOST, "hello.world".parse().unwrap());
     ///
     /// let mut extra = HeaderMap::new();
     ///
-    /// extra.insert(HOST, "foo.bar");
-    /// extra.insert(COOKIE, "hello");
-    /// extra.append(COOKIE, "world");
+    /// extra.insert(HOST, "foo.bar".parse().unwrap());
+    /// extra.insert(COOKIE, "hello".parse().unwrap());
+    /// extra.append(COOKIE, "world".parse().unwrap());
     ///
     /// map.extend(extra);
     ///
@@ -1852,7 +1855,7 @@ impl<T: fmt::Debug> fmt::Debug for HeaderMap<T> {
 
 impl<T> Default for HeaderMap<T> {
     fn default() -> Self {
-        HeaderMap::new()
+        HeaderMap::with_capacity(0)
     }
 }
 
@@ -2087,7 +2090,7 @@ impl<'a, T> Entry<'a, T> {
     ///
     /// ```
     /// # use http::HeaderMap;
-    /// let mut map = HeaderMap::new();
+    /// let mut map: HeaderMap<u32> = HeaderMap::default();
     ///
     /// let headers = &[
     ///     "content-length",
@@ -2130,7 +2133,7 @@ impl<'a, T> Entry<'a, T> {
     /// let mut map = HeaderMap::new();
     ///
     /// let res = map.entry("x-hello").unwrap()
-    ///     .or_insert_with(|| "world".to_string());
+    ///     .or_insert_with(|| "world".parse().unwrap());
     ///
     /// assert_eq!(res, "world");
     /// ```
@@ -2141,7 +2144,7 @@ impl<'a, T> Entry<'a, T> {
     /// # use http::HeaderMap;
     /// # use http::header::HOST;
     /// let mut map = HeaderMap::new();
-    /// map.insert(HOST, "world".to_string());
+    /// map.insert(HOST, "world".parse().unwrap());
     ///
     /// let res = map.entry("host")
     ///     .expect("host is a valid string")
@@ -2165,7 +2168,7 @@ impl<'a, T> Entry<'a, T> {
     ///
     /// ```
     /// # use http::HeaderMap;
-    /// let mut map: HeaderMap<i32> = HeaderMap::new();
+    /// let mut map = HeaderMap::new();
     ///
     /// assert_eq!(map.entry("x-hello").unwrap().key(), "x-hello");
     /// ```
@@ -2188,7 +2191,7 @@ impl<'a, T> VacantEntry<'a, T> {
     ///
     /// ```
     /// # use http::HeaderMap;
-    /// let mut map: HeaderMap<i32> = HeaderMap::new();
+    /// let mut map = HeaderMap::new();
     ///
     /// assert_eq!(map.entry("x-hello").unwrap().key().as_str(), "x-hello");
     /// ```
@@ -2202,7 +2205,7 @@ impl<'a, T> VacantEntry<'a, T> {
     ///
     /// ```
     /// # use http::header::{HeaderMap, Entry};
-    /// let mut map: HeaderMap<i32> = HeaderMap::new();
+    /// let mut map = HeaderMap::new();
     ///
     /// if let Entry::Vacant(v) = map.entry("x-hello").unwrap() {
     ///     assert_eq!(v.into_key().as_str(), "x-hello");
@@ -2224,7 +2227,7 @@ impl<'a, T> VacantEntry<'a, T> {
     /// let mut map = HeaderMap::new();
     ///
     /// if let Entry::Vacant(v) = map.entry("x-hello").unwrap() {
-    ///     v.insert("world");
+    ///     v.insert("world".parse().unwrap());
     /// }
     ///
     /// assert_eq!(map["x-hello"], "world");
@@ -2253,8 +2256,8 @@ impl<'a, T> VacantEntry<'a, T> {
     /// let mut map = HeaderMap::new();
     ///
     /// if let Entry::Vacant(v) = map.entry("x-hello").unwrap() {
-    ///     let mut e = v.insert_entry("world");
-    ///     e.insert("world2");
+    ///     let mut e = v.insert_entry("world".parse().unwrap());
+    ///     e.insert("world2".parse().unwrap());
     /// }
     ///
     /// assert_eq!(map["x-hello"], "world2");
@@ -2290,8 +2293,8 @@ impl<'a, T: 'a> GetAll<'a, T> {
     /// # use http::HeaderMap;
     /// # use http::header::HOST;
     /// let mut map = HeaderMap::new();
-    /// map.insert(HOST, "hello.world");
-    /// map.append(HOST, "hello.earth");
+    /// map.insert(HOST, "hello.world".parse().unwrap());
+    /// map.append(HOST, "hello.earth".parse().unwrap());
     ///
     /// let values = map.get_all("host");
     /// let mut iter = values.iter();
@@ -2543,7 +2546,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// ```
     /// # use http::header::{HeaderMap, Entry, HOST};
     /// let mut map = HeaderMap::new();
-    /// map.insert(HOST, "world");
+    /// map.insert(HOST, "world".parse().unwrap());
     ///
     /// if let Entry::Occupied(e) = map.entry("host").unwrap() {
     ///     assert_eq!("host", e.key());
@@ -2566,12 +2569,12 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// ```
     /// # use http::header::{HeaderMap, Entry, HOST};
     /// let mut map = HeaderMap::new();
-    /// map.insert(HOST, "hello.world");
+    /// map.insert(HOST, "hello.world".parse().unwrap());
     ///
     /// if let Entry::Occupied(mut e) = map.entry("host").unwrap() {
     ///     assert_eq!(e.get(), &"hello.world");
     ///
-    ///     e.append("hello.earth");
+    ///     e.append("hello.earth".parse().unwrap());
     ///
     ///     assert_eq!(e.get(), &"hello.world");
     /// }
@@ -2592,7 +2595,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     ///
     /// ```
     /// # use http::header::{HeaderMap, Entry, HOST};
-    /// let mut map = HeaderMap::new();
+    /// let mut map = HeaderMap::default();
     /// map.insert(HOST, "hello.world".to_string());
     ///
     /// if let Entry::Occupied(mut e) = map.entry("host").unwrap() {
@@ -2617,7 +2620,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     ///
     /// ```
     /// # use http::header::{HeaderMap, Entry, HOST};
-    /// let mut map = HeaderMap::new();
+    /// let mut map = HeaderMap::default();
     /// map.insert(HOST, "hello.world".to_string());
     /// map.append(HOST, "hello.earth".to_string());
     ///
@@ -2641,10 +2644,10 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// ```
     /// # use http::header::{HeaderMap, Entry, HOST};
     /// let mut map = HeaderMap::new();
-    /// map.insert(HOST, "hello.world");
+    /// map.insert(HOST, "hello.world".parse().unwrap());
     ///
     /// if let Entry::Occupied(mut e) = map.entry("host").unwrap() {
-    ///     let mut prev = e.insert("earth");
+    ///     let mut prev = e.insert("earth".parse().unwrap());
     ///     assert_eq!("hello.world", prev);
     /// }
     ///
@@ -2664,11 +2667,11 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// ```
     /// # use http::header::{HeaderMap, Entry, HOST};
     /// let mut map = HeaderMap::new();
-    /// map.insert(HOST, "world");
-    /// map.append(HOST, "world2");
+    /// map.insert(HOST, "world".parse().unwrap());
+    /// map.append(HOST, "world2".parse().unwrap());
     ///
     /// if let Entry::Occupied(mut e) = map.entry("host").unwrap() {
-    ///     let mut prev = e.insert_mult("earth");
+    ///     let mut prev = e.insert_mult("earth".parse().unwrap());
     ///     assert_eq!("world", prev.next().unwrap());
     ///     assert_eq!("world2", prev.next().unwrap());
     ///     assert!(prev.next().is_none());
@@ -2690,10 +2693,10 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// ```
     /// # use http::header::{HeaderMap, Entry, HOST};
     /// let mut map = HeaderMap::new();
-    /// map.insert(HOST, "world");
+    /// map.insert(HOST, "world".parse().unwrap());
     ///
     /// if let Entry::Occupied(mut e) = map.entry("host").unwrap() {
-    ///     e.append("earth");
+    ///     e.append("earth".parse().unwrap());
     /// }
     ///
     /// let values = map.get_all("host");
@@ -2717,7 +2720,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// ```
     /// # use http::header::{HeaderMap, Entry, HOST};
     /// let mut map = HeaderMap::new();
-    /// map.insert(HOST, "world");
+    /// map.insert(HOST, "world".parse().unwrap());
     ///
     /// if let Entry::Occupied(e) = map.entry("host").unwrap() {
     ///     let mut prev = e.remove();
@@ -2741,7 +2744,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// ```
     /// # use http::header::{HeaderMap, Entry, HOST};
     /// let mut map = HeaderMap::new();
-    /// map.insert(HOST, "world");
+    /// map.insert(HOST, "world".parse().unwrap());
     ///
     /// if let Entry::Occupied(e) = map.entry("host").unwrap() {
     ///     let (key, mut prev) = e.remove_entry();
@@ -2785,8 +2788,8 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// ```
     /// # use http::header::{HeaderMap, Entry, HOST};
     /// let mut map = HeaderMap::new();
-    /// map.insert(HOST, "world");
-    /// map.append(HOST, "earth");
+    /// map.insert(HOST, "world".parse().unwrap());
+    /// map.append(HOST, "earth".parse().unwrap());
     ///
     /// if let Entry::Occupied(e) = map.entry("host").unwrap() {
     ///     let mut iter = e.iter();
@@ -2808,7 +2811,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     ///
     /// ```
     /// # use http::header::{HeaderMap, Entry, HOST};
-    /// let mut map = HeaderMap::new();
+    /// let mut map = HeaderMap::default();
     /// map.insert(HOST, "world".to_string());
     /// map.append(HOST, "earth".to_string());
     ///
