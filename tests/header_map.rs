@@ -216,8 +216,9 @@ fn append_multiple_values() {
     map.append(header::CONTENT_TYPE, "html");
     map.append(header::CONTENT_TYPE, "xml");
 
-    let vals = map.get_all(&header::CONTENT_TYPE).unwrap();
-    let vals: Vec<_> = vals.iter().collect();
+    let vals = map.get_all(&header::CONTENT_TYPE)
+        .iter()
+        .collect::<Vec<_>>();
 
     assert_eq!(&vals, &[&"json", &"html", &"xml"]);
 }

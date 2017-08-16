@@ -138,7 +138,7 @@ pub struct Drain<'a, T> {
 #[derive(Debug)]
 pub struct GetAll<'a, T: 'a> {
     map: &'a HeaderMap<T>,
-    index: usize,
+    index: Option<usize>,
 }
 
 /// A view into a single location in a `HeaderMap`, which may be vacant or occupied.
@@ -722,25 +722,19 @@ impl<T> HeaderMap<T> {
     /// map.insert(HOST, "hello");
     /// map.append(HOST, "goodbye");
     ///
-    /// let view = map.get_all("host").unwrap();
-    /// assert_eq!(view.get(), &"hello");
+    /// let view = map.get_all("host");
     ///
     /// let mut iter = view.iter();
     /// assert_eq!(&"hello", iter.next().unwrap());
     /// assert_eq!(&"goodbye", iter.next().unwrap());
     /// assert!(iter.next().is_none());
     /// ```
-    pub fn get_all<K>(&self, key: K) -> Option<GetAll<T>>
+    pub fn get_all<K>(&self, key: K) -> GetAll<T>
         where K: AsHeaderName
     {
-        match key.find(self) {
-            Some((_, found)) => {
-                Some(GetAll {
-                    map: self,
-                    index: found,
-                })
-            }
-            None => None,
+        GetAll {
+            map: self,
+            index: key.find(self).map(|(_, i)| i),
         }
     }
 
@@ -940,22 +934,31 @@ impl<T> HeaderMap<T> {
         }
     }
 
-    fn value_iter(&self, idx: usize) -> ValueIter<T> {
+    fn value_iter(&self, idx: Option<usize>) -> ValueIter<T> {
         use self::Cursor::*;
 
-        let back = {
-            let entry = &self.entries[idx];
+        if let Some(idx) = idx {
+            let back = {
+                let entry = &self.entries[idx];
 
-            entry.links
-                .map(|l| Values(l.tail))
-                .unwrap_or(Head)
-        };
+                entry.links
+                    .map(|l| Values(l.tail))
+                    .unwrap_or(Head)
+            };
 
-        ValueIter {
-            map: self,
-            index: idx,
-            front: Some(Head),
-            back: Some(back),
+            ValueIter {
+                map: self,
+                index: idx,
+                front: Some(Head),
+                back: Some(back),
+            }
+        } else {
+            ValueIter {
+                map: self,
+                index: ::std::usize::MAX,
+                front: None,
+                back: None,
+            }
         }
     }
 
@@ -1159,7 +1162,7 @@ impl<T> HeaderMap<T> {
     ///
     /// map.append(HOST, "earth");
     ///
-    /// let values = map.get_all("host").unwrap();
+    /// let values = map.get_all("host");
     /// let mut i = values.iter();
     /// assert_eq!("world", *i.next().unwrap());
     /// assert_eq!("earth", *i.next().unwrap());
@@ -1751,10 +1754,10 @@ impl<T> Extend<(Option<HeaderName>, T)> for HeaderMap<T> {
     /// assert_eq!(map["accept"], "text/plain");
     /// assert_eq!(map["cookie"], "hello");
     ///
-    /// let v = map.get_all("host").unwrap();
+    /// let v = map.get_all("host");
     /// assert_eq!(1, v.iter().count());
     ///
-    /// let v = map.get_all("cookie").unwrap();
+    /// let v = map.get_all("cookie");
     /// assert_eq!(2, v.iter().count());
     /// ```
     fn extend<I: IntoIterator<Item = (Option<HeaderName>, T)>>(&mut self, iter: I) {
@@ -2276,49 +2279,7 @@ impl<'a, T> VacantEntry<'a, T> {
 
 // ===== impl GetAll =====
 
-impl<'a, T> GetAll<'a, T> {
-    /// Returns a reference to the entry's key.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use http::HeaderMap;
-    /// # use http::header::HOST;
-    /// let mut map = HeaderMap::new();
-    /// map.insert(HOST, "hello.world");
-    ///
-    /// assert_eq!("host", map.get_all("host").unwrap().key());
-    /// ```
-    pub fn key(&self) -> &HeaderName {
-        &self.map.entries[self.index].key
-    }
-
-    /// Get a reference to the first value in the set.
-    ///
-    /// Values are stored in insertion order.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use http::HeaderMap;
-    /// # use http::header::HOST;
-    /// let mut map = HeaderMap::new();
-    /// map.insert(HOST, "hello.world");
-    ///
-    /// assert_eq!(
-    ///     map.get_all("host").unwrap().get(),
-    ///     &"hello.world");
-    ///
-    /// map.append(HOST, "hello.earth");
-    ///
-    /// assert_eq!(
-    ///     map.get_all("host").unwrap().get(),
-    ///     &"hello.world");
-    /// ```
-    pub fn get(&self) -> &T {
-        &self.map.entries[self.index].value
-    }
-
+impl<'a, T: 'a> GetAll<'a, T> {
     /// Returns an iterator visiting all values associated with the entry.
     ///
     /// Values are iterated in insertion order.
@@ -2332,14 +2293,19 @@ impl<'a, T> GetAll<'a, T> {
     /// map.insert(HOST, "hello.world");
     /// map.append(HOST, "hello.earth");
     ///
-    /// let values = map.get_all("host").unwrap();
+    /// let values = map.get_all("host");
     /// let mut iter = values.iter();
     /// assert_eq!(&"hello.world", iter.next().unwrap());
     /// assert_eq!(&"hello.earth", iter.next().unwrap());
     /// assert!(iter.next().is_none());
     /// ```
-    pub fn iter(&self) -> ValueIter<T> {
-        self.into_iter()
+    pub fn iter(&self) -> ValueIter<'a, T> {
+        // This creates a new GetAll struct so that the lifetime
+        // isn't bound to &self.
+        GetAll {
+            map: self.map,
+            index: self.index,
+        }.into_iter()
     }
 }
 
@@ -2375,10 +2341,11 @@ impl<'a, T: 'a> Iterator for ValueIter<'a, T> {
     fn next(&mut self) -> Option<Self::Item> {
         use self::Cursor::*;
 
-        let entry = &self.map.entries[self.index];
 
         match self.front {
             Some(Head) => {
+                let entry = &self.map.entries[self.index];
+
                 if self.back == Some(Head) {
                     self.front = None;
                     self.back = None;
@@ -2418,13 +2385,12 @@ impl<'a, T: 'a> DoubleEndedIterator for ValueIter<'a, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
         use self::Cursor::*;
 
-        let entry = &self.map.entries[self.index];
 
         match self.back {
             Some(Head) => {
                 self.front = None;
                 self.back = None;
-                Some(&entry.value)
+                Some(&self.map.entries[self.index].value)
             }
             Some(Values(idx)) => {
                 let extra = &self.map.extra_values[idx];
@@ -2730,7 +2696,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     ///     e.append("earth");
     /// }
     ///
-    /// let values = map.get_all("host").unwrap();
+    /// let values = map.get_all("host");
     /// let mut i = values.iter();
     /// assert_eq!("world", *i.next().unwrap());
     /// assert_eq!("earth", *i.next().unwrap());
@@ -2830,7 +2796,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// }
     /// ```
     pub fn iter(&self) -> ValueIter<T> {
-        self.map.value_iter(self.index)
+        self.map.value_iter(Some(self.index))
     }
 
     /// Returns an iterator mutably visiting all values associated with the
@@ -2852,7 +2818,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     ///     }
     /// }
     ///
-    /// let mut values = map.get_all("host").unwrap();
+    /// let mut values = map.get_all("host");
     /// let mut i = values.iter();
     /// assert_eq!(&"world-boop", i.next().unwrap());
     /// assert_eq!(&"earth-boop", i.next().unwrap());
