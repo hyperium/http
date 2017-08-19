@@ -12,7 +12,7 @@ macro_rules! bench {
 
             #[bench]
             fn header_map($b: &mut Bencher) {
-                let $map = || HeaderMap::new();
+                let $map = || HeaderMap::default();
                 $body
             }
 
@@ -513,7 +513,6 @@ const STD: &'static [HeaderName] = &[
     ACCEPT_CHARSET,
     ACCEPT_ENCODING,
     ACCEPT_LANGUAGE,
-    ACCEPT_PATCH,
     ACCEPT_RANGES,
     ACCESS_CONTROL_ALLOW_CREDENTIALS,
     ACCESS_CONTROL_ALLOW_HEADERS,
@@ -534,7 +533,6 @@ const STD: &'static [HeaderName] = &[
     CONTENT_LANGUAGE,
     CONTENT_LENGTH,
     CONTENT_LOCATION,
-    CONTENT_MD5,
     CONTENT_RANGE,
     CONTENT_SECURITY_POLICY,
     CONTENT_SECURITY_POLICY_REPORT_ONLY,
@@ -554,7 +552,6 @@ const STD: &'static [HeaderName] = &[
     IF_RANGE,
     IF_UNMODIFIED_SINCE,
     LAST_MODIFIED,
-    KEEP_ALIVE,
     LINK,
     LOCATION,
     MAX_FORWARDS,
@@ -573,10 +570,8 @@ const STD: &'static [HeaderName] = &[
     SET_COOKIE,
     STRICT_TRANSPORT_SECURITY,
     TE,
-    TK,
     TRAILER,
     TRANSFER_ENCODING,
-    TSV,
     USER_AGENT,
     UPGRADE,
     UPGRADE_INSECURE_REQUESTS,
