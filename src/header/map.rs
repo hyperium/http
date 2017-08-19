@@ -88,7 +88,7 @@ pub struct IterMut<'a, T: 'a> {
     map: *mut HeaderMap<T>,
     entry: usize,
     cursor: Option<Cursor>,
-    lt: PhantomData<&'a mut ()>,
+    lt: PhantomData<&'a mut HeaderMap<T>>,
 }
 
 /// An owning iterator over the entries of a `HeaderMap`.
@@ -127,10 +127,10 @@ pub struct ValuesMut<'a, T: 'a> {
 
 /// A drain iterator for `HeaderMap`.
 #[derive(Debug)]
-pub struct Drain<'a, T> {
+pub struct Drain<'a, T: 'a> {
     idx: usize,
     map: *mut HeaderMap<T>,
-    lt: PhantomData<&'a ()>,
+    lt: PhantomData<&'a mut HeaderMap<T>>,
 }
 
 /// A view to all values stored in a single entry.
@@ -190,16 +190,16 @@ pub struct ValueIterMut<'a, T: 'a> {
     index: usize,
     front: Option<Cursor>,
     back: Option<Cursor>,
-    lt: PhantomData<&'a ()>,
+    lt: PhantomData<&'a mut HeaderMap<T>>,
 }
 
 /// An drain iterator of all values associated with a single header name.
 #[derive(Debug)]
-pub struct ValueDrain<'a, T> {
+pub struct ValueDrain<'a, T: 'a> {
     map: *mut HeaderMap<T>,
     first: Option<T>,
     next: Option<usize>,
-    lt: PhantomData<&'a ()>,
+    lt: PhantomData<&'a mut HeaderMap<T>>,
 }
 
 /// Tracks the value iterator state
