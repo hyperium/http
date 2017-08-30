@@ -972,6 +972,36 @@ const HEADER_CHARS: [u8; 256] = [
         0,     0,     0,     0,     0,     0                              // 25x
 ];
 
+const HEADER_CHARS_H2: [u8; 256] = [
+    //  0      1      2      3      4      5      6      7      8      9
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //   x
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //  1x
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //  2x
+        0,     0,     0,  b'!',  b'"',  b'#',  b'$',  b'%',  b'&', b'\'', //  3x
+        0,     0,  b'*',  b'+',     0,  b'-',  b'.',     0,  b'0',  b'1', //  4x
+     b'2',  b'3',  b'4',  b'5',  b'6',  b'7',  b'8',  b'9',     0,     0, //  5x
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //  6x
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //  7x
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //  8x
+        0,     0,     0,     0,     0,  b'_',     0,  b'a',  b'b',  b'c', //  9x
+     b'd',  b'e',  b'f',  b'g',  b'h',  b'i',  b'j',  b'k',  b'l',  b'm', // 10x
+     b'n',  b'o',  b'p',  b'q',  b'r',  b's',  b't',  b'u',  b'v',  b'w', // 11x
+     b'x',  b'y',  b'z',     0,  b'|',     0,  b'~',     0,     0,     0, // 12x
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 13x
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 14x
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 15x
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 16x
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 17x
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 18x
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 19x
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 20x
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 21x
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 22x
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 23x
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 24x
+        0,     0,     0,     0,     0,     0                              // 25x
+];
+
 macro_rules! eq {
     ($v:ident[$n:expr] == $a:tt) => {
         $v[$n] == $a
@@ -984,45 +1014,7 @@ macro_rules! eq {
     };
 }
 
-macro_rules! to_lower {
-    ($d:ident, $src:ident, 1) => { $d[0] = HEADER_CHARS[$src[0] as usize]; };
-    ($d:ident, $src:ident, 2) => { to_lower!($d, $src, 1); $d[1] = HEADER_CHARS[$src[1] as usize]; };
-    ($d:ident, $src:ident, 3) => { to_lower!($d, $src, 2); $d[2] = HEADER_CHARS[$src[2] as usize]; };
-    ($d:ident, $src:ident, 4) => { to_lower!($d, $src, 3); $d[3] = HEADER_CHARS[$src[3] as usize]; };
-    ($d:ident, $src:ident, 5) => { to_lower!($d, $src, 4); $d[4] = HEADER_CHARS[$src[4] as usize]; };
-    ($d:ident, $src:ident, 6) => { to_lower!($d, $src, 5); $d[5] = HEADER_CHARS[$src[5] as usize]; };
-    ($d:ident, $src:ident, 7) => { to_lower!($d, $src, 6); $d[6] = HEADER_CHARS[$src[6] as usize]; };
-    ($d:ident, $src:ident, 8) => { to_lower!($d, $src, 7); $d[7] = HEADER_CHARS[$src[7] as usize]; };
-    ($d:ident, $src:ident, 9) => { to_lower!($d, $src, 8); $d[8] = HEADER_CHARS[$src[8] as usize]; };
-    ($d:ident, $src:ident, 10) => { to_lower!($d, $src, 9); $d[9] = HEADER_CHARS[$src[9] as usize]; };
-    ($d:ident, $src:ident, 11) => { to_lower!($d, $src, 10); $d[10] = HEADER_CHARS[$src[10] as usize]; };
-    ($d:ident, $src:ident, 12) => { to_lower!($d, $src, 11); $d[11] = HEADER_CHARS[$src[11] as usize]; };
-    ($d:ident, $src:ident, 13) => { to_lower!($d, $src, 12); $d[12] = HEADER_CHARS[$src[12] as usize]; };
-    ($d:ident, $src:ident, 14) => { to_lower!($d, $src, 13); $d[13] = HEADER_CHARS[$src[13] as usize]; };
-    ($d:ident, $src:ident, 15) => { to_lower!($d, $src, 14); $d[14] = HEADER_CHARS[$src[14] as usize]; };
-    ($d:ident, $src:ident, 16) => { to_lower!($d, $src, 15); $d[15] = HEADER_CHARS[$src[15] as usize]; };
-    ($d:ident, $src:ident, 17) => { to_lower!($d, $src, 16); $d[16] = HEADER_CHARS[$src[16] as usize]; };
-    ($d:ident, $src:ident, 18) => { to_lower!($d, $src, 17); $d[17] = HEADER_CHARS[$src[17] as usize]; };
-    ($d:ident, $src:ident, 19) => { to_lower!($d, $src, 18); $d[18] = HEADER_CHARS[$src[18] as usize]; };
-    ($d:ident, $src:ident, 20) => { to_lower!($d, $src, 19); $d[19] = HEADER_CHARS[$src[19] as usize]; };
-    ($d:ident, $src:ident, 21) => { to_lower!($d, $src, 20); $d[20] = HEADER_CHARS[$src[20] as usize]; };
-    ($d:ident, $src:ident, 22) => { to_lower!($d, $src, 21); $d[21] = HEADER_CHARS[$src[21] as usize]; };
-    ($d:ident, $src:ident, 23) => { to_lower!($d, $src, 22); $d[22] = HEADER_CHARS[$src[22] as usize]; };
-    ($d:ident, $src:ident, 24) => { to_lower!($d, $src, 23); $d[23] = HEADER_CHARS[$src[23] as usize]; };
-    ($d:ident, $src:ident, 25) => { to_lower!($d, $src, 24); $d[24] = HEADER_CHARS[$src[24] as usize]; };
-    ($d:ident, $src:ident, 26) => { to_lower!($d, $src, 25); $d[25] = HEADER_CHARS[$src[25] as usize]; };
-    ($d:ident, $src:ident, 27) => { to_lower!($d, $src, 26); $d[26] = HEADER_CHARS[$src[26] as usize]; };
-    ($d:ident, $src:ident, 28) => { to_lower!($d, $src, 27); $d[27] = HEADER_CHARS[$src[27] as usize]; };
-    ($d:ident, $src:ident, 29) => { to_lower!($d, $src, 28); $d[28] = HEADER_CHARS[$src[28] as usize]; };
-    ($d:ident, $src:ident, 30) => { to_lower!($d, $src, 29); $d[29] = HEADER_CHARS[$src[29] as usize]; };
-    ($d:ident, $src:ident, 31) => { to_lower!($d, $src, 30); $d[30] = HEADER_CHARS[$src[30] as usize]; };
-    ($d:ident, $src:ident, 32) => { to_lower!($d, $src, 31); $d[31] = HEADER_CHARS[$src[31] as usize]; };
-    ($d:ident, $src:ident, 33) => { to_lower!($d, $src, 32); $d[32] = HEADER_CHARS[$src[32] as usize]; };
-    ($d:ident, $src:ident, 34) => { to_lower!($d, $src, 33); $d[33] = HEADER_CHARS[$src[33] as usize]; };
-    ($d:ident, $src:ident, 35) => { to_lower!($d, $src, 34); $d[34] = HEADER_CHARS[$src[34] as usize]; };
-}
-
-fn parse_hdr<'a>(data: &'a [u8], b: &'a mut [u8; 64])
+fn parse_hdr<'a>(data: &'a [u8], b: &'a mut [u8; 64], table: &[u8; 256])
     -> Result<HdrName<'a>, InvalidHeaderName>
 {
     use self::StandardHeader::*;
@@ -1037,6 +1029,45 @@ fn parse_hdr<'a>(data: &'a [u8], b: &'a mut [u8; 64])
             Ok(HdrName::custom(buf, true))
         }
     };
+
+
+    macro_rules! to_lower {
+        ($d:ident, $src:ident, 1) => { $d[0] = table[$src[0] as usize]; };
+        ($d:ident, $src:ident, 2) => { to_lower!($d, $src, 1); $d[1] = table[$src[1] as usize]; };
+        ($d:ident, $src:ident, 3) => { to_lower!($d, $src, 2); $d[2] = table[$src[2] as usize]; };
+        ($d:ident, $src:ident, 4) => { to_lower!($d, $src, 3); $d[3] = table[$src[3] as usize]; };
+        ($d:ident, $src:ident, 5) => { to_lower!($d, $src, 4); $d[4] = table[$src[4] as usize]; };
+        ($d:ident, $src:ident, 6) => { to_lower!($d, $src, 5); $d[5] = table[$src[5] as usize]; };
+        ($d:ident, $src:ident, 7) => { to_lower!($d, $src, 6); $d[6] = table[$src[6] as usize]; };
+        ($d:ident, $src:ident, 8) => { to_lower!($d, $src, 7); $d[7] = table[$src[7] as usize]; };
+        ($d:ident, $src:ident, 9) => { to_lower!($d, $src, 8); $d[8] = table[$src[8] as usize]; };
+        ($d:ident, $src:ident, 10) => { to_lower!($d, $src, 9); $d[9] = table[$src[9] as usize]; };
+        ($d:ident, $src:ident, 11) => { to_lower!($d, $src, 10); $d[10] = table[$src[10] as usize]; };
+        ($d:ident, $src:ident, 12) => { to_lower!($d, $src, 11); $d[11] = table[$src[11] as usize]; };
+        ($d:ident, $src:ident, 13) => { to_lower!($d, $src, 12); $d[12] = table[$src[12] as usize]; };
+        ($d:ident, $src:ident, 14) => { to_lower!($d, $src, 13); $d[13] = table[$src[13] as usize]; };
+        ($d:ident, $src:ident, 15) => { to_lower!($d, $src, 14); $d[14] = table[$src[14] as usize]; };
+        ($d:ident, $src:ident, 16) => { to_lower!($d, $src, 15); $d[15] = table[$src[15] as usize]; };
+        ($d:ident, $src:ident, 17) => { to_lower!($d, $src, 16); $d[16] = table[$src[16] as usize]; };
+        ($d:ident, $src:ident, 18) => { to_lower!($d, $src, 17); $d[17] = table[$src[17] as usize]; };
+        ($d:ident, $src:ident, 19) => { to_lower!($d, $src, 18); $d[18] = table[$src[18] as usize]; };
+        ($d:ident, $src:ident, 20) => { to_lower!($d, $src, 19); $d[19] = table[$src[19] as usize]; };
+        ($d:ident, $src:ident, 21) => { to_lower!($d, $src, 20); $d[20] = table[$src[20] as usize]; };
+        ($d:ident, $src:ident, 22) => { to_lower!($d, $src, 21); $d[21] = table[$src[21] as usize]; };
+        ($d:ident, $src:ident, 23) => { to_lower!($d, $src, 22); $d[22] = table[$src[22] as usize]; };
+        ($d:ident, $src:ident, 24) => { to_lower!($d, $src, 23); $d[23] = table[$src[23] as usize]; };
+        ($d:ident, $src:ident, 25) => { to_lower!($d, $src, 24); $d[24] = table[$src[24] as usize]; };
+        ($d:ident, $src:ident, 26) => { to_lower!($d, $src, 25); $d[25] = table[$src[25] as usize]; };
+        ($d:ident, $src:ident, 27) => { to_lower!($d, $src, 26); $d[26] = table[$src[26] as usize]; };
+        ($d:ident, $src:ident, 28) => { to_lower!($d, $src, 27); $d[27] = table[$src[27] as usize]; };
+        ($d:ident, $src:ident, 29) => { to_lower!($d, $src, 28); $d[28] = table[$src[28] as usize]; };
+        ($d:ident, $src:ident, 30) => { to_lower!($d, $src, 29); $d[29] = table[$src[29] as usize]; };
+        ($d:ident, $src:ident, 31) => { to_lower!($d, $src, 30); $d[30] = table[$src[30] as usize]; };
+        ($d:ident, $src:ident, 32) => { to_lower!($d, $src, 31); $d[31] = table[$src[31] as usize]; };
+        ($d:ident, $src:ident, 33) => { to_lower!($d, $src, 32); $d[32] = table[$src[32] as usize]; };
+        ($d:ident, $src:ident, 34) => { to_lower!($d, $src, 33); $d[33] = table[$src[33] as usize]; };
+        ($d:ident, $src:ident, 35) => { to_lower!($d, $src, 34); $d[34] = table[$src[34] as usize]; };
+    }
 
     assert!(len < super::MAX_HEADER_NAME_LEN,
             "header name too long -- max length is {}",
@@ -1403,7 +1434,7 @@ fn parse_hdr<'a>(data: &'a [u8], b: &'a mut [u8; 64])
         _ => {
             if len < 64 {
                 for i in 0..len {
-                    b[i] = HEADER_CHARS[data[i] as usize];
+                    b[i] = table[data[i] as usize];
                 }
 
                 validate(b, len)
@@ -1426,7 +1457,7 @@ impl HeaderName {
     /// This function normalizes the input.
     pub fn from_bytes(src: &[u8]) -> Result<HeaderName, InvalidHeaderName> {
         let mut buf = unsafe { mem::uninitialized() };
-        match parse_hdr(src, &mut buf)?.inner {
+        match parse_hdr(src, &mut buf, &HEADER_CHARS)?.inner {
             Repr::Standard(std) => Ok(std.into()),
             Repr::Custom(MaybeLower { buf, lower: true }) => {
                 let buf = Bytes::from(buf);
@@ -1449,6 +1480,47 @@ impl HeaderName {
 
                 let val = unsafe { ByteStr::from_utf8_unchecked(dst.freeze()) };
 
+                Ok(Custom(val).into())
+            }
+        }
+    }
+
+    /// Converts a slice of bytes to an HTTP header name.
+    ///
+    /// This function expects the input to only contain lowercase characters.
+    /// This is useful when decoding HTTP/2.0 headers. The HTTP/2.0
+    /// specification requires that all headers be represented in lower case.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::*;
+    ///
+    /// // Parsing a lower case header
+    /// let hdr = HeaderName::from_lowercase(b"content-length").unwrap();
+    /// assert_eq!(CONTENT_LENGTH, hdr);
+    ///
+    /// // Parsing a header that contains uppercase characters
+    /// assert!(HeaderName::from_lowercase(b"Content-Length").is_err());
+    /// ```
+    pub fn from_lowercase(src: &[u8]) -> Result<HeaderName, InvalidHeaderName> {
+        let mut buf = unsafe { mem::uninitialized() };
+        match parse_hdr(src, &mut buf, &HEADER_CHARS_H2)?.inner {
+            Repr::Standard(std) => Ok(std.into()),
+            Repr::Custom(MaybeLower { buf, lower: true }) => {
+                let buf = Bytes::from(buf);
+                let val = unsafe { ByteStr::from_utf8_unchecked(buf) };
+                Ok(Custom(val).into())
+            }
+            Repr::Custom(MaybeLower { buf, lower: false }) => {
+                for &b in buf.iter() {
+                    if b != HEADER_CHARS[b as usize] {
+                        return Err(InvalidHeaderName::new());
+                    }
+                }
+
+                let buf = Bytes::from(buf);
+                let val = unsafe { ByteStr::from_utf8_unchecked(buf) };
                 Ok(Custom(val).into())
             }
         }
@@ -1692,7 +1764,7 @@ impl<'a> HdrName<'a> {
         where F: FnOnce(HdrName) -> U,
     {
         let mut buf = unsafe { mem::uninitialized() };
-        let hdr = parse_hdr(hdr, &mut buf)?;
+        let hdr = parse_hdr(hdr, &mut buf, &HEADER_CHARS)?;
         Ok(f(hdr))
     }
 
@@ -1700,7 +1772,7 @@ impl<'a> HdrName<'a> {
         where F: FnOnce(HdrName) -> U,
     {
         let mut buf = unsafe { mem::uninitialized() };
-        let hdr = parse_hdr(hdr.as_bytes(), &mut buf)
+        let hdr = parse_hdr(hdr.as_bytes(), &mut buf, &HEADER_CHARS)
             .expect("static str is invalid name");
         f(hdr)
     }
