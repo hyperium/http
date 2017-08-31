@@ -9,11 +9,11 @@
 //! # Examples
 //!
 //! ```
-//! use http::{status, StatusCode};
+//! use http::StatusCode;
 //!
-//! assert_eq!(StatusCode::from_u16(200).unwrap(), status::OK);
-//! assert_eq!(status::NOT_FOUND.as_u16(), 404);
-//! assert!(status::OK.is_success());
+//! assert_eq!(StatusCode::from_u16(200).unwrap(), StatusCode::OK);
+//! assert_eq!(StatusCode::NOT_FOUND.as_u16(), 404);
+//! assert!(StatusCode::OK.is_success());
 //! ```
 
 use std::fmt;
@@ -38,11 +38,11 @@ use HttpTryFrom;
 /// # Examples
 ///
 /// ```
-/// use http::{status, StatusCode};
+/// use http::StatusCode;
 ///
-/// assert_eq!(StatusCode::from_u16(200).unwrap(), status::OK);
-/// assert_eq!(status::NOT_FOUND.as_u16(), 404);
-/// assert!(status::OK.is_success());
+/// assert_eq!(StatusCode::from_u16(200).unwrap(), StatusCode::OK);
+/// assert_eq!(StatusCode::NOT_FOUND.as_u16(), 404);
+/// assert!(StatusCode::OK.is_success());
 /// ```
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StatusCode(u16);
@@ -65,10 +65,10 @@ impl StatusCode {
     /// # Example
     ///
     /// ```
-    /// use http::{status, StatusCode};
+    /// use http::StatusCode;
     ///
     /// let ok = StatusCode::from_u16(200).unwrap();
-    /// assert_eq!(ok, status::OK);
+    /// assert_eq!(ok, StatusCode::OK);
     ///
     /// let err = StatusCode::from_u16(99);
     /// assert!(err.is_err());
@@ -105,7 +105,7 @@ impl StatusCode {
     /// # Example
     ///
     /// ```
-    /// let status = http::status::OK;
+    /// let status = http::StatusCode::OK;
     /// assert_eq!(status.as_u16(), 200);
     /// ```
     #[inline]
@@ -153,8 +153,8 @@ impl fmt::Debug for StatusCode {
 /// Formats the status code, *including* the canonical reason.
 ///
 /// ```rust
-/// # use http::status;
-/// assert_eq!(format!("{}", status::OK), "200 OK");
+/// # use http::StatusCode;
+/// assert_eq!(format!("{}", StatusCode::OK), "200 OK");
 /// ```
 impl fmt::Display for StatusCode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -166,7 +166,7 @@ impl fmt::Display for StatusCode {
 impl Default for StatusCode {
     #[inline]
     fn default() -> StatusCode {
-        OK
+        StatusCode::OK
     }
 }
 
@@ -227,12 +227,12 @@ macro_rules! status_codes {
             ($num:expr, $konst:ident, $phrase:expr);
         )+
     ) => {
+        impl StatusCode {
         $(
             $(#[$docs])*
             pub const $konst: StatusCode = StatusCode($num);
         )+
 
-        impl StatusCode {
             /// Get the standardised `reason-phrase` for this status code.
             ///
             /// This is mostly here for servers writing responses, but could potentially have application
