@@ -35,13 +35,12 @@
 //! Inspecting a request to see what was sent.
 //!
 //! ```
-//! use http::{Request, Response};
-//! use http::status::NOT_FOUND;
+//! use http::{Request, Response, StatusCode};
 //!
 //! fn respond_to(req: Request<()>) -> http::Result<Response<()>> {
 //!     if req.uri() != "/awesome-url" {
 //!         return Response::builder()
-//!             .status(NOT_FOUND)
+//!             .status(StatusCode::NOT_FOUND)
 //!             .body(())
 //!     }
 //!
@@ -98,13 +97,12 @@ use version::Version;
 /// Inspecting a request to see what was sent.
 ///
 /// ```
-/// use http::{Request, Response};
-/// use http::status::NOT_FOUND;
+/// use http::{Request, Response, StatusCode};
 ///
 /// fn respond_to(req: Request<()>) -> http::Result<Response<()>> {
 ///     if req.uri() != "/awesome-url" {
 ///         return Response::builder()
-///             .status(NOT_FOUND)
+///             .status(StatusCode::NOT_FOUND)
 ///             .body(())
 ///     }
 ///
@@ -228,7 +226,7 @@ impl<T> Request<T> {
     /// # use http::*;
     /// let request = Request::new("hello world");
     ///
-    /// assert_eq!(*request.method(), method::GET);
+    /// assert_eq!(*request.method(), Method::GET);
     /// assert_eq!(*request.body(), "hello world");
     /// ```
     #[inline]
@@ -247,7 +245,7 @@ impl<T> Request<T> {
     /// # use http::*;
     /// let request = Request::new("hello world");
     /// let (mut parts, body) = request.into_parts();
-    /// parts.method = method::POST;
+    /// parts.method = Method::POST;
     ///
     /// let request = Request::from_parts(parts, body);
     /// ```
@@ -266,7 +264,7 @@ impl<T> Request<T> {
     /// ```
     /// # use http::*;
     /// let request: Request<()> = Request::default();
-    /// assert_eq!(*request.method(), method::GET);
+    /// assert_eq!(*request.method(), Method::GET);
     /// ```
     #[inline]
     pub fn method(&self) -> &Method {
@@ -280,8 +278,8 @@ impl<T> Request<T> {
     /// ```
     /// # use http::*;
     /// let mut request: Request<()> = Request::default();
-    /// *request.method_mut() = method::PUT;
-    /// assert_eq!(*request.method(), method::PUT);
+    /// *request.method_mut() = Method::PUT;
+    /// assert_eq!(*request.method(), Method::PUT);
     /// ```
     #[inline]
     pub fn method_mut(&mut self) -> &mut Method {
@@ -324,7 +322,7 @@ impl<T> Request<T> {
     /// ```
     /// # use http::*;
     /// let request: Request<()> = Request::default();
-    /// assert_eq!(request.version(), version::HTTP_11);
+    /// assert_eq!(request.version(), Version::HTTP_11);
     /// ```
     #[inline]
     pub fn version(&self) -> Version {
@@ -338,8 +336,8 @@ impl<T> Request<T> {
     /// ```
     /// # use http::*;
     /// let mut request: Request<()> = Request::default();
-    /// *request.version_mut() = version::HTTP_2;
-    /// assert_eq!(request.version(), version::HTTP_2);
+    /// *request.version_mut() = Version::HTTP_2;
+    /// assert_eq!(request.version(), Version::HTTP_2);
     /// ```
     #[inline]
     pub fn version_mut(&mut self) -> &mut Version {
@@ -444,7 +442,7 @@ impl<T> Request<T> {
     /// # use http::*;
     /// let request = Request::new(());
     /// let (parts, body) = request.into_parts();
-    /// assert_eq!(parts.method, method::GET);
+    /// assert_eq!(parts.method, Method::GET);
     /// ```
     #[inline]
     pub fn into_parts(self) -> (Parts, T) {
@@ -586,10 +584,9 @@ impl Builder {
     ///
     /// ```
     /// # use http::*;
-    /// use http::version::HTTP_2;
     ///
     /// let req = Request::builder()
-    ///     .version(HTTP_2)
+    ///     .version(Version::HTTP_2)
     ///     .body(())
     ///     .unwrap();
     /// ```

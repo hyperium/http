@@ -10,13 +10,12 @@
 //! Creating a `Response` to return
 //!
 //! ```
-//! use http::{Request, Response};
-//! use http::status::OK;
+//! use http::{Request, Response, StatusCode};
 //!
 //! fn respond_to(req: Request<()>) -> http::Result<Response<()>> {
 //!     let mut response = Response::builder();
 //!     response.header("Foo", "Bar")
-//!             .status(OK);
+//!             .status(StatusCode::OK);
 //!
 //!     if req.headers().contains_key("Another-Header") {
 //!         response.header("Another-Header", "Ack");
@@ -29,12 +28,11 @@
 //! A simple 404 handler
 //!
 //! ```
-//! use http::{Request, Response};
-//! use http::status::NOT_FOUND;
+//! use http::{Request, Response, StatusCode};
 //!
 //! fn not_found(_req: Request<()>) -> http::Result<Response<()>> {
 //!     Response::builder()
-//!         .status(NOT_FOUND)
+//!         .status(StatusCode::NOT_FOUND)
 //!         .body(())
 //! }
 //! ```
@@ -43,7 +41,6 @@
 //!
 //! ```no_run
 //! use http::{Request, Response};
-//! use http::status::NOT_FOUND;
 //!
 //! fn get(url: &str) -> http::Result<Response<()>> {
 //!     // ...
@@ -88,13 +85,12 @@ use version::Version;
 /// Creating a `Response` to return
 ///
 /// ```
-/// use http::{Request, Response};
-/// use http::status::OK;
+/// use http::{Request, Response, StatusCode};
 ///
 /// fn respond_to(req: Request<()>) -> http::Result<Response<()>> {
 ///     let mut response = Response::builder();
 ///     response.header("Foo", "Bar")
-///             .status(OK);
+///             .status(StatusCode::OK);
 ///
 ///     if req.headers().contains_key("Another-Header") {
 ///         response.header("Another-Header", "Ack");
@@ -107,12 +103,11 @@ use version::Version;
 /// A simple 404 handler
 ///
 /// ```
-/// use http::{Request, Response};
-/// use http::status::NOT_FOUND;
+/// use http::{Request, Response, StatusCode};
 ///
 /// fn not_found(_req: Request<()>) -> http::Result<Response<()>> {
 ///     Response::builder()
-///         .status(NOT_FOUND)
+///         .status(StatusCode::NOT_FOUND)
 ///         .body(())
 /// }
 /// ```
@@ -121,7 +116,6 @@ use version::Version;
 ///
 /// ```no_run
 /// use http::{Request, Response};
-/// use http::status::NOT_FOUND;
 ///
 /// fn get(url: &str) -> http::Result<Response<()>> {
 ///     // ...
@@ -250,7 +244,7 @@ impl<T> Response<T> {
     /// # use http::*;
     /// let response = Response::new("hello world");
     ///
-    /// assert_eq!(response.status(), status::OK);
+    /// assert_eq!(response.status(), StatusCode::OK);
     /// assert_eq!(*response.body(), "hello world");
     /// ```
     #[inline]
@@ -270,10 +264,10 @@ impl<T> Response<T> {
     /// let response = Response::new("hello world");
     /// let (mut parts, body) = response.into_parts();
     ///
-    /// parts.status = status::BAD_REQUEST;
+    /// parts.status = StatusCode::BAD_REQUEST;
     /// let response = Response::from_parts(parts, body);
     ///
-    /// assert_eq!(response.status(), status::BAD_REQUEST);
+    /// assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     /// assert_eq!(*response.body(), "hello world");
     /// ```
     #[inline]
@@ -291,7 +285,7 @@ impl<T> Response<T> {
     /// ```
     /// # use http::*;
     /// let response: Response<()> = Response::default();
-    /// assert_eq!(response.status(), status::OK);
+    /// assert_eq!(response.status(), StatusCode::OK);
     /// ```
     #[inline]
     pub fn status(&self) -> StatusCode {
@@ -305,8 +299,8 @@ impl<T> Response<T> {
     /// ```
     /// # use http::*;
     /// let mut response: Response<()> = Response::default();
-    /// *response.status_mut() = status::CREATED;
-    /// assert_eq!(response.status(), status::CREATED);
+    /// *response.status_mut() = StatusCode::CREATED;
+    /// assert_eq!(response.status(), StatusCode::CREATED);
     /// ```
     #[inline]
     pub fn status_mut(&mut self) -> &mut StatusCode {
@@ -320,7 +314,7 @@ impl<T> Response<T> {
     /// ```
     /// # use http::*;
     /// let response: Response<()> = Response::default();
-    /// assert_eq!(response.version(), version::HTTP_11);
+    /// assert_eq!(response.version(), Version::HTTP_11);
     /// ```
     #[inline]
     pub fn version(&self) -> Version {
@@ -334,8 +328,8 @@ impl<T> Response<T> {
     /// ```
     /// # use http::*;
     /// let mut response: Response<()> = Response::default();
-    /// *response.version_mut() = version::HTTP_2;
-    /// assert_eq!(response.version(), version::HTTP_2);
+    /// *response.version_mut() = Version::HTTP_2;
+    /// assert_eq!(response.version(), Version::HTTP_2);
     /// ```
     #[inline]
     pub fn version_mut(&mut self) -> &mut Version {
@@ -439,7 +433,7 @@ impl<T> Response<T> {
     /// # use http::*;
     /// let response: Response<()> = Response::default();
     /// let (parts, body) = response.into_parts();
-    /// assert_eq!(parts.status, status::OK);
+    /// assert_eq!(parts.status, StatusCode::OK);
     /// ```
     #[inline]
     pub fn into_parts(self) -> (Parts, T) {
@@ -550,10 +544,9 @@ impl Builder {
     ///
     /// ```
     /// # use http::*;
-    /// use http::version::HTTP_2;
     ///
     /// let response = Response::builder()
-    ///     .version(HTTP_2)
+    ///     .version(Version::HTTP_2)
     ///     .body(())
     ///     .unwrap();
     /// ```

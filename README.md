@@ -55,12 +55,11 @@ Create an HTTP response:
 ```rust
 extern crate http;
 
-use http::Response;
-use http::status;
+use http::{Response, StatusCode};
 
 fn main() {
     let response = Response::builder()
-      .status(status::MOVED_PERMANENTLY)
+      .status(StatusCode::MOVED_PERMANENTLY)
       .header("Location", "https://www.rust-lang.org/install.html")
       .body(())
       .unwrap();

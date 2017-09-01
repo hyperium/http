@@ -53,14 +53,13 @@
 //! to edit the request/response:
 //!
 //! ```
-//! use http::Response;
+//! use http::{Response, StatusCode};
 //! use http::header::{CONTENT_TYPE, HeaderValue};
-//! use http::status;
 //!
 //! fn add_server_headers<T>(response: &mut Response<T>) {
 //!     response.headers_mut()
 //!         .insert(CONTENT_TYPE, HeaderValue::from_static("text/html"));
-//!     *response.status_mut() = status::OK;
+//!     *response.status_mut() = StatusCode::OK;
 //! }
 //! ```
 //!
