@@ -2,9 +2,9 @@
 name = "http"
 version = "0.1.0"
 readme = "README.md"
-documentation = ""
-repository = ""
-homepage = ""
+documentation = "https://docs.rs/http"
+repository = "https://github.com/hyperium/http"
+homepage = "https://github.com/hyperium/http"
 license = "MIT/Apache-2.0"
 authors = [
   "Alex Crichton <alex@alexcrichton.com>",
