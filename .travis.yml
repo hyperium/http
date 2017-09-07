@@ -1,29 +1,22 @@
 language: rust
 sudo: false
 
+cache: cargo
+
 matrix:
   include:
     - rust: stable
-    - os: osx
-    - rust: 1.20.0
-      script: cargo build
-
     - rust: beta
     - rust: nightly
-      before_script:
-        - pip install 'travis-cargo<0.2' --user && export PATH=$HOME/.local/bin:$PATH
-      after_success:
-        - travis-cargo doc-upload
+    # minimum rustc version
+    - rust: 1.20.0
+      script: cargo build
 
 script:
   - cargo test
   - 'if [ "$TRAVIS_RUST_VERSION" == "nightly" ]; then cargo test --benches; fi'
   - rustdoc --test README.md -L target/debug/deps
   - cargo doc --no-deps
-
-env:
-  global:
-    secure: "OOUspihcokV8i5XM5Db54DSkaCcQqyXBdpsL7IVhXSgFsa/zyhEBR4Fzss9nUmBIlob5h5ZCnZach6Ut8Rae4DDnGYOeVHOmzqUcRY6QQQZybTdOEJi2f7byMxGd4PRku6feChLKk9euM128uvTtCi22EGSYBo5KBxqR6Xizoyr8MnxuicApm8MhLY28ikF5sKHZ4D7hC5+Nv16oIfrtwROeK5mj32uiTPDK3NBEQM/rH4/jvQAnL5uLgW6lXVlENQ0QhEroXeSEaX5PWvuZ5NXNKw7ro4vxGQxZfB4kbCP63BEoSfuEY41qMnjVFr/9zcNU9ZUxLIG0pimjWR5qKou+bVzAAQEdTCdXM1O40rN9uLc304EB6FX7P1H/tAfVdPmaux+DzyPXGid+QNi6CMubWNOYRWYlZ3WJ2rMExB3f2asSO8/JlF7c97cr18YVIRzmAempD7mwvJ8+gVUTpP5uq4jdavC2WcUFAivqtu+VNIxNvOpuZABh0cEiM7PVgfZHhLBpxat8vpCp1YusDvKzup+P7he/bP+TbLOnuNys6gQMZBoh7Fobco2KxOrd55PAs4AoUd8GITufjujzkC637eZuVNw8x1C83VqFO2yhXgl100VIocwWIdUp4oOGW139K2CW247qdo99fsyVm2jspfyXAuFeZ6HFR7o9GjU="
 
 notifications:
   email:

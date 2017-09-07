@@ -1,3 +1,5 @@
+#![doc(html_root_url = "https://docs.rs/http/0.1.0")]
+
 //! A general purpose library of common HTTP types
 //!
 //! This crate is a general purpose library for common types found when working

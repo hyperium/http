@@ -2,14 +2,14 @@
 
 A general purpose library of common HTTP types
 
-[![Build Status](https://travis-ci.org/carllerche/http.svg?branch=master)](https://travis-ci.org/carllerche/http)
-<!-- [![Crates.io](https://img.shields.io/crates/v/http.svg?maxAge=2592000)](https://crates.io/crates/http) -->
-<!-- [![Documentation](https://docs.rs/http/badge.svg)][dox] -->
+[![Build Status](https://travis-ci.org/hyperium/http.svg?branch=master)](https://travis-ci.org/hyperium/http)
+[![Crates.io](https://img.shields.io/crates/v/http.svg?maxAge=2592000)](https://crates.io/crates/http)
+[![Documentation](https://docs.rs/http/badge.svg)][dox]
 
 More information about this crate can be found in the [crate
-documentation][dox]
+documentation][dox].
 
-[dox]: https://carllerche.github.io/http
+[dox]: https://docs.rs/http
 
 ## Usage
 
@@ -17,7 +17,7 @@ To use `http`, first add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-http = { git = 'https://github.com/carllerche/http' } # soon to be on crates.io!
+http = "0.1"
 ```
 
 Next, add this to your crate:
