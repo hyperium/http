@@ -1,6 +1,6 @@
 [package]
 name = "http"
-version = "0.1.0"
+version = "0.1.0" # don't forget to update html_root_url
 readme = "README.md"
 documentation = "https://docs.rs/http"
 repository = "https://github.com/hyperium/http"
@@ -14,6 +14,11 @@ authors = [
 description = """
 A set of types for representing HTTP requests and responses.
 """
+keywords = ["http"]
+categories = [
+  "network-programming",
+  "web-programming",
+]
 
 [dependencies]
 bytes = "0.4"

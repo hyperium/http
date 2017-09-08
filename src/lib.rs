@@ -155,6 +155,7 @@
 //! assert_eq!(uri.query(), None);
 //! ```
 
+#![doc(html_root_url = "https://docs.rs/http/0.1.0")]
 #![deny(warnings, missing_docs, missing_debug_implementations)]
 
 extern crate bytes;
