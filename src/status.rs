@@ -51,7 +51,7 @@ pub struct StatusCode(u16);
 ///
 /// This error indicates that the supplied input was not a valid number, was less
 /// than 100, or was greater than 599.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct InvalidStatusCode {
     _priv: (),
 }

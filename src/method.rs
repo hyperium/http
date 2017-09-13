@@ -44,7 +44,7 @@ use std::error::Error;
 pub struct Method(Inner);
 
 /// A possible error value when converting `Method` from bytes.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct InvalidMethod {
     _priv: (),
 }

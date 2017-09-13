@@ -56,13 +56,13 @@ struct MaybeLower<'a> {
 }
 
 /// A possible error when converting a `HeaderName` from another type.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct InvalidHeaderName {
     _priv: (),
 }
 
 /// A possible error when converting a `HeaderName` from another type.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct InvalidHeaderNameBytes(InvalidHeaderName) ;
 
 macro_rules! standard_headers {
