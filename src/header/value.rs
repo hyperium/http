@@ -23,21 +23,21 @@ pub struct HeaderValue {
 
 /// A possible error when converting a `HeaderValue` from a string or byte
 /// slice.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct InvalidHeaderValue {
     _priv: (),
 }
 
 /// A possible error when converting a `HeaderValue` from a string or byte
 /// slice.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct InvalidHeaderValueBytes(InvalidHeaderValue);
 
 /// A possible error when converting a `HeaderValue` to a string representation.
 ///
 /// Header field values may contain opaque bytes, in which case it is not
 /// possible to represent the value as a string.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ToStrError {
     _priv: (),
 }

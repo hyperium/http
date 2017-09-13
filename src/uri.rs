@@ -135,18 +135,18 @@ pub struct Parts {
 }
 
 /// An error resulting from a failed attempt to construct a URI.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct InvalidUri(ErrorKind);
 
 /// An error resulting from a failed attempt to construct a URI.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct InvalidUriBytes(InvalidUri);
 
 /// An error resulting from a failed attempt to construct a URI.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct InvalidUriParts(InvalidUri);
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 enum ErrorKind {
     InvalidUriChar,
     InvalidScheme,
