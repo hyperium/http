@@ -456,6 +456,8 @@ impl Uri {
     ///                 authority
     /// ```
     ///
+    /// This function will be renamed to `authority` in the next semver release.
+    ///
     /// # Examples
     ///
     /// Absolute URI
@@ -464,7 +466,7 @@ impl Uri {
     /// # use http::Uri;
     /// let uri: Uri = "http://example.org:80/hello/world".parse().unwrap();
     ///
-    /// assert_eq!(uri.authority(), Some("example.org:80"));
+    /// assert_eq!(uri.authority_part().map(|a| a.as_str()), Some("example.org:80"));
     /// ```
     ///
     ///
@@ -474,8 +476,19 @@ impl Uri {
     /// # use http::Uri;
     /// let uri: Uri = "/hello/world".parse().unwrap();
     ///
-    /// assert!(uri.authority().is_none());
+    /// assert!(uri.authority_part().is_none());
     /// ```
+    #[inline]
+    pub fn authority_part(&self) -> Option<&Authority> {
+        if self.authority.data.is_empty() {
+            None
+        } else {
+            Some(&self.authority)
+        }
+    }
+
+    #[deprecated(since = "0.1.1", note = "use authority_part instead")]
+    #[doc(hidden)]
     #[inline]
     pub fn authority(&self) -> Option<&str> {
         if self.authority.data.is_empty() {
@@ -520,7 +533,7 @@ impl Uri {
     /// ```
     #[inline]
     pub fn host(&self) -> Option<&str> {
-        self.authority().map(host)
+        self.authority_part().map(|a| a.host())
     }
 
     /// Get the port of this `Uri`.
@@ -566,12 +579,8 @@ impl Uri {
     /// assert!(uri.port().is_none());
     /// ```
     pub fn port(&self) -> Option<u16> {
-        self.authority()
-            .and_then(|a| {
-                a.rfind(":").and_then(|i| {
-                    u16::from_str(&a[i+1..]).ok()
-                })
-            })
+        self.authority_part()
+            .and_then(|a| a.port())
     }
 
     /// Get the query string of this `Uri`, starting after the `?`.
@@ -1020,6 +1029,46 @@ impl Authority {
         host(self.as_str())
     }
 
+    /// Get the port of this `Authority`.
+    ///
+    /// The port subcomponent of authority is designated by an optional port
+    /// number in decimal following the host and delimited from it by a single
+    /// colon (":") character. A value is only returned if one is specified in
+    /// the URI string, i.e., default port values are **not** returned.
+    ///
+    /// ```notrust
+    /// abc://username:password@example.com:123/path/data?key=value&key2=value2#fragid1
+    ///                                     |-|
+    ///                                      |
+    ///                                     port
+    /// ```
+    ///
+    /// # Examples
+    ///
+    /// Authority with port
+    ///
+    /// ```
+    /// # use http::uri::Authority;
+    /// let authority: Authority = "example.org:80".parse().unwrap();
+    ///
+    /// assert_eq!(authority.port(), Some(80));
+    /// ```
+    ///
+    /// Authority without port
+    ///
+    /// ```
+    /// # use http::uri::Authority;
+    /// let authority: Authority = "example.org".parse().unwrap();
+    ///
+    /// assert!(authority.port().is_none());
+    /// ```
+    pub fn port(&self) -> Option<u16> {
+        let s = self.as_str();
+        s.rfind(":").and_then(|i| {
+            u16::from_str(&s[i+1..]).ok()
+        })
+    }
+
     /// Return a str representation of the authority
     #[inline]
     pub fn as_str(&self) -> &str {
@@ -1030,6 +1079,62 @@ impl Authority {
     #[inline]
     pub fn into_bytes(self) -> Bytes {
         self.into()
+    }
+}
+
+impl AsRef<str> for Authority {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl PartialEq for Authority {
+    fn eq(&self, other: &Authority) -> bool {
+        self.data.eq_ignore_ascii_case(&other.data)
+    }
+}
+
+/// Case-insensitive equality
+///
+/// # Examples
+///
+/// ```
+/// # use http::uri::Authority;
+/// let authority: Authority = "HELLO.com".parse().unwrap();
+/// assert_eq!(authority, *"hello.coM");
+/// ```
+impl PartialEq<str> for Authority {
+    fn eq(&self, other: &str) -> bool {
+        self.data.eq_ignore_ascii_case(other)
+    }
+}
+
+/// Case-insensitive hashing
+///
+/// # Examples
+///
+/// ```
+/// # use http::uri::Authority;
+/// # use std::hash::{Hash, Hasher};
+/// # use std::collections::hash_map::DefaultHasher;
+///
+/// let a: Authority = "HELLO.com".parse().unwrap();
+/// let b: Authority = "hello.coM".parse().unwrap();
+///
+/// let mut s = DefaultHasher::new();
+/// a.hash(&mut s);
+/// let a = s.finish();
+///
+/// let mut s = DefaultHasher::new();
+/// b.hash(&mut s);
+/// let b = s.finish();
+///
+/// assert_eq!(a, b);
+/// ```
+impl Hash for Authority {
+    fn hash<H>(&self, state: &mut H) where H: Hasher {
+        self.data.as_bytes()
+            .to_ascii_lowercase().hash(state);
     }
 }
 
@@ -1053,7 +1158,6 @@ impl From<Authority> for Bytes {
         src.data.into()
     }
 }
-
 
 impl fmt::Debug for Authority {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -1359,9 +1463,9 @@ impl PartialEq for Uri {
             _ => return false,
         };
 
-        match (self.authority(), other.authority()) {
+        match (self.authority_part(), other.authority_part()) {
             (Some(a), Some(b)) => {
-                if !a.eq_ignore_ascii_case(b) {
+                if a != b {
                     return false;
                 }
             }
@@ -1406,18 +1510,19 @@ impl PartialEq<str> for Uri {
             other = &other[3..];
         }
 
-        if let Some(auth) = self.authority() {
+        if let Some(auth) = self.authority_part() {
+            let len = auth.data.len();
             absolute = true;
 
-            if other.len() < auth.len() {
+            if other.len() < len {
                 return false;
             }
 
-            if !auth.as_bytes().eq_ignore_ascii_case(&other[..auth.len()]) {
+            if !auth.data.as_bytes().eq_ignore_ascii_case(&other[..len]) {
                 return false;
             }
 
-            other = &other[auth.len()..];
+            other = &other[len..];
         }
 
         let path = self.path();
@@ -1492,7 +1597,7 @@ impl fmt::Display for Uri {
             write!(f, "{}://", scheme)?;
         }
 
-        if let Some(authority) = self.authority() {
+        if let Some(authority) = self.authority_part() {
             write!(f, "{}", authority)?;
         }
 
@@ -1595,8 +1700,8 @@ impl Hash for Uri {
             "://".hash(state);
         }
 
-        if let Some(auth) = self.authority() {
-            auth.as_bytes().to_ascii_lowercase().hash(state);
+        if let Some(auth) = self.authority_part() {
+            auth.hash(state);
         }
 
         Hash::hash_slice(self.path().as_bytes(), state);
@@ -1650,7 +1755,7 @@ test_parse! {
     [],
 
     scheme = None,
-    authority = None,
+    authority_part = None,
     path = "/some/path/here",
     query = Some("and=then&hello"),
     host = None,
@@ -1662,7 +1767,7 @@ test_parse! {
     [],
 
     scheme = Some("http"),
-    authority = Some("127.0.0.1:61761"),
+    authority_part = Some(&"127.0.0.1:61761".parse().unwrap()),
     path = "/chunks",
     query = None,
     host = Some("127.0.0.1"),
@@ -1675,7 +1780,7 @@ test_parse! {
     ["https://127.0.0.1:61761/"],
 
     scheme = Some("https"),
-    authority = Some("127.0.0.1:61761"),
+    authority_part = Some(&"127.0.0.1:61761".parse().unwrap()),
     path = "/",
     query = None,
     port = Some(61761),
@@ -1688,7 +1793,7 @@ test_parse! {
     [],
 
     scheme = None,
-    authority = None,
+    authority_part = None,
     path = "*",
     query = None,
     host = None,
@@ -1700,7 +1805,7 @@ test_parse! {
     ["LOCALHOST", "LocaLHOSt"],
 
     scheme = None,
-    authority = Some("localhost"),
+    authority_part = Some(&"localhost".parse().unwrap()),
     path = "",
     query = None,
     port = None,
@@ -1713,7 +1818,7 @@ test_parse! {
     ["localhosT:3000"],
 
     scheme = None,
-    authority = Some("localhost:3000"),
+    authority_part = Some(&"localhost:3000".parse().unwrap()),
     path = "",
     query = None,
     host = Some("localhost"),
@@ -1726,7 +1831,7 @@ test_parse! {
     ["http://127.0.0.1:80/"],
 
     scheme = Some("http"),
-    authority = Some("127.0.0.1:80"),
+    authority_part = Some(&"127.0.0.1:80".parse().unwrap()),
     host = Some("127.0.0.1"),
     path = "/",
     query = None,
@@ -1739,7 +1844,7 @@ test_parse! {
     ["https://127.0.0.1:443/"],
 
     scheme = Some("https"),
-    authority = Some("127.0.0.1:443"),
+    authority_part = Some(&"127.0.0.1:443".parse().unwrap()),
     host = Some("127.0.0.1"),
     path = "/",
     query = None,
@@ -1752,7 +1857,7 @@ test_parse! {
     [],
 
     scheme = Some("http"),
-    authority = Some("127.0.0.1"),
+    authority_part = Some(&"127.0.0.1".parse().unwrap()),
     host = Some("127.0.0.1"),
     path = "/",
     query = None,
@@ -1765,7 +1870,7 @@ test_parse! {
     [],
 
     scheme = Some("http"),
-    authority = Some("127.0.0.1"),
+    authority_part = Some(&"127.0.0.1".parse().unwrap()),
     path = "/path",
     query = Some(""),
     port = None,
@@ -1777,7 +1882,7 @@ test_parse! {
     [],
 
     scheme = Some("http"),
-    authority = Some("127.0.0.1"),
+    authority_part = Some(&"127.0.0.1".parse().unwrap()),
     path = "/",
     query = Some("foo=bar"),
     port = None,
@@ -1789,7 +1894,7 @@ test_parse! {
     [],
 
     scheme = Some("http"),
-    authority = Some("127.0.0.1"),
+    authority_part = Some(&"127.0.0.1".parse().unwrap()),
     path = "/",
     query = None,
     port = None,
@@ -1801,7 +1906,7 @@ test_parse! {
     [],
 
     scheme = Some("http"),
-    authority = Some("127.0.0.1"),
+    authority_part = Some(&"127.0.0.1".parse().unwrap()),
     path = "/",
     query = None,
     port = None,
@@ -1813,7 +1918,7 @@ test_parse! {
     [],
 
     scheme = Some("http"),
-    authority = Some("a:b@127.0.0.1:1234"),
+    authority_part = Some(&"a:b@127.0.0.1:1234".parse().unwrap()),
     host = Some("127.0.0.1"),
     path = "/",
     query = None,
@@ -1826,7 +1931,7 @@ test_parse! {
     [],
 
     scheme = Some("http"),
-    authority = Some("a:b@127.0.0.1"),
+    authority_part = Some(&"a:b@127.0.0.1".parse().unwrap()),
     host = Some("127.0.0.1"),
     path = "/",
     query = None,
@@ -1839,7 +1944,7 @@ test_parse! {
     [],
 
     scheme = Some("http"),
-    authority = Some("a@127.0.0.1"),
+    authority_part = Some(&"a@127.0.0.1".parse().unwrap()),
     host = Some("127.0.0.1"),
     path = "/",
     query = None,
@@ -1852,7 +1957,7 @@ test_parse! {
     [],
 
     scheme = Some("http"),
-    authority = Some("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]"),
+    authority_part = Some(&"[2001:0db8:85a3:0000:0000:8a2e:0370:7334]".parse().unwrap()),
     host = Some("2001:0db8:85a3:0000:0000:8a2e:0370:7334"),
     path = "/",
     query = None,
@@ -1865,7 +1970,7 @@ test_parse! {
     [],
 
     scheme = Some("http"),
-    authority = Some("[::1]"),
+    authority_part = Some(&"[::1]".parse().unwrap()),
     host = Some("::1"),
     path = "/",
     query = None,
@@ -1879,7 +1984,7 @@ test_parse! {
     [],
 
     scheme = Some("http"),
-    authority = Some("[::]"),
+    authority_part = Some(&"[::]".parse().unwrap()),
     host = Some("::"),
     path = "/",
     query = None,
@@ -1892,7 +1997,7 @@ test_parse! {
     [],
 
     scheme = Some("http"),
-    authority = Some("[2001:db8::2:1]"),
+    authority_part = Some(&"[2001:db8::2:1]".parse().unwrap()),
     host = Some("2001:db8::2:1"),
     path = "/",
     query = None,
@@ -1905,7 +2010,7 @@ test_parse! {
     [],
 
     scheme = Some("http"),
-    authority = Some("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]:8008"),
+    authority_part = Some(&"[2001:0db8:85a3:0000:0000:8a2e:0370:7334]:8008".parse().unwrap()),
     host = Some("2001:0db8:85a3:0000:0000:8a2e:0370:7334"),
     path = "/",
     query = None,

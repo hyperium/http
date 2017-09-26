@@ -51,7 +51,7 @@
 //! `Method` and `headers` to inspect the various headers. A `Response`
 //! has similar methods for headers, the status code, etc.
 //!
-//! In addition to getters, request/response types also have mutable accessors 
+//! In addition to getters, request/response types also have mutable accessors
 //! to edit the request/response:
 //!
 //! ```
