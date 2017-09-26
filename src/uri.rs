@@ -1133,8 +1133,9 @@ impl PartialEq<str> for Authority {
 /// ```
 impl Hash for Authority {
     fn hash<H>(&self, state: &mut H) where H: Hasher {
-        self.data.as_bytes()
-            .to_ascii_lowercase().hash(state);
+        for &b in self.data.as_bytes() {
+            state.write_u8(b.to_ascii_lowercase());
+        }
     }
 }
 
