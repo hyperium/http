@@ -1094,6 +1094,8 @@ impl PartialEq for Authority {
     }
 }
 
+impl Eq for Authority {}
+
 /// Case-insensitive equality
 ///
 /// # Examples
