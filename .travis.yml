@@ -15,8 +15,6 @@ matrix:
 script:
   - cargo test
   - 'if [ "$TRAVIS_RUST_VERSION" == "nightly" ]; then cargo test --benches; fi'
-  - rustdoc --test README.md -L target/debug/deps
-  - cargo doc --no-deps
 
 notifications:
   email:
