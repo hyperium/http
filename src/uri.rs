@@ -229,6 +229,36 @@ const SCHEME_CHARS: [u8; 256] = [
         0,     0,     0,     0,     0,     0                              // 25x
 ];
 
+const HEX_DIGIT: [u8; 256] = [
+    //  0      1      2      3      4      5      6      7      8      9
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //   x
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //  1x
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //  2x
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //  3x
+        0,     0,     0,     0,     0,     0,     0,     0,  b'0',  b'1', //  4x
+     b'2',  b'3',  b'4',  b'5',  b'6',  b'7',  b'8',  b'9',     0,     0, //  5x
+        0,     0,     0,     0,     0,  b'A',  b'B',  b'C',  b'D',  b'E', //  6x
+     b'F',  b'G',  b'H',  b'I',  b'J',  b'K',  b'L',  b'M',  b'N',  b'O', //  7x
+     b'P',  b'Q',  b'R',  b'S',  b'T',  b'U',  b'V',  b'W',  b'X',  b'Y', //  8x
+     b'Z',     0,     0,     0,     0,     0,     0,  b'a',  b'b',  b'c', //  9x
+     b'd',  b'e',  b'f',  b'g',  b'h',  b'i',  b'j',  b'k',  b'l',  b'm', // 10x
+     b'n',  b'o',  b'p',  b'q',  b'r',  b's',  b't',  b'u',  b'v',  b'w', // 11x
+     b'x',  b'y',  b'z',     0,     0,     0,  b'~',     0,     0,     0, // 12x
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 13x
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 14x
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 15x
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 16x
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 17x
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 18x
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 19x
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 20x
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 21x
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 22x
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 23x
+        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 24x
+        0,     0,     0,     0,     0,     0                              // 25x
+];
+
 impl Uri {
     /// Attempt to convert a `Uri` from `Parts`
     pub fn from_parts(src: Parts) -> Result<Uri, InvalidUriParts> {
@@ -1200,12 +1230,30 @@ impl PathAndQuery {
     pub fn from_shared(mut src: Bytes) -> Result<Self, InvalidUriBytes> {
         let mut query = NONE;
 
-        for i in 0..src.len() {
+        let mut i = 0;
+
+        while i < src.len() {
             let b = src[i];
 
             match URI_CHARS[b as usize] {
                 0 => {
-                    return Err(ErrorKind::InvalidUriChar.into());
+                    if b == b'%' {
+                        // Check that there are enough chars for a percent
+                        // encoded char
+                        let perc_encoded =
+                            i + 3 <= src.len() && // enough capacity
+                            HEX_DIGIT[src[i + 1] as usize] != 0 &&
+                            HEX_DIGIT[src[i + 2] as usize] != 0;
+
+                        if !perc_encoded {
+                            return Err(ErrorKind::InvalidUriChar.into());
+                        }
+
+                        i += 3;
+                        continue;
+                    } else {
+                        return Err(ErrorKind::InvalidUriChar.into());
+                    }
                 }
                 b'?' => {
                     if query == NONE {
@@ -1219,6 +1267,8 @@ impl PathAndQuery {
                 }
                 _ => {}
             }
+
+            i += 1;
         }
 
         Ok(PathAndQuery {
@@ -2018,6 +2068,19 @@ test_parse! {
     path = "/",
     query = None,
     port = Some(8008),
+}
+
+test_parse! {
+    test_percentage_encoded_path,
+    "/echo/abcdefgh_i-j%20/abcdefg_i-j%20478",
+    [],
+
+    scheme = None,
+    authority_part = None,
+    host = None,
+    path = "/echo/abcdefgh_i-j%20/abcdefg_i-j%20478",
+    query = None,
+    port = None,
 }
 
 #[test]
