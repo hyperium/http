@@ -43,7 +43,7 @@ pub struct ToStrError {
 }
 
 impl HeaderValue {
-    /// Convert a static string to a `HeaderValue`
+    /// Convert a static string to a `HeaderValue`.
     ///
     /// This function will not perform any copying, however the string is
     /// checked to ensure that no invalid characters are present. Only visible
