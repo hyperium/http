@@ -1,7 +1,7 @@
 //! HTTP header types
 //!
 //! The module provides [`HeaderName`], [`HeaderMap`], and a number of types
-//! used for interacting with [`HeaderMap`]. These types allow representing both
+//! used for interacting with `HeaderMap`. These types allow representing both
 //! HTTP/1 and HTTP/2 headers.
 //!
 //! # `HeaderName`
@@ -64,10 +64,10 @@
 //! `HeaderMap` can store a maximum of 32,768 headers (header name / value
 //! pairs). Attempting to insert more will result in a panic.
 //!
-//! [`HeaderName`]: #
-//! [`HeaderMap`]: #
+//! [`HeaderName`]: struct.HeaderName.html
+//! [`HeaderMap`]: struct.HeaderMap.html
 //! [multimap]: https://en.wikipedia.org/wiki/Multimap
-//! [`HashMap`]: #
+//! [`HashMap`]: https://doc.rust-lang.org/std/collections/struct.HashMap.html
 //! [Robin Hood hashing]: https://en.wikipedia.org/wiki/Hash_table#Robin_Hood_hashing
 
 mod map;
