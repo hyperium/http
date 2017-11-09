@@ -869,6 +869,22 @@ impl fmt::Display for Scheme {
     }
 }
 
+impl Hash for Scheme {
+    fn hash<H>(&self, state: &mut H) where H: Hasher {
+        match self.inner {
+            Scheme2::None => (),
+            Scheme2::Standard(Protocol::Http) => state.write_u8(1),
+            Scheme2::Standard(Protocol::Https) => state.write_u8(2),
+            Scheme2::Other(ref other) => {
+                other.len().hash(state);
+                for &b in other.as_bytes() {
+                    state.write_u8(b.to_ascii_lowercase());
+                }
+            }
+        }
+    }
+}
+
 impl<T> Scheme2<T> {
     fn is_none(&self) -> bool {
         match *self {
@@ -1166,6 +1182,7 @@ impl PartialEq<str> for Authority {
 /// ```
 impl Hash for Authority {
     fn hash<H>(&self, state: &mut H) where H: Hasher {
+        self.data.len().hash(state);
         for &b in self.data.as_bytes() {
             state.write_u8(b.to_ascii_lowercase());
         }
@@ -1749,9 +1766,9 @@ impl From<Scheme2> for Scheme {
 
 impl Hash for Uri {
     fn hash<H>(&self, state: &mut H) where H: Hasher {
-        if let Some(scheme) = self.scheme() {
-            scheme.as_bytes().to_ascii_lowercase().hash(state);
-            "://".hash(state);
+        if !self.scheme.inner.is_none() {
+            self.scheme.hash(state);
+            state.write_u8(0xff);
         }
 
         if let Some(auth) = self.authority_part() {
