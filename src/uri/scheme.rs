@@ -131,7 +131,7 @@ impl From<Scheme> for Bytes {
 
 impl fmt::Debug for Scheme {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(self.as_str())
+        fmt::Debug::fmt(self.as_str(), f)
     }
 }
 
@@ -141,6 +141,53 @@ impl fmt::Display for Scheme {
     }
 }
 
+impl AsRef<str> for Scheme {
+    #[inline]
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl PartialEq for Scheme {
+    fn eq(&self, other: &Scheme) -> bool {
+        use self::Protocol::*;
+        use self::Scheme2::*;
+
+        match (&self.inner, &other.inner) {
+            (&Standard(Http), &Standard(Http)) => true,
+            (&Standard(Https), &Standard(Https)) => true,
+            (&Other(ref a), &Other(ref b)) => a.eq_ignore_ascii_case(b),
+            (&None, _) | (_, &None) => unreachable!(),
+            _ => false,
+        }
+    }
+}
+
+impl Eq for Scheme {}
+
+/// Case-insensitive equality
+///
+/// # Examples
+///
+/// ```
+/// # use http::uri::Scheme;
+/// let scheme: Scheme = "HTTP".parse().unwrap();
+/// assert_eq!(scheme, *"http");
+/// ```
+impl PartialEq<str> for Scheme {
+    fn eq(&self, other: &str) -> bool {
+        self.as_str().eq_ignore_ascii_case(other)
+    }
+}
+
+/// Case-insensitive equality
+impl PartialEq<Scheme> for str {
+    fn eq(&self, other: &Scheme) -> bool {
+        other == self
+    }
+}
+
+/// Case-insensitive hashing
 impl Hash for Scheme {
     fn hash<H>(&self, state: &mut H) where H: Hasher {
         match self.inner {
@@ -295,6 +342,7 @@ impl<T> From<Protocol> for Scheme2<T> {
     }
 }
 
+#[doc(hidden)]
 impl From<Scheme2> for Scheme {
     fn from(src: Scheme2) -> Self {
         Scheme { inner: src }

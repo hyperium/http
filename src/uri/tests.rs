@@ -11,6 +11,12 @@ fn test_char_table() {
     }
 }
 
+macro_rules! part {
+    ($s:expr) => (
+        Some(&$s.parse().unwrap())
+    )
+}
+
 macro_rules! test_parse {
     (
         $test_name:ident,
@@ -43,7 +49,7 @@ test_parse! {
     "/some/path/here?and=then&hello#and-bye",
     [],
 
-    scheme = None,
+    scheme_part = None,
     authority_part = None,
     path = "/some/path/here",
     query = Some("and=then&hello"),
@@ -55,8 +61,8 @@ test_parse! {
     "http://127.0.0.1:61761/chunks",
     [],
 
-    scheme = Some("http"),
-    authority_part = Some(&"127.0.0.1:61761".parse().unwrap()),
+    scheme_part = part!("http"),
+    authority_part = part!("127.0.0.1:61761"),
     path = "/chunks",
     query = None,
     host = Some("127.0.0.1"),
@@ -68,8 +74,8 @@ test_parse! {
     "https://127.0.0.1:61761",
     ["https://127.0.0.1:61761/"],
 
-    scheme = Some("https"),
-    authority_part = Some(&"127.0.0.1:61761".parse().unwrap()),
+    scheme_part = part!("https"),
+    authority_part = part!("127.0.0.1:61761"),
     path = "/",
     query = None,
     port = Some(61761),
@@ -81,7 +87,7 @@ test_parse! {
     "*",
     [],
 
-    scheme = None,
+    scheme_part = None,
     authority_part = None,
     path = "*",
     query = None,
@@ -93,8 +99,8 @@ test_parse! {
     "localhost",
     ["LOCALHOST", "LocaLHOSt"],
 
-    scheme = None,
-    authority_part = Some(&"localhost".parse().unwrap()),
+    scheme_part = None,
+    authority_part = part!("localhost"),
     path = "",
     query = None,
     port = None,
@@ -106,8 +112,8 @@ test_parse! {
     "localhost:3000",
     ["localhosT:3000"],
 
-    scheme = None,
-    authority_part = Some(&"localhost:3000".parse().unwrap()),
+    scheme_part = None,
+    authority_part = part!("localhost:3000"),
     path = "",
     query = None,
     host = Some("localhost"),
@@ -119,8 +125,8 @@ test_parse! {
     "http://127.0.0.1:80",
     ["http://127.0.0.1:80/"],
 
-    scheme = Some("http"),
-    authority_part = Some(&"127.0.0.1:80".parse().unwrap()),
+    scheme_part = part!("http"),
+    authority_part = part!("127.0.0.1:80"),
     host = Some("127.0.0.1"),
     path = "/",
     query = None,
@@ -132,8 +138,8 @@ test_parse! {
     "https://127.0.0.1:443",
     ["https://127.0.0.1:443/"],
 
-    scheme = Some("https"),
-    authority_part = Some(&"127.0.0.1:443".parse().unwrap()),
+    scheme_part = part!("https"),
+    authority_part = part!("127.0.0.1:443"),
     host = Some("127.0.0.1"),
     path = "/",
     query = None,
@@ -145,8 +151,8 @@ test_parse! {
     "http://127.0.0.1/#?",
     [],
 
-    scheme = Some("http"),
-    authority_part = Some(&"127.0.0.1".parse().unwrap()),
+    scheme_part = part!("http"),
+    authority_part = part!("127.0.0.1"),
     host = Some("127.0.0.1"),
     path = "/",
     query = None,
@@ -158,8 +164,8 @@ test_parse! {
     "http://127.0.0.1/path?",
     [],
 
-    scheme = Some("http"),
-    authority_part = Some(&"127.0.0.1".parse().unwrap()),
+    scheme_part = part!("http"),
+    authority_part = part!("127.0.0.1"),
     path = "/path",
     query = Some(""),
     port = None,
@@ -170,8 +176,8 @@ test_parse! {
     "http://127.0.0.1?foo=bar",
     [],
 
-    scheme = Some("http"),
-    authority_part = Some(&"127.0.0.1".parse().unwrap()),
+    scheme_part = part!("http"),
+    authority_part = part!("127.0.0.1"),
     path = "/",
     query = Some("foo=bar"),
     port = None,
@@ -182,8 +188,8 @@ test_parse! {
     "http://127.0.0.1#foo/bar",
     [],
 
-    scheme = Some("http"),
-    authority_part = Some(&"127.0.0.1".parse().unwrap()),
+    scheme_part = part!("http"),
+    authority_part = part!("127.0.0.1"),
     path = "/",
     query = None,
     port = None,
@@ -194,8 +200,8 @@ test_parse! {
     "http://127.0.0.1#foo?bar",
     [],
 
-    scheme = Some("http"),
-    authority_part = Some(&"127.0.0.1".parse().unwrap()),
+    scheme_part = part!("http"),
+    authority_part = part!("127.0.0.1"),
     path = "/",
     query = None,
     port = None,
@@ -206,8 +212,8 @@ test_parse! {
     "http://a:b@127.0.0.1:1234/",
     [],
 
-    scheme = Some("http"),
-    authority_part = Some(&"a:b@127.0.0.1:1234".parse().unwrap()),
+    scheme_part = part!("http"),
+    authority_part = part!("a:b@127.0.0.1:1234"),
     host = Some("127.0.0.1"),
     path = "/",
     query = None,
@@ -219,8 +225,8 @@ test_parse! {
     "http://a:b@127.0.0.1/",
     [],
 
-    scheme = Some("http"),
-    authority_part = Some(&"a:b@127.0.0.1".parse().unwrap()),
+    scheme_part = part!("http"),
+    authority_part = part!("a:b@127.0.0.1"),
     host = Some("127.0.0.1"),
     path = "/",
     query = None,
@@ -232,8 +238,8 @@ test_parse! {
     "http://a@127.0.0.1/",
     [],
 
-    scheme = Some("http"),
-    authority_part = Some(&"a@127.0.0.1".parse().unwrap()),
+    scheme_part = part!("http"),
+    authority_part = part!("a@127.0.0.1"),
     host = Some("127.0.0.1"),
     path = "/",
     query = None,
@@ -245,8 +251,8 @@ test_parse! {
     "http://[2001:0db8:85a3:0000:0000:8a2e:0370:7334]/",
     [],
 
-    scheme = Some("http"),
-    authority_part = Some(&"[2001:0db8:85a3:0000:0000:8a2e:0370:7334]".parse().unwrap()),
+    scheme_part = part!("http"),
+    authority_part = part!("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]"),
     host = Some("2001:0db8:85a3:0000:0000:8a2e:0370:7334"),
     path = "/",
     query = None,
@@ -258,8 +264,8 @@ test_parse! {
     "http://[::1]/",
     [],
 
-    scheme = Some("http"),
-    authority_part = Some(&"[::1]".parse().unwrap()),
+    scheme_part = part!("http"),
+    authority_part = part!("[::1]"),
     host = Some("::1"),
     path = "/",
     query = None,
@@ -272,8 +278,8 @@ test_parse! {
     "http://[::]/",
     [],
 
-    scheme = Some("http"),
-    authority_part = Some(&"[::]".parse().unwrap()),
+    scheme_part = part!("http"),
+    authority_part = part!("[::]"),
     host = Some("::"),
     path = "/",
     query = None,
@@ -285,8 +291,8 @@ test_parse! {
     "http://[2001:db8::2:1]/",
     [],
 
-    scheme = Some("http"),
-    authority_part = Some(&"[2001:db8::2:1]".parse().unwrap()),
+    scheme_part = part!("http"),
+    authority_part = part!("[2001:db8::2:1]"),
     host = Some("2001:db8::2:1"),
     path = "/",
     query = None,
@@ -298,8 +304,8 @@ test_parse! {
     "http://[2001:0db8:85a3:0000:0000:8a2e:0370:7334]:8008/",
     [],
 
-    scheme = Some("http"),
-    authority_part = Some(&"[2001:0db8:85a3:0000:0000:8a2e:0370:7334]:8008".parse().unwrap()),
+    scheme_part = part!("http"),
+    authority_part = part!("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]:8008"),
     host = Some("2001:0db8:85a3:0000:0000:8a2e:0370:7334"),
     path = "/",
     query = None,
@@ -311,7 +317,7 @@ test_parse! {
     "/echo/abcdefgh_i-j%20/abcdefg_i-j%20478",
     [],
 
-    scheme = None,
+    scheme_part = None,
     authority_part = None,
     host = None,
     path = "/echo/abcdefgh_i-j%20/abcdefg_i-j%20478",

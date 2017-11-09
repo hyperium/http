@@ -362,7 +362,7 @@ impl Uri {
     /// # use http::Uri;
     /// let uri: Uri = "http://example.org/hello/world".parse().unwrap();
     ///
-    /// assert_eq!(uri.scheme(), Some("http"));
+    /// assert_eq!(uri.scheme_part().map(|s| s.as_str()), Some("http"));
     /// ```
     ///
     ///
@@ -372,8 +372,19 @@ impl Uri {
     /// # use http::Uri;
     /// let uri: Uri = "/hello/world".parse().unwrap();
     ///
-    /// assert!(uri.scheme().is_none());
+    /// assert!(uri.scheme_part().is_none());
     /// ```
+    #[inline]
+    pub fn scheme_part(&self) -> Option<&Scheme> {
+        if self.scheme.inner.is_none() {
+            None
+        } else {
+            Some(&self.scheme)
+        }
+    }
+
+    #[deprecated(since = "0.1.2", note = "use scheme_part instead")]
+    #[doc(hidden)]
     #[inline]
     pub fn scheme(&self) -> Option<&str> {
         if self.scheme.inner.is_none() {
@@ -740,24 +751,12 @@ impl FromStr for Uri {
 
 impl PartialEq for Uri {
     fn eq(&self, other: &Uri) -> bool {
-        match (self.scheme(), other.scheme()) {
-            (Some(a), Some(b)) => {
-                if !a.eq_ignore_ascii_case(b) {
-                    return false;
-                }
-            }
-            (None, None) => {}
-            _ => return false,
-        };
+        if self.scheme_part() != other.scheme_part() {
+            return false;
+        }
 
-        match (self.authority_part(), other.authority_part()) {
-            (Some(a), Some(b)) => {
-                if a != b {
-                    return false;
-                }
-            }
-            (None, None) => {}
-            _ => return false,
+        if self.authority_part() != other.authority_part() {
+            return false;
         }
 
         if self.path() != other.path() {
@@ -777,14 +776,15 @@ impl PartialEq<str> for Uri {
         let mut other = other.as_bytes();
         let mut absolute = false;
 
-        if let Some(scheme) = self.scheme() {
+        if let Some(scheme) = self.scheme_part() {
+            let scheme = scheme.as_str().as_bytes();
             absolute = true;
 
             if other.len() < scheme.len() + 3 {
                 return false;
             }
 
-            if !scheme.as_bytes().eq_ignore_ascii_case(&other[..scheme.len()]) {
+            if !scheme.eq_ignore_ascii_case(&other[..scheme.len()]) {
                 return false;
             }
 
@@ -880,7 +880,7 @@ impl Default for Uri {
 
 impl fmt::Display for Uri {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if let Some(scheme) = self.scheme() {
+        if let Some(scheme) = self.scheme_part() {
             write!(f, "{}://", scheme)?;
         }
 
