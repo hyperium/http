@@ -1,6 +1,6 @@
 [package]
 name = "http"
-version = "0.1.1" # remember to update html_root_url
+version = "0.1.2" # remember to update html_root_url
 readme = "README.md"
 documentation = "https://docs.rs/http"
 repository = "https://github.com/hyperium/http"
