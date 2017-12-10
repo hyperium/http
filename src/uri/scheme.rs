@@ -29,6 +29,16 @@ pub(super) enum Protocol {
 }
 
 impl Scheme {
+    /// HTTP protocol scheme
+    pub const HTTP: Scheme = Scheme {
+        inner: Scheme2::Standard(Protocol::Http),
+    };
+
+    /// HTTP protocol over TLS.
+    pub const HTTPS: Scheme = Scheme {
+        inner: Scheme2::Standard(Protocol::Https),
+    };
+
     /// Attempt to convert a `Scheme` from `Bytes`
     ///
     /// This function will be replaced by a `TryFrom` implementation once the
