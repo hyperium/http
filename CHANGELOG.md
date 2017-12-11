@@ -1,3 +1,7 @@
+# 0.1.3 (December 11, 2017)
+
+* Add `Scheme` associated consts for common protos.
+
 # 0.1.2 (November 29, 2017)
 
 * Add Uri accessor for scheme part.
