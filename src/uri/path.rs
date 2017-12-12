@@ -216,6 +216,36 @@ impl PathAndQuery {
         }
     }
 
+    /// Returns the path and query as a string component.
+    ///
+    /// # Examples
+    ///
+    /// With a query string component
+    ///
+    /// ```
+    /// # use http::uri::*;
+    /// let path_and_query: PathAndQuery = "/hello/world?key=value&foo=bar".parse().unwrap();
+    ///
+    /// assert_eq!(path_and_query.as_str(), "/hello/world?key=value&foo=bar");
+    /// ```
+    ///
+    /// Without a query string component
+    ///
+    /// ```
+    /// # use http::uri::*;
+    /// let path_and_query: PathAndQuery = "/hello/world".parse().unwrap();
+    ///
+    /// assert_eq!(path_and_query.as_str(), "/hello/world");
+    /// ```
+    #[inline]
+    pub fn as_str(&self) -> &str {
+        let ret = &self.data[..];
+        if ret.is_empty() {
+            return "/";
+        }
+        ret
+    }
+
     /// Converts this `PathAndQuery` back to a sequence of bytes
     #[inline]
     pub fn into_bytes(self) -> Bytes {
