@@ -88,6 +88,32 @@ impl PathAndQuery {
         })
     }
 
+    /// Convert a `PathAndQuery` from a static string.
+    ///
+    /// This function will not perform any copying, however the string is
+    /// checked to ensure that it is valid.
+    ///
+    /// # Panics
+    ///
+    /// This function panics if the argument is an invalid path and query.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::uri::*;
+    /// let v = PathAndQuery::from_static("/hello?world");
+    ///
+    /// assert_eq!(v.path(), "/hello");
+    /// assert_eq!(v.query(), Some("world"));
+    /// ```
+    #[inline]
+    pub fn from_static(src: &'static str) -> Self {
+        let src = Bytes::from_static(src.as_bytes());
+
+        PathAndQuery::from_shared(src)
+            .unwrap()
+    }
+
     pub(super) fn empty() -> Self {
         PathAndQuery {
             data: ByteStr::new(),

@@ -1,3 +1,7 @@
+# 0.1.4 (unreleased)
+
+* Add PathAndQuery::from_static.
+
 # 0.1.3 (December 11, 2017)
 
 * Add `Scheme` associated consts for common protos.
