@@ -291,7 +291,7 @@ impl fmt::Display for PathAndQuery {
 impl PartialEq for PathAndQuery {
     #[inline]
     fn eq(&self, other: &PathAndQuery) -> bool {
-        self.as_str() == other.as_str()
+        self.data == other.data
     }
 }
 
@@ -301,6 +301,20 @@ impl PartialEq<str> for PathAndQuery {
     #[inline]
     fn eq(&self, other: &str) -> bool {
         self.as_str() == other
+    }
+}
+
+impl<'a> PartialEq<PathAndQuery> for &'a str {
+    #[inline]
+    fn eq(&self, other: &PathAndQuery) -> bool {
+        self == &other.as_str()
+    }
+}
+
+impl<'a> PartialEq<&'a str> for PathAndQuery {
+    #[inline]
+    fn eq(&self, other: &&'a str) -> bool {
+        self.as_str() == *other
     }
 }
 
@@ -343,6 +357,20 @@ impl PartialOrd<PathAndQuery> for str {
     #[inline]
     fn partial_cmp(&self, other: &PathAndQuery) -> Option<cmp::Ordering> {
         self.partial_cmp(other.as_str())
+    }
+}
+
+impl<'a> PartialOrd<&'a str> for PathAndQuery {
+    #[inline]
+    fn partial_cmp(&self, other: &&'a str) -> Option<cmp::Ordering> {
+        self.as_str().partial_cmp(*other)
+    }
+}
+
+impl<'a> PartialOrd<PathAndQuery> for &'a str {
+    #[inline]
+    fn partial_cmp(&self, other: &PathAndQuery) -> Option<cmp::Ordering> {
+        self.partial_cmp(&other.as_str())
     }
 }
 
@@ -415,13 +443,19 @@ mod tests {
         let path_and_query: PathAndQuery = "/hello/world&foo=bar".parse().unwrap();
         assert_eq!(&path_and_query, "/hello/world&foo=bar");
         assert_eq!("/hello/world&foo=bar", &path_and_query);
+        assert_eq!(path_and_query, "/hello/world&foo=bar");
+        assert_eq!("/hello/world&foo=bar", path_and_query);
     }
 
     #[test]
     fn not_equal_with_a_str_of_a_different_path() {
         let path_and_query: PathAndQuery = "/hello/world&foo=bar".parse().unwrap();
+        // as a reference
         assert_ne!(&path_and_query, "/hello&foo=bar");
         assert_ne!("/hello&foo=bar", &path_and_query);
+        // without reference
+        assert_ne!(path_and_query, "/hello&foo=bar");
+        assert_ne!("/hello&foo=bar", path_and_query);
     }
 
     #[test]
@@ -449,10 +483,17 @@ mod tests {
     #[test]
     fn compares_with_a_str() {
         let path_and_query: PathAndQuery = "/b/world&foo=bar".parse().unwrap();
+        // by ref
         assert!(&path_and_query < "/c/world&foo=bar");
         assert!("/c/world&foo=bar" > &path_and_query);
         assert!(&path_and_query > "/a/world&foo=bar");
         assert!("/a/world&foo=bar" < &path_and_query);
+
+        // by val
+        assert!(path_and_query < "/c/world&foo=bar");
+        assert!("/c/world&foo=bar" > path_and_query);
+        assert!(path_and_query > "/a/world&foo=bar");
+        assert!("/a/world&foo=bar" < path_and_query);
     }
 
     #[test]

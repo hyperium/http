@@ -184,7 +184,8 @@ impl Eq for Authority {}
 /// ```
 /// # use http::uri::Authority;
 /// let authority: Authority = "HELLO.com".parse().unwrap();
-/// assert_eq!(authority, *"hello.coM");
+/// assert_eq!(authority, "hello.coM");
+/// assert_eq!("hello.com", authority);
 /// ```
 impl PartialEq<str> for Authority {
     fn eq(&self, other: &str) -> bool {
@@ -195,6 +196,18 @@ impl PartialEq<str> for Authority {
 impl PartialEq<Authority> for str {
     fn eq(&self, other: &Authority) -> bool {
         self.eq_ignore_ascii_case(other.as_str())
+    }
+}
+
+impl<'a> PartialEq<Authority> for &'a str {
+    fn eq(&self, other: &Authority) -> bool {
+        self.eq_ignore_ascii_case(other.as_str())
+    }
+}
+
+impl<'a> PartialEq<&'a str> for Authority {
+    fn eq(&self, other: &&'a str) -> bool {
+        self.data.eq_ignore_ascii_case(other)
     }
 }
 
@@ -217,36 +230,62 @@ impl PartialEq<Authority> for String {
 /// ```
 /// # use http::uri::Authority;
 /// let authority: Authority = "DEF.com".parse().unwrap();
-/// assert!(authority < *"ghi.com");
-/// assert!(authority > *"abc.com");
+/// assert!(authority < "ghi.com");
+/// assert!(authority > "abc.com");
 /// ```
 impl PartialOrd for Authority {
     fn partial_cmp(&self, other: &Authority) -> Option<cmp::Ordering> {
-        self.data.to_ascii_lowercase().partial_cmp(&other.data.to_ascii_lowercase())
+        let left = self.data.as_bytes().iter().map(|b| b.to_ascii_lowercase());
+        let right = other.data.as_bytes().iter().map(|b| b.to_ascii_lowercase());
+        left.partial_cmp(right)
     }
 }
 
 impl PartialOrd<str> for Authority {
     fn partial_cmp(&self, other: &str) -> Option<cmp::Ordering> {
-        self.data.to_ascii_lowercase().partial_cmp(&other.to_ascii_lowercase())
+        let left = self.data.as_bytes().iter().map(|b| b.to_ascii_lowercase());
+        let right = other.as_bytes().iter().map(|b| b.to_ascii_lowercase());
+        left.partial_cmp(right)
     }
 }
 
 impl PartialOrd<Authority> for str {
     fn partial_cmp(&self, other: &Authority) -> Option<cmp::Ordering> {
-        self.to_ascii_lowercase().partial_cmp(&other.as_str().to_ascii_lowercase())
+        let left = self.as_bytes().iter().map(|b| b.to_ascii_lowercase());
+        let right = other.data.as_bytes().iter().map(|b| b.to_ascii_lowercase());
+        left.partial_cmp(right)
+    }
+}
+
+impl<'a> PartialOrd<Authority> for &'a str {
+    fn partial_cmp(&self, other: &Authority) -> Option<cmp::Ordering> {
+        let left = self.as_bytes().iter().map(|b| b.to_ascii_lowercase());
+        let right = other.data.as_bytes().iter().map(|b| b.to_ascii_lowercase());
+        left.partial_cmp(right)
+    }
+}
+
+impl<'a> PartialOrd<&'a str> for Authority {
+    fn partial_cmp(&self, other: &&'a str) -> Option<cmp::Ordering> {
+        let left = self.data.as_bytes().iter().map(|b| b.to_ascii_lowercase());
+        let right = other.as_bytes().iter().map(|b| b.to_ascii_lowercase());
+        left.partial_cmp(right)
     }
 }
 
 impl PartialOrd<String> for Authority {
     fn partial_cmp(&self, other: &String) -> Option<cmp::Ordering> {
-        self.data.to_ascii_lowercase().partial_cmp(&other.as_str().to_ascii_lowercase())
+        let left = self.data.as_bytes().iter().map(|b| b.to_ascii_lowercase());
+        let right = other.as_bytes().iter().map(|b| b.to_ascii_lowercase());
+        left.partial_cmp(right)
     }
 }
 
 impl PartialOrd<Authority> for String {
     fn partial_cmp(&self, other: &Authority) -> Option<cmp::Ordering> {
-        self.as_str().to_ascii_lowercase().partial_cmp(&other.data.to_ascii_lowercase())
+        let left = self.as_bytes().iter().map(|b| b.to_ascii_lowercase());
+        let right = other.data.as_bytes().iter().map(|b| b.to_ascii_lowercase());
+        left.partial_cmp(right)
     }
 }
 
@@ -354,6 +393,8 @@ mod tests {
         let authority: Authority = "example.com".parse().unwrap();
         assert_eq!(&authority, "EXAMPLE.com");
         assert_eq!("EXAMPLE.com", &authority);
+        assert_eq!(authority, "EXAMPLE.com");
+        assert_eq!("EXAMPLE.com", authority);
     }
 
     #[test]
@@ -361,6 +402,8 @@ mod tests {
         let authority: Authority = "example.com".parse().unwrap();
         assert_ne!(&authority, "test.com");
         assert_ne!("test.com", &authority);
+        assert_ne!(authority, "test.com");
+        assert_ne!("test.com", authority);
     }
 
     #[test]
@@ -388,10 +431,17 @@ mod tests {
     #[test]
     fn compares_with_a_str() {
         let authority: Authority = "def.com".parse().unwrap();
+        // with ref
         assert!(&authority < "ghi.com");
         assert!("ghi.com" > &authority);
         assert!(&authority > "abc.com");
         assert!("abc.com" < &authority);
+
+        // no ref
+        assert!(authority < "ghi.com");
+        assert!("ghi.com" > authority);
+        assert!(authority > "abc.com");
+        assert!("abc.com" < authority);
     }
 
     #[test]
