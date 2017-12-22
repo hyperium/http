@@ -638,6 +638,27 @@ impl<T> Request<T> {
     pub fn into_parts(self) -> (Parts, T) {
         (self.head, self.body)
     }
+
+    /// Consumes the request returning a new request with body mapped to the
+    /// return type of the passed in function.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    /// let request = Request::builder().body("some string").unwrap();
+    /// let mapped_request: Request<&[u8]> = request.map(|b| {
+    ///   assert_eq!(b, "some string");
+    ///   b.as_bytes()
+    /// });
+    /// assert_eq!(mapped_request.body(), &"some string".as_bytes());
+    /// ```
+    #[inline]
+    pub fn map<F, U>(self, f: F) -> Request<U>
+        where F: FnOnce(T) -> U
+    {
+        Request { body: f(self.body), head: self.head }
+    }
 }
 
 impl<T: Default> Default for Request<T> {
@@ -904,5 +925,20 @@ impl Default for Builder {
             head: Some(Parts::new()),
             err: None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_can_map_a_body_from_one_type_to_another() {
+        let request= Request::builder().body("some string").unwrap();
+        let mapped_request = request.map(|s| {
+            assert_eq!(s, "some string");
+            123u32
+        });
+        assert_eq!(mapped_request.body(), &123u32);
     }
 }
