@@ -13,6 +13,13 @@ fn from_bytes() {
     }
 }
 
+#[test]
+fn equates_with_u16() {
+    let status = StatusCode::from_u16(200u16).unwrap();
+    assert_eq!(200u16, status);
+    assert_eq!(status, 200u16);
+}
+
 macro_rules! test_round_trip {
     ($($num:expr,)+) => {
         #[test]
