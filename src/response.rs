@@ -65,6 +65,7 @@ use std::any::Any;
 use std::fmt;
 
 use {Error, Result, HttpTryFrom, Extensions};
+use header;
 use header::{HeaderMap, HeaderName, HeaderValue};
 use status::StatusCode;
 use version::Version;
@@ -557,6 +558,27 @@ impl Builder {
         self
     }
 
+    /// Set the HTTP version for this response to 2.0.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    ///
+    /// let response = Response::builder()
+    ///     .http_2()
+    ///     .body(())
+    ///     .unwrap();
+    ///
+    /// assert_eq!(response.version(), Version::HTTP_2);
+    /// ```
+    pub fn http_2(&mut self) -> &mut Builder {
+        if let Some(head) = head(&mut self.head, &self.err) {
+            head.version = Version::HTTP_2;
+        }
+        self
+    }
+
     /// Appends a header to this response builder.
     ///
     /// This function will append the provided key/value as a header to the
@@ -593,6 +615,37 @@ impl Builder {
         self
     }
 
+    /// Appends a content type to the response builder.
+    ///
+    /// This function will append the provided value as a header to the
+    /// internal `HeaderMap` being constructed. Essentially this is equivalent
+    /// to calling `HeaderMap::append` with content type as the name.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    /// # use http::header::HeaderValue;
+    ///
+    /// let response = Response::builder()
+    ///     .content_type("text/html")
+    ///     .body(())
+    ///     .unwrap();
+    ///
+    /// assert_eq!(response.headers().get(http::header::CONTENT_TYPE).unwrap(), "text/html");
+    /// ```
+    pub fn content_type<V>(&mut self, value: V) -> &mut Builder
+        where HeaderValue: HttpTryFrom<V>
+    {
+        if let Some(head) = head(&mut self.head, &self.err) {
+            match HeaderValue::try_from(value) {
+                Ok(value) => { head.headers.append(header::CONTENT_TYPE, value); }
+                Err(e) => self.err = Some(e.into()),
+            }
+        }
+        self
+    }
+
     /// Adds an extension to this builder
     ///
     /// # Examples
@@ -613,6 +666,284 @@ impl Builder {
     {
         if let Some(head) = head(&mut self.head, &self.err) {
             head.extensions.insert(extension);
+        }
+        self
+    }
+
+    /// Sets the status to OK (200)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    ///
+    /// let response = Response::builder()
+    ///     .ok()
+    ///     .body(())
+    ///     .unwrap();
+    ///
+    /// assert_eq!(response.status().as_u16(), 200u16);
+    /// ```
+    pub fn ok(&mut self) -> &mut Builder {
+        self.replace_status(StatusCode::OK)
+    }
+
+    /// Sets the status to Created (201)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    ///
+    /// let response = Response::builder()
+    ///     .created()
+    ///     .body(())
+    ///     .unwrap();
+    ///
+    /// assert_eq!(response.status().as_u16(), 201u16);
+    /// ```
+    pub fn created(&mut self) -> &mut Builder {
+        self.replace_status(StatusCode::CREATED)
+    }
+
+    /// Sets the status to Accepted (202)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    ///
+    /// let response = Response::builder()
+    ///     .accepted()
+    ///     .body(())
+    ///     .unwrap();
+    ///
+    /// assert_eq!(response.status().as_u16(), 202u16);
+    /// ```
+    pub fn accepted(&mut self) -> &mut Builder {
+        self.replace_status(StatusCode::ACCEPTED)
+    }
+
+    /// Sets the status to Moved Permanently (301)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    ///
+    /// let response = Response::builder()
+    ///     .moved_permanently()
+    ///     .body(())
+    ///     .unwrap();
+    ///
+    /// assert_eq!(response.status().as_u16(), 301u16);
+    /// ```
+    pub fn moved_permanently(&mut self) -> &mut Builder {
+        self.replace_status(StatusCode::MOVED_PERMANENTLY)
+    }
+
+    /// Sets the status to Found (302)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    ///
+    /// let response = Response::builder()
+    ///     .found()
+    ///     .body(())
+    ///     .unwrap();
+    ///
+    /// assert_eq!(response.status().as_u16(), 302u16);
+    /// ```
+    pub fn found(&mut self) -> &mut Builder {
+        self.replace_status(StatusCode::FOUND)
+    }
+
+    /// Sets the status to Bad Request (400)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    ///
+    /// let response = Response::builder()
+    ///     .bad_request()
+    ///     .body(())
+    ///     .unwrap();
+    ///
+    /// assert_eq!(response.status().as_u16(), 400u16);
+    /// ```
+    pub fn bad_request(&mut self) -> &mut Builder {
+        self.replace_status(StatusCode::BAD_REQUEST)
+    }
+
+    /// Sets the status to Unauthorized (401)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    ///
+    /// let response = Response::builder()
+    ///     .unauthorized()
+    ///     .body(())
+    ///     .unwrap();
+    ///
+    /// assert_eq!(response.status().as_u16(), 401u16);
+    /// ```
+    pub fn unauthorized(&mut self) -> &mut Builder {
+        self.replace_status(StatusCode::UNAUTHORIZED)
+    }
+
+    /// Sets the status to Forbidden (403)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    ///
+    /// let response = Response::builder()
+    ///     .forbidden()
+    ///     .body(())
+    ///     .unwrap();
+    ///
+    /// assert_eq!(response.status().as_u16(), 403u16);
+    /// ```
+    pub fn forbidden(&mut self) -> &mut Builder {
+        self.replace_status(StatusCode::FORBIDDEN)
+    }
+
+    /// Sets the status to Not Found (404)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    ///
+    /// let response = Response::builder()
+    ///     .not_found()
+    ///     .body(())
+    ///     .unwrap();
+    ///
+    /// assert_eq!(response.status().as_u16(), 404u16);
+    /// ```
+    pub fn not_found(&mut self) -> &mut Builder {
+        self.replace_status(StatusCode::NOT_FOUND)
+    }
+
+    /// Sets the status to I'm a teapot (418)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    ///
+    /// let response = Response::builder()
+    ///     .im_a_teapot()
+    ///     .body(())
+    ///     .unwrap();
+    ///
+    /// assert_eq!(response.status().as_u16(), 418u16);
+    /// ```
+    pub fn im_a_teapot(&mut self) -> &mut Builder {
+        self.replace_status(StatusCode::IM_A_TEAPOT)
+    }
+
+    /// Sets the status to Unprocessable entity (422)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    ///
+    /// let response = Response::builder()
+    ///     .unprocessable_entity()
+    ///     .body(())
+    ///     .unwrap();
+    ///
+    /// assert_eq!(response.status().as_u16(), 422u16);
+    /// ```
+    pub fn unprocessable_entity(&mut self) -> &mut Builder {
+        self.replace_status(StatusCode::UNPROCESSABLE_ENTITY)
+    }
+
+    /// Sets the status to Too Many Requests (429)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    ///
+    /// let response = Response::builder()
+    ///     .too_many_requests()
+    ///     .body(())
+    ///     .unwrap();
+    ///
+    /// assert_eq!(response.status().as_u16(), 429u16);
+    /// ```
+    pub fn too_many_requests(&mut self) -> &mut Builder {
+        self.replace_status(StatusCode::TOO_MANY_REQUESTS)
+    }
+
+    /// Sets the status to Internal Server Error (500)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    ///
+    /// let response = Response::builder()
+    ///     .internal_server_error()
+    ///     .body(())
+    ///     .unwrap();
+    ///
+    /// assert_eq!(response.status().as_u16(), 500u16);
+    /// ```
+    pub fn internal_server_error(&mut self) -> &mut Builder {
+        self.replace_status(StatusCode::INTERNAL_SERVER_ERROR)
+    }
+
+    /// Sets the status to Bad Gateway (502)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    ///
+    /// let response = Response::builder()
+    ///     .bad_gateway()
+    ///     .body(())
+    ///     .unwrap();
+    ///
+    /// assert_eq!(response.status().as_u16(), 502u16);
+    /// ```
+    pub fn bad_gateway(&mut self) -> &mut Builder {
+        self.replace_status(StatusCode::BAD_GATEWAY)
+    }
+
+    /// Sets the status to Service Unavailable (503)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    ///
+    /// let response = Response::builder()
+    ///     .unavailable()
+    ///     .body(())
+    ///     .unwrap();
+    ///
+    /// assert_eq!(response.status().as_u16(), 503u16);
+    /// ```
+    pub fn unavailable(&mut self) -> &mut Builder {
+        self.replace_status(StatusCode::SERVICE_UNAVAILABLE)
+    }
+
+    #[inline]
+    fn replace_status(&mut self, status: StatusCode) -> &mut Builder {
+        if let Some(head) = head(&mut self.head, &self.err) {
+            head.status = status
         }
         self
     }
