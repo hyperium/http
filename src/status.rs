@@ -2,9 +2,7 @@
 //!
 //! This module contains HTTP-status code related structs an errors. The main
 //! type in this module is `StatusCode` which is not intended to be used through
-//! this module but rather the `http::StatusCode` type. This module also
-//! primarily contains a number of predefined constants for common HTTP status
-//! codes.
+//! this module but rather the `http::StatusCode` type.
 //!
 //! # Examples
 //!
@@ -24,11 +22,8 @@ use HttpTryFrom;
 
 /// An HTTP status code (`status-code` in RFC 7230 et al.).
 ///
-/// This type contains constructor functions for  all common status codes.
-/// It allows status codes in the range [0, 65535], as any
-/// `u16` integer may be used as a status code for XHR requests. It is
-/// recommended to only use values between [100, 599], since only these are
-/// defined as valid status codes with a status class by HTTP.
+/// This type contains constants for all common status codes.
+/// It allows status codes in the range [100, 599].
 ///
 /// IANA maintain the [Hypertext Transfer Protocol (HTTP) Status Code
 /// Registry](http://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml) which is
