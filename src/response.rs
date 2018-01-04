@@ -439,6 +439,27 @@ impl<T> Response<T> {
     pub fn into_parts(self) -> (Parts, T) {
         (self.head, self.body)
     }
+
+    /// Consumes the response returning a new response with body mapped to the
+    /// return type of the passed in function.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    /// let response = Response::builder().body("some string").unwrap();
+    /// let mapped_response: Response<&[u8]> = response.map(|b| {
+    ///   assert_eq!(b, "some string");
+    ///   b.as_bytes()
+    /// });
+    /// assert_eq!(mapped_response.body(), &"some string".as_bytes());
+    /// ```
+    #[inline]
+    pub fn map<F, U>(self, f: F) -> Response<U>
+        where F: FnOnce(T) -> U
+    {
+        Response { body: f(self.body), head: self.head }
+    }
 }
 
 impl<T: Default> Default for Response<T> {
@@ -674,5 +695,20 @@ impl Default for Builder {
             head: Some(Parts::new()),
             err: None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_can_map_a_body_from_one_type_to_another() {
+        let response = Response::builder().body("some string").unwrap();
+        let mapped_response = response.map(|s| {
+            assert_eq!(s, "some string");
+            123u32
+        });
+        assert_eq!(mapped_response.body(), &123u32);
     }
 }
