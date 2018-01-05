@@ -1,4 +1,4 @@
-# 0.1.4 (January 4, 2017)
+# 0.1.4 (January 4, 2018)
 
 * Add PathAndQuery::from_static (#148).
 * Impl PartialOrd / PartialEq for Authority and PathAndQuery (#150).
