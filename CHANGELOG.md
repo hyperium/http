@@ -1,6 +1,8 @@
-# 0.1.4 (unreleased)
+# 0.1.4 (January 4, 2017)
 
-* Add PathAndQuery::from_static.
+* Add PathAndQuery::from_static (#148).
+* Impl PartialOrd / PartialEq for Authority and PathAndQuery (#150).
+* Add `map` fn to `Request` and `Response` (#151).
 
 # 0.1.3 (December 11, 2017)
 
