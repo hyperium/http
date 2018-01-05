@@ -45,6 +45,7 @@ enum Http {
     Http10,
     Http11,
     H2,
+    __NonExhaustive,
 }
 
 impl Default for Version {
@@ -63,6 +64,7 @@ impl fmt::Debug for Version {
             Http10 => "HTTP/1.0",
             Http11 => "HTTP/1.1",
             H2     => "HTTP/2.0",
+            _      => "Non-standard version",
         })
     }
 }
