@@ -1345,6 +1345,8 @@ fn parse_hdr<'a>(data: &'a [u8], b: &'a mut [u8; 64], table: &[u8; 256])
                 Ok(TransferEncoding.into())
             } else if eq!(b == b'i' b'f' b'-' b'm' b'o' b'd' b'i' b'f' b'i' b'e' b'd' b'-' b's' b'i' b'n' b'c' b'e') {
                 Ok(IfModifiedSince.into())
+            } else if eq!(b == b's' b'e' b'c' b'-' b'w' b'e' b'b' b's' b'o' b'c' b'k' b'e' b't' b'-' b'k' b'e' b'y') {
+                Ok(SecWebSocketKey.into())
             } else {
                 validate(b, len)
             }
@@ -1371,6 +1373,24 @@ fn parse_hdr<'a>(data: &'a [u8], b: &'a mut [u8; 64], table: &[u8; 256])
                 validate(b, len)
             }
         }
+        20 => {
+            to_lower!(b, data, 20);
+
+            if eq!(b == b's' b'e' b'c' b'-' b'w' b'e' b'b' b's' b'o' b'c' b'k' b'e' b't' b'-' b'a' b'c' b'c' b'e' b'p' b't') {
+                Ok(SecWebSocketAccept.into())
+            } else {
+                validate(b, len)
+            }
+        }
+        21 => {
+            to_lower!(b, data, 21);
+
+            if eq!(b == b's' b'e' b'c' b'-' b'w' b'e' b'b' b's' b'o' b'c' b'k' b'e' b't' b'-' b'v' b'e' b'r' b's' b'i' b'o' b'n') {
+                Ok(SecWebSocketVersion.into())
+            } else {
+                validate(b, len)
+            }
+        }
         22 => {
             to_lower!(b, data, 22);
 
@@ -1380,6 +1400,8 @@ fn parse_hdr<'a>(data: &'a [u8], b: &'a mut [u8; 64], table: &[u8; 256])
                 Ok(XContentTypeOptions.into())
             } else if eq!(b == b'x' b'-' b'd' b'n' b's' b'-' b'p' b'r' b'e' b'f' b'e' b't' b'c' b'h' b'-' b'c' b'o' b'n' b't' b'r' b'o' b'l') {
                 Ok(XDnsPrefetchControl.into())
+            } else if eq!(b == b's' b'e' b'c' b'-' b'w' b'e' b'b' b's' b'o' b'c' b'k' b'e' b't' b'-' b'p' b'r' b'o' b't' b'o' b'c' b'o' b'l') {
+                Ok(SecWebSocketProtocol.into())
             } else {
                 validate(b, len)
             }
@@ -1389,6 +1411,15 @@ fn parse_hdr<'a>(data: &'a [u8], b: &'a mut [u8; 64], table: &[u8; 256])
 
             if eq!(b == b'c' b'o' b'n' b't' b'e' b'n' b't' b'-' b's' b'e' b'c' b'u' b'r' b'i' b't' b'y' b'-' b'p' b'o' b'l' b'i' b'c' b'y') {
                 Ok(ContentSecurityPolicy.into())
+            } else {
+                validate(b, len)
+            }
+        }
+        24 => {
+            to_lower!(b, data, 24);
+
+            if eq!(b == b's' b'e' b'c' b'-' b'w' b'e' b'b' b's' b'o' b'c' b'k' b'e' b't' b'-' b'e' b'x' b't' b'e' b'n' b's' b'i' b'o' b'n' b's') {
+                Ok(SecWebSocketExtensions.into())
             } else {
                 validate(b, len)
             }
