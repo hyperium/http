@@ -795,6 +795,43 @@ standard_headers! {
     /// before issuing the redirected request.
     (RetryAfter, RETRY_AFTER, "retry-after");
 
+    /// The |Sec-WebSocket-Accept| header field is used in the WebSocket
+    /// opening handshake. It is sent from the server to the client to
+    /// confirm that the server is willing to initiate the WebSocket
+    /// connection.
+    (SecWebSocketAccept, SEC_WEBSOCKET_ACCEPT, "sec-websocket-accept");
+
+    /// The |Sec-WebSocket-Extensions| header field is used in the WebSocket
+    /// opening handshake. It is initially sent from the client to the
+    /// server, and then subsequently sent from the server to the client, to
+    /// agree on a set of protocol-level extensions to use for the duration
+    /// of the connection.
+    (SecWebSocketExtensions, SEC_WEBSOCKET_EXTENSIONS, "sec-websocket-extensions");
+
+    /// The |Sec-WebSocket-Key| header field is used in the WebSocket opening
+    /// handshake. It is sent from the client to the server to provide part
+    /// of the information used by the server to prove that it received a
+    /// valid WebSocket opening handshake. This helps ensure that the server
+    /// does not accept connections from non-WebSocket clients (e.g., HTTP
+    /// clients) that are being abused to send data to unsuspecting WebSocket
+    /// servers.
+    (SecWebSocketKey, SEC_WEBSOCKET_KEY, "sec-websocket-key");
+
+    /// The |Sec-WebSocket-Protocol| header field is used in the WebSocket
+    /// opening handshake. It is sent from the client to the server and back
+    /// from the server to the client to confirm the subprotocol of the
+    /// connection.  This enables scripts to both select a subprotocol and be
+    /// sure that the server agreed to serve that subprotocol.
+    (SecWebSocketProtocol, SEC_WEBSOCKET_PROTOCOL, "sec-websocket-protocol");
+
+    /// The |Sec-WebSocket-Version| header field is used in the WebSocket
+    /// opening handshake.  It is sent from the client to the server to
+    /// indicate the protocol version of the connection.  This enables
+    /// servers to correctly interpret the opening handshake and subsequent
+    /// data being sent from the data, and close the connection if the server
+    /// cannot interpret that data in a safe manner.
+    (SecWebSocketVersion, SEC_WEBSOCKET_VERSION, "sec-websocket-version");
+
     /// Contains information about the software used by the origin server to
     /// handle the request.
     ///
