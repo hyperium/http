@@ -42,7 +42,7 @@ impl Authority {
     /// # }
     /// ```
     pub fn from_shared(s: Bytes) -> Result<Self, InvalidUriBytes> {
-        let authority_end = Authority::parse(&s[..]).map_err(InvalidUriBytes)?;
+        let authority_end = Authority::parse_non_empty(&s[..]).map_err(InvalidUriBytes)?;
 
         if authority_end != s.len() {
             return Err(ErrorKind::InvalidUriChar.into());
@@ -53,6 +53,7 @@ impl Authority {
         })
     }
 
+    // Note: this may return an *empty* Authority. You might want `parse_non_empty`.
     pub(super) fn parse(s: &[u8]) -> Result<usize, InvalidUri> {
         let mut start_bracket = false;
         let mut end_bracket = false;
@@ -82,6 +83,17 @@ impl Authority {
         }
 
         Ok(end)
+    }
+
+    // Parse bytes as an Authority, not allowing an empty string.
+    //
+    // This should be used by functions that allow a user to parse
+    // an `Authority` by itself.
+    fn parse_non_empty(s: &[u8]) -> Result<usize, InvalidUri> {
+        if s.is_empty() {
+            return Err(ErrorKind::Empty.into());
+        }
+        Authority::parse(s)
     }
 
     /// Get the host of this `Authority`.
@@ -324,7 +336,7 @@ impl FromStr for Authority {
     type Err = InvalidUri;
 
     fn from_str(s: &str) -> Result<Self, InvalidUri> {
-        let end = Authority::parse(s.as_bytes())?;
+        let end = Authority::parse_non_empty(s.as_bytes())?;
 
         if end != s.len() {
             return Err(ErrorKind::InvalidAuthority.into());
@@ -371,6 +383,12 @@ fn host(auth: &str) -> &str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parse_empty_string_is_error() {
+        let err = Authority::parse_non_empty(b"").unwrap_err();
+        assert_eq!(err.0, ErrorKind::Empty);
+    }
 
     #[test]
     fn equal_to_self_of_same_authority() {
