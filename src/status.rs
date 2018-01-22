@@ -165,6 +165,20 @@ impl Default for StatusCode {
     }
 }
 
+impl PartialEq<u16> for StatusCode {
+    #[inline]
+    fn eq(&self, other: &u16) -> bool {
+        self.as_u16() == *other
+    }
+}
+
+impl PartialEq<StatusCode> for u16 {
+    #[inline]
+    fn eq(&self, other: &StatusCode) -> bool {
+        *self == other.as_u16()
+    }
+}
+
 impl From<StatusCode> for u16 {
     #[inline]
     fn from(status: StatusCode) -> u16 {
