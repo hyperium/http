@@ -618,6 +618,15 @@ impl HttpTryFrom<Parts> for Uri {
     }
 }
 
+impl<'a> HttpTryFrom<&'a Uri> for Uri {
+    type Error = ::Error;
+
+    #[inline]
+    fn try_from(src: &'a Uri) -> Result<Self, Self::Error> {
+        Ok(src.clone())
+    }
+}
+
 /// Convert a `Uri` from parts
 ///
 /// # Examples
