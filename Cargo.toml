@@ -23,8 +23,8 @@ fnv = "1.0.5"
 
 [dev-dependencies]
 ordermap = "0.3"
-quickcheck = "0.5"
-rand = "0.3.15"
+quickcheck = "0.6"
+rand = "0.4"
 seahash = "3.0.5"
 serde = "1.0"
 serde_json = "1.0"
