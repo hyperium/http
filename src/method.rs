@@ -21,6 +21,7 @@ use self::Inner::*;
 use std::{fmt, str};
 use std::convert::AsRef;
 use std::error::Error;
+use std::str::FromStr;
 
 /// The Request Method (VERB)
 ///
@@ -322,6 +323,15 @@ impl<'a> HttpTryFrom<&'a str> for Method {
     #[inline]
     fn try_from(t: &'a str) -> Result<Self, Self::Error> {
         Method::try_from(t.as_bytes())
+    }
+}
+
+impl FromStr for Method {
+    type Err = InvalidMethod;
+
+    #[inline]
+    fn from_str(t: &str) -> Result<Self, Self::Err> {
+        Method::try_from(t)
     }
 }
 
