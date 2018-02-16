@@ -600,6 +600,24 @@ impl<'a> HttpTryFrom<&'a str> for Uri {
     }
 }
 
+impl<'a> HttpTryFrom<&'a String> for Uri {
+    type Error = InvalidUri;
+
+    #[inline]
+    fn try_from(t: &'a String) -> Result<Self, Self::Error> {
+        t.parse()
+    }
+}
+
+impl HttpTryFrom<String> for Uri {
+    type Error = InvalidUriBytes;
+
+    #[inline]
+    fn try_from(t: String) -> Result<Self, Self::Error> {
+        Uri::from_shared(Bytes::from(t))
+    }
+}
+
 impl HttpTryFrom<Bytes> for Uri {
     type Error = InvalidUriBytes;
 
