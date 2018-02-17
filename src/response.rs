@@ -425,6 +425,21 @@ impl<T> Response<T> {
         &mut self.body
     }
 
+    /// Consumes the response, returning just the body.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::Response;
+    /// let response = Response::new(10);
+    /// let body = response.into_body();
+    /// assert_eq!(body, 10);
+    /// ```
+    #[inline]
+    pub fn into_body(self) -> T {
+        self.body
+    }
+
     /// Consumes the response returning the head and body parts.
     ///
     /// # Examples

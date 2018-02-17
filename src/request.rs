@@ -624,6 +624,22 @@ impl<T> Request<T> {
         &mut self.body
     }
 
+
+    /// Consumes the request, returning just the body.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::Request;
+    /// let request = Request::new(10);
+    /// let body = request.into_body();
+    /// assert_eq!(body, 10);
+    /// ```
+    #[inline]
+    pub fn into_body(self) -> T {
+        self.body
+    }
+
     /// Consumes the request returning the head and body parts.
     ///
     /// # Examples
