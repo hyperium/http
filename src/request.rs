@@ -311,11 +311,12 @@ impl Request<()> {
     /// let request = Request::options("https://www.rust-lang.org/")
     ///     .body(())
     ///     .unwrap();
+    /// # assert_eq!(*request.method(), Method::OPTIONS);
     /// ```
     pub fn options<T>(uri: T) -> Builder
         where Uri: HttpTryFrom<T> {
         let mut b = Builder::new();
-        b.method(Method::DELETE).uri(uri);
+        b.method(Method::OPTIONS).uri(uri);
         b
     }
 
