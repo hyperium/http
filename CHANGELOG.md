@@ -1,3 +1,14 @@
+# 0.1.5 (February 28, 2018)
+
+* Add websocket handshake related header constants (#162).
+* Parsing `Authority` with an empty string now returns an error (#164).
+* Implement `PartialEq<u16>` for `StatusCode` (#153).
+* Implement `HttpTryFrom<&Uri>` for `Uri` (#165).
+* Implement `FromStr` for `Method` (#167).
+* Implement `HttpTryFrom<String>` for `Uri` (#171).
+* Add `into_body` fns to `Request` and `Response` (#172).
+* Fix `Request::options` (#177).
+
 # 0.1.4 (January 4, 2018)
 
 * Add PathAndQuery::from_static (#148).
