@@ -17,7 +17,7 @@
 //! assert_eq!(uri.host(), None);
 //!
 //! let uri = "https://www.rust-lang.org/install.html".parse::<Uri>().unwrap();
-//! assert_eq!(uri.scheme(), Some("https"));
+//! assert_eq!(uri.scheme_part().map(|s| s.as_str()), Some("https"));
 //! assert_eq!(uri.host(), Some("www.rust-lang.org"));
 //! assert_eq!(uri.path(), "/install.html");
 //! ```
@@ -86,7 +86,7 @@ mod tests;
 /// assert_eq!(uri.host(), None);
 ///
 /// let uri = "https://www.rust-lang.org/install.html".parse::<Uri>().unwrap();
-/// assert_eq!(uri.scheme(), Some("https"));
+/// assert_eq!(uri.scheme_part().map(|s| s.as_str()), Some("https"));
 /// assert_eq!(uri.host(), Some("www.rust-lang.org"));
 /// assert_eq!(uri.path(), "/install.html");
 /// ```
@@ -660,7 +660,7 @@ impl<'a> HttpTryFrom<&'a Uri> for Uri {
 ///
 /// assert_eq!(uri.path(), "/foo");
 ///
-/// assert!(uri.scheme().is_none());
+/// assert!(uri.scheme_part().is_none());
 /// assert!(uri.authority().is_none());
 /// ```
 ///
@@ -675,7 +675,7 @@ impl<'a> HttpTryFrom<&'a Uri> for Uri {
 ///
 /// let uri = Uri::from_parts(parts).unwrap();
 ///
-/// assert_eq!(uri.scheme().unwrap(), "http");
+/// assert_eq!(uri.scheme_part().unwrap().as_str(), "http");
 /// assert_eq!(uri.authority().unwrap(), "foo.com");
 /// assert_eq!(uri.path(), "/foo");
 /// ```
