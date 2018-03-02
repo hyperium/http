@@ -342,6 +342,7 @@ fn gen_header_name(g: &mut StdRng) -> HeaderName {
             header::X_CONTENT_TYPE_OPTIONS,
             header::X_DNS_PREFETCH_CONTROL,
             header::X_FRAME_OPTIONS,
+            header::X_REQUESTED_WITH,
             header::X_XSS_PROTECTION,
         ]).unwrap().clone()
     } else {

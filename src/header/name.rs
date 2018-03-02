@@ -957,6 +957,14 @@ standard_headers! {
     /// is using a browser supporting `x-frame-options`.
     (XFrameOptions, X_FRAME_OPTIONS, "x-frame-options");
 
+    /// Used to identify AJAX requests.
+    ///
+    /// Most JavaScript frameworks send this header with a value of
+    /// `XMLHttpRequest`. This can be used as a defence against cross-site
+    /// request forgery (CSRF) because browsers do not allow sending cross-site
+    /// requests with this header.
+    (XRequestedWith, X_REQUESTED_WITH, "x-requested-with");
+
     /// Stop pages from loading when an XSS attack is detected.
     ///
     /// The HTTP X-XSS-Protection response header is a feature of Internet
@@ -1332,6 +1340,8 @@ fn parse_hdr<'a>(data: &'a [u8], b: &'a mut [u8; 64], table: &[u8; 256])
                 }
             } else if eq!(b == b'w' b'w' b'w' b'-' b'a' b'u' b't' b'h' b'e' b'n' b't' b'i' b'c' b'a' b't' b'e') {
                 return Ok(WwwAuthenticate.into())
+            } else if eq!(b == b'x' b'-' b'r' b'e' b'q' b'u' b'e' b's' b't' b'e' b'd' b'-' b'w' b'i' b't' b'h') {
+                return Ok(XRequestedWith.into())
             } else if eq!(b == b'x' b'-' b'x' b's' b's' b'-' b'p' b'r' b'o' b't' b'e' b'c' b't' b'i' b'o' b'n') {
                 return Ok(XXssProtection.into())
             }
