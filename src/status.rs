@@ -10,7 +10,7 @@
 //! use http::StatusCode;
 //!
 //! assert_eq!(StatusCode::from_u16(200).unwrap(), StatusCode::OK);
-//! assert_eq!(StatusCode::NOT_FOUND.as_u16(), 404);
+//! assert_eq!(StatusCode::NOT_FOUND, 404);
 //! assert!(StatusCode::OK.is_success());
 //! ```
 
@@ -97,6 +97,13 @@ impl StatusCode {
 
     /// Returns the `u16` corresponding to this `StatusCode`.
     ///
+    /// # Note
+    ///
+    /// This is the same as the `From<StatusCode>` implementation, but
+    /// included as an inherent method because that implementation doesn't
+    /// appear in rustdocs, as well as a way to force the type instead of
+    /// relying on inference.
+    ///
     /// # Example
     ///
     /// ```
@@ -107,6 +114,44 @@ impl StatusCode {
     pub fn as_u16(&self) -> u16 {
         (*self).into()
     }
+
+    /// Returns a &str representation of the `StatusCode`
+    ///
+    /// The return value only includes a numerical representation of the
+    /// status code. The canonical reason is not included.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let status = http::StatusCode::OK;
+    /// assert_eq!(status.as_str(), "200");
+    /// ```
+    #[inline]
+    pub fn as_str(&self) -> &str {
+        CODES_AS_STR[(self.0 - 100) as usize]
+    }
+
+    /// Get the standardised `reason-phrase` for this status code.
+    ///
+    /// This is mostly here for servers writing responses, but could potentially have application
+    /// at other times.
+    ///
+    /// The reason phrase is defined as being exclusively for human readers. You should avoid
+    /// deriving any meaning from it at all costs.
+    ///
+    /// Bear in mind also that in HTTP/2.0 the reason phrase is abolished from transmission, and so
+    /// this canonical reason phrase really is the only reason phrase you’ll find.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let status = http::StatusCode::OK;
+    /// assert_eq!(status.canonical_reason(), Some("OK"));
+    /// ```
+    pub fn canonical_reason(&self) -> Option<&'static str> {
+        canonical_reason(self.0)
+    }
+
 
     /// Check if status is within 100-199.
     #[inline]
@@ -147,7 +192,9 @@ impl fmt::Debug for StatusCode {
 
 /// Formats the status code, *including* the canonical reason.
 ///
-/// ```rust
+/// # Example
+///
+/// ```
 /// # use http::StatusCode;
 /// assert_eq!(format!("{}", StatusCode::OK), "200 OK");
 /// ```
@@ -242,23 +289,14 @@ macro_rules! status_codes {
             pub const $konst: StatusCode = StatusCode($num);
         )+
 
-            /// Get the standardised `reason-phrase` for this status code.
-            ///
-            /// This is mostly here for servers writing responses, but could potentially have application
-            /// at other times.
-            ///
-            /// The reason phrase is defined as being exclusively for human readers. You should avoid
-            /// deriving any meaning from it at all costs.
-            ///
-            /// Bear in mind also that in HTTP/2.0 the reason phrase is abolished from transmission, and so
-            /// this canonical reason phrase really is the only reason phrase you’ll find.
-            pub fn canonical_reason(&self) -> Option<&'static str> {
-                match self.0 {
-                    $(
-                    $num => Some($phrase),
-                    )+
-                    _ => None
-                }
+        }
+
+        fn canonical_reason(num: u16) -> Option<&'static str> {
+            match num {
+                $(
+                $num => Some($phrase),
+                )+
+                _ => None
             }
         }
     }
@@ -472,17 +510,7 @@ impl Error for InvalidStatusCode {
 
 macro_rules! status_code_strs {
     ($($num:expr,)+) => {
-        impl StatusCode {
-            /// Returns a &str representation of the `StatusCode`
-            ///
-            /// The return value only includes a numerical representation of the
-            /// status code. The canonical reason is not included.
-            #[inline]
-            pub fn as_str(&self) -> &str {
-                const CODES: [&'static str; 500] = [ $( stringify!($num), )+ ];
-                CODES[(self.0 - 100) as usize]
-            }
-        }
+        const CODES_AS_STR: [&'static str; 500] = [ $( stringify!($num), )+ ];
     }
 }
 
