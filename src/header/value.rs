@@ -5,6 +5,7 @@ use std::error::Error;
 use std::str::FromStr;
 
 use ::convert::HttpTryFrom;
+use header::name::HeaderName;
 
 /// Represents an HTTP header field value.
 ///
@@ -104,6 +105,23 @@ impl HeaderValue {
     #[inline]
     pub fn from_str(src: &str) -> Result<HeaderValue, InvalidHeaderValue> {
         HeaderValue::try_from(src)
+    }
+
+    /// Converts a HeaderName into a HeaderValue
+    ///
+    /// Since every valid HeaderName is a valid HeaderValue this is done infallibly.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::{HeaderValue, HeaderName};
+    /// # use http::header::ACCEPT;
+    /// let val = HeaderValue::from_name(ACCEPT);
+    /// assert_eq!(val, HeaderValue::from_bytes(b"accept").unwrap());
+    /// ```
+    #[inline]
+    pub fn from_name(name: HeaderName) -> HeaderValue {
+        name.into()
     }
 
     /// Attempt to convert a byte slice to a `HeaderValue`.
@@ -331,6 +349,40 @@ impl fmt::Debug for HeaderValue {
     }
 }
 
+impl From<HeaderName> for HeaderValue {
+    #[inline]
+    fn from(h: HeaderName) -> HeaderValue {
+        HeaderValue {
+            inner: h.into(),
+            is_sensitive: false,
+        }
+    }
+}
+
+#[cfg(test)]
+mod from_header_name_tests {
+    use super::*;
+    use header::map::HeaderMap;
+    use header::name;
+
+    #[test]
+    fn it_can_insert_header_name_as_header_value() {
+        let mut map = HeaderMap::new();
+        map.insert(name::UPGRADE, name::SEC_WEBSOCKET_PROTOCOL.into());
+        map.insert(name::ACCEPT, name::HeaderName::from_bytes(b"hello-world").unwrap().into());
+
+        assert_eq!(
+            map.get(name::UPGRADE).unwrap(),
+            HeaderValue::from_bytes(b"sec-websocket-protocol").unwrap()
+        );
+
+        assert_eq!(
+            map.get(name::ACCEPT).unwrap(),
+            HeaderValue::from_bytes(b"hello-world").unwrap()
+        );
+    }
+}
+
 impl FromStr for HeaderValue {
     type Err = InvalidHeaderValue;
 
@@ -371,6 +423,30 @@ impl HttpTryFrom<Bytes> for HeaderValue {
     #[inline]
     fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
         HeaderValue::from_shared(bytes)
+    }
+}
+
+impl HttpTryFrom<HeaderName> for HeaderValue {
+    type Error = InvalidHeaderValue;
+
+    #[inline]
+    fn try_from(name: HeaderName) -> Result<Self, Self::Error> {
+        // Infallable as header names have the same validations
+        Ok(name.into())
+    }
+}
+
+#[cfg(test)]
+mod try_from_header_name_tests {
+    use super::*;
+    use header::name;
+
+    #[test]
+    fn it_converts_using_try_from() {
+        assert_eq!(
+            HeaderValue::try_from(name::UPGRADE).unwrap(),
+            HeaderValue::from_bytes(b"upgrade").unwrap()
+        );
     }
 }
 
