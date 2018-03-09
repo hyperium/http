@@ -53,6 +53,37 @@ impl Authority {
         })
     }
 
+    /// Attempt to convert an `Authority` from a static string.
+    ///
+    /// This function will not perform any copying, and the string will be
+    /// checked if it is empty or contains an invalid character.
+    ///
+    /// # Panics
+    ///
+    /// This function panics if the argument contains invalid characters or
+    /// is empty.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::uri::Authority;
+    /// let authority = Authority::from_static("example.com");
+    /// assert_eq!(authority.host(), "example.com");
+    /// ```
+    pub fn from_static(src: &'static str) -> Self {
+        let s = src.as_bytes();
+        let b = Bytes::from_static(s);
+        let authority_end = Authority::parse_non_empty(&b[..]).unwrap();
+
+        if authority_end != b.len() {
+            panic!("invalid uri character");
+        }
+
+        Authority {
+            data: unsafe { ByteStr::from_utf8_unchecked(b) },
+        }
+    }
+
     // Note: this may return an *empty* Authority. You might want `parse_non_empty`.
     pub(super) fn parse(s: &[u8]) -> Result<usize, InvalidUri> {
         let mut start_bracket = false;
