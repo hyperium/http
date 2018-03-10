@@ -18,8 +18,8 @@ macro_rules! bench {
 
             #[bench]
             fn order_map_fnv($b: &mut Bencher) {
-                use ordermap::OrderMap;
-                let $map = || OrderMap::<_, _, BuildHasherDefault<FnvHasher>>::default();
+                use indexmap::IndexMap;
+                let $map = || IndexMap::<_, _, BuildHasherDefault<FnvHasher>>::default();
                 $body
             }
 
@@ -33,16 +33,16 @@ macro_rules! bench {
 
             #[bench]
             fn order_map_seahash($b: &mut Bencher) {
-                use ordermap::OrderMap;
-                let $map = || OrderMap::<_, _, BuildHasherDefault<SeaHasher>>::default();
+                use indexmap::IndexMap;
+                let $map = || IndexMap::<_, _, BuildHasherDefault<SeaHasher>>::default();
                 $body
             }
 
             /*
             #[bench]
             fn order_map_siphash($b: &mut Bencher) {
-                use ordermap::OrderMap;
-                let $map = || OrderMap::new();
+                use indexmap::IndexMap;
+                let $map = || IndexMap::new();
                 $body
             }
 
