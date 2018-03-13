@@ -73,10 +73,10 @@ impl Authority {
     pub fn from_static(src: &'static str) -> Self {
         let s = src.as_bytes();
         let b = Bytes::from_static(s);
-        let authority_end = Authority::parse_non_empty(&b[..]).unwrap();
+        let authority_end = Authority::parse_non_empty(&b[..]).expect("static str is not valid authority");
 
         if authority_end != b.len() {
-            panic!("invalid uri character");
+            panic!("static str is not valid authority");
         }
 
         Authority {
