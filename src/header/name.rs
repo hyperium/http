@@ -125,14 +125,14 @@ macro_rules! standard_headers {
                 let bytes: Bytes =
                     HeaderName::from_bytes(name_bytes).unwrap().into();
                 assert_eq!(bytes, name_bytes);
-                assert_eq!(HeaderName::try_from(Bytes::from(name_bytes)).unwrap(), std);
+                assert_eq!(HeaderName::from_bytes(name_bytes).unwrap(), std);
 
                 // Test upper case
                 let upper = name.to_uppercase().to_string();
                 let bytes: Bytes =
                     HeaderName::from_bytes(upper.as_bytes()).unwrap().into();
                 assert_eq!(bytes, name.as_bytes());
-                assert_eq!(HeaderName::try_from(Bytes::from(upper.as_bytes())).unwrap(),
+                assert_eq!(HeaderName::from_bytes(upper.as_bytes()).unwrap(),
                            std);
 
 

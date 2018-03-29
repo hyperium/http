@@ -1,4 +1,5 @@
-#[allow(unused)]
+// Deprecated in 1.26, needed until our minimum version is >=1.23.
+#[allow(unused, deprecated)]
 use std::ascii::AsciiExt;
 use std::fmt;
 use std::hash::{Hash, Hasher};
