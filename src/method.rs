@@ -322,7 +322,7 @@ impl<'a> HttpTryFrom<&'a str> for Method {
 
     #[inline]
     fn try_from(t: &'a str) -> Result<Self, Self::Error> {
-        Method::try_from(t.as_bytes())
+        HttpTryFrom::try_from(t.as_bytes())
     }
 }
 
@@ -331,7 +331,7 @@ impl FromStr for Method {
 
     #[inline]
     fn from_str(t: &str) -> Result<Self, Self::Err> {
-        Method::try_from(t)
+        HttpTryFrom::try_from(t)
     }
 }
 

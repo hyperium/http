@@ -764,7 +764,7 @@ impl Builder {
         where Method: HttpTryFrom<T>,
     {
         if let Some(head) = head(&mut self.head, &self.err) {
-            match Method::try_from(method) {
+            match HttpTryFrom::try_from(method) {
                 Ok(s) => head.method = s,
                 Err(e) => self.err = Some(e.into()),
             }
@@ -793,7 +793,7 @@ impl Builder {
         where Uri: HttpTryFrom<T>,
     {
         if let Some(head) = head(&mut self.head, &self.err) {
-            match Uri::try_from(uri) {
+            match HttpTryFrom::try_from(uri) {
                 Ok(s) => head.uri = s,
                 Err(e) => self.err = Some(e.into()),
             }
@@ -848,9 +848,9 @@ impl Builder {
               HeaderValue: HttpTryFrom<V>
     {
         if let Some(head) = head(&mut self.head, &self.err) {
-            match HeaderName::try_from(key) {
+            match <HeaderName as HttpTryFrom<K>>::try_from(key) {
                 Ok(key) => {
-                    match HeaderValue::try_from(value) {
+                    match <HeaderValue as HttpTryFrom<V>>::try_from(value) {
                         Ok(value) => { head.headers.append(key, value); }
                         Err(e) => self.err = Some(e.into()),
                     }

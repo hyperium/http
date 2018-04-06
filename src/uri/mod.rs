@@ -28,7 +28,8 @@ use byte_str::ByteStr;
 use bytes::Bytes;
 
 use std::{fmt, u8, u16};
-#[allow(unused)]
+// Deprecated in 1.26, needed until our minimum version is >=1.23.
+#[allow(unused, deprecated)]
 use std::ascii::AsciiExt;
 use std::hash::{Hash, Hasher};
 use std::str::{self, FromStr};
