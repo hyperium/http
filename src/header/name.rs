@@ -2008,90 +2008,90 @@ fn eq_ignore_ascii_case(lower: &[u8], s: &[u8]) -> bool {
     })
 }
 
-#[test]
-fn test_bounds() {
-    fn check_bounds<T: Sync + Send>() {}
-    check_bounds::<HeaderName>();
-}
-
-#[test]
-fn test_parse_invalid_headers() {
-    for i in 0..128 {
-        let hdr = vec![1u8; i];
-        assert!(HeaderName::from_bytes(&hdr).is_err(), "{} invalid header chars did not fail", i);
-    }
-}
-
-#[test]
-fn test_from_hdr_name() {
-    use self::StandardHeader::Vary;
-
-    let name = HeaderName::from(HdrName {
-        inner: Repr::Standard(Vary),
-    });
-
-    assert_eq!(name.inner, Repr::Standard(Vary));
-
-    let name = HeaderName::from(HdrName {
-        inner: Repr::Custom(MaybeLower {
-            buf: b"hello-world",
-            lower: true,
-        }),
-    });
-
-    assert_eq!(name.inner, Repr::Custom(Custom(ByteStr::from_static("hello-world"))));
-
-    let name = HeaderName::from(HdrName {
-        inner: Repr::Custom(MaybeLower {
-            buf: b"Hello-World",
-            lower: false,
-        }),
-    });
-
-    assert_eq!(name.inner, Repr::Custom(Custom(ByteStr::from_static("hello-world"))));
-}
-
-#[test]
-fn test_eq_hdr_name() {
-    use self::StandardHeader::Vary;
-
-    let a = HeaderName { inner: Repr::Standard(Vary) };
-    let b = HdrName { inner: Repr::Standard(Vary) };
-
-    assert_eq!(a, b);
-
-    let a = HeaderName { inner: Repr::Custom(Custom(ByteStr::from_static("vaary"))) };
-    assert_ne!(a, b);
-
-    let b = HdrName { inner: Repr::Custom(MaybeLower {
-        buf: b"vaary",
-        lower: true,
-    })};
-
-    assert_eq!(a, b);
-
-    let b = HdrName { inner: Repr::Custom(MaybeLower {
-        buf: b"vaary",
-        lower: false,
-    })};
-
-    assert_eq!(a, b);
-
-    let b = HdrName { inner: Repr::Custom(MaybeLower {
-        buf: b"VAARY",
-        lower: false,
-    })};
-
-    assert_eq!(a, b);
-
-    let a = HeaderName { inner: Repr::Standard(Vary) };
-    assert_ne!(a, b);
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use self::StandardHeader::Vary;
+
+    #[test]
+    fn test_bounds() {
+        fn check_bounds<T: Sync + Send>() {}
+        check_bounds::<HeaderName>();
+    }
+
+    #[test]
+    fn test_parse_invalid_headers() {
+        for i in 0..128 {
+            let hdr = vec![1u8; i];
+            assert!(HeaderName::from_bytes(&hdr).is_err(), "{} invalid header chars did not fail", i);
+        }
+    }
+
+    #[test]
+    fn test_from_hdr_name() {
+        use self::StandardHeader::Vary;
+
+        let name = HeaderName::from(HdrName {
+            inner: Repr::Standard(Vary),
+        });
+
+        assert_eq!(name.inner, Repr::Standard(Vary));
+
+        let name = HeaderName::from(HdrName {
+            inner: Repr::Custom(MaybeLower {
+                buf: b"hello-world",
+                lower: true,
+            }),
+        });
+
+        assert_eq!(name.inner, Repr::Custom(Custom(ByteStr::from_static("hello-world"))));
+
+        let name = HeaderName::from(HdrName {
+            inner: Repr::Custom(MaybeLower {
+                buf: b"Hello-World",
+                lower: false,
+            }),
+        });
+
+        assert_eq!(name.inner, Repr::Custom(Custom(ByteStr::from_static("hello-world"))));
+    }
+
+    #[test]
+    fn test_eq_hdr_name() {
+        use self::StandardHeader::Vary;
+
+        let a = HeaderName { inner: Repr::Standard(Vary) };
+        let b = HdrName { inner: Repr::Standard(Vary) };
+
+        assert_eq!(a, b);
+
+        let a = HeaderName { inner: Repr::Custom(Custom(ByteStr::from_static("vaary"))) };
+        assert_ne!(a, b);
+
+        let b = HdrName { inner: Repr::Custom(MaybeLower {
+            buf: b"vaary",
+            lower: true,
+        })};
+
+        assert_eq!(a, b);
+
+        let b = HdrName { inner: Repr::Custom(MaybeLower {
+            buf: b"vaary",
+            lower: false,
+        })};
+
+        assert_eq!(a, b);
+
+        let b = HdrName { inner: Repr::Custom(MaybeLower {
+            buf: b"VAARY",
+            lower: false,
+        })};
+
+        assert_eq!(a, b);
+
+        let a = HeaderName { inner: Repr::Standard(Vary) };
+        assert_ne!(a, b);
+    }
 
     #[test]
     fn test_from_static_std() {
