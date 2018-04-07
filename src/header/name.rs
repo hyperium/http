@@ -1594,6 +1594,69 @@ impl HeaderName {
         }
     }
 
+    /// Converts a static string to a HTTP header name.
+    ///
+    /// This function panics when the static string is a invalid header.
+    /// 
+    /// This function requires the static string to only contain lowercase 
+    /// characters, numerals and symbols, as per the HTTP/2.0 specification 
+    /// and header names internal representation within this library.
+    /// 
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::*;
+    /// // Parsing a standard header
+    /// let hdr = HeaderName::from_static("content-length");
+    /// assert_eq!(CONTENT_LENGTH, hdr);
+    /// 
+    /// // Parsing a custom header
+    /// let CUSTOM_HEADER: &'static str = "custom-header";
+    /// 
+    /// let a = HeaderName::from_lowercase(b"custom-header").unwrap();
+    /// let b = HeaderName::from_static(CUSTOM_HEADER);
+    /// assert_eq!(a, b);
+    /// ```
+    /// 
+    /// ```should_panic
+    /// # use http::header::*;
+    /// #
+    /// // Parsing a header that contains invalid symbols(s):
+    /// HeaderName::from_static("content{}{}length"); // This line panics!
+    /// 
+    /// // Parsing a header that contains invalid uppercase characters.
+    /// let a = HeaderName::from_static("foobar");
+    /// let b = HeaderName::from_static("FOOBAR"); // This line panics!
+    /// ```
+    pub fn from_static(src: &'static str) -> HeaderName {
+        let bytes = src.as_bytes();
+        let mut buf = unsafe { mem::uninitialized() };
+        match parse_hdr(bytes, &mut buf, &HEADER_CHARS_H2) {
+            Ok(hdr_name) => match hdr_name.inner {
+                Repr::Standard(std) => std.into(),
+                Repr::Custom(MaybeLower { buf: _, lower: true }) => {
+                    let val = ByteStr::from_static(src);
+                    Custom(val).into()
+                },
+                Repr::Custom(MaybeLower { buf: _, lower: false }) => {
+                    // With lower false, the string is left unchecked by
+                    // parse_hdr and must be validated manually.
+                    for &b in bytes.iter() {
+                        if HEADER_CHARS_H2[b as usize] == 0 {
+                            panic!("invalid header name")
+                        }
+                    }
+
+                    let val = ByteStr::from_static(src);
+                    Custom(val).into()
+                }
+            },
+
+            Err(_) => panic!("invalid header name")
+        }
+    }
+
     /// Returns a `str` representation of the header.
     ///
     /// The returned string will always be lower case.
@@ -2023,4 +2086,94 @@ fn test_eq_hdr_name() {
 
     let a = HeaderName { inner: Repr::Standard(Vary) };
     assert_ne!(a, b);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use self::StandardHeader::Vary;
+
+    #[test]
+    fn test_from_static_std() {
+        let a = HeaderName { inner: Repr::Standard(Vary) };
+        
+        let b = HeaderName::from_static("vary");
+        assert_eq!(a, b);
+
+        let b = HeaderName::from_static("vaary");
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_from_static_std_uppercase() {
+        HeaderName::from_static("Vary");
+    } 
+
+    #[test]
+    #[should_panic]
+    fn test_from_static_std_symbol() {
+        HeaderName::from_static("vary{}");
+    } 
+
+    // MaybeLower { lower: true }
+    #[test]
+    fn test_from_static_custom_short() {
+        let a = HeaderName { inner: Repr::Custom(Custom(ByteStr::from_static("customheader"))) };
+        let b = HeaderName::from_static("customheader");
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_from_static_custom_short_uppercase() {
+        HeaderName::from_static("custom header");
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_from_static_custom_short_symbol() {
+        HeaderName::from_static("CustomHeader");
+    }
+
+    // MaybeLower { lower: false }
+    #[test]
+    fn test_from_static_custom_long() {
+        let a = HeaderName { inner: Repr::Custom(Custom(ByteStr::from_static(
+            "longer-than-63--thisheaderislongerthansixtythreecharactersandthushandleddifferent"
+        ))) };
+        let b = HeaderName::from_static(
+            "longer-than-63--thisheaderislongerthansixtythreecharactersandthushandleddifferent"
+        );
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_from_static_custom_long_uppercase() {
+        HeaderName::from_static(
+            "Longer-Than-63--ThisHeaderIsLongerThanSixtyThreeCharactersAndThusHandledDifferent"
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_from_static_custom_long_symbol() {
+        HeaderName::from_static(
+            "longer-than-63--thisheader{}{}{}{}islongerthansixtythreecharactersandthushandleddifferent"
+        );
+    }
+
+    #[test]
+    fn test_from_static_custom_single_char() {
+        let a = HeaderName { inner: Repr::Custom(Custom(ByteStr::from_static("a"))) };
+        let b = HeaderName::from_static("a");
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_from_static_empty() {
+        HeaderName::from_static("");
+    }   
 }
