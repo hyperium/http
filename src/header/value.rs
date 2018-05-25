@@ -38,7 +38,7 @@ pub struct InvalidHeaderValueBytes(InvalidHeaderValue);
 ///
 /// Header field values may contain opaque bytes, in which case it is not
 /// possible to represent the value as a string.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ToStrError {
     _priv: (),
 }
