@@ -108,7 +108,7 @@ pub struct IntoIter<T> {
 /// associated value.
 #[derive(Debug)]
 pub struct Keys<'a, T: 'a> {
-    inner: Iter<'a, T>,
+    inner: ::std::slice::Iter<'a, Bucket<T>>,
 }
 
 /// `HeaderMap` value iterator.
@@ -844,7 +844,7 @@ impl<T> HeaderMap<T> {
     /// }
     /// ```
     pub fn keys(&self) -> Keys<T> {
-        Keys { inner: self.iter() }
+        Keys { inner: self.entries.iter() }
     }
 
     /// An iterator visiting all values.
@@ -2004,7 +2004,7 @@ impl<'a, T> Iterator for Keys<'a, T> {
     type Item = &'a HeaderName;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next().map(|(n, _)| n)
+        self.inner.next().map(|b| &b.key)
     }
 }
 
@@ -3218,4 +3218,12 @@ fn test_bounds() {
     check_bounds::<ValueIter<'static, ()>>();
     check_bounds::<ValueIterMut<'static, ()>>();
     check_bounds::<ValueDrain<'static, ()>>();
+}
+
+#[test]
+fn skip_duplicates_during_key_iteration() {
+    let mut map = HeaderMap::new();
+    map.append("a", HeaderValue::from_static("a"));
+    map.append("a", HeaderValue::from_static("b"));
+    assert_eq!(map.keys().count(), map.keys_len());
 }
