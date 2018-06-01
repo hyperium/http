@@ -35,6 +35,8 @@ use std::hash::{Hash, Hasher};
 use std::str::{self, FromStr};
 use std::error::Error;
 
+use url::Url;
+
 use self::scheme::Scheme2;
 
 pub use self::authority::Authority;
@@ -643,6 +645,22 @@ impl<'a> HttpTryFrom<&'a Uri> for Uri {
     #[inline]
     fn try_from(src: &'a Uri) -> Result<Self, Self::Error> {
         Ok(src.clone())
+    }
+}
+
+impl<'a> HttpTryFrom<&'a Url> for Uri {
+    type Error = InvalidUri;
+
+    fn try_from(src: &'a Url) -> Result<Self, Self::Error> {
+        Uri::try_from(src.as_str())
+    }
+}
+
+impl<'a> HttpTryFrom<&'a Uri> for Url {
+    type Error = ::url::ParseError;
+
+    fn try_from(src: &'a Uri) -> Result<Self, Self::Error> {
+        Url::parse(src.to_string().as_str())
     }
 }
 

@@ -387,3 +387,15 @@ fn test_uri_to_path_and_query() {
         assert_eq!(s, case.1);
     }
 }
+
+#[test]
+fn test_convert_uri_url() {
+    use convert::HttpTryFrom;
+
+    let url = ::url::Url::parse("http://example.org/search?q=foobar#page-2").unwrap();
+    let uri = Uri::try_from(&url).unwrap();
+    assert_eq!(uri.scheme_part().map(|v| v.as_str()), Some("http"));
+    assert_eq!(uri.authority_part().map(|v| v.as_str()), Some("example.org"));
+    assert_eq!(uri.path(), "/search");
+    assert_eq!(uri.query(), Some("q=foobar"));
+}
