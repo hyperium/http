@@ -1,3 +1,10 @@
+# 0.1.6 (June 13, 2018)
+
+* Add `HeaderName::from_static()` constructor (#195).
+* Add `Authority::from_static()` constructor (#186).
+* Implement `From<HeaderName>` for `HeaderValue` (#184).
+* Fix duplicate keys when iterating over `header::Keys` (#201).
+
 # 0.1.5 (February 28, 2018)
 
 * Add websocket handshake related header constants (#162).
