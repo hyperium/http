@@ -288,6 +288,31 @@ impl Uri {
         parse_full(s)
     }
 
+    /// Convert a `Uri` into `Parts`.
+    ///
+    /// # Note
+    ///
+    /// This is just an inherent method providing the same functionality as
+    /// `let parts: Parts = uri.into()`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::uri::*;
+    /// let uri: Uri = "/foo".parse().unwrap();
+    ///
+    /// let parts = uri.into_parts();
+    ///
+    /// assert_eq!(parts.path_and_query.unwrap(), "/foo");
+    ///
+    /// assert!(parts.scheme.is_none());
+    /// assert!(parts.authority.is_none());
+    /// ```
+    #[inline]
+    pub fn into_parts(self) -> Parts {
+        self.into()
+    }
+
     /// Returns the path & query components of the Uri
     #[inline]
     pub fn path_and_query(&self) -> Option<&PathAndQuery> {
