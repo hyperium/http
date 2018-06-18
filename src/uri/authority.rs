@@ -87,6 +87,7 @@ impl Authority {
 
     // Note: this may return an *empty* Authority. You might want `parse_non_empty`.
     pub(super) fn parse(s: &[u8]) -> Result<usize, InvalidUri> {
+        let mut colon_cnt = 0;
         let mut start_bracket = false;
         let mut end_bracket = false;
         let mut end = s.len();
@@ -97,11 +98,22 @@ impl Authority {
                     end = i;
                     break;
                 }
+                b':' => {
+                    colon_cnt += 1;
+                },
                 b'[' => {
                     start_bracket = true;
                 }
                 b']' => {
                     end_bracket = true;
+
+                    // Those were part of an IPv6 hostname, so forget them...
+                    colon_cnt = 0;
+                }
+                b'@' => {
+                    // Those weren't a port colon, but part of the
+                    // userinfo, so it needs to be forgotten.
+                    colon_cnt = 0;
                 }
                 0 => {
                     return Err(ErrorKind::InvalidUriChar.into());
@@ -111,6 +123,11 @@ impl Authority {
         }
 
         if start_bracket ^ end_bracket {
+            return Err(ErrorKind::InvalidAuthority.into());
+        }
+
+        if colon_cnt > 1 {
+            // Things like 'localhost:8080:3030' are rejected.
             return Err(ErrorKind::InvalidAuthority.into());
         }
 

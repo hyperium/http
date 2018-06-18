@@ -120,6 +120,7 @@ test_parse! {
     port = Some(3000),
 }
 
+
 test_parse! {
     test_uri_parse_absolute_with_default_port_http,
     "http://127.0.0.1:80",
@@ -247,6 +248,32 @@ test_parse! {
 }
 
 test_parse! {
+    test_userinfo_with_port,
+    "user@localhost:3000",
+    [],
+
+    scheme_part = None,
+    authority_part = part!("user@localhost:3000"),
+    path = "",
+    query = None,
+    host = Some("localhost"),
+    port = Some(3000),
+}
+
+test_parse! {
+    test_userinfo_pass_with_port,
+    "user:pass@localhost:3000",
+    [],
+
+    scheme_part = None,
+    authority_part = part!("user:pass@localhost:3000"),
+    path = "",
+    query = None,
+    host = Some("localhost"),
+    port = Some(3000),
+}
+
+test_parse! {
     test_ipv6,
     "http://[2001:0db8:85a3:0000:0000:8a2e:0370:7334]/",
     [],
@@ -271,7 +298,6 @@ test_parse! {
     query = None,
     port = None,
 }
-
 
 test_parse! {
     test_ipv6_shorthand2,
@@ -341,6 +367,7 @@ fn test_uri_parse_error() {
     err("\0");
     err("http://[::1");
     err("http://::1]");
+    err("localhost:8080:3030");
 }
 
 #[test]
