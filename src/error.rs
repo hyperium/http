@@ -2,6 +2,8 @@ use std::error;
 use std::fmt;
 use std::result;
 
+use url::ParseError;
+
 use header;
 use method;
 use status;
@@ -28,6 +30,7 @@ enum ErrorKind {
     Uri(uri::InvalidUri),
     UriShared(uri::InvalidUriBytes),
     UriParts(uri::InvalidUriParts),
+    Url(ParseError),
     HeaderName(header::InvalidHeaderName),
     HeaderNameShared(header::InvalidHeaderNameBytes),
     HeaderValue(header::InvalidHeaderValue),
@@ -50,6 +53,7 @@ impl error::Error for Error {
             Uri(ref e) => e.description(),
             UriShared(ref e) => e.description(),
             UriParts(ref e) => e.description(),
+            Url(ref e) => e.description(),
             HeaderName(ref e) => e.description(),
             HeaderNameShared(ref e) => e.description(),
             HeaderValue(ref e) => e.description(),
@@ -87,6 +91,13 @@ impl From<uri::InvalidUriParts> for Error {
         Error { inner: ErrorKind::UriParts(err) }
     }
 }
+
+impl From<ParseError> for Error {
+    fn from(err: ParseError) -> Error {
+        Error { inner: ErrorKind::Url(err) }
+    }
+}
+
 
 impl From<header::InvalidHeaderName> for Error {
     fn from(err: header::InvalidHeaderName) -> Error {

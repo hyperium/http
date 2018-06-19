@@ -5,6 +5,8 @@ use sealed::Sealed;
 use status::StatusCode;
 use uri::Uri;
 
+use url::Url;
+
 /// Private trait for the `http` crate to have generic methods with fallible
 /// conversions.
 ///
@@ -38,6 +40,7 @@ macro_rules! reflexive {
 
 reflexive! {
     Uri,
+    Url,
     Method,
     StatusCode,
     HeaderName,

@@ -55,6 +55,8 @@
 use std::any::Any;
 use std::fmt;
 
+use url::Url;
+
 use {Uri, Error, Result, HttpTryFrom, Extensions};
 use header::{HeaderMap, HeaderName, HeaderValue};
 use method::Method;
@@ -504,6 +506,13 @@ impl<T> Request<T> {
     #[inline]
     pub fn uri_mut(&mut self) -> &mut Uri {
         &mut self.head.uri
+    }
+
+    /// Returns the absolute target URL if available.
+    /// 
+    /// Helper function to get the target `Url` for a request.
+    pub fn target(&self) -> Option<Url> {
+       Url::try_from(self.uri()).ok()
     }
 
     /// Returns the associated version.
