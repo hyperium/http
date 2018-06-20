@@ -134,6 +134,7 @@ enum ErrorKind {
     InvalidScheme,
     InvalidAuthority,
     InvalidFormat,
+    SchemeMissing,
     AuthorityMissing,
     PathAndQueryMissing,
     TooLong,
@@ -186,8 +187,8 @@ impl Uri {
                 return Err(ErrorKind::PathAndQueryMissing.into());
             }
         } else {
-            if src.authority.is_some() && src.path_and_query.is_none() {
-                return Err(ErrorKind::PathAndQueryMissing.into());
+            if src.authority.is_some() && src.path_and_query.is_some() {
+                return Err(ErrorKind::SchemeMissing.into());
             }
         }
 
@@ -988,6 +989,7 @@ impl Error for InvalidUri {
             ErrorKind::InvalidScheme => "invalid scheme",
             ErrorKind::InvalidAuthority => "invalid authority",
             ErrorKind::InvalidFormat => "invalid format",
+            ErrorKind::SchemeMissing => "scheme missing",
             ErrorKind::AuthorityMissing => "authority missing",
             ErrorKind::PathAndQueryMissing => "path missing",
             ErrorKind::TooLong => "uri too long",
