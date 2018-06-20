@@ -1,10 +1,11 @@
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 
 use std::{cmp, fmt, str};
 use std::error::Error;
 use std::str::FromStr;
 
 use ::convert::HttpTryFrom;
+use ::error::Never;
 use header::name::HeaderName;
 
 /// Represents an HTTP header field value.
@@ -357,6 +358,61 @@ impl From<HeaderName> for HeaderValue {
             is_sensitive: false,
         }
     }
+}
+
+macro_rules! from_integers {
+    ($($t:ident => $max_len:expr),*) => {$(
+        impl From<$t> for HeaderValue {
+            fn from(num: $t) -> HeaderValue {
+                let mut buf = BytesMut::with_capacity($max_len);
+                let _ = ::itoa::fmt(&mut buf, num);
+                HeaderValue {
+                    inner: buf.freeze(),
+                    is_sensitive: false,
+                }
+            }
+        }
+
+        impl HttpTryFrom<$t> for HeaderValue {
+            type Error = Never;
+
+            #[inline]
+            fn try_from(num: $t) -> Result<Self, Self::Error> {
+                Ok(num.into())
+            }
+        }
+
+    )*};
+}
+
+from_integers! {
+    // integer type => maximum decimal length
+
+    // u8 purposely left off... HeaderValue::from(b'3') could be confusing
+    u16 => 5,
+    i16 => 6,
+    u32 => 10,
+    i32 => 11,
+    u64 => 20,
+    i64 => 20
+}
+
+#[cfg(target_pointer_width = "16")]
+from_integers! {
+    usize => 5,
+    isize => 6
+}
+
+#[cfg(target_pointer_width = "32")]
+from_integers! {
+    usize => 10,
+    isize => 11
+}
+
+#[cfg(target_pointer_width = "64")]
+from_integers! {
+    usize => 20,
+    isize => 20
 }
 
 #[cfg(test)]

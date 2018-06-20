@@ -161,6 +161,7 @@
 
 extern crate bytes;
 extern crate fnv;
+extern crate itoa;
 
 pub mod header;
 pub mod method;
