@@ -1,6 +1,6 @@
 use bytes::{Bytes, BytesMut};
 
-use std::{cmp, fmt, str};
+use std::{cmp, fmt, mem, str};
 use std::error::Error;
 use std::str::FromStr;
 
@@ -361,10 +361,31 @@ impl From<HeaderName> for HeaderValue {
 }
 
 macro_rules! from_integers {
-    ($($t:ident => $max_len:expr),*) => {$(
+    ($($name:ident: $t:ident => $max_len:expr),*) => {$(
         impl From<$t> for HeaderValue {
             fn from(num: $t) -> HeaderValue {
-                let mut buf = BytesMut::with_capacity($max_len);
+                let mut buf = if mem::size_of::<BytesMut>() - 1 < $max_len {
+                    // On 32bit platforms, BytesMut max inline size
+                    // is 15 bytes, but the $max_len could be bigger.
+                    //
+                    // The likelihood of the number *actually* being
+                    // that big is very small, so only allocate
+                    // if the number needs that space.
+                    //
+                    // The largest decimal number in 15 digits:
+                    // It wold be 10.pow(15) - 1, but this is a constant
+                    // version.
+                    if num as u64 > 999_999_999_999_999_999 {
+                        BytesMut::with_capacity($max_len)
+                    } else {
+                        // fits inline...
+                        //BytesMut::new()
+                        panic!("booger");
+                    }
+                } else {
+                    // full value fits inline, so this won't allocate!
+                    BytesMut::with_capacity($max_len)
+                };
                 let _ = ::itoa::fmt(&mut buf, num);
                 HeaderValue {
                     inner: buf.freeze(),
@@ -382,6 +403,16 @@ macro_rules! from_integers {
             }
         }
 
+        #[test]
+        fn $name() {
+            let n: $t = 55;
+            let val = HeaderValue::from(n);
+            assert_eq!(val, &n.to_string());
+
+            let n = ::std::$t::MAX;
+            let val = HeaderValue::from(n);
+            assert_eq!(val, &n.to_string());
+        }
     )*};
 }
 
@@ -389,30 +420,30 @@ from_integers! {
     // integer type => maximum decimal length
 
     // u8 purposely left off... HeaderValue::from(b'3') could be confusing
-    u16 => 5,
-    i16 => 6,
-    u32 => 10,
-    i32 => 11,
-    u64 => 20,
-    i64 => 20
+    from_u16: u16 => 5,
+    from_i16: i16 => 6,
+    from_u32: u32 => 10,
+    from_i32: i32 => 11,
+    from_u64: u64 => 20,
+    from_i64: i64 => 20
 }
 
 #[cfg(target_pointer_width = "16")]
 from_integers! {
-    usize => 5,
-    isize => 6
+    from_usize: usize => 5,
+    from_isize: isize => 6
 }
 
 #[cfg(target_pointer_width = "32")]
 from_integers! {
-    usize => 10,
-    isize => 11
+    from_usize: usize => 10,
+    from_isize: isize => 11
 }
 
 #[cfg(target_pointer_width = "64")]
 from_integers! {
-    usize => 20,
-    isize => 20
+    from_usize: usize => 20,
+    from_isize: isize => 20
 }
 
 #[cfg(test)]
