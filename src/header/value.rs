@@ -379,12 +379,11 @@ macro_rules! from_integers {
                         BytesMut::with_capacity($max_len)
                     } else {
                         // fits inline...
-                        //BytesMut::new()
-                        panic!("booger");
+                        BytesMut::new()
                     }
                 } else {
-                    // full value fits inline, so this won't allocate!
-                    BytesMut::with_capacity($max_len)
+                    // full value fits inline, so don't allocate!
+                    BytesMut::new()
                 };
                 let _ = ::itoa::fmt(&mut buf, num);
                 HeaderValue {
