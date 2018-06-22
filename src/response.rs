@@ -608,6 +608,7 @@ impl Builder {
     /// let response = Response::builder()
     ///     .header("Content-Type", "text/html")
     ///     .header("X-Custom-Foo", "bar")
+    ///     .header("content-length", 0)
     ///     .body(())
     ///     .unwrap();
     /// ```
