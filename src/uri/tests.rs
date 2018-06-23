@@ -26,12 +26,17 @@ macro_rules! test_parse {
     ) => (
         #[test]
         fn $test_name() {
-            let uri = Uri::from_str($str).unwrap();
+            let orig_str = $str;
+            let uri = Uri::from_str(orig_str).unwrap();
             $(
-            assert_eq!(uri.$method(), $value, stringify!($method));
+            assert_eq!(uri.$method(), $value, "{}: uri = {:?}", stringify!($method), uri);
             )+
-            assert_eq!(uri, *$str);
-            assert_eq!(uri, uri.clone());
+            assert_eq!(uri, orig_str, "partial eq to original str");
+            assert_eq!(uri, uri.clone(), "clones are equal");
+
+            let new_str = uri.to_string();
+            let new_uri = Uri::from_str(&new_str).expect("to_string output parses again as a Uri");
+            assert_eq!(new_uri, orig_str, "round trip still equals original str");
 
             const ALT: &'static [&'static str] = &$alt;
 
@@ -105,6 +110,19 @@ test_parse! {
     query = None,
     port = None,
     host = Some("localhost"),
+}
+
+test_parse! {
+    test_uri_authority_only_one_character_issue_197,
+    "S",
+    [],
+
+    scheme_part = None,
+    authority_part = part!("S"),
+    path = "",
+    query = None,
+    port = None,
+    host = Some("S"),
 }
 
 test_parse! {

@@ -269,8 +269,7 @@ impl Uri {
                         return Ok(Uri {
                             scheme: Scheme::empty(),
                             authority: authority,
-                            // TODO: Should this be empty instead?
-                            path_and_query: PathAndQuery::slash(),
+                            path_and_query: PathAndQuery::empty(),
                         });
                     }
                 }
