@@ -1,3 +1,11 @@
+# 0.1.7 (June 22, 2018)
+
+* Add `From<uN> for HeaderValue` for most integer types (#218).
+* Add `Uri::into_parts()` inherent method (same as `Parts::from(uri)`) (#214).
+* Fix converting `Uri`s in authority-form to `Parts` and then back into `Uri` (#216).
+* Fix `Authority` parsing to reject multiple port sections (#215).
+* Fix parsing 1 character authority-form `Uri`s into illegal forms (#220).
+
 # 0.1.6 (June 13, 2018)
 
 * Add `HeaderName::from_static()` constructor (#195).

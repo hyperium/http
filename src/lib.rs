@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/http/0.1.6")]
+#![doc(html_root_url = "https://docs.rs/http/0.1.7")]
 
 //! A general purpose library of common HTTP types
 //!
