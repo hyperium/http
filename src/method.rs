@@ -275,6 +275,20 @@ impl AsRef<str> for Method {
     }
 }
 
+impl<'a> PartialEq<&'a Method> for Method {
+    #[inline]
+    fn eq(&self, other: & &'a Method) -> bool {
+        self == *other
+    }
+}
+
+impl<'a> PartialEq<Method> for &'a Method {
+    #[inline]
+    fn eq(&self, other: &Method) -> bool {
+        *self == other
+    }
+}
+
 impl PartialEq<str> for Method {
     #[inline]
     fn eq(&self, other: &str) -> bool {
@@ -282,10 +296,24 @@ impl PartialEq<str> for Method {
     }
 }
 
+impl PartialEq<Method> for str {
+    #[inline]
+    fn eq(&self, other: &Method) -> bool {
+        self == other.as_ref()
+    }
+}
+
 impl<'a> PartialEq<&'a str> for Method {
     #[inline]
     fn eq(&self, other: &&'a str) -> bool {
         self.as_ref() == *other
+    }
+}
+
+impl<'a> PartialEq<Method> for &'a str {
+    #[inline]
+    fn eq(&self, other: &Method) -> bool {
+        *self == other.as_ref()
     }
 }
 
@@ -353,4 +381,17 @@ impl Error for InvalidMethod {
     fn description(&self) -> &str {
         "invalid HTTP method"
     }
+}
+
+#[test]
+fn test_method_eq() {
+    assert_eq!(Method::GET, Method::GET);
+    assert_eq!(Method::GET, "GET");
+    assert_eq!(&Method::GET, "GET");
+
+    assert_eq!("GET", Method::GET);
+    assert_eq!("GET", &Method::GET);
+
+    assert_eq!(&Method::GET, Method::GET);
+    assert_eq!(Method::GET, &Method::GET);
 }
