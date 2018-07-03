@@ -1864,6 +1864,8 @@ impl<'a, K, T> ops::Index<K> for HeaderMap<T>
 {
     type Output = T;
 
+    /// # Panics
+    /// Using the index operator will cause a panic if the header you're querying isn't set.
     #[inline]
     fn index(&self, index: K) -> &T {
         self.get(index).expect("no entry found for key")
