@@ -39,7 +39,7 @@ pub use self::into_header_name::IntoHeaderName;
 pub struct HeaderMap<T = HeaderValue> {
     // Used to mask values to get an index
     mask: Size,
-    indices: Vec<Pos>,
+    indices: Box<[Pos]>,
     entries: Vec<Bucket<T>>,
     extra_values: Vec<ExtraValue<T>>,
     danger: Danger,
@@ -457,7 +457,7 @@ impl<T> HeaderMap<T> {
         if capacity == 0 {
             HeaderMap {
                 mask: 0,
-                indices: Vec::new(),
+                indices: Box::new([]), // as a ZST, this doesn't actually allocate anything
                 entries: Vec::new(),
                 extra_values: Vec::new(),
                 danger: Danger::Green,
@@ -475,7 +475,7 @@ impl<T> HeaderMap<T> {
 
             HeaderMap {
                 mask: entries_cap.wrapping_sub(1) as Size,
-                indices: vec![Pos::none(); indices_cap],
+                indices: vec![Pos::none(); indices_cap].into_boxed_slice(),
                 entries: Vec::with_capacity(entries_cap),
                 extra_values: Vec::new(),
                 danger: Danger::Green,
@@ -637,7 +637,7 @@ impl<T> HeaderMap<T> {
 
             if self.entries.len() == 0 {
                 self.mask = cap - 1;
-                self.indices = vec![Pos::none(); cap];
+                self.indices = vec![Pos::none(); cap].into_boxed_slice();
                 self.entries = Vec::with_capacity(usable_capacity(cap));
             } else {
                 self.grow(cap);
@@ -926,7 +926,7 @@ impl<T> HeaderMap<T> {
     /// assert!(vals.next().is_none());
     /// ```
     pub fn drain(&mut self) -> Drain<T> {
-        for i in &mut self.indices {
+        for i in self.indices.iter_mut() {
             *i = Pos::none();
         }
 
@@ -1580,7 +1580,7 @@ impl<T> HeaderMap<T> {
                 self.danger.to_red();
 
                 // Rebuild hash table
-                for index in &mut self.indices {
+                for index in self.indices.iter_mut() {
                     *index = Pos::none();
                 }
 
@@ -1590,7 +1590,7 @@ impl<T> HeaderMap<T> {
             if len == 0 {
                 let new_raw_cap = 8;
                 self.mask = 8 - 1;
-                self.indices = vec![Pos::none(); new_raw_cap];
+                self.indices = vec![Pos::none(); new_raw_cap].into_boxed_slice();
                 self.entries = Vec::with_capacity(usable_capacity(new_raw_cap));
             } else {
                 let raw_cap = self.indices.len();
@@ -1618,7 +1618,7 @@ impl<T> HeaderMap<T> {
 
         // visit the entries in an order where we can simply reinsert them
         // into self.indices without any bucket stealing.
-        let old_indices = mem::replace(&mut self.indices, vec![Pos::none(); new_raw_cap]);
+        let old_indices = mem::replace(&mut self.indices, vec![Pos::none(); new_raw_cap].into_boxed_slice());
         self.mask = new_raw_cap.wrapping_sub(1) as Size;
 
         for &pos in &old_indices[first_ideal..] {
@@ -1876,7 +1876,7 @@ impl<'a, K, T> ops::Index<K> for HeaderMap<T>
 ///
 /// returns the number of displaced elements
 #[inline]
-fn do_insert_phase_two(indices: &mut Vec<Pos>,
+fn do_insert_phase_two(indices: &mut [Pos],
           mut probe: usize,
           mut old_pos: Pos)
     -> usize
