@@ -1762,7 +1762,7 @@ impl<T> Extend<(Option<HeaderName>, T)> for HeaderMap<T> {
 
         'outer:
         loop {
-            let mut entry = match self.entry(key).expect("HeaderName is always OK") {
+            let mut entry = match self.entry2(key) {
                 Entry::Occupied(mut e) => {
                     // Replace all previous values while maintaining a handle to
                     // the entry.
@@ -1993,7 +1993,7 @@ impl<'a, T> Iterator for IterMut<'a, T> {
         let lower = map.entries.len() - self.entry;
         // We could pessimistically guess at the upper bound, saying
         // that its lower + map.extra_values.len(). That could be
-        // way over though, such as if we're already the end, and have
+        // way over though, such as if we're near the end, and have
         // already gone through several extra values...
         (lower, None)
     }
