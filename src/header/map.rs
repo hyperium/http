@@ -1932,6 +1932,10 @@ impl<'a, T> Iterator for Iter<'a, T> {
             (key, unsafe { &*ptr })
         })
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
 }
 
 unsafe impl<'a, T: Sync> Sync for Iter<'a, T> {}
@@ -1981,6 +1985,18 @@ impl<'a, T> Iterator for IterMut<'a, T> {
             (key, unsafe { &mut *ptr })
         })
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let map = unsafe { &*self.map };
+        debug_assert!(map.entries.len() >= self.entry);
+
+        let lower = map.entries.len() - self.entry;
+        // We could pessimistically guess at the upper bound, saying
+        // that its lower + map.extra_values.len(). That could be
+        // way over though, such as if we're already the end, and have
+        // already gone through several extra values...
+        (lower, None)
+    }
 }
 
 unsafe impl<'a, T: Sync> Sync for IterMut<'a, T> {}
@@ -1994,7 +2010,13 @@ impl<'a, T> Iterator for Keys<'a, T> {
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next().map(|b| &b.key)
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
 }
+
+impl<'a, T> ExactSizeIterator for Keys<'a, T> {}
 
 // ===== impl Values ====
 
@@ -2003,6 +2025,10 @@ impl<'a, T> Iterator for Values<'a, T> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next().map(|(_, v)| v)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
     }
 }
 
@@ -2013,6 +2039,10 @@ impl<'a, T> Iterator for ValuesMut<'a, T> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next().map(|(_, v)| v)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
     }
 }
 
@@ -2051,6 +2081,11 @@ impl<'a, T> Iterator for Drain<'a, T> {
         };
 
         Some((key, values))
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let lower = unsafe { (*self.map).entries.len() } - self.idx;
+        (lower, Some(lower))
     }
 }
 
@@ -2370,6 +2405,17 @@ impl<'a, T: 'a> Iterator for ValueIter<'a, T> {
             None => None,
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match (self.front, self.back) {
+            // Exactly 1 value...
+            (Some(Cursor::Head), Some(Cursor::Head)) => (1, Some(1)),
+            // At least 1...
+            (Some(_), _) => (1, None),
+            // No more values...
+            (None, _) => (0, Some(0)),
+        }
+    }
 }
 
 impl<'a, T: 'a> DoubleEndedIterator for ValueIter<'a, T> {
@@ -2511,6 +2557,14 @@ impl<T> Iterator for IntoIter<T> {
         }
 
         None
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let (lower, _) = self.entries.size_hint();
+        // There could be more than just the entries upper, as there
+        // could be items in the `extra_values`. We could guess, saying
+        // `upper + extra_values.len()`, but that could overestimate by a lot.
+        (lower, None)
     }
 }
 
@@ -2866,6 +2920,17 @@ impl<'a, T> Iterator for ValueDrain<'a, T> {
             Some(extra.value)
         } else {
             None
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match (&self.first, self.next) {
+            // Exactly 1
+            (&Some(_), None) => (1, Some(1)),
+            // At least 1
+            (&_, Some(_)) => (1, None),
+            // No more
+            (&None, None) => (0, Some(0)),
         }
     }
 }
