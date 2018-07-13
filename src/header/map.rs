@@ -296,11 +296,6 @@ enum Danger {
     Red(RandomState),
 }
 
-// The HeaderMap will use a sequential search strategy until the size of the map
-// exceeds this threshold. This tends to be faster for very small header maps.
-// This way all hashing logic can be skipped.
-const SEQ_SEARCH_THRESHOLD: usize = 8;
-
 // Constants related to detecting DOS attacks.
 //
 // Displacement is the number of entries that get shifted when inserting a new
@@ -463,20 +458,13 @@ impl<T> HeaderMap<T> {
                 danger: Danger::Green,
             }
         } else {
-            // Avoid allocating storage for the hash table if the requested
-            // capacity is below the threshold at which the hash map algorithm
-            // is used.
-            let entries_cap = to_raw_capacity(capacity).next_power_of_two();
-            let indices_cap = if entries_cap > SEQ_SEARCH_THRESHOLD {
-                entries_cap
-            } else {
-                0
-            };
+            let raw_cap = to_raw_capacity(capacity).next_power_of_two();
+            debug_assert!(raw_cap > 0);
 
             HeaderMap {
-                mask: entries_cap.wrapping_sub(1) as Size,
-                indices: vec![Pos::none(); indices_cap].into_boxed_slice(),
-                entries: Vec::with_capacity(entries_cap),
+                mask: (raw_cap - 1) as Size,
+                indices: vec![Pos::none(); raw_cap].into_boxed_slice(),
+                entries: Vec::with_capacity(raw_cap),
                 extra_values: Vec::new(),
                 danger: Danger::Green,
             }
@@ -1242,8 +1230,6 @@ impl<T> HeaderMap<T> {
     }
 
     /// phase 2 is post-insert where we forward-shift `Pos` in the indices.
-    ///
-    /// This phase only needs to happen if currently in hashed mode
     #[inline]
     fn insert_phase_two(&mut self,
                         key: HeaderName,
@@ -1306,7 +1292,7 @@ impl<T> HeaderMap<T> {
         }
     }
 
-    /// Remove an entry from the map while in hashed mode
+    /// Remove an entry from the map.
     #[inline]
     fn remove_found(&mut self, probe: usize, found: usize) -> Bucket<T> {
         // index `probe` and entry `found` is to be removed
