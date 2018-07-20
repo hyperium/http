@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use super::{ErrorKind, InvalidUri, Uri, URI_CHARS};
+use super::*;
 
 #[test]
 fn test_char_table() {
@@ -444,4 +444,31 @@ fn test_authority_uri_parts_round_trip() {
     let uri2 = Uri::from_parts(parts).expect("from_parts");
     assert_eq!(uri2, s);
     assert_eq!(uri2.to_string(), s);
+}
+
+#[test]
+/// As per RFC3986 sections 3 and 3.3
+fn test_authority_slash_path() {
+    fn parse_from_parts(a: &str, p: &str) -> Result<Uri, InvalidUriParts> {
+        let mut parts = Parts::default();
+        parts.scheme = Some(Scheme::HTTP);
+        parts.authority = Some(Authority::from_str(a).expect("first parse"));
+        parts.path_and_query = Some(PathAndQuery::from_str(p).expect("second parse"));
+        Uri::from_parts(parts)
+    }
+
+    match parse_from_parts("hyper.rs", "foo") {
+        Err(InvalidUriParts(InvalidUri(ErrorKind::SlashInPathMissing))) => (),
+        bad => panic!("Unexpected result of first from_parts call: {:#?}", bad),
+    }
+
+    match parse_from_parts("hyper.rs", "/foo") {
+        Ok(_) => (),
+        bad => panic!("Unexpected result of second from_parts call: {:#?}", bad),
+    }
+
+    match parse_from_parts("hyper.rs", "") {
+        Ok(_) => (),
+        bad => panic!("Unexpected result of third from_parts call: {:#?}", bad),
+    }
 }
