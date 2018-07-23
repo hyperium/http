@@ -1,3 +1,10 @@
+# 0.1.8 (July 23, 2018)
+
+* Add fuller set of `PartialEq` for `Method` (#221)
+* Reduce size of `HeaderMap` by using `Box<[Entry]>` instea of `Vec` (#224)
+* Reduce size of `Extensions` by storing as `Option<Box<AnyMap>>` (#227)
+* Implement `Iterator::size_hint` for most iterators in `header` (#226)
+
 # 0.1.7 (June 22, 2018)
 
 * Add `From<uN> for HeaderValue` for most integer types (#218).
