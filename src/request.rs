@@ -158,6 +158,7 @@ pub struct Request<T> {
     body: T,
 }
 
+#[derive(Default)]
 /// Component parts of an HTTP `Request`
 ///
 /// The HTTP request head consists of a method, uri, version, and a set of
@@ -177,8 +178,6 @@ pub struct Parts {
 
     /// The request's extensions
     pub extensions: Extensions,
-
-    _priv: (),
 }
 
 /// An HTTP request builder
@@ -423,7 +422,7 @@ impl<T> Request<T> {
     #[inline]
     pub fn new(body: T) -> Request<T> {
         Request {
-            head: Parts::new(),
+            head: Parts::default(),
             body: body,
         }
     }
@@ -697,20 +696,6 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
     }
 }
 
-impl Parts {
-    /// Creates a new default instance of `Parts`
-    fn new() -> Parts {
-        Parts{
-            method: Method::default(),
-            uri: Uri::default(),
-            version: Version::default(),
-            headers: HeaderMap::default(),
-            extensions: Extensions::default(),
-            _priv: (),
-        }
-    }
-}
-
 impl fmt::Debug for Parts {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Parts")
@@ -939,7 +924,7 @@ impl Default for Builder {
     #[inline]
     fn default() -> Builder {
         Builder {
-            head: Some(Parts::new()),
+            head: Some(Parts::default()),
             err: None,
         }
     }
