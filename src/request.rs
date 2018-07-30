@@ -408,7 +408,7 @@ impl Request<()> {
 impl<T> Request<T> {
     /// Creates a new blank `Request` with the body
     ///
-    /// The component ports of this request will be set to their default, e.g.
+    /// The component parts of this request will be set to their default, e.g.
     /// the GET method, no headers, etc.
     ///
     /// # Examples
