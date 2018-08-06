@@ -241,6 +241,15 @@ impl FromStr for StatusCode {
     }
 }
 
+impl<'a> HttpTryFrom<&'a StatusCode> for StatusCode {
+    type Error = InvalidStatusCode;
+
+    #[inline]
+    fn try_from(t: &'a StatusCode) -> Result<Self, Self::Error> {
+        Ok(t.clone())
+    }
+}
+
 impl<'a> HttpTryFrom<&'a [u8]> for StatusCode {
     type Error = InvalidStatusCode;
 

@@ -485,6 +485,15 @@ impl From<HeaderValue> for Bytes {
     }
 }
 
+impl<'a> HttpTryFrom<&'a HeaderValue> for HeaderValue {
+    type Error = InvalidHeaderValue;
+
+    #[inline]
+    fn try_from(t: &'a HeaderValue) -> Result<Self, Self::Error> {
+        Ok(t.clone())
+    }
+}
+
 impl<'a> HttpTryFrom<&'a str> for HeaderValue {
     type Error = InvalidHeaderValue;
 
