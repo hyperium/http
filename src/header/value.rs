@@ -486,7 +486,7 @@ impl From<HeaderValue> for Bytes {
 }
 
 impl<'a> HttpTryFrom<&'a HeaderValue> for HeaderValue {
-    type Error = InvalidHeaderValue;
+    type Error = ::error::Never;
 
     #[inline]
     fn try_from(t: &'a HeaderValue) -> Result<Self, Self::Error> {

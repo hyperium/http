@@ -337,7 +337,7 @@ impl Default for Method {
 }
 
 impl<'a> HttpTryFrom<&'a Method> for Method {
-    type Error = InvalidMethod;
+    type Error = ::error::Never;
 
     #[inline]
     fn try_from(t: &'a Method) -> Result<Self, Self::Error> {

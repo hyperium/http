@@ -242,7 +242,7 @@ impl FromStr for StatusCode {
 }
 
 impl<'a> HttpTryFrom<&'a StatusCode> for StatusCode {
-    type Error = InvalidStatusCode;
+    type Error = ::error::Never;
 
     #[inline]
     fn try_from(t: &'a StatusCode) -> Result<Self, Self::Error> {

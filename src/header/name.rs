@@ -1743,7 +1743,7 @@ impl From<HeaderName> for Bytes {
 }
 
 impl<'a> HttpTryFrom<&'a HeaderName> for HeaderName {
-    type Error = InvalidHeaderName;
+    type Error = ::error::Never;
 
     #[inline]
     fn try_from(t: &'a HeaderName) -> Result<Self, Self::Error> {
