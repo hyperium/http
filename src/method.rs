@@ -336,6 +336,15 @@ impl Default for Method {
     }
 }
 
+impl<'a> HttpTryFrom<&'a Method> for Method {
+    type Error = ::error::Never;
+
+    #[inline]
+    fn try_from(t: &'a Method) -> Result<Self, Self::Error> {
+        Ok(t.clone())
+    }
+}
+
 impl<'a> HttpTryFrom<&'a [u8]> for Method {
     type Error = InvalidMethod;
 
