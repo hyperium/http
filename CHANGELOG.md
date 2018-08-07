@@ -1,3 +1,8 @@
+# 0.1.9 (August 7, 2018)
+
+* Fix double percent encoding (#233)
+* Add additional HttpTryFrom impls (#234)
+
 # 0.1.8 (July 23, 2018)
 
 * Add fuller set of `PartialEq` for `Method` (#221)
