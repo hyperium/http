@@ -1,3 +1,7 @@
+# 0.1.10 (August, 8 2018)
+
+* impl HttpTryFrom<String> for HeaderValue (#236)
+
 # 0.1.9 (August 7, 2018)
 
 * Fix double percent encoding (#233)
