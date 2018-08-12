@@ -485,6 +485,13 @@ impl From<HeaderValue> for Bytes {
     }
 }
 
+impl<'a> From<&'a HeaderValue> for HeaderValue {
+    #[inline]
+    fn from(t: &'a HeaderValue) -> Self {
+        t.clone()
+    }
+}
+
 impl<'a> HttpTryFrom<&'a HeaderValue> for HeaderValue {
     type Error = ::error::Never;
 
