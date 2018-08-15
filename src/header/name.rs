@@ -2024,7 +2024,7 @@ mod tests {
 
     #[test]
     fn test_bounds() {
-        fn check_bounds<T: Sync + Send>() {}
+        fn check_bounds<T: Send + Sync>() {}
         check_bounds::<HeaderName>();
     }
 
