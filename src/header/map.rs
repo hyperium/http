@@ -1939,7 +1939,7 @@ impl<'a, T> Iterator for Iter<'a, T> {
 }
 
 unsafe impl<'a, T: Sync> Sync for Iter<'a, T> {}
-unsafe impl<'a, T: Send> Send for Iter<'a, T> {}
+unsafe impl<'a, T: Sync> Send for Iter<'a, T> {}
 
 // ===== impl IterMut =====
 
