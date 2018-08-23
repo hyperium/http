@@ -3255,7 +3255,7 @@ mod as_header_name {
 
 #[test]
 fn test_bounds() {
-    fn check_bounds<T: Send + Send>() {}
+    fn check_bounds<T: Send + Sync>() {}
 
     check_bounds::<HeaderMap<()>>();
     check_bounds::<Iter<'static, ()>>();
