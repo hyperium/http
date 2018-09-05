@@ -288,6 +288,32 @@ impl Uri {
         parse_full(s)
     }
 
+    /// Convert a `Uri` from a static string.
+    ///
+    /// This function will not perform any copying, however the string is
+    /// checked to ensure that it is valid.
+    ///
+    /// # Panics
+    ///
+    /// This function panics if the argument is an invalid URI.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::uri::Uri;
+    /// let uri = Uri::from_static("http://example.com/foo");
+    ///
+    /// assert_eq!(uri.host().unwrap(), "example.com");
+    /// assert_eq!(uri.path(), "/foo");
+    /// ```
+    pub fn from_static(src: &'static str) -> Self {
+        let s = Bytes::from_static(src.as_bytes());
+        match Uri::from_shared(s) {
+            Ok(uri) => uri,
+            Err(e) => panic!("static str is not valid URI: {}", e),
+        }
+    }
+
     /// Convert a `Uri` into `Parts`.
     ///
     /// # Note
