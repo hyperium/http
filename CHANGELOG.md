@@ -1,4 +1,9 @@
-# 0.1.10 (August, 8 2018)
+# 0.1.11 (September 5, 2018)
+
+* Add `From<&Self>` for `HeaderValue`, `Method`, and `StatusCode` (#238)
+* Add `Uri::from_static` (#240)
+
+# 0.1.10 (August 8, 2018)
 
 * impl HttpTryFrom<String> for HeaderValue (#236)
 
