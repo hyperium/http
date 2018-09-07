@@ -562,12 +562,12 @@ mod try_from_header_name_tests {
 }
 
 fn is_visible_ascii(b: u8) -> bool {
-    b >= 32 && b < 127
+    b >= 32 && b < 127 || b == b'\t'
 }
 
 #[inline]
 fn is_valid(b: u8) -> bool {
-    b >= 32 && b != 127
+    b >= 32 && b != 127 || b == b'\t'
 }
 
 impl fmt::Display for InvalidHeaderValue {
