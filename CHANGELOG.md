@@ -1,3 +1,7 @@
+# 0.1.12 (September 7, 2018)
+
+* Fix `HeaderValue` parsing to allow HTABs (#244)
+
 # 0.1.11 (September 5, 2018)
 
 * Add `From<&Self>` for `HeaderValue`, `Method`, and `StatusCode` (#238)
