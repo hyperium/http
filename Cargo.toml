@@ -41,3 +41,7 @@ path = "benches/header_map/mod.rs"
 [[bench]]
 name = "header_value"
 path = "benches/header_value.rs"
+
+[[bench]]
+name = "uri"
+path = "benches/uri.rs"
