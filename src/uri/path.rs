@@ -67,6 +67,19 @@ impl PathAndQuery {
 
                         i += 3;
                         continue;
+                    } else if query != NONE {
+                        // While queries *should* be percent-encoded, most
+                        // bytes are actually allowed...
+                        // See https://url.spec.whatwg.org/#query-state
+                        //
+                        // Allowed: 0x21 / 0x24 - 0x3B / 0x3D / 0x3F - 0x7E
+                        match b {
+                            0x21 |
+                            0x24...0x3B |
+                            0x3D |
+                            0x3F...0x7E => (),
+                            _ => return Err(ErrorKind::InvalidUriChar.into()),
+                        }
                     } else {
                         return Err(ErrorKind::InvalidUriChar.into());
                     }
