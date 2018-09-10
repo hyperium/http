@@ -369,6 +369,14 @@ test_parse! {
     port = None,
 }
 
+test_parse! {
+    test_query_permissive,
+    "/?foo={bar|baz}\\^`",
+    [],
+
+    query = Some("foo={bar|baz}\\^`"),
+}
+
 #[test]
 fn test_uri_parse_error() {
     fn err(s: &str) {
@@ -386,6 +394,12 @@ fn test_uri_parse_error() {
     err("http://[::1");
     err("http://::1]");
     err("localhost:8080:3030");
+
+    // illegal queries
+    err("/?foo\rbar");
+    err("/?foo\nbar");
+    err("/?<");
+    err("/?>");
 }
 
 #[test]
