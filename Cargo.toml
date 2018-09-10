@@ -1,4 +1,4 @@
-[package]
+0001-Switch-to-crossbeam_utils-crate-sidesteppin.patch[package]
 name = "http"
 # When releasing to crates.io:
 # - Update html_root_url in lib.rs.
@@ -28,7 +28,7 @@ itoa = "0.4.1"
 
 [dev-dependencies]
 indexmap = "1.0"
-quickcheck = "0.6"
+quickcheck = "0.7"
 rand = "0.4"
 seahash = "3.0.5"
 serde = "1.0"
