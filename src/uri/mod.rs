@@ -137,6 +137,7 @@ enum ErrorKind {
     SchemeMissing,
     AuthorityMissing,
     PathAndQueryMissing,
+    SlashInPathMissing,
     TooLong,
     Empty,
     SchemeTooLong,
@@ -189,6 +190,14 @@ impl Uri {
         } else {
             if src.authority.is_some() && src.path_and_query.is_some() {
                 return Err(ErrorKind::SchemeMissing.into());
+            }
+        }
+
+        if let (&Some(_), &Some(ref path_and_query)) = (&src.authority, &src.path_and_query) {
+            let path = path_and_query.path();
+            if !path.is_empty() && !path.starts_with('/') {
+                // As per RFC3986 sections 3 and 3.3
+                return Err(ErrorKind::SlashInPathMissing.into());
             }
         }
 
@@ -1017,6 +1026,7 @@ impl Error for InvalidUri {
             ErrorKind::SchemeMissing => "scheme missing",
             ErrorKind::AuthorityMissing => "authority missing",
             ErrorKind::PathAndQueryMissing => "path missing",
+            ErrorKind::SlashInPathMissing => "slash in path missing",
             ErrorKind::TooLong => "uri too long",
             ErrorKind::Empty => "empty string",
             ErrorKind::SchemeTooLong => "scheme too long",
