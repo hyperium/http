@@ -394,6 +394,8 @@ fn test_uri_parse_error() {
     err("http://[::1");
     err("http://::1]");
     err("localhost:8080:3030");
+    err("@");
+    err("http://username:password@/wut");
 
     // illegal queries
     err("/?foo\rbar");

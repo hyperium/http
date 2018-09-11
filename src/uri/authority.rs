@@ -91,6 +91,7 @@ impl Authority {
         let mut start_bracket = false;
         let mut end_bracket = false;
         let mut end = s.len();
+        let mut at_sign_pos = None;
 
         for (i, &b) in s.iter().enumerate() {
             match URI_CHARS[b as usize] {
@@ -111,9 +112,12 @@ impl Authority {
                     colon_cnt = 0;
                 }
                 b'@' => {
+                    at_sign_pos = Some(i);
+
                     // Those weren't a port colon, but part of the
                     // userinfo, so it needs to be forgotten.
                     colon_cnt = 0;
+
                 }
                 0 => {
                     return Err(ErrorKind::InvalidUriChar.into());
@@ -128,6 +132,11 @@ impl Authority {
 
         if colon_cnt > 1 {
             // Things like 'localhost:8080:3030' are rejected.
+            return Err(ErrorKind::InvalidAuthority.into());
+        }
+
+        if end > 0 && at_sign_pos == Some(end - 1) {
+            // If there's nothing after an `@`, this is bonkers.
             return Err(ErrorKind::InvalidAuthority.into());
         }
 
@@ -418,6 +427,7 @@ fn host(auth: &str) -> &str {
     let host_port = auth.rsplitn(2, '@')
         .next()
         .expect("split always has at least 1 item");
+
     if host_port.as_bytes()[0] == b'[' {
         let i = host_port.find(']')
             .expect("parsing should validate brackets");
