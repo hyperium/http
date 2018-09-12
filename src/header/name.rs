@@ -1704,6 +1704,12 @@ impl fmt::Debug for HeaderName {
     }
 }
 
+impl fmt::Display for HeaderName {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(self.as_str(), fmt)
+    }
+}
+
 impl InvalidHeaderName {
     fn new() -> InvalidHeaderName {
         InvalidHeaderName { _priv: () }
