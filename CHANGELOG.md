@@ -1,3 +1,9 @@
+# 0.1.13 (September 14, 2018)
+
+* impl `fmt::Display` for `HeaderName` (#249)
+* Fix `uri::Authority` parsing when there is no host after an `@` (#248)
+* Fix `Uri` parsing to allow more characters in query strings (#247)
+
 # 0.1.12 (September 7, 2018)
 
 * Fix `HeaderValue` parsing to allow HTABs (#244)
