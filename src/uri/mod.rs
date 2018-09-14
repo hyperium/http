@@ -40,9 +40,11 @@ use self::scheme::Scheme2;
 pub use self::authority::Authority;
 pub use self::path::PathAndQuery;
 pub use self::scheme::Scheme;
+pub use self::port::Port;
 
 mod authority;
 mod path;
+mod port;
 mod scheme;
 #[cfg(test)]
 mod tests;
@@ -543,12 +545,18 @@ impl Uri {
         self.authority_part().map(|a| a.host())
     }
 
-    /// Get the port of this `Uri`.
+    #[deprecated(since="0.2.0", note="please use `port_part` instead")]
+    #[doc(hidden)]
+    pub fn port(&self) -> Option<u16> {
+        self.port_part().and_then(|p| Some(p.as_u16()))
+    }
+
+    /// Get the port part of this `Uri`.
     ///
     /// The port subcomponent of authority is designated by an optional port
-    /// number in decimal following the host and delimited from it by a single
-    /// colon (":") character. A value is only returned if one is specified in
-    /// the URI string, i.e., default port values are **not** returned.
+    /// number as bytes following the host and delimited from it by a single
+    /// colon (":") character. It can be turned into a decimal port number with
+    /// the `as_u16` method.
     ///
     /// ```notrust
     /// abc://username:password@example.com:123/path/data?key=value&key2=value2#fragid1
@@ -562,10 +570,11 @@ impl Uri {
     /// Absolute URI with port
     ///
     /// ```
-    /// # use http::Uri;
+    /// # use http::{Uri, uri::Port};
     /// let uri: Uri = "http://example.org:80/hello/world".parse().unwrap();
     ///
-    /// assert_eq!(uri.port(), Some(80));
+    /// let port = uri.port_part().unwrap();
+    /// assert_eq!(port.as_u16(), 80);
     /// ```
     ///
     /// Absolute URI without port
@@ -574,7 +583,7 @@ impl Uri {
     /// # use http::Uri;
     /// let uri: Uri = "http://example.org/hello/world".parse().unwrap();
     ///
-    /// assert!(uri.port().is_none());
+    /// assert!(uri.port_part().is_none());
     /// ```
     ///
     /// Relative URI
@@ -583,11 +592,11 @@ impl Uri {
     /// # use http::Uri;
     /// let uri: Uri = "/hello/world".parse().unwrap();
     ///
-    /// assert!(uri.port().is_none());
+    /// assert!(uri.port_part().is_none());
     /// ```
-    pub fn port(&self) -> Option<u16> {
+    pub fn port_part(&self) -> Option<Port> {
         self.authority_part()
-            .and_then(|a| a.port())
+            .and_then(|a| a.port_part())
     }
 
     /// Get the query string of this `Uri`, starting after the `?`.
