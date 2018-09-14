@@ -1644,7 +1644,7 @@ impl<T> IntoIterator for HeaderMap<T> {
     type IntoIter = IntoIter<T>;
 
     /// Creates a consuming iterator, that is, one that moves keys and values
-    /// out of the map in arbitary order. The map cannot be used after calling
+    /// out of the map in arbitrary order. The map cannot be used after calling
     /// this.
     ///
     /// For each yielded item that has `None` provided for the `HeaderName`,
