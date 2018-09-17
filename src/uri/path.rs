@@ -49,11 +49,6 @@ impl PathAndQuery {
             match URI_CHARS[b as usize] {
                 0 => {
                     if b == b'%' {
-                        // Check if next character is not %
-                        if i + 2 <= src.len() && b'%' == src[i + 1] {
-                            break;
-                        }
-
                         // Check that there are enough chars for a percent
                         // encoded char
                         let perc_encoded =
@@ -521,33 +516,5 @@ mod tests {
         assert!("/c/world&foo=bar".to_string() > path_and_query);
         assert!(path_and_query > "/a/world&foo=bar".to_string());
         assert!("/a/world&foo=bar".to_string() < path_and_query);
-    }
-
-    #[test]
-    fn double_percent_path() {
-        let double_percent_path = "/your.js?bn=%%val";
-
-        assert!(double_percent_path.parse::<PathAndQuery>().is_ok());
-
-        let path: PathAndQuery = double_percent_path.parse().unwrap();
-        assert_eq!(path, double_percent_path);
-
-        let double_percent_path = "/path%%";
-
-        assert!(double_percent_path.parse::<PathAndQuery>().is_ok());
-    }
-
-    #[test]
-    fn path_ends_with_question_mark() {
-        let path = "/path?%";
-
-        assert!(path.parse::<PathAndQuery>().is_err());
-    }
-
-    #[test]
-    fn path_ends_with_fragment_percent() {
-        let path = "/path#%";
-
-        assert!(path.parse::<PathAndQuery>().is_ok());
     }
 }
