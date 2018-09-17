@@ -47,38 +47,22 @@ impl PathAndQuery {
             let b = src[i];
 
             match URI_CHARS[b as usize] {
-                0 => {
-                    if b == b'%' {
-                        // Check that there are enough chars for a percent
-                        // encoded char
-                        let perc_encoded =
-                            i + 3 <= src.len() && // enough capacity
-                            HEX_DIGIT[src[i + 1] as usize] != 0 &&
-                            HEX_DIGIT[src[i + 2] as usize] != 0;
-
-                        if !perc_encoded {
-                            return Err(ErrorKind::InvalidUriChar.into());
-                        }
-
-                        i += 3;
-                        continue;
-                    } else if query != NONE {
-                        // While queries *should* be percent-encoded, most
-                        // bytes are actually allowed...
-                        // See https://url.spec.whatwg.org/#query-state
-                        //
-                        // Allowed: 0x21 / 0x24 - 0x3B / 0x3D / 0x3F - 0x7E
-                        match b {
-                            0x21 |
-                            0x24...0x3B |
-                            0x3D |
-                            0x3F...0x7E => (),
-                            _ => return Err(ErrorKind::InvalidUriChar.into()),
-                        }
-                    } else {
-                        return Err(ErrorKind::InvalidUriChar.into());
+                0 if b == b'%' => {}
+                0 if query != NONE => {
+                    // While queries *should* be percent-encoded, most
+                    // bytes are actually allowed...
+                    // See https://url.spec.whatwg.org/#query-state
+                    //
+                    // Allowed: 0x21 / 0x24 - 0x3B / 0x3D / 0x3F - 0x7E
+                    match b {
+                        0x21 |
+                        0x24...0x3B |
+                        0x3D |
+                        0x3F...0x7E => {},
+                        _ => return Err(ErrorKind::InvalidUriChar.into()),
                     }
                 }
+                0 => return Err(ErrorKind::InvalidUriChar.into()),
                 b'?' => {
                     if query == NONE {
                         query = i as u16;
@@ -401,36 +385,6 @@ impl PartialOrd<PathAndQuery> for String {
     }
 }
 
-const HEX_DIGIT: [u8; 256] = [
-    //  0      1      2      3      4      5      6      7      8      9
-        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //   x
-        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //  1x
-        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //  2x
-        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //  3x
-        0,     0,     0,     0,     0,     0,     0,     0,  b'0',  b'1', //  4x
-     b'2',  b'3',  b'4',  b'5',  b'6',  b'7',  b'8',  b'9',     0,     0, //  5x
-        0,     0,     0,     0,     0,  b'A',  b'B',  b'C',  b'D',  b'E', //  6x
-     b'F',  b'G',  b'H',  b'I',  b'J',  b'K',  b'L',  b'M',  b'N',  b'O', //  7x
-     b'P',  b'Q',  b'R',  b'S',  b'T',  b'U',  b'V',  b'W',  b'X',  b'Y', //  8x
-     b'Z',     0,     0,     0,     0,     0,     0,  b'a',  b'b',  b'c', //  9x
-     b'd',  b'e',  b'f',  b'g',  b'h',  b'i',  b'j',  b'k',  b'l',  b'm', // 10x
-     b'n',  b'o',  b'p',  b'q',  b'r',  b's',  b't',  b'u',  b'v',  b'w', // 11x
-     b'x',  b'y',  b'z',     0,     0,     0,  b'~',     0,     0,     0, // 12x
-        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 13x
-        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 14x
-        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 15x
-        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 16x
-        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 17x
-        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 18x
-        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 19x
-        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 20x
-        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 21x
-        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 22x
-        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 23x
-        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 24x
-        0,     0,     0,     0,     0,     0                              // 25x
-];
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -516,5 +470,25 @@ mod tests {
         assert!("/c/world&foo=bar".to_string() > path_and_query);
         assert!(path_and_query > "/a/world&foo=bar".to_string());
         assert!("/a/world&foo=bar".to_string() < path_and_query);
+    }
+
+    #[test]
+    fn ignores_valid_percent_encodings() {
+        assert_eq!("/a%20b", pq("/a%20b?r=1").path());
+        assert_eq!("qr=%31", pq("/a/b?qr=%31").query().unwrap());
+    }
+
+    #[test]
+    fn ignores_invalid_percent_encodings() {
+        assert_eq!("/a%%b", pq("/a%%b?r=1").path());
+        assert_eq!("/aaa%", pq("/aaa%").path());
+        assert_eq!("/aaa%", pq("/aaa%?r=1").path());
+        assert_eq!("/aa%2", pq("/aa%2").path());
+        assert_eq!("/aa%2", pq("/aa%2?r=1").path());
+        assert_eq!("qr=%3", pq("/a/b?qr=%3").query().unwrap());
+    }
+
+    fn pq(s: &str) -> PathAndQuery {
+        s.parse().expect(&format!("parsing {}", s))
     }
 }
