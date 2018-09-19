@@ -554,9 +554,9 @@ impl Uri {
     /// Get the port part of this `Uri`.
     ///
     /// The port subcomponent of authority is designated by an optional port
-    /// number as bytes following the host and delimited from it by a single
-    /// colon (":") character. It can be turned into a decimal port number with
-    /// the `as_u16` method.
+    /// number following the host and delimited from it by a single colon (":")
+    /// character. It can be turned into a decimal port number with the `as_u16`
+    /// method or as a `str` with the `as_str` method.
     ///
     /// ```notrust
     /// abc://username:password@example.com:123/path/data?key=value&key2=value2#fragid1
