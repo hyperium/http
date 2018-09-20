@@ -8,7 +8,7 @@ use std::str::FromStr;
 use bytes::Bytes;
 
 use byte_str::ByteStr;
-use super::{ErrorKind, InvalidUri, InvalidUriBytes, URI_CHARS};
+use super::{ErrorKind, InvalidUri, InvalidUriBytes, URI_CHARS, Port};
 
 /// Represents the authority component of a URI.
 #[derive(Clone)]
@@ -180,12 +180,18 @@ impl Authority {
         host(self.as_str())
     }
 
-    /// Get the port of this `Authority`.
+    #[deprecated(since="0.2.0", note="please use `port_part` instead")]
+    #[doc(hidden)]
+    pub fn port(&self) -> Option<u16> {
+        self.port_part().and_then(|p| Some(p.as_u16()))
+    }
+
+    /// Get the port part of this `Authority`.
     ///
     /// The port subcomponent of authority is designated by an optional port
-    /// number in decimal following the host and delimited from it by a single
-    /// colon (":") character. A value is only returned if one is specified in
-    /// the URI string, i.e., default port values are **not** returned.
+    /// number following the host and delimited from it by a single colon (":")
+    /// character. It can be turned into a decimal port number with the `as_u16`
+    /// method or as a `str` with the `as_str` method.
     ///
     /// ```notrust
     /// abc://username:password@example.com:123/path/data?key=value&key2=value2#fragid1
@@ -202,7 +208,8 @@ impl Authority {
     /// # use http::uri::Authority;
     /// let authority: Authority = "example.org:80".parse().unwrap();
     ///
-    /// assert_eq!(authority.port(), Some(80));
+    /// let port = authority.port_part().unwrap();
+    /// assert_eq!(port.as_u16(), 80);
     /// ```
     ///
     /// Authority without port
@@ -211,13 +218,13 @@ impl Authority {
     /// # use http::uri::Authority;
     /// let authority: Authority = "example.org".parse().unwrap();
     ///
-    /// assert!(authority.port().is_none());
+    /// assert!(authority.port_part().is_none());
     /// ```
-    pub fn port(&self) -> Option<u16> {
-        let s = self.as_str();
-        s.rfind(":").and_then(|i| {
-            u16::from_str(&s[i+1..]).ok()
-        })
+    pub fn port_part(&self) -> Option<Port> {
+        let bytes = self.as_str();
+        bytes
+            .rfind(":")
+            .and_then(|i| Port::from_str(&bytes[i + 1..]).ok())
     }
 
     /// Return a str representation of the authority
