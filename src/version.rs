@@ -54,7 +54,7 @@ impl Default for Version {
     }
 }
 
-impl fmt::Debug for Version {
+impl fmt::Display for Version {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::Http::*;
 
@@ -64,5 +64,11 @@ impl fmt::Debug for Version {
             Http11 => "HTTP/1.1",
             H2     => "HTTP/2.0",
         })
+    }
+}
+
+impl fmt::Debug for Version {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(self, f)
     }
 }
