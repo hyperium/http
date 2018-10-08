@@ -8,6 +8,7 @@ use std::str::FromStr;
 use bytes::Bytes;
 
 use byte_str::ByteStr;
+use convert::HttpTryFrom;
 use super::{ErrorKind, InvalidUri, InvalidUriBytes, URI_CHARS, Port};
 
 /// Represents the authority component of a URI.
@@ -397,17 +398,44 @@ impl Hash for Authority {
     }
 }
 
-impl FromStr for Authority {
-    type Err = InvalidUri;
+impl HttpTryFrom<Bytes> for Authority {
+    type Error = InvalidUriBytes;
+    #[inline]
+    fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
+        Authority::from_shared(bytes)
+    }
+}
 
-    fn from_str(s: &str) -> Result<Self, InvalidUri> {
-        let end = Authority::parse_non_empty(s.as_bytes())?;
+impl<'a> HttpTryFrom<&'a [u8]> for Authority {
+    type Error = InvalidUri;
+    #[inline]
+    fn try_from(s: &'a [u8]) -> Result<Self, Self::Error> {
+        // parse first, and only turn into Bytes if valid
+        let end = Authority::parse_non_empty(s)?;
 
         if end != s.len() {
             return Err(ErrorKind::InvalidAuthority.into());
         }
 
-        Ok(Authority { data: s.into() })
+        Ok(Authority {
+            data: unsafe { ByteStr::from_utf8_unchecked(s.into()) },
+        })
+    }
+}
+
+impl<'a> HttpTryFrom<&'a str> for Authority {
+    type Error = InvalidUri;
+    #[inline]
+    fn try_from(s: &'a str) -> Result<Self, Self::Error> {
+        HttpTryFrom::try_from(s.as_bytes())
+    }
+}
+
+impl FromStr for Authority {
+    type Err = InvalidUri;
+
+    fn from_str(s: &str) -> Result<Self, InvalidUri> {
+        HttpTryFrom::try_from(s)
     }
 }
 
