@@ -725,8 +725,7 @@ impl fmt::Debug for Parts {
 }
 
 impl Builder {
-    /// Creates a new default instance of `Builder` to construct either a
-    /// `Head` or a `Request`.
+    /// Creates a new default instance of `Builder` to construct a `Request`.
     ///
     /// # Examples
     ///

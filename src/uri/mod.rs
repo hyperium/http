@@ -38,11 +38,13 @@ use std::error::Error;
 use self::scheme::Scheme2;
 
 pub use self::authority::Authority;
+pub use self::builder::Builder;
 pub use self::path::PathAndQuery;
 pub use self::scheme::Scheme;
 pub use self::port::Port;
 
 mod authority;
+mod builder;
 mod path;
 mod port;
 mod scheme;
@@ -178,6 +180,27 @@ const URI_CHARS: [u8; 256] = [
 ];
 
 impl Uri {
+    /// Creates a new builder-style object to manufacture a `Uri`.
+    ///
+    /// This method returns an instance of `Builder` which can be usd to
+    /// create a `Uri`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use http::Uri;
+    ///
+    /// let uri = Uri::builder()
+    ///     .scheme("https")
+    ///     .authority("hyper.rs")
+    ///     .path_and_query("/")
+    ///     .build()
+    ///     .unwrap();
+    /// ```
+    pub fn builder() -> Builder {
+        Builder::new()
+    }
+
     /// Attempt to convert a `Uri` from `Parts`
     pub fn from_parts(src: Parts) -> Result<Uri, InvalidUriParts> {
         if src.scheme.is_some() {
