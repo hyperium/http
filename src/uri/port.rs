@@ -20,7 +20,7 @@ impl<'a> Port<'a> {
     ///
     /// # Examples
     ///
-    /// Port as `u16`
+    /// Port as `u16`.
     ///
     /// ```
     /// # use http::uri::Authority;
@@ -51,14 +51,56 @@ impl<'a> Port<'a> {
     }
 }
 
+impl<'a> fmt::Display for Port<'a> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.bytes)
+    }
+}
+
+impl<'a> From<Port<'a>> for u16 {
+    fn from(port: Port) -> Self {
+        port.as_u16()
+    }
+}
+
+impl<'a> AsRef<str> for Port<'a> {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
 impl<'a> PartialEq for Port<'a> {
     fn eq(&self, other: &Self) -> bool {
         self.port == other.port
     }
 }
 
-impl<'a> fmt::Display for Port<'a> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{}", self.bytes)
+impl<'a> PartialEq<u16> for Port<'a> {
+    fn eq(&self, other: &u16) -> bool {
+        self.port == *other
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn partialeq_port() {
+        let port_a = Port::from_str("8080").unwrap();
+        let port_b = Port::from_str("8080").unwrap();
+        assert_eq!(port_a, port_b);
+    }
+
+    #[test]
+    fn partialeq_u16() {
+        let port = Port::from_str("8080").unwrap();
+        assert_eq!(port, 8080u16);
+    }
+
+    #[test]
+    fn u16_from_port() {
+        let port = Port::from_str("8080").unwrap();
+        assert_eq!(8080, u16::from(port));
     }
 }
