@@ -181,7 +181,7 @@ impl Authority {
         host(self.as_str())
     }
 
-    #[deprecated(since="0.2.0", note="please use `port_part` instead")]
+    #[deprecated(since="0.1.14", note="use `port_part` instead")]
     #[doc(hidden)]
     pub fn port(&self) -> Option<u16> {
         self.port_part().and_then(|p| Some(p.as_u16()))
@@ -221,7 +221,7 @@ impl Authority {
     ///
     /// assert!(authority.port_part().is_none());
     /// ```
-    pub fn port_part(&self) -> Option<Port> {
+    pub fn port_part(&self) -> Option<Port<&str>> {
         let bytes = self.as_str();
         bytes
             .rfind(":")

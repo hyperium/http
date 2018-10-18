@@ -137,6 +137,7 @@ enum ErrorKind {
     InvalidUriChar,
     InvalidScheme,
     InvalidAuthority,
+    InvalidPort,
     InvalidFormat,
     SchemeMissing,
     AuthorityMissing,
@@ -568,7 +569,7 @@ impl Uri {
         self.authority_part().map(|a| a.host())
     }
 
-    #[deprecated(since="0.2.0", note="please use `port_part` instead")]
+    #[deprecated(since="0.1.14", note="use `port_part` instead")]
     #[doc(hidden)]
     pub fn port(&self) -> Option<u16> {
         self.port_part().and_then(|p| Some(p.as_u16()))
@@ -617,7 +618,7 @@ impl Uri {
     ///
     /// assert!(uri.port_part().is_none());
     /// ```
-    pub fn port_part(&self) -> Option<Port> {
+    pub fn port_part(&self) -> Option<Port<&str>> {
         self.authority_part()
             .and_then(|a| a.port_part())
     }
@@ -1045,6 +1046,7 @@ impl Error for InvalidUri {
             ErrorKind::InvalidUriChar => "invalid uri character",
             ErrorKind::InvalidScheme => "invalid scheme",
             ErrorKind::InvalidAuthority => "invalid authority",
+            ErrorKind::InvalidPort => "invalid port",
             ErrorKind::InvalidFormat => "invalid format",
             ErrorKind::SchemeMissing => "scheme missing",
             ErrorKind::AuthorityMissing => "authority missing",
