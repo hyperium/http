@@ -143,6 +143,9 @@ impl Method {
     /// Converts a slice of bytes to an HTTP method.
     pub fn from_bytes(src: &[u8]) -> Result<Method, InvalidMethod> {
         match src.len() {
+            0 => {
+                Err(InvalidMethod::new())
+            }
             3 => {
                 match src {
                     b"GET" => Ok(Method(Get)),
@@ -410,4 +413,10 @@ fn test_method_eq() {
 
     assert_eq!(&Method::GET, Method::GET);
     assert_eq!(Method::GET, &Method::GET);
+}
+
+#[test]
+fn test_invalid_method() {
+    assert!(Method::from_str("").is_err());
+    assert!(Method::from_bytes(b"").is_err());
 }
