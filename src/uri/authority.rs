@@ -91,6 +91,7 @@ impl Authority {
         let mut colon_cnt = 0;
         let mut start_bracket = false;
         let mut end_bracket = false;
+        let mut has_percent = false;
         let mut end = s.len();
         let mut at_sign_pos = None;
 
@@ -118,7 +119,15 @@ impl Authority {
                     // Those weren't a port colon, but part of the
                     // userinfo, so it needs to be forgotten.
                     colon_cnt = 0;
-
+                    has_percent = false;
+                }
+                0 if b == b'%' => {
+                    // Userinfo can have percent-encoded username and password,
+                    // so record that a `%` was found. If this turns out to be
+                    // part of the userinfo, this flag will be cleared.
+                    // If the flag hasn't been cleared at the end, that means this
+                    // was part of the hostname, and fail with an error.
+                    has_percent = true;
                 }
                 0 => {
                     return Err(ErrorKind::InvalidUriChar.into());
@@ -138,6 +147,11 @@ impl Authority {
 
         if end > 0 && at_sign_pos == Some(end - 1) {
             // If there's nothing after an `@`, this is bonkers.
+            return Err(ErrorKind::InvalidAuthority.into());
+        }
+
+        if has_percent {
+            // Something after the userinfo has a `%`, so reject it.
             return Err(ErrorKind::InvalidAuthority.into());
         }
 
@@ -563,5 +577,21 @@ mod tests {
         assert!("ghi.com".to_string() > authority);
         assert!(authority > "abc.com".to_string());
         assert!("abc.com".to_string() < authority);
+    }
+
+    #[test]
+    fn allows_percent_in_userinfo() {
+        let authority_str = "a%2f:b%2f@example.com";
+        let authority: Authority = authority_str.parse().unwrap();
+        assert_eq!(authority, authority_str);
+    }
+
+    #[test]
+    fn rejects_percent_in_hostname() {
+        let err = Authority::parse_non_empty(b"example%2f.com").unwrap_err();
+        assert_eq!(err.0, ErrorKind::InvalidAuthority);
+
+        let err = Authority::parse_non_empty(b"a%2f:b%2f@example%2f.com").unwrap_err();
+        assert_eq!(err.0, ErrorKind::InvalidAuthority);
     }
 }
