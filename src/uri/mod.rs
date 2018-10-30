@@ -937,6 +937,10 @@ impl PartialEq<str> for Uri {
         }
 
         if let Some(query) = self.query() {
+            if other.len() == 0 {
+                return query.len() == 0;
+            }
+
             if other[0] != b'?' {
                 return false;
             }
