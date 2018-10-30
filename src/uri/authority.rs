@@ -122,11 +122,13 @@ impl Authority {
                     has_percent = false;
                 }
                 0 if b == b'%' => {
-                    // Userinfo can have percent-encoded username and password,
+                    // Per https://tools.ietf.org/html/rfc3986#section-3.2.1 and
+                    // https://url.spec.whatwg.org/#authority-state
+                    // the userinfo can have a percent-encoded username and password,
                     // so record that a `%` was found. If this turns out to be
                     // part of the userinfo, this flag will be cleared.
                     // If the flag hasn't been cleared at the end, that means this
-                    // was part of the hostname, and fail with an error.
+                    // was part of the hostname, and will fail with an error.
                     has_percent = true;
                 }
                 0 => {
