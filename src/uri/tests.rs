@@ -461,3 +461,11 @@ fn test_authority_uri_parts_round_trip() {
     assert_eq!(uri2, s);
     assert_eq!(uri2.to_string(), s);
 }
+
+#[test]
+fn test_partial_eq_path_with_terminating_questionmark() {
+    let a = "/path";
+    let uri = Uri::from_str("/path?").expect("first parse");
+
+    assert_eq!(uri, a);
+}
