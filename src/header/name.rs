@@ -973,11 +973,15 @@ standard_headers! {
 ///
 /// ```not_rust
 ///       field-name     = token
-///       token          = 1*<any CHAR except CTLs or separators>
 ///       separators     = "(" | ")" | "<" | ">" | "@"
 ///                      | "," | ";" | ":" | "\" | <">
 ///                      | "/" | "[" | "]" | "?" | "="
 ///                      | "{" | "}" | SP | HT
+///       token          = 1*tchar
+///       tchar          = "!" / "#" / "$" / "%" / "&" / "'" / "*"
+///                      / "+" / "-" / "." / "^" / "_" / "`" / "|" / "~"
+///                      / DIGIT / ALPHA
+///                      ; any VCHAR, except delimiters
 /// ```
 const HEADER_CHARS: [u8; 256] = [
     //  0      1      2      3      4      5      6      7      8      9
@@ -990,7 +994,7 @@ const HEADER_CHARS: [u8; 256] = [
         0,     0,     0,     0,     0,  b'a',  b'b',  b'c',  b'd',  b'e', //  6x
      b'f',  b'g',  b'h',  b'i',  b'j',  b'k',  b'l',  b'm',  b'n',  b'o', //  7x
      b'p',  b'q',  b'r',  b's',  b't',  b'u',  b'v',  b'w',  b'x',  b'y', //  8x
-     b'z',     0,     0,     0,     0,  b'_',     0,  b'a',  b'b',  b'c', //  9x
+     b'z',     0,     0,     0,  b'^',  b'_',  b'`',  b'a',  b'b',  b'c', //  9x
      b'd',  b'e',  b'f',  b'g',  b'h',  b'i',  b'j',  b'k',  b'l',  b'm', // 10x
      b'n',  b'o',  b'p',  b'q',  b'r',  b's',  b't',  b'u',  b'v',  b'w', // 11x
      b'x',  b'y',  b'z',     0,  b'|',     0,  b'~',     0,     0,     0, // 12x
@@ -1020,7 +1024,7 @@ const HEADER_CHARS_H2: [u8; 256] = [
         0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //  6x
         0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //  7x
         0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //  8x
-        0,     0,     0,     0,     0,  b'_',     0,  b'a',  b'b',  b'c', //  9x
+        0,     0,     0,     0,  b'^',  b'_',  b'`',  b'a',  b'b',  b'c', //  9x
      b'd',  b'e',  b'f',  b'g',  b'h',  b'i',  b'j',  b'k',  b'l',  b'm', // 10x
      b'n',  b'o',  b'p',  b'q',  b'r',  b's',  b't',  b'u',  b'v',  b'w', // 11x
      b'x',  b'y',  b'z',     0,  b'|',     0,  b'~',     0,     0,     0, // 12x
@@ -2190,5 +2194,10 @@ mod tests {
     #[should_panic]
     fn test_from_static_empty() {
         HeaderName::from_static("");
-    }   
+    }
+
+    #[test]
+    fn test_all_tokens() {
+        HeaderName::from_static("!#$%&'*+-.^_`|~0123456789abcdefghijklmnopqrstuvwxyz");
+    }
 }
