@@ -163,6 +163,10 @@ extern crate bytes;
 extern crate fnv;
 extern crate itoa;
 
+#[cfg(feature = "serde")]
+#[macro_use]
+extern crate serde;
+
 pub mod header;
 pub mod method;
 pub mod request;
