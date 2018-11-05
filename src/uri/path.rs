@@ -170,6 +170,30 @@ impl PathAndQuery {
         ret
     }
 
+    /// Returs the segments of path component
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::uri::*;
+    ///
+    /// let path_and_query : PathAndQuery = "/hello/world".parse().unwrap();
+    ///
+    /// assert!(path_and_query.path_segments().is_some());
+    /// assert_eq!(
+    ///     path_and_query.path_segments().unwrap().collect::<Vec<_>>(),
+    ///     vec!["foo", "bar", "baz"]
+    /// );
+    /// ```
+    pub fn path_segments(&self) -> Option<str::Split<char>> {
+        let path = self.path();
+        if path.starts_with('/') {
+            Some(path[1..].split('/'))
+        } else {
+            None
+        }
+    }
+
     /// Returns the query string component
     ///
     /// The query component contains non-hierarchical data that, along with data

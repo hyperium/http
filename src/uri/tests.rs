@@ -378,6 +378,17 @@ test_parse! {
 }
 
 #[test]
+fn test_uri_parse_segments() {
+    use super::*;
+    let path: PathAndQuery = "/foo/bar/baz".parse().unwrap();
+    assert!(path.path_segments().is_some());
+    assert_eq!(
+        path.path_segments().unwrap().collect::<Vec<_>>(),
+        vec!["foo", "bar", "baz"]
+    );
+}
+
+#[test]
 fn test_uri_parse_error() {
     fn err(s: &str) {
         Uri::from_str(s).unwrap_err();
