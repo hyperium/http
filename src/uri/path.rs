@@ -1,11 +1,11 @@
-use std::{cmp, fmt, str};
 use std::str::FromStr;
+use std::{cmp, fmt, str};
 
 use bytes::Bytes;
 
+use super::{ErrorKind, InvalidUri, InvalidUriBytes, URI_CHARS};
 use byte_str::ByteStr;
 use convert::HttpTryFrom;
-use super::{ErrorKind, InvalidUri, InvalidUriBytes, URI_CHARS};
 
 /// Represents the path component of a URI
 #[derive(Clone)]
@@ -56,10 +56,7 @@ impl PathAndQuery {
                     //
                     // Allowed: 0x21 / 0x24 - 0x3B / 0x3D / 0x3F - 0x7E
                     match b {
-                        0x21 |
-                        0x24...0x3B |
-                        0x3D |
-                        0x3F...0x7E => {},
+                        0x21 | 0x24...0x3B | 0x3D | 0x3F...0x7E => {}
                         _ => return Err(ErrorKind::InvalidUriChar.into()),
                     }
                 }
@@ -108,8 +105,7 @@ impl PathAndQuery {
     pub fn from_static(src: &'static str) -> Self {
         let src = Bytes::from_static(src.as_bytes());
 
-        PathAndQuery::from_shared(src)
-            .unwrap()
+        PathAndQuery::from_shared(src).unwrap()
     }
 
     pub(super) fn empty() -> Self {
@@ -168,6 +164,27 @@ impl PathAndQuery {
         }
 
         ret
+    }
+    /// Returs the segments of path component
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::uri::*;
+    ///
+    /// let path_and_query: PathAndQuery = "/hello/world".parse().unwrap();
+    ///
+    /// assert!(path_and_query.path_segments().is_some());
+    /// assert_eq!(path_and_query.path_segments().unwrap().collect::<Vec<_>>(), vec!["hello",
+    /// "world"])
+    /// ```
+    pub fn path_segments(&self) -> Option<str::Split<char>> {
+        let path = self.path();
+        if path.starts_with('/') {
+            Some(path[1..].split('/'))
+        } else {
+            None
+        }
     }
 
     /// Returns the query string component
