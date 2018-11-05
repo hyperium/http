@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use super::{ErrorKind, InvalidUri, Port, Uri, URI_CHARS};
+use super::{ErrorKind, InvalidUri, Uri, URI_CHARS, Port};
 
 #[test]
 fn test_char_table() {
@@ -12,9 +12,9 @@ fn test_char_table() {
 }
 
 macro_rules! part {
-    ($s:expr) => {
+    ($s:expr) => (
         Some(&$s.parse().unwrap())
-    };
+    )
 }
 
 macro_rules! test_parse {
@@ -137,6 +137,7 @@ test_parse! {
     host = Some("localhost"),
     port_part = Port::from_str("3000").ok(),
 }
+
 
 test_parse! {
     test_uri_parse_absolute_with_default_port_http,
@@ -374,24 +375,6 @@ test_parse! {
     [],
 
     query = Some("foo={bar|baz}\\^`"),
-}
-
-#[test]
-fn test_uri_parse_segments() {
-    use super::*;
-    let path: PathAndQuery = "/foo/bar/baz".parse().unwrap();
-    assert!(path.path_segments().is_some());
-    assert_eq!(
-        path.path_segments().unwrap().collect::<Vec<_>>(),
-        vec!["foo", "bar", "baz"]
-    );
-
-    let path: PathAndQuery = "/foo/bar/baz/".parse().unwrap();
-    assert!(path.path_segments().is_some());
-    assert_eq!(
-        path.path_segments().unwrap().collect::<Vec<_>>(),
-        vec!["foo", "bar", "baz", ""]
-    );
 }
 
 #[test]
