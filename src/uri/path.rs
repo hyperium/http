@@ -179,19 +179,13 @@ impl PathAndQuery {
     ///
     /// let path_and_query : PathAndQuery = "/hello/world".parse().unwrap();
     ///
-    /// assert!(path_and_query.path_segments().is_some());
     /// assert_eq!(
-    ///     path_and_query.path_segments().unwrap().collect::<Vec<_>>(),
-    ///     vec!["foo", "bar", "baz"]
+    ///     path_and_query.path_segments().collect::<Vec<_>>(),
+    ///     vec!["hello", "world"]
     /// );
     /// ```
-    pub fn path_segments(&self) -> Option<str::Split<char>> {
-        let path = self.path();
-        if path.starts_with('/') {
-            Some(path[1..].split('/'))
-        } else {
-            None
-        }
+    pub fn path_segments(&self) -> str::Split<char> {
+        self.path()[1..].split('/')
     }
 
     /// Returns the query string component
