@@ -1,3 +1,13 @@
+# 0.1.14 (November 21, 2018)
+
+* Add `Port` struct (#252, #255, #265)
+* Introduce `Uri` builder (#219)
+* Empty `Method` no longer considered valid (#262)
+* Fix `Uri` equality when terminating question mark is present (#270)
+* Allow % character in userinfo (#269)
+* Support additional tokens for header names (#271)
+* Export `http::headers::{IterMut, ValuesMut}` (#278)
+
 # 0.1.13 (September 14, 2018)
 
 * impl `fmt::Display` for `HeaderName` (#249)
