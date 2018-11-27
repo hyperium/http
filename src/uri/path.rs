@@ -7,6 +7,18 @@ use byte_str::ByteStr;
 use convert::HttpTryFrom;
 use super::{ErrorKind, InvalidUri, InvalidUriBytes, URI_CHARS};
 
+/// Represents the segments of a URI
+#[derive(Debug)]
+pub struct PathSegments<'a>(str::Split<'a, char>);
+
+impl<'a> std::ops::Deref for PathSegments<'a> {
+    type Target = str::Split<'a, char>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 /// Represents the path component of a URI
 #[derive(Clone)]
 pub struct PathAndQuery {
@@ -180,12 +192,13 @@ impl PathAndQuery {
     /// let path_and_query : PathAndQuery = "/hello/world".parse().unwrap();
     ///
     /// assert_eq!(
-    ///     path_and_query.path_segments().collect::<Vec<_>>(),
+    ///     path_and_query.path_segments().to_owned().collect::<Vec<_>>(),
     ///     vec!["hello", "world"]
     /// );
     /// ```
-    pub fn path_segments(&self) -> str::Split<char> {
-        self.path()[1..].split('/')
+    pub fn path_segments(&self) -> PathSegments
+    {
+        PathSegments(self.path()[1..].split('/'))
     }
 
     /// Returns the query string component
