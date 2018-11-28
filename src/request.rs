@@ -153,6 +153,7 @@ use version::Version;
 /// #
 /// # fn main() {}
 /// ```
+#[derive(Clone)]
 pub struct Request<T> {
     head: Parts,
     body: T,
@@ -162,6 +163,7 @@ pub struct Request<T> {
 ///
 /// The HTTP request head consists of a method, uri, version, and a set of
 /// header fields.
+#[derive(Clone)]
 pub struct Parts {
     /// The request's method
     pub method: Method,
@@ -956,5 +958,13 @@ mod tests {
             123u32
         });
         assert_eq!(mapped_request.body(), &123u32);
+    }
+
+    #[test]
+    fn it_can_be_cloned() {
+        let request = Request::builder().body(42i32).unwrap();
+
+        let other_request: Request<_> = request.clone();
+        drop(other_request);
     }
 }

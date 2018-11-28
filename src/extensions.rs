@@ -167,6 +167,12 @@ impl Extensions {
     }
 }
 
+impl Clone for Extensions {
+    fn clone(&self) -> Extensions {
+        Extensions::new()
+    }
+}
+
 impl fmt::Debug for Extensions {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Extensions")
