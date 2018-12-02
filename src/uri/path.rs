@@ -232,16 +232,18 @@ impl PathAndQuery {
     ///
     /// assert_eq!(params.get("foo"), Some(vec!["bar"]));
     /// ```
-    pub fn query_params(&self) -> HashMap<String, Vec<String>> {
-        let qstring = self.query();
+    pub fn query_params(&self) -> HashMap<&str, Vec<&str>> {
+        let qstring = match self.query() {
+            Some(q) => q,
+            None => {
+                return HashMap::new()
+            }
+        };
+
         let mut r = HashMap::new();
 
-        if qstring.is_none() {
-            return r;
-        }
-
-        for kv in qstring.unwrap().split('&') {
-            let kvvec : Vec<String> = kv.split('=').map(|s| s.to_string()).collect();
+        for kv in qstring.split('&') {
+            let kvvec : Vec<_> = kv.split('=').collect();
             if kvvec.len() > 2 || kvvec.len() == 0  {
                 panic!("Can not parse key-value pair '{}'", kv);
             }
@@ -249,7 +251,7 @@ impl PathAndQuery {
             if !r.contains_key(&kvvec[0]) {
                 r.insert(kvvec[0].clone(), vec![kvvec[1].clone()]);
             } else {
-                let mut nv : Vec<String> = r.get(&kvvec[0]).unwrap().clone();
+                let mut nv : Vec<_> = r.get(kvvec[0]).unwrap().clone();
                 nv.push(kvvec[1].clone());
                 r.insert(kvvec[0].clone(), nv);
             }
@@ -274,8 +276,8 @@ impl PathAndQuery {
     ///
     /// assert_eq!(path_and_query.query_param_first("foo"), Some("bar"));
     /// ```
-    pub fn query_param<S: AsRef<str>>(&self, key: S) -> Option<Vec<String>> {
-        match self.query_params().get(&key.as_ref().to_string()) {
+    pub fn query_param<S: AsRef<str>>(&self, key: S) -> Option<Vec<&str>> {
+        match self.query_params().get(key.as_ref()) {
             Some(v) => Some(v.clone()),
             None => None
         }
@@ -293,10 +295,10 @@ impl PathAndQuery {
     ///
     /// assert_eq!(path_and_query.query_param_first("foo"), Some("bar"));
     /// ```
-    pub fn query_param_first<S: AsRef<str>>(&self, key: S) -> Option<String> {
+    pub fn query_param_first<S: AsRef<str>>(&self, key: S) -> Option<&str> {
         match self.query_param(key) {
             Some(vs) => if vs.len() > 0 {
-                Some(vs[0].clone())
+                Some(vs[0])
             } else { 
                 None
             },
@@ -317,7 +319,7 @@ impl PathAndQuery {
     /// assert!( path_and_query.query_has_key("foo"));
     /// assert!(!path_and_query.query_has_key("bar"));
     /// ```
-    pub fn query_has_key<S: AsRef<str>>(&self, key: S) -> bool {
+    pub fn query_contains_key<S: AsRef<str>>(&self, key: S) -> bool {
         self.query_param(key).is_some()    
     }
 
