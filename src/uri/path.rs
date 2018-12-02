@@ -223,13 +223,9 @@ impl PathAndQuery {
     ///
     /// # Examples
     ///
-    /// With a query string component
-    ///
     /// ```
-    /// # use http::uri::*;
     /// let path_and_query: PathAndQuery = "/hello/world?key=value&foo=bar".parse().unwrap();
     /// let params = path_and_query.query_params();
-    ///
     /// assert_eq!(params.get("foo"), Some(vec!["bar"]));
     /// ```
     pub fn query_params(&self) -> HashMap<&str, Vec<&str>> {
@@ -262,18 +258,11 @@ impl PathAndQuery {
 
     /// Parses the query string component and return the first value to the given key
     ///
-    /// This functions splits the query part first by `&` into key-value pairs and
-    /// then splits each pair by `=` into the key and the value. If no `=` is present,
-    /// then an empty vector will be used.
-    ///
     /// # Examples
-    ///
-    /// With a query string component
     ///
     /// ```
     /// # use http::uri::*;
     /// let path_and_query: PathAndQuery = "/hello/world?key=value&foo=bar".parse().unwrap();
-    ///
     /// assert_eq!(path_and_query.query_param_first("foo"), Some("bar"));
     /// ```
     pub fn query_param<S: AsRef<str>>(&self, key: S) -> Option<Vec<&str>> {
@@ -286,8 +275,6 @@ impl PathAndQuery {
     /// Parses the query string component and return the first value to the given key
     ///
     /// # Examples
-    ///
-    /// With a query string component
     ///
     /// ```
     /// # use http::uri::*;
