@@ -291,7 +291,7 @@ impl PathAndQuery {
     ///
     /// ```
     /// # use http::uri::*;
-    /// let path_and_query: PathAndQuery = "/hello/world?key=value&foo=bar".parse().unwrap();
+    /// let path_and_query: PathAndQuery = "/hello/world?key=value&foo=bar&foo=baz".parse().unwrap();
     ///
     /// assert_eq!(path_and_query.query_param_first("foo"), Some("bar"));
     /// ```
