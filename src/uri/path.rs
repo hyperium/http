@@ -256,14 +256,14 @@ impl PathAndQuery {
         r
     }
 
-    /// Parses the query string component and return the first value to the given key
+    /// Parses the query string component and return the values to the given key
     ///
     /// # Examples
     ///
     /// ```
     /// # use http::uri::*;
     /// let path_and_query: PathAndQuery = "/hello/world?key=value&foo=bar".parse().unwrap();
-    /// assert_eq!(path_and_query.query_param_first("foo"), Some("bar"));
+    /// assert_eq!(path_and_query.query_param("foo"), Some("bar"));
     /// ```
     pub fn query_param<S: AsRef<str>>(&self, key: S) -> Option<Vec<&str>> {
         match self.query_params().get(key.as_ref()) {

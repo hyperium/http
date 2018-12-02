@@ -53,14 +53,10 @@ fn path_and_query_param_several_with_multi() {
 }
 
 
-
 #[test]
 fn path_and_query_param_first() {
     let p = PathAndQuery::from_static("/path?key=value1&key=value2");
     assert!(p.query_contains_key("key"), "Query is expected to contain key 'key'");
     assert_eq!(p.query_param_first("key"), Some("value1"), "Key value for 'key' is expected to be 'value1'");
 }
-
-
-
 
