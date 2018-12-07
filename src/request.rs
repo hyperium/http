@@ -771,6 +771,34 @@ impl Builder {
         self
     }
 
+    /// Get the HTTP Method for this request.
+    /// 
+    /// By default this is `GET`.
+    /// if builder has error, returns None.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// # use http::*;
+    /// 
+    /// let mut req = Request::builder();
+    /// assert_eq!(req.get_method(),Some(Method::GET));
+    /// req.method("POST");
+    /// assert_eq!(req.get_method(),Some(Method::POST));
+    /// req.method("DELETE");
+    /// assert_eq!(req.get_method(),Some(Method::DELETE));
+    /// ```
+    pub fn get_method(&self) -> Option<Method>
+    {
+        if self.err.is_some() {
+            return None
+        }
+        match &self.head {
+            Some(head) => Some(head.method.clone()),
+            None => None
+        }
+    }
+
     /// Set the URI for this request.
     ///
     /// This function will configure the URI of the `Request` that will
@@ -798,6 +826,31 @@ impl Builder {
             }
         }
         self
+    }
+
+    /// Get the URI for this request
+    /// 
+    /// By default this is `/`
+    /// # Examples
+    /// 
+    /// ```
+    /// # use http::*;
+    /// 
+    /// let mut req = Request::builder();
+    /// assert_eq!(req.get_uri().unwrap().to_string(), "/" );
+    /// req.uri("https://www.rust-lang.org/");
+    /// assert_eq!(req.get_uri().unwrap().to_string(), "https://www.rust-lang.org/" );
+    /// ```
+    pub fn get_uri(&self) -> Option<Uri>
+    {
+        if self.err.is_some() {
+            return None;
+        }
+        match &self.head
+        {
+            Some(head) => Some(head.uri.clone()),
+            None => None
+        }
     }
 
     /// Set the HTTP version for this request.
@@ -858,6 +911,33 @@ impl Builder {
             };
         }
         self
+    }
+
+    /// Get header on this request builder.
+    /// when builder has error returns None
+    /// 
+    /// # Example
+    /// 
+    /// ```
+    /// # use http::*;
+    /// # use http::header::HeaderValue;
+    /// # use http::request::Builder;
+    /// let mut req = Request::builder();
+    /// req.header("Accept", "text/html")
+    ///    .header("X-Custom-Foo", "bar");
+    /// let headers = req.get_headers().unwrap();
+    /// assert_eq!( headers["Accept"], "text/html" );
+    /// assert_eq!( headers["X-Custom-Foo"], "bar" );
+    /// ```
+    pub fn get_headers(&self ) -> Option<HeaderMap<HeaderValue>> {
+        if self.err.is_some() {
+            return None;
+        }
+        match &self.head
+        {
+            Some(head) => Some(head.headers.clone()),
+            None => None
+        }
     }
 
     /// Adds an extension to this builder
