@@ -794,8 +794,8 @@ impl Builder {
             return None
         }
         match &self.head {
-            Some(head) => Some(head.method.clone()),
-            None => None
+            &Some(ref head) => Some(head.method.clone()),
+            &None => None
         }
     }
 
@@ -848,8 +848,8 @@ impl Builder {
         }
         match &self.head
         {
-            Some(head) => Some(head.uri.clone()),
-            None => None
+            &Some(ref head) => Some(head.uri.clone()),
+            &None => None
         }
     }
 
@@ -935,8 +935,8 @@ impl Builder {
         }
         match &self.head
         {
-            Some(head) => Some(head.headers.clone()),
-            None => None
+            &Some(ref head) => Some(head.headers.clone()),
+            &None => None
         }
     }
 
