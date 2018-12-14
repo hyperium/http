@@ -782,20 +782,20 @@ impl Builder {
     /// # use http::*;
     /// 
     /// let mut req = Request::builder();
-    /// assert_eq!(req.get_method(),Some(Method::GET));
+    /// assert_eq!(req.method_ref(),Some(&Method::GET));
     /// req.method("POST");
-    /// assert_eq!(req.get_method(),Some(Method::POST));
+    /// assert_eq!(req.method_ref(),Some(&Method::POST));
     /// req.method("DELETE");
-    /// assert_eq!(req.get_method(),Some(Method::DELETE));
+    /// assert_eq!(req.method_ref(),Some(&Method::DELETE));
     /// ```
-    pub fn get_method(&self) -> Option<Method>
+    pub fn method_ref(&self) -> Option<&Method>
     {
         if self.err.is_some() {
             return None
         }
-        match &self.head {
-            &Some(ref head) => Some(head.method.clone()),
-            &None => None
+        match self.head {
+            Some(ref head) => Some(&head.method),
+            None => None
         }
     }
 
@@ -837,19 +837,19 @@ impl Builder {
     /// # use http::*;
     /// 
     /// let mut req = Request::builder();
-    /// assert_eq!(req.get_uri().unwrap().to_string(), "/" );
+    /// assert_eq!(req.uri_ref().unwrap().to_string(), "/" );
     /// req.uri("https://www.rust-lang.org/");
-    /// assert_eq!(req.get_uri().unwrap().to_string(), "https://www.rust-lang.org/" );
+    /// assert_eq!(req.uri_ref().unwrap().to_string(), "https://www.rust-lang.org/" );
     /// ```
-    pub fn get_uri(&self) -> Option<Uri>
+    pub fn uri_ref(&self) -> Option<&Uri>
     {
         if self.err.is_some() {
             return None;
         }
-        match &self.head
+        match self.head
         {
-            &Some(ref head) => Some(head.uri.clone()),
-            &None => None
+            Some(ref head) => Some(&head.uri),
+            None => None
         }
     }
 
@@ -925,18 +925,18 @@ impl Builder {
     /// let mut req = Request::builder();
     /// req.header("Accept", "text/html")
     ///    .header("X-Custom-Foo", "bar");
-    /// let headers = req.get_headers().unwrap();
+    /// let headers = req.headers_ref().unwrap();
     /// assert_eq!( headers["Accept"], "text/html" );
     /// assert_eq!( headers["X-Custom-Foo"], "bar" );
     /// ```
-    pub fn get_headers(&self ) -> Option<HeaderMap<HeaderValue>> {
+    pub fn headers_ref(&self) -> Option<&HeaderMap<HeaderValue>> {
         if self.err.is_some() {
             return None;
         }
-        match &self.head
+        match self.head
         {
-            &Some(ref head) => Some(head.headers.clone()),
-            &None => None
+            Some(ref head) => Some(&head.headers),
+            None => None
         }
     }
 
