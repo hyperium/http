@@ -81,6 +81,7 @@ const MAX_INLINE: usize = 15;
 //
 // https://www.w3.org/Protocols/HTTP/1.1/draft-ietf-http-v11-spec-01#Method
 //
+#[rustfmt::skip]
 const METHOD_CHARS: [u8; 256] = [
     //  0      1      2      3      4      5      6      7      8      9
     b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', //   x

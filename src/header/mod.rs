@@ -74,6 +74,7 @@ mod map;
 mod name;
 mod value;
 
+#[rustfmt::skip]
 pub use self::map::{
     HeaderMap,
     AsHeaderName,
@@ -93,11 +94,13 @@ pub use self::map::{
     ValueDrain,
     IntoIter,
 };
+#[rustfmt::skip]
 pub use self::name::{
     HeaderName,
     InvalidHeaderName,
     InvalidHeaderNameBytes,
 };
+#[rustfmt::skip]
 pub use self::value::{
     HeaderValue,
     InvalidHeaderValue,
@@ -106,6 +109,7 @@ pub use self::value::{
 };
 
 // Use header name constants
+#[rustfmt::skip]
 pub use self::name::{
     ACCEPT,
     ACCEPT_CHARSET,

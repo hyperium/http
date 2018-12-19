@@ -983,6 +983,7 @@ standard_headers! {
 ///                      / DIGIT / ALPHA
 ///                      ; any VCHAR, except delimiters
 /// ```
+#[rustfmt::skip]
 const HEADER_CHARS: [u8; 256] = [
     //  0      1      2      3      4      5      6      7      8      9
         0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //   x
@@ -1013,6 +1014,7 @@ const HEADER_CHARS: [u8; 256] = [
         0,     0,     0,     0,     0,     0                              // 25x
 ];
 
+#[rustfmt::skip]
 const HEADER_CHARS_H2: [u8; 256] = [
     //  0      1      2      3      4      5      6      7      8      9
         0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //   x
@@ -1072,6 +1074,7 @@ fn parse_hdr<'a>(data: &'a [u8], b: &'a mut [u8; 64], table: &[u8; 256])
     };
 
 
+    #[rustfmt::skip]
     macro_rules! to_lower {
         ($d:ident, $src:ident, 1) => { $d[0] = table[$src[0] as usize]; };
         ($d:ident, $src:ident, 2) => { to_lower!($d, $src, 1); $d[1] = table[$src[1] as usize]; };
