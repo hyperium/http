@@ -1,11 +1,20 @@
-use std::{cmp, fmt, str};
 use std::str::FromStr;
+use std::{cmp, fmt, str};
 
 use bytes::Bytes;
 
+use super::{ErrorKind, InvalidUri, InvalidUriBytes, URI_CHARS};
 use byte_str::ByteStr;
 use convert::HttpTryFrom;
-use super::{ErrorKind, InvalidUri, InvalidUriBytes, URI_CHARS};
+
+#[derive(Debug, Clone)]
+/// Represents one component inside the query of one URI.
+pub struct QueryItem<'a> {
+    /// The key of the query component
+    pub key: &'a str,
+    /// The value of the query component
+    pub value: Option<&'a str>,
+}
 
 /// Represents the path component of a URI
 #[derive(Clone)]
@@ -56,10 +65,7 @@ impl PathAndQuery {
                     //
                     // Allowed: 0x21 / 0x24 - 0x3B / 0x3D / 0x3F - 0x7E
                     match b {
-                        0x21 |
-                        0x24...0x3B |
-                        0x3D |
-                        0x3F...0x7E => {},
+                        0x21 | 0x24...0x3B | 0x3D | 0x3F...0x7E => {}
                         _ => return Err(ErrorKind::InvalidUriChar.into()),
                     }
                 }
@@ -108,8 +114,7 @@ impl PathAndQuery {
     pub fn from_static(src: &'static str) -> Self {
         let src = Bytes::from_static(src.as_bytes());
 
-        PathAndQuery::from_shared(src)
-            .unwrap()
+        PathAndQuery::from_shared(src).unwrap()
     }
 
     pub(super) fn empty() -> Self {
@@ -131,6 +136,32 @@ impl PathAndQuery {
             data: ByteStr::from_static("*"),
             query: NONE,
         }
+    }
+
+    /// Creates a `PathAndQuery` from a base path and a potential list of `QueryItem`
+    pub fn new(path: &str, query_items: Option<&[QueryItem]>) -> Result<Self, InvalidUriBytes> {
+        let query_path: Option<String> = query_items.and_then(|items| {
+            let key_pair: Vec<String> = items
+                .iter()
+                .map(|i| {
+                    if let Some(ref val) = i.value {
+                        format!("{}={}", i.key, val)
+                    } else {
+                        i.key.to_string()
+                    }
+                })
+                .collect();
+            Some(key_pair.join("&"))
+        });
+
+        let full_path_query: String = if let Some(query) = query_path {
+            format!("{}?{}", path, query)
+        } else {
+            path.to_string()
+        };
+
+        let src = Bytes::from(full_path_query);
+        PathAndQuery::from_shared(src)
     }
 
     /// Returns the path component
@@ -511,6 +542,30 @@ mod tests {
         assert_eq!("/aa%2", pq("/aa%2").path());
         assert_eq!("/aa%2", pq("/aa%2?r=1").path());
         assert_eq!("qr=%3", pq("/a/b?qr=%3").query().unwrap());
+    }
+
+    #[test]
+    fn new_with_query_items() {
+        let path: PathAndQuery = PathAndQuery::new(
+            "/some_path",
+            Some(&vec![
+                QueryItem {
+                    key: "q",
+                    value: Some("33"),
+                },
+                QueryItem {
+                    key: "offset",
+                    value: Some("45"),
+                },
+                QueryItem {
+                    key: "type",
+                    value: Some("text"),
+                },
+            ]),
+        )
+        .unwrap();
+
+        assert_eq!("q=33&offset=45&type=text", path.query().unwrap());
     }
 
     fn pq(s: &str) -> PathAndQuery {
