@@ -749,6 +749,14 @@ pub trait IntoResponse<B> {
     fn into_response(self) -> Response<B>;
 }
 
+impl<B> IntoResponse<B> for Response<B> {
+    #[inline]
+    fn into_response(self) -> Response<B> {
+        let (parts, body) = Response::into_parts(self);
+        Response::from_parts(parts, body)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

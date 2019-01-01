@@ -1061,6 +1061,14 @@ pub trait IntoRequest<B> {
     fn into_request(self) -> Request<B>;
 }
 
+impl<B> IntoRequest<B> for Request<B> {
+    #[inline]
+    fn into_request(self) -> Request<B> {
+        let (parts, body) = Request::into_parts(self);
+        Request::from_parts(parts, body)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
