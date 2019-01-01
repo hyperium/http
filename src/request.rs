@@ -1024,6 +1024,43 @@ impl Default for Builder {
     }
 }
 
+/// Conversion into a [`Request`], parameterized over payload `B`.
+///
+/// By implementing `IntoRequest` for a type, you define how it will be
+/// converted into a `Request<B>`. This is useful for converting a semantically
+/// meaningful domain type into a transmittable HTTP request.
+///
+/// # Examples
+///
+/// Basic usage:
+///
+/// ```
+/// use http::{Request, Method, Uri, IntoRequest};
+///
+/// #[derive(Debug)]
+/// struct GetImage {
+///     uri: Uri,
+/// };
+///
+/// impl IntoRequest<()> for GetImage {
+///     fn into_request(self) -> Request<()> {
+///         Request::builder()
+///             .uri(self.uri)
+///             .method(Method::GET)
+///             .body(())
+///             .unwrap()
+///     }
+/// }
+///
+/// let uri: Uri = "https://placeholdit.imgix.net/~text?txt=hello".parse::<Uri>().unwrap();
+/// let req: GetImage = GetImage { uri };
+/// let req: Request<()> = req.into_request();
+/// ```
+pub trait IntoRequest<B> {
+    /// Creates a request from a value.
+    fn into_request(self) -> Request<B>;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

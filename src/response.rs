@@ -714,6 +714,41 @@ impl Default for Builder {
     }
 }
 
+/// Conversion into a [`Response`], parameterized over payload `B`.
+///
+/// By implementing `IntoResponse` for a type, you define how it will be
+/// converted into a `Response<B>`. This is useful for converting a semantically
+/// meaningful domain type into a transmittable HTTP response.
+///
+/// # Examples
+///
+/// Basic usage:
+///
+/// ```
+/// use http::{Response, StatusCode, IntoResponse};
+///
+/// #[derive(Debug)]
+/// struct Note {
+///     text: String,
+/// };
+///
+/// impl IntoResponse<String> for Note {
+///     fn into_response(self) -> Response<String> {
+///         Response::builder()
+///             .body(self.text)
+///             .unwrap()
+///     }
+/// }
+///
+/// let text = String::from("");
+/// let res: Note = Note { text };
+/// let res: Response<String> = res.into_response();
+/// ```
+pub trait IntoResponse<B> {
+    /// Creates a response from a value.
+    fn into_response(self) -> Response<B>;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
