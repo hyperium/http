@@ -197,10 +197,10 @@ impl Authority {
         host(self.as_str())
     }
 
-    #[deprecated(since="0.1.14", note="use `port_part` instead")]
+    #[deprecated(since="0.1.14", note="use `port_part` or `port_u16` instead")]
     #[doc(hidden)]
     pub fn port(&self) -> Option<u16> {
-        self.port_part().and_then(|p| Some(p.as_u16()))
+        self.port_u16()
     }
 
     /// Get the port part of this `Authority`.
@@ -227,6 +227,7 @@ impl Authority {
     ///
     /// let port = authority.port_part().unwrap();
     /// assert_eq!(port.as_u16(), 80);
+    /// assert_eq!(port.as_str(), "80");
     /// ```
     ///
     /// Authority without port
@@ -242,6 +243,20 @@ impl Authority {
         bytes
             .rfind(":")
             .and_then(|i| Port::from_str(&bytes[i + 1..]).ok())
+    }
+
+    /// Get the port of this `Authority` as a `u16`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http::uri::Authority;
+    /// let authority: Authority = "example.org:80".parse().unwrap();
+    ///
+    /// assert_eq!(authority.port_u16(), Some(80));
+    /// ```
+    pub fn port_u16(&self) -> Option<u16> {
+        self.port_part().and_then(|p| Some(p.as_u16()))
     }
 
     /// Return a str representation of the authority

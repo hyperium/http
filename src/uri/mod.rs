@@ -437,10 +437,11 @@ impl Uri {
     /// Absolute URI
     ///
     /// ```
-    /// # use http::Uri;
+    /// use http::uri::{Scheme, Uri};
+    ///
     /// let uri: Uri = "http://example.org/hello/world".parse().unwrap();
     ///
-    /// assert_eq!(uri.scheme_part().map(|s| s.as_str()), Some("http"));
+    /// assert_eq!(uri.scheme_part(), Some(&Scheme::HTTP));
     /// ```
     ///
     ///
@@ -461,10 +462,25 @@ impl Uri {
         }
     }
 
-    #[deprecated(since = "0.1.2", note = "use scheme_part instead")]
+    #[deprecated(since = "0.1.2", note = "use scheme_part or scheme_str instead")]
     #[doc(hidden)]
     #[inline]
     pub fn scheme(&self) -> Option<&str> {
+        self.scheme_str()
+    }
+
+    /// Get the scheme of this `Uri` as a `&str`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http::Uri;
+    /// let uri: Uri = "http://example.org/hello/world".parse().unwrap();
+    ///
+    /// assert_eq!(uri.scheme_str(), Some("http"));
+    /// ```
+    #[inline]
+    pub fn scheme_str(&self) -> Option<&str> {
         if self.scheme.inner.is_none() {
             None
         } else {
@@ -569,10 +585,10 @@ impl Uri {
         self.authority_part().map(|a| a.host())
     }
 
-    #[deprecated(since="0.1.14", note="use `port_part` instead")]
+    #[deprecated(since="0.1.14", note="use `port_part` or `port_u16` instead")]
     #[doc(hidden)]
     pub fn port(&self) -> Option<u16> {
-        self.port_part().and_then(|p| Some(p.as_u16()))
+        self.port_u16()
     }
 
     /// Get the port part of this `Uri`.
@@ -594,7 +610,7 @@ impl Uri {
     /// Absolute URI with port
     ///
     /// ```
-    /// # use http::{Uri, uri::Port};
+    /// # use http::Uri;
     /// let uri: Uri = "http://example.org:80/hello/world".parse().unwrap();
     ///
     /// let port = uri.port_part().unwrap();
@@ -621,6 +637,21 @@ impl Uri {
     pub fn port_part(&self) -> Option<Port<&str>> {
         self.authority_part()
             .and_then(|a| a.port_part())
+    }
+
+    /// Get the port of this `Uri` as a `u16`.
+    ///
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http::{Uri, uri::Port};
+    /// let uri: Uri = "http://example.org:80/hello/world".parse().unwrap();
+    ///
+    /// assert_eq!(uri.port_u16(), Some(80));
+    /// ```
+    pub fn port_u16(&self) -> Option<u16> {
+        self.port_part().and_then(|p| Some(p.as_u16()))
     }
 
     /// Get the query string of this `Uri`, starting after the `?`.
