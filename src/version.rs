@@ -62,7 +62,7 @@ impl fmt::Debug for Version {
             Http09 => "HTTP/0.9",
             Http10 => "HTTP/1.0",
             Http11 => "HTTP/1.1",
-            H2     => "HTTP/2.0",
+            H2 => "HTTP/2.0",
         })
     }
 }

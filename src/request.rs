@@ -55,10 +55,10 @@
 use std::any::Any;
 use std::fmt;
 
-use {Uri, Error, Result, HttpTryFrom, Extensions};
 use header::{HeaderMap, HeaderName, HeaderValue};
 use method::Method;
 use version::Version;
+use {Error, Extensions, HttpTryFrom, Result, Uri};
 
 /// Represents an HTTP request.
 ///
@@ -213,7 +213,6 @@ impl Request<()> {
         Builder::new()
     }
 
-
     /// Creates a new `Builder` initialized with a GET method and the given URI.
     ///
     /// This method returns an instance of `Builder` which can be used to
@@ -229,7 +228,9 @@ impl Request<()> {
     ///     .unwrap();
     /// ```
     pub fn get<T>(uri: T) -> Builder
-        where Uri: HttpTryFrom<T> {
+    where
+        Uri: HttpTryFrom<T>,
+    {
         let mut b = Builder::new();
         b.method(Method::GET).uri(uri);
         b
@@ -250,7 +251,9 @@ impl Request<()> {
     ///     .unwrap();
     /// ```
     pub fn put<T>(uri: T) -> Builder
-        where Uri: HttpTryFrom<T> {
+    where
+        Uri: HttpTryFrom<T>,
+    {
         let mut b = Builder::new();
         b.method(Method::PUT).uri(uri);
         b
@@ -271,7 +274,9 @@ impl Request<()> {
     ///     .unwrap();
     /// ```
     pub fn post<T>(uri: T) -> Builder
-        where Uri: HttpTryFrom<T> {
+    where
+        Uri: HttpTryFrom<T>,
+    {
         let mut b = Builder::new();
         b.method(Method::POST).uri(uri);
         b
@@ -292,7 +297,9 @@ impl Request<()> {
     ///     .unwrap();
     /// ```
     pub fn delete<T>(uri: T) -> Builder
-        where Uri: HttpTryFrom<T> {
+    where
+        Uri: HttpTryFrom<T>,
+    {
         let mut b = Builder::new();
         b.method(Method::DELETE).uri(uri);
         b
@@ -314,7 +321,9 @@ impl Request<()> {
     /// # assert_eq!(*request.method(), Method::OPTIONS);
     /// ```
     pub fn options<T>(uri: T) -> Builder
-        where Uri: HttpTryFrom<T> {
+    where
+        Uri: HttpTryFrom<T>,
+    {
         let mut b = Builder::new();
         b.method(Method::OPTIONS).uri(uri);
         b
@@ -335,7 +344,9 @@ impl Request<()> {
     ///     .unwrap();
     /// ```
     pub fn head<T>(uri: T) -> Builder
-        where Uri: HttpTryFrom<T> {
+    where
+        Uri: HttpTryFrom<T>,
+    {
         let mut b = Builder::new();
         b.method(Method::HEAD).uri(uri);
         b
@@ -356,7 +367,9 @@ impl Request<()> {
     ///     .unwrap();
     /// ```
     pub fn connect<T>(uri: T) -> Builder
-        where Uri: HttpTryFrom<T> {
+    where
+        Uri: HttpTryFrom<T>,
+    {
         let mut b = Builder::new();
         b.method(Method::CONNECT).uri(uri);
         b
@@ -377,7 +390,9 @@ impl Request<()> {
     ///     .unwrap();
     /// ```
     pub fn patch<T>(uri: T) -> Builder
-        where Uri: HttpTryFrom<T> {
+    where
+        Uri: HttpTryFrom<T>,
+    {
         let mut b = Builder::new();
         b.method(Method::PATCH).uri(uri);
         b
@@ -398,7 +413,9 @@ impl Request<()> {
     ///     .unwrap();
     /// ```
     pub fn trace<T>(uri: T) -> Builder
-        where Uri: HttpTryFrom<T> {
+    where
+        Uri: HttpTryFrom<T>,
+    {
         let mut b = Builder::new();
         b.method(Method::TRACE).uri(uri);
         b
@@ -565,7 +582,6 @@ impl<T> Request<T> {
         &mut self.head.headers
     }
 
-
     /// Returns a reference to the associated extensions.
     ///
     /// # Examples
@@ -625,7 +641,6 @@ impl<T> Request<T> {
         &mut self.body
     }
 
-
     /// Consumes the request, returning just the body.
     ///
     /// # Examples
@@ -672,9 +687,13 @@ impl<T> Request<T> {
     /// ```
     #[inline]
     pub fn map<F, U>(self, f: F) -> Request<U>
-        where F: FnOnce(T) -> U
+    where
+        F: FnOnce(T) -> U,
     {
-        Request { body: f(self.body), head: self.head }
+        Request {
+            body: f(self.body),
+            head: self.head,
+        }
     }
 }
 
@@ -700,7 +719,7 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
 impl Parts {
     /// Creates a new default instance of `Parts`
     fn new() -> Parts {
-        Parts{
+        Parts {
             method: Method::default(),
             uri: Uri::default(),
             version: Version::default(),
@@ -760,7 +779,8 @@ impl Builder {
     ///     .unwrap();
     /// ```
     pub fn method<T>(&mut self, method: T) -> &mut Builder
-        where Method: HttpTryFrom<T>,
+    where
+        Method: HttpTryFrom<T>,
     {
         if let Some(head) = head(&mut self.head, &self.err) {
             match HttpTryFrom::try_from(method) {
@@ -772,15 +792,15 @@ impl Builder {
     }
 
     /// Get the HTTP Method for this request.
-    /// 
+    ///
     /// By default this is `GET`.
     /// if builder has error, returns None.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// # use http::*;
-    /// 
+    ///
     /// let mut req = Request::builder();
     /// assert_eq!(req.method_ref(),Some(&Method::GET));
     /// req.method("POST");
@@ -788,14 +808,13 @@ impl Builder {
     /// req.method("DELETE");
     /// assert_eq!(req.method_ref(),Some(&Method::DELETE));
     /// ```
-    pub fn method_ref(&self) -> Option<&Method>
-    {
+    pub fn method_ref(&self) -> Option<&Method> {
         if self.err.is_some() {
-            return None
+            return None;
         }
         match self.head {
             Some(ref head) => Some(&head.method),
-            None => None
+            None => None,
         }
     }
 
@@ -817,7 +836,8 @@ impl Builder {
     ///     .unwrap();
     /// ```
     pub fn uri<T>(&mut self, uri: T) -> &mut Builder
-        where Uri: HttpTryFrom<T>,
+    where
+        Uri: HttpTryFrom<T>,
     {
         if let Some(head) = head(&mut self.head, &self.err) {
             match HttpTryFrom::try_from(uri) {
@@ -829,27 +849,25 @@ impl Builder {
     }
 
     /// Get the URI for this request
-    /// 
+    ///
     /// By default this is `/`
     /// # Examples
-    /// 
+    ///
     /// ```
     /// # use http::*;
-    /// 
+    ///
     /// let mut req = Request::builder();
     /// assert_eq!(req.uri_ref().unwrap().to_string(), "/" );
     /// req.uri("https://www.rust-lang.org/");
     /// assert_eq!(req.uri_ref().unwrap().to_string(), "https://www.rust-lang.org/" );
     /// ```
-    pub fn uri_ref(&self) -> Option<&Uri>
-    {
+    pub fn uri_ref(&self) -> Option<&Uri> {
         if self.err.is_some() {
             return None;
         }
-        match self.head
-        {
+        match self.head {
             Some(ref head) => Some(&head.uri),
-            None => None
+            None => None,
         }
     }
 
@@ -896,16 +914,17 @@ impl Builder {
     ///     .unwrap();
     /// ```
     pub fn header<K, V>(&mut self, key: K, value: V) -> &mut Builder
-        where HeaderName: HttpTryFrom<K>,
-              HeaderValue: HttpTryFrom<V>
+    where
+        HeaderName: HttpTryFrom<K>,
+        HeaderValue: HttpTryFrom<V>,
     {
         if let Some(head) = head(&mut self.head, &self.err) {
             match <HeaderName as HttpTryFrom<K>>::try_from(key) {
-                Ok(key) => {
-                    match <HeaderValue as HttpTryFrom<V>>::try_from(value) {
-                        Ok(value) => { head.headers.append(key, value); }
-                        Err(e) => self.err = Some(e.into()),
+                Ok(key) => match <HeaderValue as HttpTryFrom<V>>::try_from(value) {
+                    Ok(value) => {
+                        head.headers.append(key, value);
                     }
+                    Err(e) => self.err = Some(e.into()),
                 },
                 Err(e) => self.err = Some(e.into()),
             };
@@ -915,9 +934,9 @@ impl Builder {
 
     /// Get header on this request builder.
     /// when builder has error returns None
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```
     /// # use http::*;
     /// # use http::header::HeaderValue;
@@ -933,10 +952,9 @@ impl Builder {
         if self.err.is_some() {
             return None;
         }
-        match self.head
-        {
+        match self.head {
             Some(ref head) => Some(&head.headers),
-            None => None
+            None => None,
         }
     }
 
@@ -956,7 +974,8 @@ impl Builder {
     ///            Some(&"My Extension"));
     /// ```
     pub fn extension<T>(&mut self, extension: T) -> &mut Builder
-        where T: Any + Send + Sync + 'static,
+    where
+        T: Any + Send + Sync + 'static,
     {
         if let Some(head) = head(&mut self.head, &self.err) {
             head.extensions.insert(extension);
@@ -967,7 +986,7 @@ impl Builder {
     fn take_parts(&mut self) -> Result<Parts> {
         let ret = self.head.take().expect("cannot reuse request builder");
         if let Some(e) = self.err.take() {
-            return Err(e)
+            return Err(e);
         }
         Ok(ret)
     }
@@ -1005,11 +1024,9 @@ impl Builder {
     }
 }
 
-fn head<'a>(head: &'a mut Option<Parts>, err: &Option<Error>)
-    -> Option<&'a mut Parts>
-{
+fn head<'a>(head: &'a mut Option<Parts>, err: &Option<Error>) -> Option<&'a mut Parts> {
     if err.is_some() {
-        return None
+        return None;
     }
     head.as_mut()
 }
@@ -1030,7 +1047,7 @@ mod tests {
 
     #[test]
     fn it_can_map_a_body_from_one_type_to_another() {
-        let request= Request::builder().body("some string").unwrap();
+        let request = Request::builder().body("some string").unwrap();
         let mapped_request = request.map(|s| {
             assert_eq!(s, "some string");
             123u32

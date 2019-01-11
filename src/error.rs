@@ -60,55 +60,73 @@ impl error::Error for Error {
 
 impl From<status::InvalidStatusCode> for Error {
     fn from(err: status::InvalidStatusCode) -> Error {
-        Error { inner: ErrorKind::StatusCode(err) }
+        Error {
+            inner: ErrorKind::StatusCode(err),
+        }
     }
 }
 
 impl From<method::InvalidMethod> for Error {
     fn from(err: method::InvalidMethod) -> Error {
-        Error { inner: ErrorKind::Method(err) }
+        Error {
+            inner: ErrorKind::Method(err),
+        }
     }
 }
 
 impl From<uri::InvalidUri> for Error {
     fn from(err: uri::InvalidUri) -> Error {
-        Error { inner: ErrorKind::Uri(err) }
+        Error {
+            inner: ErrorKind::Uri(err),
+        }
     }
 }
 
 impl From<uri::InvalidUriBytes> for Error {
     fn from(err: uri::InvalidUriBytes) -> Error {
-        Error { inner: ErrorKind::UriShared(err) }
+        Error {
+            inner: ErrorKind::UriShared(err),
+        }
     }
 }
 
 impl From<uri::InvalidUriParts> for Error {
     fn from(err: uri::InvalidUriParts) -> Error {
-        Error { inner: ErrorKind::UriParts(err) }
+        Error {
+            inner: ErrorKind::UriParts(err),
+        }
     }
 }
 
 impl From<header::InvalidHeaderName> for Error {
     fn from(err: header::InvalidHeaderName) -> Error {
-        Error { inner: ErrorKind::HeaderName(err) }
+        Error {
+            inner: ErrorKind::HeaderName(err),
+        }
     }
 }
 
 impl From<header::InvalidHeaderNameBytes> for Error {
     fn from(err: header::InvalidHeaderNameBytes) -> Error {
-        Error { inner: ErrorKind::HeaderNameShared(err) }
+        Error {
+            inner: ErrorKind::HeaderNameShared(err),
+        }
     }
 }
 
 impl From<header::InvalidHeaderValue> for Error {
     fn from(err: header::InvalidHeaderValue) -> Error {
-        Error { inner: ErrorKind::HeaderValue(err) }
+        Error {
+            inner: ErrorKind::HeaderValue(err),
+        }
     }
 }
 
 impl From<header::InvalidHeaderValueBytes> for Error {
     fn from(err: header::InvalidHeaderValueBytes) -> Error {
-        Error { inner: ErrorKind::HeaderValueShared(err) }
+        Error {
+            inner: ErrorKind::HeaderValueShared(err),
+        }
     }
 }
 
@@ -141,4 +159,3 @@ impl error::Error for Never {
         match *self {}
     }
 }
-

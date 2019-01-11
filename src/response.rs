@@ -64,10 +64,10 @@
 use std::any::Any;
 use std::fmt;
 
-use {Error, Result, HttpTryFrom, Extensions};
 use header::{HeaderMap, HeaderName, HeaderValue};
 use status::StatusCode;
 use version::Version;
+use {Error, Extensions, HttpTryFrom, Result};
 
 /// Represents an HTTP response
 ///
@@ -471,9 +471,13 @@ impl<T> Response<T> {
     /// ```
     #[inline]
     pub fn map<F, U>(self, f: F) -> Response<U>
-        where F: FnOnce(T) -> U
+    where
+        F: FnOnce(T) -> U,
     {
-        Response { body: f(self.body), head: self.head }
+        Response {
+            body: f(self.body),
+            head: self.head,
+        }
     }
 }
 
@@ -499,7 +503,7 @@ impl<T: fmt::Debug> fmt::Debug for Response<T> {
 impl Parts {
     /// Creates a new default instance of `Parts`
     fn new() -> Parts {
-        Parts{
+        Parts {
             status: StatusCode::default(),
             version: Version::default(),
             headers: HeaderMap::default(),
@@ -558,7 +562,8 @@ impl Builder {
     ///     .unwrap();
     /// ```
     pub fn status<T>(&mut self, status: T) -> &mut Builder
-        where StatusCode: HttpTryFrom<T>,
+    where
+        StatusCode: HttpTryFrom<T>,
     {
         if let Some(head) = head(&mut self.head, &self.err) {
             match HttpTryFrom::try_from(status) {
@@ -613,16 +618,17 @@ impl Builder {
     ///     .unwrap();
     /// ```
     pub fn header<K, V>(&mut self, key: K, value: V) -> &mut Builder
-        where HeaderName: HttpTryFrom<K>,
-              HeaderValue: HttpTryFrom<V>
+    where
+        HeaderName: HttpTryFrom<K>,
+        HeaderValue: HttpTryFrom<V>,
     {
         if let Some(head) = head(&mut self.head, &self.err) {
             match <HeaderName as HttpTryFrom<K>>::try_from(key) {
-                Ok(key) => {
-                    match <HeaderValue as HttpTryFrom<V>>::try_from(value) {
-                        Ok(value) => { head.headers.append(key, value); }
-                        Err(e) => self.err = Some(e.into()),
+                Ok(key) => match <HeaderValue as HttpTryFrom<V>>::try_from(value) {
+                    Ok(value) => {
+                        head.headers.append(key, value);
                     }
+                    Err(e) => self.err = Some(e.into()),
                 },
                 Err(e) => self.err = Some(e.into()),
             };
@@ -646,7 +652,8 @@ impl Builder {
     ///            Some(&"My Extension"));
     /// ```
     pub fn extension<T>(&mut self, extension: T) -> &mut Builder
-        where T: Any + Send + Sync + 'static,
+    where
+        T: Any + Send + Sync + 'static,
     {
         if let Some(head) = head(&mut self.head, &self.err) {
             head.extensions.insert(extension);
@@ -657,7 +664,7 @@ impl Builder {
     fn take_parts(&mut self) -> Result<Parts> {
         let ret = self.head.take().expect("cannot reuse response builder");
         if let Some(e) = self.err.take() {
-            return Err(e)
+            return Err(e);
         }
         Ok(ret)
     }
@@ -695,11 +702,9 @@ impl Builder {
     }
 }
 
-fn head<'a>(head: &'a mut Option<Parts>, err: &Option<Error>)
-    -> Option<&'a mut Parts>
-{
+fn head<'a>(head: &'a mut Option<Parts>, err: &Option<Error>) -> Option<&'a mut Parts> {
     if err.is_some() {
-        return None
+        return None;
     }
     head.as_mut()
 }

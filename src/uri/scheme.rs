@@ -7,9 +7,9 @@ use std::str::FromStr;
 
 use bytes::Bytes;
 
+use super::{ErrorKind, InvalidUri, InvalidUriBytes};
 use byte_str::ByteStr;
 use convert::HttpTryFrom;
-use super::{ErrorKind, InvalidUri, InvalidUriBytes};
 
 /// Represents the scheme component of a URI
 #[derive(Clone)]
@@ -92,8 +92,8 @@ impl Scheme {
     /// ```
     #[inline]
     pub fn as_str(&self) -> &str {
-        use self::Scheme2::*;
         use self::Protocol::*;
+        use self::Scheme2::*;
 
         match self.inner {
             Standard(Http) => "http",
@@ -129,9 +129,7 @@ impl<'a> HttpTryFrom<&'a [u8]> for Scheme {
             Standard(p) => Ok(Standard(p).into()),
             Other(_) => {
                 // Unsafe: parse_exact already checks for a strict subset of UTF-8
-                Ok(Other(Box::new(unsafe {
-                    ByteStr::from_utf8_unchecked(s.into())
-                })).into())
+                Ok(Other(Box::new(unsafe { ByteStr::from_utf8_unchecked(s.into()) })).into())
             }
         }
     }
@@ -156,8 +154,8 @@ impl FromStr for Scheme {
 impl From<Scheme> for Bytes {
     #[inline]
     fn from(src: Scheme) -> Self {
-        use self::Scheme2::*;
         use self::Protocol::*;
+        use self::Scheme2::*;
 
         match src.inner {
             None => Bytes::new(),
@@ -228,7 +226,10 @@ impl PartialEq<Scheme> for str {
 
 /// Case-insensitive hashing
 impl Hash for Scheme {
-    fn hash<H>(&self, state: &mut H) where H: Hasher {
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: Hasher,
+    {
         match self.inner {
             Scheme2::None => (),
             Scheme2::Standard(Protocol::Http) => state.write_u8(1),
@@ -260,32 +261,32 @@ const MAX_SCHEME_LEN: usize = 64;
 //
 const SCHEME_CHARS: [u8; 256] = [
     //  0      1      2      3      4      5      6      7      8      9
-        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //   x
-        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //  1x
-        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //  2x
-        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //  3x
-        0,     0,     0,  b'+',     0,  b'-',  b'.',     0,  b'0',  b'1', //  4x
-     b'2',  b'3',  b'4',  b'5',  b'6',  b'7',  b'8',  b'9',  b':',     0, //  5x
-        0,     0,     0,     0,     0,  b'A',  b'B',  b'C',  b'D',  b'E', //  6x
-     b'F',  b'G',  b'H',  b'I',  b'J',  b'K',  b'L',  b'M',  b'N',  b'O', //  7x
-     b'P',  b'Q',  b'R',  b'S',  b'T',  b'U',  b'V',  b'W',  b'X',  b'Y', //  8x
-     b'Z',     0,     0,     0,     0,     0,     0,  b'a',  b'b',  b'c', //  9x
-     b'd',  b'e',  b'f',  b'g',  b'h',  b'i',  b'j',  b'k',  b'l',  b'm', // 10x
-     b'n',  b'o',  b'p',  b'q',  b'r',  b's',  b't',  b'u',  b'v',  b'w', // 11x
-     b'x',  b'y',  b'z',     0,     0,     0,  b'~',     0,     0,     0, // 12x
-        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 13x
-        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 14x
-        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 15x
-        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 16x
-        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 17x
-        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 18x
-        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 19x
-        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 20x
-        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 21x
-        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 22x
-        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 23x
-        0,     0,     0,     0,     0,     0,     0,     0,     0,     0, // 24x
-        0,     0,     0,     0,     0,     0                              // 25x
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //   x
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //  1x
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //  2x
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //  3x
+    0, 0, 0, b'+', 0, b'-', b'.', 0, b'0', b'1', //  4x
+    b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9', b':', 0, //  5x
+    0, 0, 0, 0, 0, b'A', b'B', b'C', b'D', b'E', //  6x
+    b'F', b'G', b'H', b'I', b'J', b'K', b'L', b'M', b'N', b'O', //  7x
+    b'P', b'Q', b'R', b'S', b'T', b'U', b'V', b'W', b'X', b'Y', //  8x
+    b'Z', 0, 0, 0, 0, 0, 0, b'a', b'b', b'c', //  9x
+    b'd', b'e', b'f', b'g', b'h', b'i', b'j', b'k', b'l', b'm', // 10x
+    b'n', b'o', b'p', b'q', b'r', b's', b't', b'u', b'v', b'w', // 11x
+    b'x', b'y', b'z', 0, 0, 0, b'~', 0, 0, 0, // 12x
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 13x
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 14x
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 15x
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 16x
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 17x
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 18x
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 19x
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 20x
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 21x
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 22x
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 23x
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 24x
+    0, 0, 0, 0, 0, 0, // 25x
 ];
 
 impl Scheme2<usize> {
@@ -348,7 +349,7 @@ impl Scheme2<usize> {
                         }
 
                         // Not a scheme
-                        if &s[i+1..i+3] != b"//" {
+                        if &s[i + 1..i + 3] != b"//" {
                             break;
                         }
 

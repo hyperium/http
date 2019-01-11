@@ -22,26 +22,26 @@
 //! assert_eq!(uri.path(), "/install.html");
 //! ```
 
-use HttpTryFrom;
 use byte_str::ByteStr;
+use HttpTryFrom;
 
 use bytes::Bytes;
 
-use std::{fmt, u8, u16};
+use std::{fmt, u16, u8};
 // Deprecated in 1.26, needed until our minimum version is >=1.23.
 #[allow(unused, deprecated)]
 use std::ascii::AsciiExt;
+use std::error::Error;
 use std::hash::{Hash, Hasher};
 use std::str::{self, FromStr};
-use std::error::Error;
 
 use self::scheme::Scheme2;
 
 pub use self::authority::Authority;
 pub use self::builder::Builder;
 pub use self::path::PathAndQuery;
-pub use self::scheme::Scheme;
 pub use self::port::Port;
+pub use self::scheme::Scheme;
 
 mod authority;
 mod builder;
@@ -221,7 +221,9 @@ impl Uri {
 
         let scheme = match src.scheme {
             Some(scheme) => scheme,
-            None => Scheme { inner: Scheme2::None },
+            None => Scheme {
+                inner: Scheme2::None,
+            },
         };
 
         let authority = match src.authority {
@@ -274,33 +276,31 @@ impl Uri {
             0 => {
                 return Err(Empty.into());
             }
-            1 => {
-                match s[0] {
-                    b'/' => {
-                        return Ok(Uri {
-                            scheme: Scheme::empty(),
-                            authority: Authority::empty(),
-                            path_and_query: PathAndQuery::slash(),
-                        });
-                    }
-                    b'*' => {
-                        return Ok(Uri {
-                            scheme: Scheme::empty(),
-                            authority: Authority::empty(),
-                            path_and_query: PathAndQuery::star(),
-                        });
-                    }
-                    _ => {
-                        let authority = Authority::from_shared(s)?;
-
-                        return Ok(Uri {
-                            scheme: Scheme::empty(),
-                            authority: authority,
-                            path_and_query: PathAndQuery::empty(),
-                        });
-                    }
+            1 => match s[0] {
+                b'/' => {
+                    return Ok(Uri {
+                        scheme: Scheme::empty(),
+                        authority: Authority::empty(),
+                        path_and_query: PathAndQuery::slash(),
+                    });
                 }
-            }
+                b'*' => {
+                    return Ok(Uri {
+                        scheme: Scheme::empty(),
+                        authority: Authority::empty(),
+                        path_and_query: PathAndQuery::star(),
+                    });
+                }
+                _ => {
+                    let authority = Authority::from_shared(s)?;
+
+                    return Ok(Uri {
+                        scheme: Scheme::empty(),
+                        authority: authority,
+                        path_and_query: PathAndQuery::empty(),
+                    });
+                }
+            },
             _ => {}
         }
 
@@ -586,7 +586,7 @@ impl Uri {
         self.authority_part().map(|a| a.host())
     }
 
-    #[deprecated(since="0.1.14", note="use `port_part` or `port_u16` instead")]
+    #[deprecated(since = "0.1.14", note = "use `port_part` or `port_u16` instead")]
     #[doc(hidden)]
     pub fn port(&self) -> Option<u16> {
         self.port_u16()
@@ -636,8 +636,7 @@ impl Uri {
     /// assert!(uri.port_part().is_none());
     /// ```
     pub fn port_part(&self) -> Option<Port<&str>> {
-        self.authority_part()
-            .and_then(|a| a.port_part())
+        self.authority_part().and_then(|a| a.port_part())
     }
 
     /// Get the port of this `Uri` as a `u16`.
@@ -1001,7 +1000,7 @@ impl PartialEq<Uri> for str {
 }
 
 impl<'a> PartialEq<&'a str> for Uri {
-    fn eq(&self, other: & &'a str) -> bool {
+    fn eq(&self, other: &&'a str) -> bool {
         self == *other
     }
 }
@@ -1119,7 +1118,10 @@ impl Error for InvalidUriParts {
 }
 
 impl Hash for Uri {
-    fn hash<H>(&self, state: &mut H) where H: Hasher {
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: Hasher,
+    {
         if !self.scheme.inner.is_none() {
             self.scheme.hash(state);
             state.write_u8(0xff);

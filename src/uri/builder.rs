@@ -1,6 +1,6 @@
-use {Uri, Result};
+use super::{Authority, Parts, PathAndQuery, Scheme};
 use convert::{HttpTryFrom, HttpTryInto};
-use super::{Authority, Scheme, Parts, PathAndQuery};
+use {Result, Uri};
 
 /// A builder for `Uri`s.
 ///
@@ -120,8 +120,7 @@ impl Builder {
     ///     .unwrap();
     /// ```
     pub fn build(&mut self) -> Result<Uri> {
-        self
-            .parts
+        self.parts
             .take()
             .expect("cannot reuse Uri builder")
             .and_then(|parts| parts.http_try_into())
@@ -153,4 +152,3 @@ impl Default for Builder {
         }
     }
 }
-

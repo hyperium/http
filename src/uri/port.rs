@@ -38,13 +38,8 @@ where
         bytes
             .as_ref()
             .parse::<u16>()
-            .map(|port| Port {
-                port,
-                repr: bytes,
-            })
-            .map_err(|_| {
-                ErrorKind::InvalidPort.into()
-            })
+            .map(|port| Port { port, repr: bytes })
+            .map_err(|_| ErrorKind::InvalidPort.into())
     }
 
     /// Returns the port number as a `str`.
@@ -70,9 +65,7 @@ where
     T: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_tuple("Port")
-            .field(&self.port)
-            .finish()
+        f.debug_tuple("Port").field(&self.port).finish()
     }
 }
 

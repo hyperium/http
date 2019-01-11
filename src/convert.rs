@@ -1,9 +1,9 @@
-use Error;
 use header::{HeaderName, HeaderValue};
 use method::Method;
 use sealed::Sealed;
 use status::StatusCode;
-use uri::{Scheme, Authority, PathAndQuery, Uri};
+use uri::{Authority, PathAndQuery, Scheme, Uri};
+use Error;
 
 /// Private trait for the `http` crate to have generic methods with fallible
 /// conversions.
@@ -33,8 +33,7 @@ where
     T: Sized,
 {
     fn http_try_into(self) -> Result<U, Error> {
-        HttpTryFrom::try_from(self)
-            .map_err(|e: U::Error| e.into())
+        HttpTryFrom::try_from(self).map_err(|e: U::Error| e.into())
     }
 }
 

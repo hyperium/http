@@ -1,11 +1,11 @@
-use std::{cmp, fmt, str};
 use std::str::FromStr;
+use std::{cmp, fmt, str};
 
 use bytes::Bytes;
 
+use super::{ErrorKind, InvalidUri, InvalidUriBytes, URI_CHARS};
 use byte_str::ByteStr;
 use convert::HttpTryFrom;
-use super::{ErrorKind, InvalidUri, InvalidUriBytes, URI_CHARS};
 
 /// Represents the path component of a URI
 #[derive(Clone)]
@@ -56,10 +56,7 @@ impl PathAndQuery {
                     //
                     // Allowed: 0x21 / 0x24 - 0x3B / 0x3D / 0x3F - 0x7E
                     match b {
-                        0x21 |
-                        0x24...0x3B |
-                        0x3D |
-                        0x3F...0x7E => {},
+                        0x21 | 0x24...0x3B | 0x3D | 0x3F...0x7E => {}
                         _ => return Err(ErrorKind::InvalidUriChar.into()),
                     }
                 }
@@ -108,8 +105,7 @@ impl PathAndQuery {
     pub fn from_static(src: &'static str) -> Self {
         let src = Bytes::from_static(src.as_bytes());
 
-        PathAndQuery::from_shared(src)
-            .unwrap()
+        PathAndQuery::from_shared(src).unwrap()
     }
 
     pub(super) fn empty() -> Self {
