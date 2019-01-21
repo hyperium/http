@@ -147,6 +147,22 @@ impl Extensions {
             })
     }
 
+    /// Returns the number of entries in `Extensions`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http::Extensions;
+    /// let mut ext = Extensions::new();
+    /// ext.insert(5i32);
+    /// assert_eq!(ext.len(), 1);
+    /// ext.remove::<i32>();
+    /// assert_eq!(ext.len(), 0);
+    /// ```
+    pub fn len(&self) -> usize {
+        self.map.as_ref().map_or(0, |m| m.len())
+    }
+
     /// Clear the `Extensions` of all inserted extensions.
     ///
     /// # Example
