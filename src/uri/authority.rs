@@ -497,7 +497,8 @@ fn host(auth: &str) -> &str {
     if host_port.as_bytes()[0] == b'[' {
         let i = host_port.find(']')
             .expect("parsing should validate brackets");
-        &host_port[1..i]
+        // ..= ranges aren't available in 1.20, our minimum Rust version...
+        &host_port[0 .. i + 1]
     } else {
         host_port.split(':')
             .next()
