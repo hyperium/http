@@ -298,7 +298,7 @@ test_parse! {
 
     scheme_part = part!("http"),
     authority_part = part!("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]"),
-    host = Some("2001:0db8:85a3:0000:0000:8a2e:0370:7334"),
+    host = Some("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]"),
     path = "/",
     query = None,
     port_part = None,
@@ -311,7 +311,7 @@ test_parse! {
 
     scheme_part = part!("http"),
     authority_part = part!("[::1]"),
-    host = Some("::1"),
+    host = Some("[::1]"),
     path = "/",
     query = None,
     port_part = None,
@@ -324,7 +324,7 @@ test_parse! {
 
     scheme_part = part!("http"),
     authority_part = part!("[::]"),
-    host = Some("::"),
+    host = Some("[::]"),
     path = "/",
     query = None,
     port_part = None,
@@ -337,7 +337,7 @@ test_parse! {
 
     scheme_part = part!("http"),
     authority_part = part!("[2001:db8::2:1]"),
-    host = Some("2001:db8::2:1"),
+    host = Some("[2001:db8::2:1]"),
     path = "/",
     query = None,
     port_part = None,
@@ -350,7 +350,7 @@ test_parse! {
 
     scheme_part = part!("http"),
     authority_part = part!("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]:8008"),
-    host = Some("2001:0db8:85a3:0000:0000:8a2e:0370:7334"),
+    host = Some("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]"),
     path = "/",
     query = None,
     port_part = Port::from_str("8008").ok(),
