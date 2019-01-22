@@ -1,3 +1,9 @@
+# 0.1.15 (January 22, 2019)
+
+* Fix `Uri::host()` to include brackets of IPv6 literals (#292)
+* Add `scheme_str` and `port_u16` methods to `Uri` (#287)
+* Add `method_ref`, `uri_ref`, and `headers_ref` to `request::Builder` (#284)
+
 # 0.1.14 (November 21, 2018)
 
 * Add `Port` struct (#252, #255, #265)
