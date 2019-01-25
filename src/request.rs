@@ -565,7 +565,6 @@ impl<T> Request<T> {
         &mut self.head.headers
     }
 
-
     /// Returns a reference to the associated extensions.
     ///
     /// # Examples
@@ -936,6 +935,36 @@ impl Builder {
         match self.head
         {
             Some(ref head) => Some(&head.headers),
+            None => None
+        }
+    }
+
+    /// Get header on this request builder.
+    /// when builder has error returns None
+    /// 
+    /// # Example
+    /// 
+    /// ```
+    /// # use http::*;
+    /// # use http::header::HeaderValue;
+    /// # use http::request::Builder;
+    /// let mut req = Request::builder();
+    /// {
+    ///   let headers = req.headers_mut().unwrap();
+    ///   headers.insert("Accept", HeaderValue::from_static("text/html"));
+    ///   headers.insert("X-Custom-Foo", HeaderValue::from_static("bar"));
+    /// }
+    /// let headers = req.headers_ref().unwrap();
+    /// assert_eq!( headers["Accept"], "text/html" );
+    /// assert_eq!( headers["X-Custom-Foo"], "bar" );
+    /// ```
+    pub fn headers_mut(&mut self) -> Option<&mut HeaderMap<HeaderValue>> {
+        if self.err.is_some() {
+            return None;
+        }
+        match self.head
+        {
+            Some(ref mut head) => Some(&mut head.headers),
             None => None
         }
     }
