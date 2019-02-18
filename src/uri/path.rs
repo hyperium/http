@@ -5,7 +5,7 @@ use bytes::Bytes;
 
 use byte_str::ByteStr;
 use convert::HttpTryFrom;
-use super::{ErrorKind, InvalidUri, InvalidUriBytes, URI_CHARS};
+use super::{ErrorKind, InvalidUri, InvalidUriBytes};
 
 /// Represents the path component of a URI
 #[derive(Clone)]
@@ -44,40 +44,67 @@ impl PathAndQuery {
 
         let mut i = 0;
 
+        // path ...
         while i < src.len() {
             let b = src[i];
 
-            match URI_CHARS[b as usize] {
-                0 if b == b'%' => {}
-                0 if query != NONE => {
-                    // While queries *should* be percent-encoded, most
-                    // bytes are actually allowed...
-                    // See https://url.spec.whatwg.org/#query-state
-                    //
-                    // Allowed: 0x21 / 0x24 - 0x3B / 0x3D / 0x3F - 0x7E
-                    match b {
-                        0x21 |
-                        0x24...0x3B |
-                        0x3D |
-                        0x3F...0x7E => {},
-                        _ => return Err(ErrorKind::InvalidUriChar.into()),
-                    }
-                }
-                0 => return Err(ErrorKind::InvalidUriChar.into()),
+            // See https://url.spec.whatwg.org/#path-state
+            match b {
                 b'?' => {
-                    if query == NONE {
-                        query = i as u16;
-                    }
+                    debug_assert_eq!(query, NONE);
+                    query = i as u16;
+                    i += 1;
+                    break;
                 }
                 b'#' => {
                     // TODO: truncate
                     src.split_off(i);
                     break;
-                }
-                _ => {}
+                },
+
+                // This is the range of bytes that don't need to be
+                // percent-encoded in the path. If it should have been
+                // percent-encoded, then error.
+                0x21 |
+                0x24...0x3B |
+                0x3D |
+                0x40...0x5F |
+                0x61...0x7A |
+                0x7C |
+                0x7E => {},
+
+                _ => return Err(ErrorKind::InvalidUriChar.into()),
             }
 
             i += 1;
+        }
+
+        // query ...
+        if query != NONE {
+            while i < src.len() {
+                let b = src[i];
+                match b {
+                    // While queries *should* be percent-encoded, most
+                    // bytes are actually allowed...
+                    // See https://url.spec.whatwg.org/#query-state
+                    //
+                    // Allowed: 0x21 / 0x24 - 0x3B / 0x3D / 0x3F - 0x7E
+                    0x21 |
+                    0x24...0x3B |
+                    0x3D |
+                    0x3F...0x7E => {},
+
+                    b'#' => {
+                        // TODO: truncate
+                        src.split_off(i);
+                        break;
+                    },
+
+                    _ => return Err(ErrorKind::InvalidUriChar.into()),
+                }
+
+                i += 1;
+            }
         }
 
         Ok(PathAndQuery {

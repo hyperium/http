@@ -27,7 +27,12 @@ macro_rules! test_parse {
         #[test]
         fn $test_name() {
             let orig_str = $str;
-            let uri = Uri::from_str(orig_str).unwrap();
+            let uri = match Uri::from_str(orig_str) {
+                Ok(uri) => uri,
+                Err(err) => {
+                    panic!("parse error {:?} from {:?}", err, orig_str);
+                },
+            };
             $(
             assert_eq!(uri.$method(), $value, "{}: uri = {:?}", stringify!($method), uri);
             )+
@@ -367,6 +372,14 @@ test_parse! {
     path = "/echo/abcdefgh_i-j%20/abcdefg_i-j%20478",
     query = None,
     port_part = None,
+}
+
+test_parse! {
+    test_path_permissive,
+    "/foo=bar|baz\\^~%",
+    [],
+
+    path = "/foo=bar|baz\\^~%",
 }
 
 test_parse! {
