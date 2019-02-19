@@ -1,3 +1,7 @@
+# 0.1.16 (February 19, 2019)
+
+* Fix `Uri` to permit more characters in the `path` (#296)
+
 # 0.1.15 (January 22, 2019)
 
 * Fix `Uri::host()` to include brackets of IPv6 literals (#292)
