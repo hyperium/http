@@ -303,7 +303,7 @@ impl Uri {
             _ => {}
         }
 
-        if s[0] == b'/' {
+        if s[0] == b'/' && s[1] != b'/' {
             return Ok(Uri {
                 scheme: Scheme::empty(),
                 authority: Authority::empty(),
@@ -833,8 +833,11 @@ fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUriBytes> {
             Scheme2::Standard(p)
         }
         Scheme2::Other(n) => {
+            let is_relative_protocol = n == 0;
+            let offset = if is_relative_protocol {2} else {3};
+            
             // Grab the protocol
-            let mut scheme = s.split_to(n + 3);
+            let mut scheme = s.split_to(n + offset);
 
             // Strip ://, TODO: truncate
             let _ = scheme.split_off(n);
@@ -922,22 +925,26 @@ impl PartialEq<str> for Uri {
         if let Some(scheme) = self.scheme_part() {
             let scheme = scheme.as_str().as_bytes();
             absolute = true;
+            
+            //Relative Protocol URI
+            let is_relative_protocol = scheme.len() == 0;
+            let delimiter_width = if is_relative_protocol{ 2 } else {3};
 
-            if other.len() < scheme.len() + 3 {
+
+            if other.len() < scheme.len() + delimiter_width {
                 return false;
             }
 
             if !scheme.eq_ignore_ascii_case(&other[..scheme.len()]) {
                 return false;
             }
-
             other = &other[scheme.len()..];
 
-            if &other[..3] != b"://" {
+            if &other[..delimiter_width] != &(b"://"[3-delimiter_width..]) {
                 return false;
             }
 
-            other = &other[3..];
+            other = &other[delimiter_width..];
         }
 
         if let Some(auth) = self.authority_part() {
@@ -1028,7 +1035,10 @@ impl Default for Uri {
 impl fmt::Display for Uri {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if let Some(scheme) = self.scheme_part() {
-            write!(f, "{}://", scheme)?;
+            match scheme.as_str(){
+                "" => write!(f, "//")?,
+                _ => write!(f, "{}://", scheme)?
+            };
         }
 
         if let Some(authority) = self.authority_part() {

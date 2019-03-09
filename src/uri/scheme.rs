@@ -293,6 +293,7 @@ impl Scheme2<usize> {
         match s {
             b"http" => Ok(Protocol::Http.into()),
             b"https" => Ok(Protocol::Https.into()),
+            b"//" => Ok(Scheme2::Other(())),
             _ => {
                 if s.len() > MAX_SCHEME_LEN {
                     return Err(ErrorKind::SchemeTooLong.into());
@@ -360,6 +361,11 @@ impl Scheme2<usize> {
                     _ => {}
                 }
             }
+        }
+
+        if s.starts_with(b"//")
+        {
+            return Ok(Scheme2::Other(0))
         }
 
         Ok(Scheme2::None)
