@@ -40,6 +40,25 @@ impl fmt::Display for Error {
     }
 }
 
+impl Error {
+    /// Return a reference to the lower level, inner error.
+    pub fn inner_ref(&self) -> &(error::Error + 'static) {
+        use self::ErrorKind::*;
+
+        match self.inner {
+            StatusCode(ref e) => e,
+            Method(ref e) => e,
+            Uri(ref e) => e,
+            UriShared(ref e) => e,
+            UriParts(ref e) => e,
+            HeaderName(ref e) => e,
+            HeaderNameShared(ref e) => e,
+            HeaderValue(ref e) => e,
+            HeaderValueShared(ref e) => e,
+        }
+    }
+}
+
 impl error::Error for Error {
     fn description(&self) -> &str {
         use self::ErrorKind::*;
@@ -55,6 +74,10 @@ impl error::Error for Error {
             HeaderValue(ref e) => e.description(),
             HeaderValueShared(ref e) => e.description(),
         }
+    }
+
+    fn cause(&self) -> Option<&error::Error> {
+        Some(self.inner_ref())
     }
 }
 
@@ -142,3 +165,20 @@ impl error::Error for Never {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn inner_error_is_invalid_status_code() {
+        if let Err(e) = status::StatusCode::from_u16(6666) {
+            let err: Error = e.into();
+            let ie = err.inner_ref();
+            assert!(!ie.is::<header::InvalidHeaderValue>());
+            assert!( ie.is::<status::InvalidStatusCode>());
+            ie.downcast_ref::<status::InvalidStatusCode>().unwrap();
+        } else {
+            panic!("Bad status allowed!");
+        }
+    }
+}
