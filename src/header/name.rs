@@ -1044,14 +1044,17 @@ const HEADER_CHARS_H2: [u8; 256] = [
 ];
 
 macro_rules! eq {
-    ($v:ident[$n:expr] == $a:tt) => {
-        $v[$n] == $a
+    (($($cmp:expr,)*) $v:ident[$n:expr] ==) => {
+        $($cmp) && *
     };
-    ($v:ident[$n:expr] == $a:tt $($rest:tt)+) => {
-        $v[$n] == $a && eq!($v[($n+1)] == $($rest)+)
+    (($($cmp:expr,)*) $v:ident[$n:expr] == $a:tt $($rest:tt)*) => {
+        eq!(($($cmp,)* $v[$n] == $a,) $v[$n+1] == $($rest)*)
     };
-    ($v:ident == $a:tt $($rest:tt)*) => {
-        $v[0] == $a && eq!($v[1] == $($rest)*)
+    ($v:ident == $($rest:tt)+) => {
+        eq!(() $v[0] == $($rest)+)
+    };
+    ($v:ident[$n:expr] == $($rest:tt)+) => {
+        eq!(() $v[$n] == $($rest)+)
     };
 }
 
