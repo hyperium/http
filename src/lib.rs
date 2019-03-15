@@ -179,6 +179,7 @@ mod extensions;
 pub use convert::HttpTryFrom;
 pub use error::{Error, Result};
 pub use extensions::Extensions;
+#[doc(no_inline)]
 pub use header::HeaderMap;
 pub use method::Method;
 pub use request::Request;

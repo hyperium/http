@@ -12,7 +12,9 @@ pub use self::into_header_name::IntoHeaderName;
 
 /// A set of HTTP headers
 ///
-/// `HeaderMap` is an multimap of `HeaderName` to values.
+/// `HeaderMap` is an multimap of [`HeaderName`] to values.
+///
+/// [`HeaderName`]: struct.HeaderName.html
 ///
 /// # Examples
 ///
