@@ -20,6 +20,7 @@ pub struct Scheme {
 #[derive(Clone, Debug)]
 pub(super) enum Scheme2<T = Box<ByteStr>> {
     None,
+    Relative,
     Standard(Protocol),
     Other(T),
 }
@@ -67,6 +68,7 @@ impl Scheme {
 
         match Scheme2::parse_exact(&s[..]).map_err(InvalidUriBytes)? {
             None => Err(ErrorKind::InvalidScheme.into()),
+            Relative => Ok(Relative.into()),
             Standard(p) => Ok(Standard(p).into()),
             Other(_) => {
                 let b = unsafe { ByteStr::from_utf8_unchecked(s) };
@@ -98,6 +100,7 @@ impl Scheme {
         match self.inner {
             Standard(Http) => "http",
             Standard(Https) => "https",
+            Relative => "",
             Other(ref v) => &v[..],
             None => unreachable!(),
         }
@@ -126,6 +129,7 @@ impl<'a> HttpTryFrom<&'a [u8]> for Scheme {
 
         match Scheme2::parse_exact(s)? {
             None => Err(ErrorKind::InvalidScheme.into()),
+            Relative => Ok(Relative.into()),
             Standard(p) => Ok(Standard(p).into()),
             Other(_) => {
                 // Unsafe: parse_exact already checks for a strict subset of UTF-8
@@ -161,6 +165,7 @@ impl From<Scheme> for Bytes {
 
         match src.inner {
             None => Bytes::new(),
+            Relative => Bytes::new(),
             Standard(Http) => Bytes::from_static(b"http"),
             Standard(Https) => Bytes::from_static(b"https"),
             Other(v) => (*v).into(),
@@ -193,6 +198,7 @@ impl PartialEq for Scheme {
         use self::Scheme2::*;
 
         match (&self.inner, &other.inner) {
+            (&Relative,&Relative) => true,
             (&Standard(Http), &Standard(Http)) => true,
             (&Standard(Https), &Standard(Https)) => true,
             (&Other(ref a), &Other(ref b)) => a.eq_ignore_ascii_case(b),
@@ -231,6 +237,7 @@ impl Hash for Scheme {
     fn hash<H>(&self, state: &mut H) where H: Hasher {
         match self.inner {
             Scheme2::None => (),
+            Scheme2::Relative => state.write_u8(3),
             Scheme2::Standard(Protocol::Http) => state.write_u8(1),
             Scheme2::Standard(Protocol::Https) => state.write_u8(2),
             Scheme2::Other(ref other) => {
@@ -293,7 +300,7 @@ impl Scheme2<usize> {
         match s {
             b"http" => Ok(Protocol::Http.into()),
             b"https" => Ok(Protocol::Https.into()),
-            b"//" => Ok(Scheme2::Other(())),
+            b"//" => Ok(Scheme2::Relative),
             _ => {
                 if s.len() > MAX_SCHEME_LEN {
                     return Err(ErrorKind::SchemeTooLong.into());
@@ -363,9 +370,8 @@ impl Scheme2<usize> {
             }
         }
 
-        if s.starts_with(b"//")
-        {
-            return Ok(Scheme2::Other(0))
+        if s.starts_with(b"//") {
+            return Ok(Scheme2::Relative.into())
         }
 
         Ok(Scheme2::None)

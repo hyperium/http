@@ -59,7 +59,7 @@ test_parse! {
     "//some/path/here",
     [],
 
-    scheme_part = part!(""),
+    scheme_part = part!("//"),
     authority_part = part!("some"),
     path = "/path/here",
 }

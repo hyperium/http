@@ -827,17 +827,18 @@ fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUriBytes> {
     // Parse the scheme
     let scheme = match Scheme2::parse(&s[..]).map_err(InvalidUriBytes)? {
         Scheme2::None => Scheme2::None,
+        Scheme2::Relative =>{
+            let _ = s.split_to(2);
+            Scheme2::Relative
+        } 
         Scheme2::Standard(p) => {
             // TODO: use truncate
             let _ = s.split_to(p.len() + 3);
             Scheme2::Standard(p)
         }
         Scheme2::Other(n) => {
-            let is_relative_protocol = n == 0;
-            let offset = if is_relative_protocol {2} else {3};
-            
             // Grab the protocol
-            let mut scheme = s.split_to(n + offset);
+            let mut scheme = s.split_to(n + 3);
 
             // Strip ://, TODO: truncate
             let _ = scheme.split_off(n);
@@ -1035,10 +1036,12 @@ impl Default for Uri {
 impl fmt::Display for Uri {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if let Some(scheme) = self.scheme_part() {
-            match scheme.as_str(){
-                "" => write!(f, "//")?,
-                _ => write!(f, "{}://", scheme)?
-            };
+            if let Scheme2::Relative = scheme.inner {
+                write!(f, "//")?
+            }
+            else{
+                write!(f, "{}://",scheme)?
+            }
         }
 
         if let Some(authority) = self.authority_part() {
