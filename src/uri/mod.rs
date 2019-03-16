@@ -1036,11 +1036,9 @@ impl Default for Uri {
 impl fmt::Display for Uri {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if let Some(scheme) = self.scheme_part() {
-            if let Scheme2::Relative = scheme.inner {
-                write!(f, "//")?
-            }
-            else{
-                write!(f, "{}://",scheme)?
+            match scheme.inner{
+                Scheme2::Relative => write!(f, "//")?,
+                _ => write!(f, "{}://", scheme)?
             }
         }
 
