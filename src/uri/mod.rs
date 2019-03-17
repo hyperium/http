@@ -924,22 +924,20 @@ impl PartialEq<str> for Uri {
         let mut absolute = false;
 
         if let Some(scheme) = self.scheme_part() {
-            let scheme = scheme.as_str().as_bytes();
-            absolute = true;
             
-            //Relative Protocol URI
-            let is_relative_protocol = scheme.len() == 0;
-            let delimiter_width = if is_relative_protocol{ 2 } else {3};
+            let delimiter_width = if let Scheme2::Relative = scheme.inner { 2 } else { 3 };
 
+            let scheme_bytes = scheme.as_str().as_bytes();
+            absolute = true;
 
-            if other.len() < scheme.len() + delimiter_width {
+            if other.len() < scheme_bytes.len() + delimiter_width {
                 return false;
             }
 
-            if !scheme.eq_ignore_ascii_case(&other[..scheme.len()]) {
+            if !scheme_bytes.eq_ignore_ascii_case(&other[..scheme_bytes.len()]) {
                 return false;
             }
-            other = &other[scheme.len()..];
+            other = &other[scheme_bytes.len()..];
 
             if &other[..delimiter_width] != &(b"://"[3-delimiter_width..]) {
                 return false;
