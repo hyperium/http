@@ -303,7 +303,7 @@ impl Uri {
             _ => {}
         }
 
-        if s[0] == b'/' {
+        if s[0] == b'/' && s[1] != b'/' {
             return Ok(Uri {
                 scheme: Scheme::empty(),
                 authority: Authority::empty(),
@@ -827,6 +827,10 @@ fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUriBytes> {
     // Parse the scheme
     let scheme = match Scheme2::parse(&s[..]).map_err(InvalidUriBytes)? {
         Scheme2::None => Scheme2::None,
+        Scheme2::Relative =>{
+            let _ = s.split_to(2);
+            Scheme2::Relative
+        } 
         Scheme2::Standard(p) => {
             // TODO: use truncate
             let _ = s.split_to(p.len() + 3);
@@ -920,24 +924,26 @@ impl PartialEq<str> for Uri {
         let mut absolute = false;
 
         if let Some(scheme) = self.scheme_part() {
-            let scheme = scheme.as_str().as_bytes();
+            
+            let delimiter_width = if let Scheme2::Relative = scheme.inner { 2 } else { 3 };
+
+            let scheme_bytes = scheme.as_str().as_bytes();
             absolute = true;
 
-            if other.len() < scheme.len() + 3 {
+            if other.len() < scheme_bytes.len() + delimiter_width {
                 return false;
             }
 
-            if !scheme.eq_ignore_ascii_case(&other[..scheme.len()]) {
+            if !scheme_bytes.eq_ignore_ascii_case(&other[..scheme_bytes.len()]) {
+                return false;
+            }
+            other = &other[scheme_bytes.len()..];
+
+            if &other[..delimiter_width] != &(b"://"[3-delimiter_width..]) {
                 return false;
             }
 
-            other = &other[scheme.len()..];
-
-            if &other[..3] != b"://" {
-                return false;
-            }
-
-            other = &other[3..];
+            other = &other[delimiter_width..];
         }
 
         if let Some(auth) = self.authority_part() {
@@ -1028,7 +1034,10 @@ impl Default for Uri {
 impl fmt::Display for Uri {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if let Some(scheme) = self.scheme_part() {
-            write!(f, "{}://", scheme)?;
+            match scheme.inner{
+                Scheme2::Relative => write!(f, "//")?,
+                _ => write!(f, "{}://", scheme)?
+            }
         }
 
         if let Some(authority) = self.authority_part() {
