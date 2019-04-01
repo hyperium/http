@@ -81,9 +81,11 @@ impl error::Error for Error {
         }
     }
 
+    // Return any available cause from the inner error. Note the inner error is
+    // not itself the cause.
     #[allow(deprecated)]
     fn cause(&self) -> Option<&error::Error> {
-        Some(self.get_ref())
+        self.get_ref().cause()
     }
 }
 
