@@ -43,12 +43,11 @@ impl fmt::Display for Error {
 impl Error {
     /// Return true if the underlying error has the same type as T.
     pub fn is<T: error::Error + 'static>(&self) -> bool {
-        let ie = self.inner_ref();
-        ie.is::<T>()
+        self.get_ref().is::<T>()
     }
 
     /// Return a reference to the lower level, inner error.
-    pub fn inner_ref(&self) -> &(error::Error + 'static) {
+    pub fn get_ref(&self) -> &(error::Error + 'static) {
         use self::ErrorKind::*;
 
         match self.inner {
@@ -82,8 +81,9 @@ impl error::Error for Error {
         }
     }
 
+    #[allow(deprecated)]
     fn cause(&self) -> Option<&error::Error> {
-        Some(self.inner_ref())
+        Some(self.get_ref())
     }
 }
 
@@ -179,7 +179,7 @@ mod tests {
     fn inner_error_is_invalid_status_code() {
         if let Err(e) = status::StatusCode::from_u16(6666) {
             let err: Error = e.into();
-            let ie = err.inner_ref();
+            let ie = err.get_ref();
             assert!(!ie.is::<header::InvalidHeaderValue>());
             assert!( ie.is::<status::InvalidStatusCode>());
             ie.downcast_ref::<status::InvalidStatusCode>().unwrap();
