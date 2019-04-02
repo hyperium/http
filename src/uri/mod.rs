@@ -34,6 +34,7 @@ use std::ascii::AsciiExt;
 use std::hash::{Hash, Hasher};
 use std::str::{self, FromStr};
 use std::error::Error;
+use std::convert::TryFrom;
 
 use self::scheme::Scheme2;
 
@@ -242,8 +243,7 @@ impl Uri {
 
     /// Attempt to convert a `Uri` from `Bytes`
     ///
-    /// This function will be replaced by a `TryFrom` implementation once the
-    /// trait lands in stable.
+    /// This function has been replaced by `TryFrom` implementation.
     ///
     /// # Examples
     ///
@@ -263,55 +263,7 @@ impl Uri {
     /// # }
     /// ```
     pub fn from_shared(s: Bytes) -> Result<Uri, InvalidUriBytes> {
-        use self::ErrorKind::*;
-
-        if s.len() > MAX_LEN {
-            return Err(TooLong.into());
-        }
-
-        match s.len() {
-            0 => {
-                return Err(Empty.into());
-            }
-            1 => {
-                match s[0] {
-                    b'/' => {
-                        return Ok(Uri {
-                            scheme: Scheme::empty(),
-                            authority: Authority::empty(),
-                            path_and_query: PathAndQuery::slash(),
-                        });
-                    }
-                    b'*' => {
-                        return Ok(Uri {
-                            scheme: Scheme::empty(),
-                            authority: Authority::empty(),
-                            path_and_query: PathAndQuery::star(),
-                        });
-                    }
-                    _ => {
-                        let authority = Authority::from_shared(s)?;
-
-                        return Ok(Uri {
-                            scheme: Scheme::empty(),
-                            authority: authority,
-                            path_and_query: PathAndQuery::empty(),
-                        });
-                    }
-                }
-            }
-            _ => {}
-        }
-
-        if s[0] == b'/' && s[1] != b'/' {
-            return Ok(Uri {
-                scheme: Scheme::empty(),
-                authority: Authority::empty(),
-                path_and_query: PathAndQuery::from_shared(s)?,
-            });
-        }
-
-        parse_full(s)
+        TryFrom::try_from(s)
     }
 
     /// Convert a `Uri` from a static string.
@@ -704,6 +656,81 @@ impl Uri {
 
     fn has_path(&self) -> bool {
         !self.path_and_query.data.is_empty() || !self.scheme.inner.is_none()
+    }
+}
+
+impl TryFrom<Bytes> for Uri {
+    type Error = InvalidUriBytes;
+
+    /// Attempt to convert a `Uri` from `Bytes`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # extern crate http;
+    /// # use http::uri::*;
+    /// extern crate bytes;
+    ///
+    /// use bytes::Bytes;
+    ///
+    /// # pub fn main() {
+    /// let bytes = Bytes::from("http://example.com/foo");
+    /// let uri = Uri::from_shared(bytes).unwrap();
+    ///
+    /// assert_eq!(uri.host().unwrap(), "example.com");
+    /// assert_eq!(uri.path(), "/foo");
+    /// # }
+    /// ```
+    fn try_from(s: Bytes) -> Result<Uri, Self::Error> {
+        use self::ErrorKind::*;
+
+        if s.len() > MAX_LEN {
+            return Err(TooLong.into());
+        }
+
+        match s.len() {
+            0 => {
+                return Err(Empty.into());
+            }
+            1 => {
+                match s[0] {
+                    b'/' => {
+                        return Ok(Uri {
+                            scheme: Scheme::empty(),
+                            authority: Authority::empty(),
+                            path_and_query: PathAndQuery::slash(),
+                        });
+                    }
+                    b'*' => {
+                        return Ok(Uri {
+                            scheme: Scheme::empty(),
+                            authority: Authority::empty(),
+                            path_and_query: PathAndQuery::star(),
+                        });
+                    }
+                    _ => {
+                        let authority = Authority::from_shared(s)?;
+
+                        return Ok(Uri {
+                            scheme: Scheme::empty(),
+                            authority: authority,
+                            path_and_query: PathAndQuery::empty(),
+                        });
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        if s[0] == b'/' && s[1] != b'/' {
+            return Ok(Uri {
+                scheme: Scheme::empty(),
+                authority: Authority::empty(),
+                path_and_query: PathAndQuery::from_shared(s)?,
+            });
+        }
+
+        parse_full(s)
     }
 }
 

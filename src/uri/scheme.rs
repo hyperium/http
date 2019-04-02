@@ -4,6 +4,7 @@ use std::ascii::AsciiExt;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
+use std::convert::TryFrom;
 
 use bytes::Bytes;
 
@@ -44,8 +45,7 @@ impl Scheme {
 
     /// Attempt to convert a `Scheme` from `Bytes`
     ///
-    /// This function will be replaced by a `TryFrom` implementation once the
-    /// trait lands in stable.
+    /// This function has been replaced by a `TryFrom`
     ///
     /// # Examples
     ///
@@ -64,17 +64,7 @@ impl Scheme {
     /// # }
     /// ```
     pub fn from_shared(s: Bytes) -> Result<Self, InvalidUriBytes> {
-        use self::Scheme2::*;
-
-        match Scheme2::parse_exact(&s[..]).map_err(InvalidUriBytes)? {
-            None => Err(ErrorKind::InvalidScheme.into()),
-            Relative => Ok(Relative.into()),
-            Standard(p) => Ok(Standard(p).into()),
-            Other(_) => {
-                let b = unsafe { ByteStr::from_utf8_unchecked(s) };
-                Ok(Other(Box::new(b)).into())
-            }
-        }
+        TryFrom::try_from(s)
     }
 
     pub(super) fn empty() -> Self {
@@ -110,6 +100,42 @@ impl Scheme {
     #[inline]
     pub fn into_bytes(self) -> Bytes {
         self.into()
+    }
+}
+
+impl TryFrom<Bytes> for Scheme {
+    type Error = InvalidUriBytes;
+
+    /// Attempt to convert a `Scheme` from `Bytes`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # extern crate http;
+    /// # use http::uri::*;
+    /// extern crate bytes;
+    ///
+    /// use bytes::Bytes;
+    ///
+    /// # pub fn main() {
+    /// let bytes = Bytes::from("http");
+    /// let scheme = Scheme::from_shared(bytes).unwrap();
+    ///
+    /// assert_eq!(scheme.as_str(), "http");
+    /// # }
+    /// ```
+    fn try_from(s: Bytes) -> Result<Self, Self::Error> {
+        use self::Scheme2::*;
+
+        match Scheme2::parse_exact(&s[..]).map_err(InvalidUriBytes)? {
+            None => Err(ErrorKind::InvalidScheme.into()),
+            Relative => Ok(Relative.into()),
+            Standard(p) => Ok(Standard(p).into()),
+            Other(_) => {
+                let b = unsafe { ByteStr::from_utf8_unchecked(s) };
+                Ok(Other(Box::new(b)).into())
+            }
+        }
     }
 }
 

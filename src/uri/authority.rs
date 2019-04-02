@@ -4,6 +4,7 @@ use std::ascii::AsciiExt;
 use std::{cmp, fmt, str};
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
+use std::convert::TryFrom;
 
 use bytes::Bytes;
 
@@ -24,8 +25,7 @@ impl Authority {
 
     /// Attempt to convert an `Authority` from `Bytes`.
     ///
-    /// This function will be replaced by a `TryFrom` implementation once the
-    /// trait lands in stable.
+    /// This function has been replaced by `TryFrom` implementation.
     ///
     /// # Examples
     ///
@@ -44,15 +44,7 @@ impl Authority {
     /// # }
     /// ```
     pub fn from_shared(s: Bytes) -> Result<Self, InvalidUriBytes> {
-        let authority_end = Authority::parse_non_empty(&s[..]).map_err(InvalidUriBytes)?;
-
-        if authority_end != s.len() {
-            return Err(ErrorKind::InvalidUriChar.into());
-        }
-
-        Ok(Authority {
-            data: unsafe { ByteStr::from_utf8_unchecked(s) },
-        })
+        TryFrom::try_from(s)
     }
 
     /// Attempt to convert an `Authority` from a static string.
@@ -269,6 +261,41 @@ impl Authority {
     #[inline]
     pub fn into_bytes(self) -> Bytes {
         self.into()
+    }
+}
+
+impl TryFrom<Bytes> for Authority {
+    type Error = InvalidUriBytes;
+    /// Attempt to convert an `Authority` from `Bytes`.
+    ///
+    /// This function has been replaced by `TryFrom` implementation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # extern crate http;
+    /// # use http::uri::*;
+    /// extern crate bytes;
+    ///
+    /// use bytes::Bytes;
+    ///
+    /// # pub fn main() {
+    /// let bytes = Bytes::from("example.com");
+    /// let authority = Authority::from_shared(bytes).unwrap();
+    ///
+    /// assert_eq!(authority.host(), "example.com");
+    /// # }
+    /// ```
+    fn try_from(s: Bytes) -> Result<Self, Self::Error> {
+        let authority_end = Authority::parse_non_empty(&s[..]).map_err(InvalidUriBytes)?;
+
+        if authority_end != s.len() {
+            return Err(ErrorKind::InvalidUriChar.into());
+        }
+
+        Ok(Authority {
+            data: unsafe { ByteStr::from_utf8_unchecked(s) },
+        })
     }
 }
 

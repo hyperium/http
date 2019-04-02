@@ -1,5 +1,6 @@
 use std::{cmp, fmt, str};
 use std::str::FromStr;
+use std::convert::TryFrom;
 
 use bytes::Bytes;
 
@@ -19,8 +20,7 @@ const NONE: u16 = ::std::u16::MAX;
 impl PathAndQuery {
     /// Attempt to convert a `PathAndQuery` from `Bytes`.
     ///
-    /// This function will be replaced by a `TryFrom` implementation once the
-    /// trait lands in stable.
+    /// This function has been replaced by a `TryFrom` implementation.
     ///
     /// # Examples
     ///
@@ -39,76 +39,8 @@ impl PathAndQuery {
     /// assert_eq!(path_and_query.query(), Some("world"));
     /// # }
     /// ```
-    pub fn from_shared(mut src: Bytes) -> Result<Self, InvalidUriBytes> {
-        let mut query = NONE;
-        let mut fragment = None;
-
-        // block for iterator borrow
-        {
-            let mut iter = src.as_ref().iter().enumerate();
-
-            // path ...
-            for (i, &b) in &mut iter {
-                // See https://url.spec.whatwg.org/#path-state
-                match b {
-                    b'?' => {
-                        debug_assert_eq!(query, NONE);
-                        query = i as u16;
-                        break;
-                    }
-                    b'#' => {
-                        fragment = Some(i);
-                        break;
-                    },
-
-                    // This is the range of bytes that don't need to be
-                    // percent-encoded in the path. If it should have been
-                    // percent-encoded, then error.
-                    0x21 |
-                    0x24...0x3B |
-                    0x3D |
-                    0x40...0x5F |
-                    0x61...0x7A |
-                    0x7C |
-                    0x7E => {},
-
-                    _ => return Err(ErrorKind::InvalidUriChar.into()),
-                }
-            }
-
-            // query ...
-            if query != NONE {
-                for (i, &b) in iter {
-                    match b {
-                        // While queries *should* be percent-encoded, most
-                        // bytes are actually allowed...
-                        // See https://url.spec.whatwg.org/#query-state
-                        //
-                        // Allowed: 0x21 / 0x24 - 0x3B / 0x3D / 0x3F - 0x7E
-                        0x21 |
-                        0x24...0x3B |
-                        0x3D |
-                        0x3F...0x7E => {},
-
-                        b'#' => {
-                            fragment = Some(i);
-                            break;
-                        },
-
-                        _ => return Err(ErrorKind::InvalidUriChar.into()),
-                    }
-                }
-            }
-        }
-
-        if let Some(i) = fragment {
-            src.truncate(i);
-        }
-
-        Ok(PathAndQuery {
-            data: unsafe { ByteStr::from_utf8_unchecked(src) },
-            query: query,
-        })
+    pub fn from_shared(src: Bytes) -> Result<Self, InvalidUriBytes> {
+        TryFrom::try_from(src)
     }
 
     /// Convert a `PathAndQuery` from a static string.
@@ -273,6 +205,101 @@ impl PathAndQuery {
     #[inline]
     pub fn into_bytes(self) -> Bytes {
         self.into()
+    }
+}
+
+impl TryFrom<Bytes> for PathAndQuery {
+    type Error = InvalidUriBytes;
+    
+    /// Attempt to convert a `PathAndQuery` from `Bytes`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # extern crate http;
+    /// # use http::uri::*;
+    /// extern crate bytes;
+    ///
+    /// use bytes::Bytes;
+    ///
+    /// # pub fn main() {
+    /// let bytes = Bytes::from("/hello?world");
+    /// let path_and_query = PathAndQuery::from_shared(bytes).unwrap();
+    ///
+    /// assert_eq!(path_and_query.path(), "/hello");
+    /// assert_eq!(path_and_query.query(), Some("world"));
+    /// # }
+    /// ```
+    fn try_from(mut src: Bytes) -> Result<Self, Self::Error> {
+        let mut query = NONE;
+        let mut fragment = None;
+
+        // block for iterator borrow
+        {
+            let mut iter = src.as_ref().iter().enumerate();
+
+            // path ...
+            for (i, &b) in &mut iter {
+                // See https://url.spec.whatwg.org/#path-state
+                match b {
+                    b'?' => {
+                        debug_assert_eq!(query, NONE);
+                        query = i as u16;
+                        break;
+                    }
+                    b'#' => {
+                        fragment = Some(i);
+                        break;
+                    },
+
+                    // This is the range of bytes that don't need to be
+                    // percent-encoded in the path. If it should have been
+                    // percent-encoded, then error.
+                    0x21 |
+                    0x24...0x3B |
+                    0x3D |
+                    0x40...0x5F |
+                    0x61...0x7A |
+                    0x7C |
+                    0x7E => {},
+
+                    _ => return Err(ErrorKind::InvalidUriChar.into()),
+                }
+            }
+
+            // query ...
+            if query != NONE {
+                for (i, &b) in iter {
+                    match b {
+                        // While queries *should* be percent-encoded, most
+                        // bytes are actually allowed...
+                        // See https://url.spec.whatwg.org/#query-state
+                        //
+                        // Allowed: 0x21 / 0x24 - 0x3B / 0x3D / 0x3F - 0x7E
+                        0x21 |
+                        0x24...0x3B |
+                        0x3D |
+                        0x3F...0x7E => {},
+
+                        b'#' => {
+                            fragment = Some(i);
+                            break;
+                        },
+
+                        _ => return Err(ErrorKind::InvalidUriChar.into()),
+                    }
+                }
+            }
+        }
+
+        if let Some(i) = fragment {
+            src.truncate(i);
+        }
+
+        Ok(PathAndQuery {
+            data: unsafe { ByteStr::from_utf8_unchecked(src) },
+            query: query,
+        })
     }
 }
 
