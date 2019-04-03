@@ -55,18 +55,6 @@ macro_rules! test_parse {
 }
 
 test_parse! {
-    test_uri_parse_protocol_relative,
-    "//some/path/here",
-    [],
-
-    scheme_part = part!("//"),
-    authority_part = part!("some"),
-    path = "/path/here",
-}
-
-
-
-test_parse! {
     test_uri_parse_path_and_query,
     "/some/path/here?and=then&hello#and-bye",
     [],
