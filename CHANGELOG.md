@@ -1,3 +1,8 @@
+# 0.1.17 (April 5, 2019)
+
+* Add `Error::inner_ref()` to view the kind of error (#303)
+* Add `headers_ref()` and `headers_mut()` methods to `request::Builder` and `response::Builder` (#293)
+
 # 0.1.16 (February 19, 2019)
 
 * Fix `Uri` to permit more characters in the `path` (#296)
