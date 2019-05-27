@@ -771,15 +771,15 @@ impl Builder {
     }
 
     /// Get the HTTP Method for this request.
-    /// 
+    ///
     /// By default this is `GET`.
     /// if builder has error, returns None.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// # use http::*;
-    /// 
+    ///
     /// let mut req = Request::builder();
     /// assert_eq!(req.method_ref(),Some(&Method::GET));
     /// req.method("POST");
@@ -828,13 +828,13 @@ impl Builder {
     }
 
     /// Get the URI for this request
-    /// 
+    ///
     /// By default this is `/`
     /// # Examples
-    /// 
+    ///
     /// ```
     /// # use http::*;
-    /// 
+    ///
     /// let mut req = Request::builder();
     /// assert_eq!(req.uri_ref().unwrap().to_string(), "/" );
     /// req.uri("https://www.rust-lang.org/");
@@ -914,9 +914,9 @@ impl Builder {
 
     /// Get header on this request builder.
     /// when builder has error returns None
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```
     /// # use http::*;
     /// # use http::header::HeaderValue;
@@ -941,9 +941,9 @@ impl Builder {
 
     /// Get header on this request builder.
     /// when builder has error returns None
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```
     /// # use http::*;
     /// # use http::header::HeaderValue;
@@ -991,6 +991,19 @@ impl Builder {
             head.extensions.insert(extension);
         }
         self
+    }
+
+    /// Get extensions on this request builder.
+    ///
+    /// When builder has error returns `None`.
+    pub fn extensions_mut(&mut self) -> Option<&mut Extensions> {
+        if self.err.is_some() {
+            return None;
+        }
+        match self.head {
+            Some(ref mut head) => Some(&mut head.extensions),
+            None => None
+        }
     }
 
     fn take_parts(&mut self) -> Result<Parts> {

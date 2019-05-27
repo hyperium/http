@@ -632,9 +632,9 @@ impl Builder {
 
     /// Get header on this response builder.
     /// when builder has error returns None
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```
     /// # use http::*;
     /// # use http::header::HeaderValue;
@@ -659,9 +659,9 @@ impl Builder {
 
     /// Get header on this response builder.
     /// when builder has error returns None
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```
     /// # use http::*;
     /// # use http::header::HeaderValue;
@@ -709,6 +709,19 @@ impl Builder {
             head.extensions.insert(extension);
         }
         self
+    }
+
+    /// Get extensions on this response builder.
+    ///
+    /// When builder has error returns `None`.
+    pub fn extensions_mut(&mut self) -> Option<&mut Extensions> {
+        if self.err.is_some() {
+            return None;
+        }
+        match self.head {
+            Some(ref mut head) => Some(&mut head.extensions),
+            None => None
+        }
     }
 
     fn take_parts(&mut self) -> Result<Parts> {
