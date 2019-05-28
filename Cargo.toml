@@ -27,6 +27,9 @@ fnv = "1.0.5"
 itoa = "0.4.1"
 serde = { version = "1.0", optional = true, features = ["derive"] }
 
+[features]
+serde1 = ["serde"]
+
 [dev-dependencies]
 indexmap = "1.0"
 quickcheck = "0.6"

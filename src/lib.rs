@@ -163,7 +163,7 @@ extern crate bytes;
 extern crate fnv;
 extern crate itoa;
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "serde1")]
 #[macro_use]
 extern crate serde;
 
