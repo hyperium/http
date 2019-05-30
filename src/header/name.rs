@@ -1012,6 +1012,7 @@ const HEADER_CHARS: [u8; 256] = [
         0,     0,     0,     0,     0,     0                              // 25x
 ];
 
+/// Valid header name characters for HTTP/2.0 and HTTP/3.0
 const HEADER_CHARS_H2: [u8; 256] = [
     //  0      1      2      3      4      5      6      7      8      9
         0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //   x
@@ -1690,8 +1691,8 @@ impl HeaderName {
     /// Converts a slice of bytes to an HTTP header name.
     ///
     /// This function expects the input to only contain lowercase characters.
-    /// This is useful when decoding HTTP/2.0 headers. The HTTP/2.0
-    /// specification requires that all headers be represented in lower case.
+    /// This is useful when decoding HTTP/2.0 or HTTP/3.0 headers. Both
+    /// require that all headers be represented in lower case.
     ///
     /// # Examples
     ///
