@@ -17,7 +17,7 @@
 //! assert_eq!(uri.host(), None);
 //!
 //! let uri = "https://www.rust-lang.org/install.html".parse::<Uri>().unwrap();
-//! assert_eq!(uri.scheme(), Some("https"));
+//! assert_eq!(uri.scheme_part().map(|s| s.as_str()), Some("https"));
 //! assert_eq!(uri.host(), Some("www.rust-lang.org"));
 //! assert_eq!(uri.path(), "/install.html");
 //! ```
@@ -28,7 +28,8 @@ use byte_str::ByteStr;
 use bytes::Bytes;
 
 use std::{fmt, u8, u16};
-#[allow(unused)]
+// Deprecated in 1.26, needed until our minimum version is >=1.23.
+#[allow(unused, deprecated)]
 use std::ascii::AsciiExt;
 use std::hash::{Hash, Hasher};
 use std::str::{self, FromStr};
@@ -37,11 +38,15 @@ use std::error::Error;
 use self::scheme::Scheme2;
 
 pub use self::authority::Authority;
+pub use self::builder::Builder;
 pub use self::path::PathAndQuery;
 pub use self::scheme::Scheme;
+pub use self::port::Port;
 
 mod authority;
+mod builder;
 mod path;
+mod port;
 mod scheme;
 #[cfg(test)]
 mod tests;
@@ -86,7 +91,7 @@ mod tests;
 /// assert_eq!(uri.host(), None);
 ///
 /// let uri = "https://www.rust-lang.org/install.html".parse::<Uri>().unwrap();
-/// assert_eq!(uri.scheme(), Some("https"));
+/// assert_eq!(uri.scheme_part().map(|s| s.as_str()), Some("https"));
 /// assert_eq!(uri.host(), Some("www.rust-lang.org"));
 /// assert_eq!(uri.path(), "/install.html");
 /// ```
@@ -132,7 +137,9 @@ enum ErrorKind {
     InvalidUriChar,
     InvalidScheme,
     InvalidAuthority,
+    InvalidPort,
     InvalidFormat,
+    SchemeMissing,
     AuthorityMissing,
     PathAndQueryMissing,
     TooLong,
@@ -174,6 +181,27 @@ const URI_CHARS: [u8; 256] = [
 ];
 
 impl Uri {
+    /// Creates a new builder-style object to manufacture a `Uri`.
+    ///
+    /// This method returns an instance of `Builder` which can be usd to
+    /// create a `Uri`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use http::Uri;
+    ///
+    /// let uri = Uri::builder()
+    ///     .scheme("https")
+    ///     .authority("hyper.rs")
+    ///     .path_and_query("/")
+    ///     .build()
+    ///     .unwrap();
+    /// ```
+    pub fn builder() -> Builder {
+        Builder::new()
+    }
+
     /// Attempt to convert a `Uri` from `Parts`
     pub fn from_parts(src: Parts) -> Result<Uri, InvalidUriParts> {
         if src.scheme.is_some() {
@@ -185,8 +213,8 @@ impl Uri {
                 return Err(ErrorKind::PathAndQueryMissing.into());
             }
         } else {
-            if src.authority.is_some() && src.path_and_query.is_none() {
-                return Err(ErrorKind::PathAndQueryMissing.into());
+            if src.authority.is_some() && src.path_and_query.is_some() {
+                return Err(ErrorKind::SchemeMissing.into());
             }
         }
 
@@ -267,8 +295,7 @@ impl Uri {
                         return Ok(Uri {
                             scheme: Scheme::empty(),
                             authority: authority,
-                            // TODO: Should this be empty instead?
-                            path_and_query: PathAndQuery::slash(),
+                            path_and_query: PathAndQuery::empty(),
                         });
                     }
                 }
@@ -285,6 +312,57 @@ impl Uri {
         }
 
         parse_full(s)
+    }
+
+    /// Convert a `Uri` from a static string.
+    ///
+    /// This function will not perform any copying, however the string is
+    /// checked to ensure that it is valid.
+    ///
+    /// # Panics
+    ///
+    /// This function panics if the argument is an invalid URI.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::uri::Uri;
+    /// let uri = Uri::from_static("http://example.com/foo");
+    ///
+    /// assert_eq!(uri.host().unwrap(), "example.com");
+    /// assert_eq!(uri.path(), "/foo");
+    /// ```
+    pub fn from_static(src: &'static str) -> Self {
+        let s = Bytes::from_static(src.as_bytes());
+        match Uri::from_shared(s) {
+            Ok(uri) => uri,
+            Err(e) => panic!("static str is not valid URI: {}", e),
+        }
+    }
+
+    /// Convert a `Uri` into `Parts`.
+    ///
+    /// # Note
+    ///
+    /// This is just an inherent method providing the same functionality as
+    /// `let parts: Parts = uri.into()`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::uri::*;
+    /// let uri: Uri = "/foo".parse().unwrap();
+    ///
+    /// let parts = uri.into_parts();
+    ///
+    /// assert_eq!(parts.path_and_query.unwrap(), "/foo");
+    ///
+    /// assert!(parts.scheme.is_none());
+    /// assert!(parts.authority.is_none());
+    /// ```
+    #[inline]
+    pub fn into_parts(self) -> Parts {
+        self.into()
     }
 
     /// Returns the path & query components of the Uri
@@ -359,10 +437,11 @@ impl Uri {
     /// Absolute URI
     ///
     /// ```
-    /// # use http::Uri;
+    /// use http::uri::{Scheme, Uri};
+    ///
     /// let uri: Uri = "http://example.org/hello/world".parse().unwrap();
     ///
-    /// assert_eq!(uri.scheme_part().map(|s| s.as_str()), Some("http"));
+    /// assert_eq!(uri.scheme_part(), Some(&Scheme::HTTP));
     /// ```
     ///
     ///
@@ -383,10 +462,25 @@ impl Uri {
         }
     }
 
-    #[deprecated(since = "0.1.2", note = "use scheme_part instead")]
+    #[deprecated(since = "0.1.2", note = "use scheme_part or scheme_str instead")]
     #[doc(hidden)]
     #[inline]
     pub fn scheme(&self) -> Option<&str> {
+        self.scheme_str()
+    }
+
+    /// Get the scheme of this `Uri` as a `&str`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http::Uri;
+    /// let uri: Uri = "http://example.org/hello/world".parse().unwrap();
+    ///
+    /// assert_eq!(uri.scheme_str(), Some("http"));
+    /// ```
+    #[inline]
+    pub fn scheme_str(&self) -> Option<&str> {
         if self.scheme.inner.is_none() {
             None
         } else {
@@ -491,12 +585,18 @@ impl Uri {
         self.authority_part().map(|a| a.host())
     }
 
-    /// Get the port of this `Uri`.
+    #[deprecated(since="0.1.14", note="use `port_part` or `port_u16` instead")]
+    #[doc(hidden)]
+    pub fn port(&self) -> Option<u16> {
+        self.port_u16()
+    }
+
+    /// Get the port part of this `Uri`.
     ///
     /// The port subcomponent of authority is designated by an optional port
-    /// number in decimal following the host and delimited from it by a single
-    /// colon (":") character. A value is only returned if one is specified in
-    /// the URI string, i.e., default port values are **not** returned.
+    /// number following the host and delimited from it by a single colon (":")
+    /// character. It can be turned into a decimal port number with the `as_u16`
+    /// method or as a `str` with the `as_str` method.
     ///
     /// ```notrust
     /// abc://username:password@example.com:123/path/data?key=value&key2=value2#fragid1
@@ -513,7 +613,8 @@ impl Uri {
     /// # use http::Uri;
     /// let uri: Uri = "http://example.org:80/hello/world".parse().unwrap();
     ///
-    /// assert_eq!(uri.port(), Some(80));
+    /// let port = uri.port_part().unwrap();
+    /// assert_eq!(port.as_u16(), 80);
     /// ```
     ///
     /// Absolute URI without port
@@ -522,7 +623,7 @@ impl Uri {
     /// # use http::Uri;
     /// let uri: Uri = "http://example.org/hello/world".parse().unwrap();
     ///
-    /// assert!(uri.port().is_none());
+    /// assert!(uri.port_part().is_none());
     /// ```
     ///
     /// Relative URI
@@ -531,11 +632,26 @@ impl Uri {
     /// # use http::Uri;
     /// let uri: Uri = "/hello/world".parse().unwrap();
     ///
-    /// assert!(uri.port().is_none());
+    /// assert!(uri.port_part().is_none());
     /// ```
-    pub fn port(&self) -> Option<u16> {
+    pub fn port_part(&self) -> Option<Port<&str>> {
         self.authority_part()
-            .and_then(|a| a.port())
+            .and_then(|a| a.port_part())
+    }
+
+    /// Get the port of this `Uri` as a `u16`.
+    ///
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http::{Uri, uri::Port};
+    /// let uri: Uri = "http://example.org:80/hello/world".parse().unwrap();
+    ///
+    /// assert_eq!(uri.port_u16(), Some(80));
+    /// ```
+    pub fn port_u16(&self) -> Option<u16> {
+        self.port_part().and_then(|p| Some(p.as_u16()))
     }
 
     /// Get the query string of this `Uri`, starting after the `?`.
@@ -600,6 +716,24 @@ impl<'a> HttpTryFrom<&'a str> for Uri {
     }
 }
 
+impl<'a> HttpTryFrom<&'a String> for Uri {
+    type Error = InvalidUri;
+
+    #[inline]
+    fn try_from(t: &'a String) -> Result<Self, Self::Error> {
+        t.parse()
+    }
+}
+
+impl HttpTryFrom<String> for Uri {
+    type Error = InvalidUriBytes;
+
+    #[inline]
+    fn try_from(t: String) -> Result<Self, Self::Error> {
+        Uri::from_shared(Bytes::from(t))
+    }
+}
+
 impl HttpTryFrom<Bytes> for Uri {
     type Error = InvalidUriBytes;
 
@@ -618,6 +752,15 @@ impl HttpTryFrom<Parts> for Uri {
     }
 }
 
+impl<'a> HttpTryFrom<&'a Uri> for Uri {
+    type Error = ::Error;
+
+    #[inline]
+    fn try_from(src: &'a Uri) -> Result<Self, Self::Error> {
+        Ok(src.clone())
+    }
+}
+
 /// Convert a `Uri` from parts
 ///
 /// # Examples
@@ -633,7 +776,7 @@ impl HttpTryFrom<Parts> for Uri {
 ///
 /// assert_eq!(uri.path(), "/foo");
 ///
-/// assert!(uri.scheme().is_none());
+/// assert!(uri.scheme_part().is_none());
 /// assert!(uri.authority().is_none());
 /// ```
 ///
@@ -648,7 +791,7 @@ impl HttpTryFrom<Parts> for Uri {
 ///
 /// let uri = Uri::from_parts(parts).unwrap();
 ///
-/// assert_eq!(uri.scheme().unwrap(), "http");
+/// assert_eq!(uri.scheme_part().unwrap().as_str(), "http");
 /// assert_eq!(uri.authority().unwrap(), "foo.com");
 /// assert_eq!(uri.path(), "/foo");
 /// ```
@@ -825,6 +968,10 @@ impl PartialEq<str> for Uri {
         }
 
         if let Some(query) = self.query() {
+            if other.len() == 0 {
+                return query.len() == 0;
+            }
+
             if other[0] != b'?' {
                 return false;
             }
@@ -934,7 +1081,9 @@ impl Error for InvalidUri {
             ErrorKind::InvalidUriChar => "invalid uri character",
             ErrorKind::InvalidScheme => "invalid scheme",
             ErrorKind::InvalidAuthority => "invalid authority",
+            ErrorKind::InvalidPort => "invalid port",
             ErrorKind::InvalidFormat => "invalid format",
+            ErrorKind::SchemeMissing => "scheme missing",
             ErrorKind::AuthorityMissing => "authority missing",
             ErrorKind::PathAndQueryMissing => "path missing",
             ErrorKind::TooLong => "uri too long",

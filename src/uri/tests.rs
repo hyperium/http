@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use super::{ErrorKind, InvalidUri, Uri, URI_CHARS};
+use super::{ErrorKind, InvalidUri, Uri, URI_CHARS, Port};
 
 #[test]
 fn test_char_table() {
@@ -26,12 +26,22 @@ macro_rules! test_parse {
     ) => (
         #[test]
         fn $test_name() {
-            let uri = Uri::from_str($str).unwrap();
+            let orig_str = $str;
+            let uri = match Uri::from_str(orig_str) {
+                Ok(uri) => uri,
+                Err(err) => {
+                    panic!("parse error {:?} from {:?}", err, orig_str);
+                },
+            };
             $(
-            assert_eq!(uri.$method(), $value, stringify!($method));
+            assert_eq!(uri.$method(), $value, "{}: uri = {:?}", stringify!($method), uri);
             )+
-            assert_eq!(uri, *$str);
-            assert_eq!(uri, uri.clone());
+            assert_eq!(uri, orig_str, "partial eq to original str");
+            assert_eq!(uri, uri.clone(), "clones are equal");
+
+            let new_str = uri.to_string();
+            let new_uri = Uri::from_str(&new_str).expect("to_string output parses again as a Uri");
+            assert_eq!(new_uri, orig_str, "round trip still equals original str");
 
             const ALT: &'static [&'static str] = &$alt;
 
@@ -66,7 +76,7 @@ test_parse! {
     path = "/chunks",
     query = None,
     host = Some("127.0.0.1"),
-    port = Some(61761),
+    port_part = Port::from_str("61761").ok(),
 }
 
 test_parse! {
@@ -78,8 +88,8 @@ test_parse! {
     authority_part = part!("127.0.0.1:61761"),
     path = "/",
     query = None,
-    port = Some(61761),
     host = Some("127.0.0.1"),
+    port_part = Port::from_str("61761").ok(),
 }
 
 test_parse! {
@@ -103,8 +113,21 @@ test_parse! {
     authority_part = part!("localhost"),
     path = "",
     query = None,
-    port = None,
+    port_part = None,
     host = Some("localhost"),
+}
+
+test_parse! {
+    test_uri_authority_only_one_character_issue_197,
+    "S",
+    [],
+
+    scheme_part = None,
+    authority_part = part!("S"),
+    path = "",
+    query = None,
+    port_part = None,
+    host = Some("S"),
 }
 
 test_parse! {
@@ -117,8 +140,9 @@ test_parse! {
     path = "",
     query = None,
     host = Some("localhost"),
-    port = Some(3000),
+    port_part = Port::from_str("3000").ok(),
 }
+
 
 test_parse! {
     test_uri_parse_absolute_with_default_port_http,
@@ -130,7 +154,7 @@ test_parse! {
     host = Some("127.0.0.1"),
     path = "/",
     query = None,
-    port = Some(80),
+    port_part = Port::from_str("80").ok(),
 }
 
 test_parse! {
@@ -143,7 +167,7 @@ test_parse! {
     host = Some("127.0.0.1"),
     path = "/",
     query = None,
-    port = Some(443),
+    port_part = Port::from_str("443").ok(),
 }
 
 test_parse! {
@@ -156,7 +180,7 @@ test_parse! {
     host = Some("127.0.0.1"),
     path = "/",
     query = None,
-    port = None,
+    port_part = None,
 }
 
 test_parse! {
@@ -168,7 +192,7 @@ test_parse! {
     authority_part = part!("127.0.0.1"),
     path = "/path",
     query = Some(""),
-    port = None,
+    port_part = None,
 }
 
 test_parse! {
@@ -180,7 +204,7 @@ test_parse! {
     authority_part = part!("127.0.0.1"),
     path = "/",
     query = Some("foo=bar"),
-    port = None,
+    port_part = None,
 }
 
 test_parse! {
@@ -192,7 +216,7 @@ test_parse! {
     authority_part = part!("127.0.0.1"),
     path = "/",
     query = None,
-    port = None,
+    port_part = None,
 }
 
 test_parse! {
@@ -204,7 +228,7 @@ test_parse! {
     authority_part = part!("127.0.0.1"),
     path = "/",
     query = None,
-    port = None,
+    port_part = None,
 }
 
 test_parse! {
@@ -217,7 +241,7 @@ test_parse! {
     host = Some("127.0.0.1"),
     path = "/",
     query = None,
-    port = Some(1234),
+    port_part = Port::from_str("1234").ok(),
 }
 
 test_parse! {
@@ -230,7 +254,7 @@ test_parse! {
     host = Some("127.0.0.1"),
     path = "/",
     query = None,
-    port = None,
+    port_part = None,
 }
 
 test_parse! {
@@ -243,7 +267,33 @@ test_parse! {
     host = Some("127.0.0.1"),
     path = "/",
     query = None,
-    port = None,
+    port_part = None,
+}
+
+test_parse! {
+    test_userinfo_with_port,
+    "user@localhost:3000",
+    [],
+
+    scheme_part = None,
+    authority_part = part!("user@localhost:3000"),
+    path = "",
+    query = None,
+    host = Some("localhost"),
+    port_part = Port::from_str("3000").ok(),
+}
+
+test_parse! {
+    test_userinfo_pass_with_port,
+    "user:pass@localhost:3000",
+    [],
+
+    scheme_part = None,
+    authority_part = part!("user:pass@localhost:3000"),
+    path = "",
+    query = None,
+    host = Some("localhost"),
+    port_part = Port::from_str("3000").ok(),
 }
 
 test_parse! {
@@ -253,10 +303,10 @@ test_parse! {
 
     scheme_part = part!("http"),
     authority_part = part!("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]"),
-    host = Some("2001:0db8:85a3:0000:0000:8a2e:0370:7334"),
+    host = Some("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]"),
     path = "/",
     query = None,
-    port = None,
+    port_part = None,
 }
 
 test_parse! {
@@ -266,12 +316,11 @@ test_parse! {
 
     scheme_part = part!("http"),
     authority_part = part!("[::1]"),
-    host = Some("::1"),
+    host = Some("[::1]"),
     path = "/",
     query = None,
-    port = None,
+    port_part = None,
 }
-
 
 test_parse! {
     test_ipv6_shorthand2,
@@ -280,10 +329,10 @@ test_parse! {
 
     scheme_part = part!("http"),
     authority_part = part!("[::]"),
-    host = Some("::"),
+    host = Some("[::]"),
     path = "/",
     query = None,
-    port = None,
+    port_part = None,
 }
 
 test_parse! {
@@ -293,10 +342,10 @@ test_parse! {
 
     scheme_part = part!("http"),
     authority_part = part!("[2001:db8::2:1]"),
-    host = Some("2001:db8::2:1"),
+    host = Some("[2001:db8::2:1]"),
     path = "/",
     query = None,
-    port = None,
+    port_part = None,
 }
 
 test_parse! {
@@ -306,10 +355,10 @@ test_parse! {
 
     scheme_part = part!("http"),
     authority_part = part!("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]:8008"),
-    host = Some("2001:0db8:85a3:0000:0000:8a2e:0370:7334"),
+    host = Some("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]"),
     path = "/",
     query = None,
-    port = Some(8008),
+    port_part = Port::from_str("8008").ok(),
 }
 
 test_parse! {
@@ -322,7 +371,23 @@ test_parse! {
     host = None,
     path = "/echo/abcdefgh_i-j%20/abcdefg_i-j%20478",
     query = None,
-    port = None,
+    port_part = None,
+}
+
+test_parse! {
+    test_path_permissive,
+    "/foo=bar|baz\\^~%",
+    [],
+
+    path = "/foo=bar|baz\\^~%",
+}
+
+test_parse! {
+    test_query_permissive,
+    "/?foo={bar|baz}\\^`",
+    [],
+
+    query = Some("foo={bar|baz}\\^`"),
 }
 
 #[test]
@@ -341,6 +406,15 @@ fn test_uri_parse_error() {
     err("\0");
     err("http://[::1");
     err("http://::1]");
+    err("localhost:8080:3030");
+    err("@");
+    err("http://username:password@/wut");
+
+    // illegal queries
+    err("/?foo\rbar");
+    err("/?foo\nbar");
+    err("/?<");
+    err("/?>");
 }
 
 #[test]
@@ -386,4 +460,25 @@ fn test_uri_to_path_and_query() {
 
         assert_eq!(s, case.1);
     }
+}
+
+#[test]
+fn test_authority_uri_parts_round_trip() {
+    let s = "hyper.rs";
+    let uri = Uri::from_str(s).expect("first parse");
+    assert_eq!(uri, s);
+    assert_eq!(uri.to_string(), s);
+
+    let parts = uri.into_parts();
+    let uri2 = Uri::from_parts(parts).expect("from_parts");
+    assert_eq!(uri2, s);
+    assert_eq!(uri2.to_string(), s);
+}
+
+#[test]
+fn test_partial_eq_path_with_terminating_questionmark() {
+    let a = "/path";
+    let uri = Uri::from_str("/path?").expect("first parse");
+
+    assert_eq!(uri, a);
 }

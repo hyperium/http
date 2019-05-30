@@ -2,9 +2,7 @@
 //!
 //! This module contains HTTP-status code related structs an errors. The main
 //! type in this module is `StatusCode` which is not intended to be used through
-//! this module but rather the `http::StatusCode` type. This module also
-//! primarily contains a number of predefined constants for common HTTP status
-//! codes.
+//! this module but rather the `http::StatusCode` type.
 //!
 //! # Examples
 //!
@@ -12,7 +10,7 @@
 //! use http::StatusCode;
 //!
 //! assert_eq!(StatusCode::from_u16(200).unwrap(), StatusCode::OK);
-//! assert_eq!(StatusCode::NOT_FOUND.as_u16(), 404);
+//! assert_eq!(StatusCode::NOT_FOUND, 404);
 //! assert!(StatusCode::OK.is_success());
 //! ```
 
@@ -24,11 +22,8 @@ use HttpTryFrom;
 
 /// An HTTP status code (`status-code` in RFC 7230 et al.).
 ///
-/// This type contains constructor functions for  all common status codes.
-/// It allows status codes in the range [0, 65535], as any
-/// `u16` integer may be used as a status code for XHR requests. It is
-/// recommended to only use values between [100, 599], since only these are
-/// defined as valid status codes with a status class by HTTP.
+/// This type contains constants for all common status codes.
+/// It allows status codes in the range [100, 599].
 ///
 /// IANA maintain the [Hypertext Transfer Protocol (HTTP) Status Code
 /// Registry](http://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml) which is
@@ -102,6 +97,13 @@ impl StatusCode {
 
     /// Returns the `u16` corresponding to this `StatusCode`.
     ///
+    /// # Note
+    ///
+    /// This is the same as the `From<StatusCode>` implementation, but
+    /// included as an inherent method because that implementation doesn't
+    /// appear in rustdocs, as well as a way to force the type instead of
+    /// relying on inference.
+    ///
     /// # Example
     ///
     /// ```
@@ -112,6 +114,45 @@ impl StatusCode {
     pub fn as_u16(&self) -> u16 {
         (*self).into()
     }
+
+    /// Returns a &str representation of the `StatusCode`
+    ///
+    /// The return value only includes a numerical representation of the
+    /// status code. The canonical reason is not included.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let status = http::StatusCode::OK;
+    /// assert_eq!(status.as_str(), "200");
+    /// ```
+    #[inline]
+    pub fn as_str(&self) -> &str {
+        CODES_AS_STR[(self.0 - 100) as usize]
+    }
+
+    /// Get the standardised `reason-phrase` for this status code.
+    ///
+    /// This is mostly here for servers writing responses, but could potentially have application
+    /// at other times.
+    ///
+    /// The reason phrase is defined as being exclusively for human readers. You should avoid
+    /// deriving any meaning from it at all costs.
+    ///
+    /// Bear in mind also that in HTTP/2.0 and HTTP/3.0 the reason phrase is abolished from
+    /// transmission, and so this canonical reason phrase really is the only reason phrase you’ll
+    /// find.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let status = http::StatusCode::OK;
+    /// assert_eq!(status.canonical_reason(), Some("OK"));
+    /// ```
+    pub fn canonical_reason(&self) -> Option<&'static str> {
+        canonical_reason(self.0)
+    }
+
 
     /// Check if status is within 100-199.
     #[inline]
@@ -152,7 +193,9 @@ impl fmt::Debug for StatusCode {
 
 /// Formats the status code, *including* the canonical reason.
 ///
-/// ```rust
+/// # Example
+///
+/// ```
 /// # use http::StatusCode;
 /// assert_eq!(format!("{}", StatusCode::OK), "200 OK");
 /// ```
@@ -170,6 +213,20 @@ impl Default for StatusCode {
     }
 }
 
+impl PartialEq<u16> for StatusCode {
+    #[inline]
+    fn eq(&self, other: &u16) -> bool {
+        self.as_u16() == *other
+    }
+}
+
+impl PartialEq<StatusCode> for u16 {
+    #[inline]
+    fn eq(&self, other: &StatusCode) -> bool {
+        *self == other.as_u16()
+    }
+}
+
 impl From<StatusCode> for u16 {
     #[inline]
     fn from(status: StatusCode) -> u16 {
@@ -182,6 +239,22 @@ impl FromStr for StatusCode {
 
     fn from_str(s: &str) -> Result<StatusCode, InvalidStatusCode> {
         StatusCode::from_bytes(s.as_ref())
+    }
+}
+
+impl<'a> From<&'a StatusCode> for StatusCode {
+    #[inline]
+    fn from(t: &'a StatusCode) -> Self {
+        t.clone()
+    }
+}
+
+impl<'a> HttpTryFrom<&'a StatusCode> for StatusCode {
+    type Error = ::error::Never;
+
+    #[inline]
+    fn try_from(t: &'a StatusCode) -> Result<Self, Self::Error> {
+        Ok(t.clone())
     }
 }
 
@@ -233,23 +306,14 @@ macro_rules! status_codes {
             pub const $konst: StatusCode = StatusCode($num);
         )+
 
-            /// Get the standardised `reason-phrase` for this status code.
-            ///
-            /// This is mostly here for servers writing responses, but could potentially have application
-            /// at other times.
-            ///
-            /// The reason phrase is defined as being exclusively for human readers. You should avoid
-            /// deriving any meaning from it at all costs.
-            ///
-            /// Bear in mind also that in HTTP/2.0 the reason phrase is abolished from transmission, and so
-            /// this canonical reason phrase really is the only reason phrase you’ll find.
-            pub fn canonical_reason(&self) -> Option<&'static str> {
-                match self.0 {
-                    $(
-                    $num => Some($phrase),
-                    )+
-                    _ => None
-                }
+        }
+
+        fn canonical_reason(num: u16) -> Option<&'static str> {
+            match num {
+                $(
+                $num => Some($phrase),
+                )+
+                _ => None
             }
         }
     }
@@ -463,17 +527,7 @@ impl Error for InvalidStatusCode {
 
 macro_rules! status_code_strs {
     ($($num:expr,)+) => {
-        impl StatusCode {
-            /// Returns a &str representation of the `StatusCode`
-            ///
-            /// The return value only includes a numerical representation of the
-            /// status code. The canonical reason is not included.
-            #[inline]
-            pub fn as_str(&self) -> &str {
-                const CODES: [&'static str; 500] = [ $( stringify!($num), )+ ];
-                CODES[(self.0 - 100) as usize]
-            }
-        }
+        const CODES_AS_STR: [&'static str; 500] = [ $( stringify!($num), )+ ];
     }
 }
 

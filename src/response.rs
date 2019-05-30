@@ -425,6 +425,21 @@ impl<T> Response<T> {
         &mut self.body
     }
 
+    /// Consumes the response, returning just the body.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::Response;
+    /// let response = Response::new(10);
+    /// let body = response.into_body();
+    /// assert_eq!(body, 10);
+    /// ```
+    #[inline]
+    pub fn into_body(self) -> T {
+        self.body
+    }
+
     /// Consumes the response returning the head and body parts.
     ///
     /// # Examples
@@ -438,6 +453,27 @@ impl<T> Response<T> {
     #[inline]
     pub fn into_parts(self) -> (Parts, T) {
         (self.head, self.body)
+    }
+
+    /// Consumes the response returning a new response with body mapped to the
+    /// return type of the passed in function.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    /// let response = Response::builder().body("some string").unwrap();
+    /// let mapped_response: Response<&[u8]> = response.map(|b| {
+    ///   assert_eq!(b, "some string");
+    ///   b.as_bytes()
+    /// });
+    /// assert_eq!(mapped_response.body(), &"some string".as_bytes());
+    /// ```
+    #[inline]
+    pub fn map<F, U>(self, f: F) -> Response<U>
+        where F: FnOnce(T) -> U
+    {
+        Response { body: f(self.body), head: self.head }
     }
 }
 
@@ -525,7 +561,7 @@ impl Builder {
         where StatusCode: HttpTryFrom<T>,
     {
         if let Some(head) = head(&mut self.head, &self.err) {
-            match StatusCode::try_from(status) {
+            match HttpTryFrom::try_from(status) {
                 Ok(s) => head.status = s,
                 Err(e) => self.err = Some(e.into()),
             }
@@ -572,6 +608,7 @@ impl Builder {
     /// let response = Response::builder()
     ///     .header("Content-Type", "text/html")
     ///     .header("X-Custom-Foo", "bar")
+    ///     .header("content-length", 0)
     ///     .body(())
     ///     .unwrap();
     /// ```
@@ -580,9 +617,9 @@ impl Builder {
               HeaderValue: HttpTryFrom<V>
     {
         if let Some(head) = head(&mut self.head, &self.err) {
-            match HeaderName::try_from(key) {
+            match <HeaderName as HttpTryFrom<K>>::try_from(key) {
                 Ok(key) => {
-                    match HeaderValue::try_from(value) {
+                    match <HeaderValue as HttpTryFrom<V>>::try_from(value) {
                         Ok(value) => { head.headers.append(key, value); }
                         Err(e) => self.err = Some(e.into()),
                     }
@@ -591,6 +628,63 @@ impl Builder {
             };
         }
         self
+    }
+
+    /// Get header on this response builder.
+    /// when builder has error returns None
+    /// 
+    /// # Example
+    /// 
+    /// ```
+    /// # use http::*;
+    /// # use http::header::HeaderValue;
+    /// # use http::response::Builder;
+    /// let mut res = Response::builder();
+    /// res.header("Accept", "text/html")
+    ///    .header("X-Custom-Foo", "bar");
+    /// let headers = res.headers_ref().unwrap();
+    /// assert_eq!( headers["Accept"], "text/html" );
+    /// assert_eq!( headers["X-Custom-Foo"], "bar" );
+    /// ```
+    pub fn headers_ref(&self) -> Option<&HeaderMap<HeaderValue>> {
+        if self.err.is_some() {
+            return None;
+        }
+        match self.head
+        {
+            Some(ref head) => Some(&head.headers),
+            None => None
+        }
+    }
+
+    /// Get header on this response builder.
+    /// when builder has error returns None
+    /// 
+    /// # Example
+    /// 
+    /// ```
+    /// # use http::*;
+    /// # use http::header::HeaderValue;
+    /// # use http::response::Builder;
+    /// let mut res = Response::builder();
+    /// {
+    ///   let headers = res.headers_mut().unwrap();
+    ///   headers.insert("Accept", HeaderValue::from_static("text/html"));
+    ///   headers.insert("X-Custom-Foo", HeaderValue::from_static("bar"));
+    /// }
+    /// let headers = res.headers_ref().unwrap();
+    /// assert_eq!( headers["Accept"], "text/html" );
+    /// assert_eq!( headers["X-Custom-Foo"], "bar" );
+    /// ```
+    pub fn headers_mut(&mut self) -> Option<&mut HeaderMap<HeaderValue>> {
+        if self.err.is_some() {
+            return None;
+        }
+        match self.head
+        {
+            Some(ref mut head) => Some(&mut head.headers),
+            None => None
+        }
     }
 
     /// Adds an extension to this builder
@@ -674,5 +768,20 @@ impl Default for Builder {
             head: Some(Parts::new()),
             err: None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_can_map_a_body_from_one_type_to_another() {
+        let response = Response::builder().body("some string").unwrap();
+        let mapped_response = response.map(|s| {
+            assert_eq!(s, "some string");
+            123u32
+        });
+        assert_eq!(mapped_response.body(), &123u32);
     }
 }

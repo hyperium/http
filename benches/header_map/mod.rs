@@ -2,7 +2,7 @@
 
 extern crate http;
 extern crate test;
-extern crate ordermap;
+extern crate indexmap;
 extern crate seahash;
 extern crate fnv;
 

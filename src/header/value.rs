@@ -1,10 +1,12 @@
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 
-use std::{cmp, fmt, str};
+use std::{cmp, fmt, mem, str};
 use std::error::Error;
 use std::str::FromStr;
 
 use ::convert::HttpTryFrom;
+use ::error::Never;
+use header::name::HeaderName;
 
 /// Represents an HTTP header field value.
 ///
@@ -106,6 +108,23 @@ impl HeaderValue {
         HeaderValue::try_from(src)
     }
 
+    /// Converts a HeaderName into a HeaderValue
+    ///
+    /// Since every valid HeaderName is a valid HeaderValue this is done infallibly.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::{HeaderValue, HeaderName};
+    /// # use http::header::ACCEPT;
+    /// let val = HeaderValue::from_name(ACCEPT);
+    /// assert_eq!(val, HeaderValue::from_bytes(b"accept").unwrap());
+    /// ```
+    #[inline]
+    pub fn from_name(name: HeaderName) -> HeaderValue {
+        name.into()
+    }
+
     /// Attempt to convert a byte slice to a `HeaderValue`.
     ///
     /// If the argument contains invalid header value bytes, an error is
@@ -154,9 +173,20 @@ impl HeaderValue {
     /// within the buffer.
     #[inline]
     pub unsafe fn from_shared_unchecked(src: Bytes) -> HeaderValue {
-        HeaderValue {
-            inner: src,
-            is_sensitive: false,
+        if cfg!(debug_assertions) {
+            match HeaderValue::from_shared(src) {
+                Ok(val) => val,
+                Err(_err) => {
+                    //TODO: if the Bytes were part of the InvalidHeaderValueBytes,
+                    //this message could include the invalid bytes.
+                    panic!("HeaderValue::from_shared_unchecked() with invalid bytes");
+                },
+            }
+        } else {
+            HeaderValue {
+                inner: src,
+                is_sensitive: false,
+            }
         }
     }
 
@@ -331,6 +361,125 @@ impl fmt::Debug for HeaderValue {
     }
 }
 
+impl From<HeaderName> for HeaderValue {
+    #[inline]
+    fn from(h: HeaderName) -> HeaderValue {
+        HeaderValue {
+            inner: h.into(),
+            is_sensitive: false,
+        }
+    }
+}
+
+macro_rules! from_integers {
+    ($($name:ident: $t:ident => $max_len:expr),*) => {$(
+        impl From<$t> for HeaderValue {
+            fn from(num: $t) -> HeaderValue {
+                let mut buf = if mem::size_of::<BytesMut>() - 1 < $max_len {
+                    // On 32bit platforms, BytesMut max inline size
+                    // is 15 bytes, but the $max_len could be bigger.
+                    //
+                    // The likelihood of the number *actually* being
+                    // that big is very small, so only allocate
+                    // if the number needs that space.
+                    //
+                    // The largest decimal number in 15 digits:
+                    // It wold be 10.pow(15) - 1, but this is a constant
+                    // version.
+                    if num as u64 > 999_999_999_999_999_999 {
+                        BytesMut::with_capacity($max_len)
+                    } else {
+                        // fits inline...
+                        BytesMut::new()
+                    }
+                } else {
+                    // full value fits inline, so don't allocate!
+                    BytesMut::new()
+                };
+                let _ = ::itoa::fmt(&mut buf, num);
+                HeaderValue {
+                    inner: buf.freeze(),
+                    is_sensitive: false,
+                }
+            }
+        }
+
+        impl HttpTryFrom<$t> for HeaderValue {
+            type Error = Never;
+
+            #[inline]
+            fn try_from(num: $t) -> Result<Self, Self::Error> {
+                Ok(num.into())
+            }
+        }
+
+        #[test]
+        fn $name() {
+            let n: $t = 55;
+            let val = HeaderValue::from(n);
+            assert_eq!(val, &n.to_string());
+
+            let n = ::std::$t::MAX;
+            let val = HeaderValue::from(n);
+            assert_eq!(val, &n.to_string());
+        }
+    )*};
+}
+
+from_integers! {
+    // integer type => maximum decimal length
+
+    // u8 purposely left off... HeaderValue::from(b'3') could be confusing
+    from_u16: u16 => 5,
+    from_i16: i16 => 6,
+    from_u32: u32 => 10,
+    from_i32: i32 => 11,
+    from_u64: u64 => 20,
+    from_i64: i64 => 20
+}
+
+#[cfg(target_pointer_width = "16")]
+from_integers! {
+    from_usize: usize => 5,
+    from_isize: isize => 6
+}
+
+#[cfg(target_pointer_width = "32")]
+from_integers! {
+    from_usize: usize => 10,
+    from_isize: isize => 11
+}
+
+#[cfg(target_pointer_width = "64")]
+from_integers! {
+    from_usize: usize => 20,
+    from_isize: isize => 20
+}
+
+#[cfg(test)]
+mod from_header_name_tests {
+    use super::*;
+    use header::map::HeaderMap;
+    use header::name;
+
+    #[test]
+    fn it_can_insert_header_name_as_header_value() {
+        let mut map = HeaderMap::new();
+        map.insert(name::UPGRADE, name::SEC_WEBSOCKET_PROTOCOL.into());
+        map.insert(name::ACCEPT, name::HeaderName::from_bytes(b"hello-world").unwrap().into());
+
+        assert_eq!(
+            map.get(name::UPGRADE).unwrap(),
+            HeaderValue::from_bytes(b"sec-websocket-protocol").unwrap()
+        );
+
+        assert_eq!(
+            map.get(name::ACCEPT).unwrap(),
+            HeaderValue::from_bytes(b"hello-world").unwrap()
+        );
+    }
+}
+
 impl FromStr for HeaderValue {
     type Err = InvalidHeaderValue;
 
@@ -344,6 +493,22 @@ impl From<HeaderValue> for Bytes {
     #[inline]
     fn from(value: HeaderValue) -> Bytes {
         value.inner
+    }
+}
+
+impl<'a> From<&'a HeaderValue> for HeaderValue {
+    #[inline]
+    fn from(t: &'a HeaderValue) -> Self {
+        t.clone()
+    }
+}
+
+impl<'a> HttpTryFrom<&'a HeaderValue> for HeaderValue {
+    type Error = ::error::Never;
+
+    #[inline]
+    fn try_from(t: &'a HeaderValue) -> Result<Self, Self::Error> {
+        Ok(t.clone())
     }
 }
 
@@ -365,6 +530,15 @@ impl<'a> HttpTryFrom<&'a [u8]> for HeaderValue {
     }
 }
 
+impl HttpTryFrom<String> for HeaderValue {
+    type Error = InvalidHeaderValueBytes;
+
+    #[inline]
+    fn try_from(t: String) -> Result<Self, Self::Error> {
+        HeaderValue::from_shared(t.into())
+    }
+}
+
 impl HttpTryFrom<Bytes> for HeaderValue {
     type Error = InvalidHeaderValueBytes;
 
@@ -374,13 +548,37 @@ impl HttpTryFrom<Bytes> for HeaderValue {
     }
 }
 
+impl HttpTryFrom<HeaderName> for HeaderValue {
+    type Error = InvalidHeaderValue;
+
+    #[inline]
+    fn try_from(name: HeaderName) -> Result<Self, Self::Error> {
+        // Infallable as header names have the same validations
+        Ok(name.into())
+    }
+}
+
+#[cfg(test)]
+mod try_from_header_name_tests {
+    use super::*;
+    use header::name;
+
+    #[test]
+    fn it_converts_using_try_from() {
+        assert_eq!(
+            HeaderValue::try_from(name::UPGRADE).unwrap(),
+            HeaderValue::from_bytes(b"upgrade").unwrap()
+        );
+    }
+}
+
 fn is_visible_ascii(b: u8) -> bool {
-    b >= 32 && b < 127
+    b >= 32 && b < 127 || b == b'\t'
 }
 
 #[inline]
 fn is_valid(b: u8) -> bool {
-    b >= 32 && b != 127
+    b >= 32 && b != 127 || b == b'\t'
 }
 
 impl fmt::Display for InvalidHeaderValue {

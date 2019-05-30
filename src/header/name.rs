@@ -125,14 +125,14 @@ macro_rules! standard_headers {
                 let bytes: Bytes =
                     HeaderName::from_bytes(name_bytes).unwrap().into();
                 assert_eq!(bytes, name_bytes);
-                assert_eq!(HeaderName::try_from(Bytes::from(name_bytes)).unwrap(), std);
+                assert_eq!(HeaderName::from_bytes(name_bytes).unwrap(), std);
 
                 // Test upper case
                 let upper = name.to_uppercase().to_string();
                 let bytes: Bytes =
                     HeaderName::from_bytes(upper.as_bytes()).unwrap().into();
                 assert_eq!(bytes, name.as_bytes());
-                assert_eq!(HeaderName::try_from(Bytes::from(upper.as_bytes())).unwrap(),
+                assert_eq!(HeaderName::from_bytes(upper.as_bytes()).unwrap(),
                            std);
 
 
@@ -795,6 +795,43 @@ standard_headers! {
     /// before issuing the redirected request.
     (RetryAfter, RETRY_AFTER, "retry-after");
 
+    /// The |Sec-WebSocket-Accept| header field is used in the WebSocket
+    /// opening handshake. It is sent from the server to the client to
+    /// confirm that the server is willing to initiate the WebSocket
+    /// connection.
+    (SecWebSocketAccept, SEC_WEBSOCKET_ACCEPT, "sec-websocket-accept");
+
+    /// The |Sec-WebSocket-Extensions| header field is used in the WebSocket
+    /// opening handshake. It is initially sent from the client to the
+    /// server, and then subsequently sent from the server to the client, to
+    /// agree on a set of protocol-level extensions to use for the duration
+    /// of the connection.
+    (SecWebSocketExtensions, SEC_WEBSOCKET_EXTENSIONS, "sec-websocket-extensions");
+
+    /// The |Sec-WebSocket-Key| header field is used in the WebSocket opening
+    /// handshake. It is sent from the client to the server to provide part
+    /// of the information used by the server to prove that it received a
+    /// valid WebSocket opening handshake. This helps ensure that the server
+    /// does not accept connections from non-WebSocket clients (e.g., HTTP
+    /// clients) that are being abused to send data to unsuspecting WebSocket
+    /// servers.
+    (SecWebSocketKey, SEC_WEBSOCKET_KEY, "sec-websocket-key");
+
+    /// The |Sec-WebSocket-Protocol| header field is used in the WebSocket
+    /// opening handshake. It is sent from the client to the server and back
+    /// from the server to the client to confirm the subprotocol of the
+    /// connection.  This enables scripts to both select a subprotocol and be
+    /// sure that the server agreed to serve that subprotocol.
+    (SecWebSocketProtocol, SEC_WEBSOCKET_PROTOCOL, "sec-websocket-protocol");
+
+    /// The |Sec-WebSocket-Version| header field is used in the WebSocket
+    /// opening handshake.  It is sent from the client to the server to
+    /// indicate the protocol version of the connection.  This enables
+    /// servers to correctly interpret the opening handshake and subsequent
+    /// data being sent from the data, and close the connection if the server
+    /// cannot interpret that data in a safe manner.
+    (SecWebSocketVersion, SEC_WEBSOCKET_VERSION, "sec-websocket-version");
+
     /// Contains information about the software used by the origin server to
     /// handle the request.
     ///
@@ -936,11 +973,15 @@ standard_headers! {
 ///
 /// ```not_rust
 ///       field-name     = token
-///       token          = 1*<any CHAR except CTLs or separators>
 ///       separators     = "(" | ")" | "<" | ">" | "@"
 ///                      | "," | ";" | ":" | "\" | <">
 ///                      | "/" | "[" | "]" | "?" | "="
 ///                      | "{" | "}" | SP | HT
+///       token          = 1*tchar
+///       tchar          = "!" / "#" / "$" / "%" / "&" / "'" / "*"
+///                      / "+" / "-" / "." / "^" / "_" / "`" / "|" / "~"
+///                      / DIGIT / ALPHA
+///                      ; any VCHAR, except delimiters
 /// ```
 const HEADER_CHARS: [u8; 256] = [
     //  0      1      2      3      4      5      6      7      8      9
@@ -953,7 +994,7 @@ const HEADER_CHARS: [u8; 256] = [
         0,     0,     0,     0,     0,  b'a',  b'b',  b'c',  b'd',  b'e', //  6x
      b'f',  b'g',  b'h',  b'i',  b'j',  b'k',  b'l',  b'm',  b'n',  b'o', //  7x
      b'p',  b'q',  b'r',  b's',  b't',  b'u',  b'v',  b'w',  b'x',  b'y', //  8x
-     b'z',     0,     0,     0,     0,  b'_',     0,  b'a',  b'b',  b'c', //  9x
+     b'z',     0,     0,     0,  b'^',  b'_',  b'`',  b'a',  b'b',  b'c', //  9x
      b'd',  b'e',  b'f',  b'g',  b'h',  b'i',  b'j',  b'k',  b'l',  b'm', // 10x
      b'n',  b'o',  b'p',  b'q',  b'r',  b's',  b't',  b'u',  b'v',  b'w', // 11x
      b'x',  b'y',  b'z',     0,  b'|',     0,  b'~',     0,     0,     0, // 12x
@@ -972,6 +1013,7 @@ const HEADER_CHARS: [u8; 256] = [
         0,     0,     0,     0,     0,     0                              // 25x
 ];
 
+/// Valid header name characters for HTTP/2.0 and HTTP/3.0
 const HEADER_CHARS_H2: [u8; 256] = [
     //  0      1      2      3      4      5      6      7      8      9
         0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //   x
@@ -983,7 +1025,7 @@ const HEADER_CHARS_H2: [u8; 256] = [
         0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //  6x
         0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //  7x
         0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //  8x
-        0,     0,     0,     0,     0,  b'_',     0,  b'a',  b'b',  b'c', //  9x
+        0,     0,     0,     0,  b'^',  b'_',  b'`',  b'a',  b'b',  b'c', //  9x
      b'd',  b'e',  b'f',  b'g',  b'h',  b'i',  b'j',  b'k',  b'l',  b'm', // 10x
      b'n',  b'o',  b'p',  b'q',  b'r',  b's',  b't',  b'u',  b'v',  b'w', // 11x
      b'x',  b'y',  b'z',     0,  b'|',     0,  b'~',     0,     0,     0, // 12x
@@ -1003,14 +1045,17 @@ const HEADER_CHARS_H2: [u8; 256] = [
 ];
 
 macro_rules! eq {
-    ($v:ident[$n:expr] == $a:tt) => {
-        $v[$n] == $a
+    (($($cmp:expr,)*) $v:ident[$n:expr] ==) => {
+        $($cmp) && *
     };
-    ($v:ident[$n:expr] == $a:tt $($rest:tt)+) => {
-        $v[$n] == $a && eq!($v[($n+1)] == $($rest)+)
+    (($($cmp:expr,)*) $v:ident[$n:expr] == $a:tt $($rest:tt)*) => {
+        eq!(($($cmp,)* $v[$n] == $a,) $v[$n+1] == $($rest)*)
     };
-    ($v:ident == $a:tt $($rest:tt)*) => {
-        $v[0] == $a && eq!($v[1] == $($rest)*)
+    ($v:ident == $($rest:tt)+) => {
+        eq!(() $v[0] == $($rest)+)
+    };
+    ($v:ident[$n:expr] == $($rest:tt)+) => {
+        eq!(() $v[$n] == $($rest)+)
     };
 }
 
@@ -1308,6 +1353,8 @@ fn parse_hdr<'a>(data: &'a [u8], b: &'a mut [u8; 64], table: &[u8; 256])
                 Ok(TransferEncoding.into())
             } else if eq!(b == b'i' b'f' b'-' b'm' b'o' b'd' b'i' b'f' b'i' b'e' b'd' b'-' b's' b'i' b'n' b'c' b'e') {
                 Ok(IfModifiedSince.into())
+            } else if eq!(b == b's' b'e' b'c' b'-' b'w' b'e' b'b' b's' b'o' b'c' b'k' b'e' b't' b'-' b'k' b'e' b'y') {
+                Ok(SecWebSocketKey.into())
             } else {
                 validate(b, len)
             }
@@ -1334,6 +1381,24 @@ fn parse_hdr<'a>(data: &'a [u8], b: &'a mut [u8; 64], table: &[u8; 256])
                 validate(b, len)
             }
         }
+        20 => {
+            to_lower!(b, data, 20);
+
+            if eq!(b == b's' b'e' b'c' b'-' b'w' b'e' b'b' b's' b'o' b'c' b'k' b'e' b't' b'-' b'a' b'c' b'c' b'e' b'p' b't') {
+                Ok(SecWebSocketAccept.into())
+            } else {
+                validate(b, len)
+            }
+        }
+        21 => {
+            to_lower!(b, data, 21);
+
+            if eq!(b == b's' b'e' b'c' b'-' b'w' b'e' b'b' b's' b'o' b'c' b'k' b'e' b't' b'-' b'v' b'e' b'r' b's' b'i' b'o' b'n') {
+                Ok(SecWebSocketVersion.into())
+            } else {
+                validate(b, len)
+            }
+        }
         22 => {
             to_lower!(b, data, 22);
 
@@ -1343,6 +1408,8 @@ fn parse_hdr<'a>(data: &'a [u8], b: &'a mut [u8; 64], table: &[u8; 256])
                 Ok(XContentTypeOptions.into())
             } else if eq!(b == b'x' b'-' b'd' b'n' b's' b'-' b'p' b'r' b'e' b'f' b'e' b't' b'c' b'h' b'-' b'c' b'o' b'n' b't' b'r' b'o' b'l') {
                 Ok(XDnsPrefetchControl.into())
+            } else if eq!(b == b's' b'e' b'c' b'-' b'w' b'e' b'b' b's' b'o' b'c' b'k' b'e' b't' b'-' b'p' b'r' b'o' b't' b'o' b'c' b'o' b'l') {
+                Ok(SecWebSocketProtocol.into())
             } else {
                 validate(b, len)
             }
@@ -1352,6 +1419,15 @@ fn parse_hdr<'a>(data: &'a [u8], b: &'a mut [u8; 64], table: &[u8; 256])
 
             if eq!(b == b'c' b'o' b'n' b't' b'e' b'n' b't' b'-' b's' b'e' b'c' b'u' b'r' b'i' b't' b'y' b'-' b'p' b'o' b'l' b'i' b'c' b'y') {
                 Ok(ContentSecurityPolicy.into())
+            } else {
+                validate(b, len)
+            }
+        }
+        24 => {
+            to_lower!(b, data, 24);
+
+            if eq!(b == b's' b'e' b'c' b'-' b'w' b'e' b'b' b's' b'o' b'c' b'k' b'e' b't' b'-' b'e' b'x' b't' b'e' b'n' b's' b'i' b'o' b'n' b's') {
+                Ok(SecWebSocketExtensions.into())
             } else {
                 validate(b, len)
             }
@@ -1488,8 +1564,8 @@ impl HeaderName {
     /// Converts a slice of bytes to an HTTP header name.
     ///
     /// This function expects the input to only contain lowercase characters.
-    /// This is useful when decoding HTTP/2.0 headers. The HTTP/2.0
-    /// specification requires that all headers be represented in lower case.
+    /// This is useful when decoding HTTP/2.0 or HTTP/3.0 headers. Both
+    /// require that all headers be represented in lower case.
     ///
     /// # Examples
     ///
@@ -1523,6 +1599,69 @@ impl HeaderName {
                 let val = unsafe { ByteStr::from_utf8_unchecked(buf) };
                 Ok(Custom(val).into())
             }
+        }
+    }
+
+    /// Converts a static string to a HTTP header name.
+    ///
+    /// This function panics when the static string is a invalid header.
+    /// 
+    /// This function requires the static string to only contain lowercase 
+    /// characters, numerals and symbols, as per the HTTP/2.0 specification 
+    /// and header names internal representation within this library.
+    /// 
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::*;
+    /// // Parsing a standard header
+    /// let hdr = HeaderName::from_static("content-length");
+    /// assert_eq!(CONTENT_LENGTH, hdr);
+    /// 
+    /// // Parsing a custom header
+    /// let CUSTOM_HEADER: &'static str = "custom-header";
+    /// 
+    /// let a = HeaderName::from_lowercase(b"custom-header").unwrap();
+    /// let b = HeaderName::from_static(CUSTOM_HEADER);
+    /// assert_eq!(a, b);
+    /// ```
+    /// 
+    /// ```should_panic
+    /// # use http::header::*;
+    /// #
+    /// // Parsing a header that contains invalid symbols(s):
+    /// HeaderName::from_static("content{}{}length"); // This line panics!
+    /// 
+    /// // Parsing a header that contains invalid uppercase characters.
+    /// let a = HeaderName::from_static("foobar");
+    /// let b = HeaderName::from_static("FOOBAR"); // This line panics!
+    /// ```
+    pub fn from_static(src: &'static str) -> HeaderName {
+        let bytes = src.as_bytes();
+        let mut buf = unsafe { mem::uninitialized() };
+        match parse_hdr(bytes, &mut buf, &HEADER_CHARS_H2) {
+            Ok(hdr_name) => match hdr_name.inner {
+                Repr::Standard(std) => std.into(),
+                Repr::Custom(MaybeLower { buf: _, lower: true }) => {
+                    let val = ByteStr::from_static(src);
+                    Custom(val).into()
+                },
+                Repr::Custom(MaybeLower { buf: _, lower: false }) => {
+                    // With lower false, the string is left unchecked by
+                    // parse_hdr and must be validated manually.
+                    for &b in bytes.iter() {
+                        if HEADER_CHARS_H2[b as usize] == 0 {
+                            panic!("invalid header name")
+                        }
+                    }
+
+                    let val = ByteStr::from_static(src);
+                    Custom(val).into()
+                }
+            },
+
+            Err(_) => panic!("invalid header name")
         }
     }
 
@@ -1573,6 +1712,12 @@ impl fmt::Debug for HeaderName {
     }
 }
 
+impl fmt::Display for HeaderName {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(self.as_str(), fmt)
+    }
+}
+
 impl InvalidHeaderName {
     fn new() -> InvalidHeaderName {
         InvalidHeaderName { _priv: () }
@@ -1608,6 +1753,15 @@ impl From<HeaderName> for Bytes {
     #[inline]
     fn from(name: HeaderName) -> Bytes {
         name.inner.into()
+    }
+}
+
+impl<'a> HttpTryFrom<&'a HeaderName> for HeaderName {
+    type Error = ::error::Never;
+
+    #[inline]
+    fn try_from(t: &'a HeaderName) -> Result<Self, Self::Error> {
+        Ok(t.clone())
     }
 }
 
@@ -1877,82 +2031,177 @@ fn eq_ignore_ascii_case(lower: &[u8], s: &[u8]) -> bool {
     })
 }
 
-#[test]
-fn test_bounds() {
-    fn check_bounds<T: Sync + Send>() {}
-    check_bounds::<HeaderName>();
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use self::StandardHeader::Vary;
 
-#[test]
-fn test_parse_invalid_headers() {
-    for i in 0..128 {
-        let hdr = vec![1u8; i];
-        assert!(HeaderName::from_bytes(&hdr).is_err(), "{} invalid header chars did not fail", i);
+    #[test]
+    fn test_bounds() {
+        fn check_bounds<T: Sync + Send>() {}
+        check_bounds::<HeaderName>();
     }
-}
 
-#[test]
-fn test_from_hdr_name() {
-    use self::StandardHeader::Vary;
+    #[test]
+    fn test_parse_invalid_headers() {
+        for i in 0..128 {
+            let hdr = vec![1u8; i];
+            assert!(HeaderName::from_bytes(&hdr).is_err(), "{} invalid header chars did not fail", i);
+        }
+    }
 
-    let name = HeaderName::from(HdrName {
-        inner: Repr::Standard(Vary),
-    });
+    #[test]
+    fn test_from_hdr_name() {
+        use self::StandardHeader::Vary;
 
-    assert_eq!(name.inner, Repr::Standard(Vary));
+        let name = HeaderName::from(HdrName {
+            inner: Repr::Standard(Vary),
+        });
 
-    let name = HeaderName::from(HdrName {
-        inner: Repr::Custom(MaybeLower {
-            buf: b"hello-world",
+        assert_eq!(name.inner, Repr::Standard(Vary));
+
+        let name = HeaderName::from(HdrName {
+            inner: Repr::Custom(MaybeLower {
+                buf: b"hello-world",
+                lower: true,
+            }),
+        });
+
+        assert_eq!(name.inner, Repr::Custom(Custom(ByteStr::from_static("hello-world"))));
+
+        let name = HeaderName::from(HdrName {
+            inner: Repr::Custom(MaybeLower {
+                buf: b"Hello-World",
+                lower: false,
+            }),
+        });
+
+        assert_eq!(name.inner, Repr::Custom(Custom(ByteStr::from_static("hello-world"))));
+    }
+
+    #[test]
+    fn test_eq_hdr_name() {
+        use self::StandardHeader::Vary;
+
+        let a = HeaderName { inner: Repr::Standard(Vary) };
+        let b = HdrName { inner: Repr::Standard(Vary) };
+
+        assert_eq!(a, b);
+
+        let a = HeaderName { inner: Repr::Custom(Custom(ByteStr::from_static("vaary"))) };
+        assert_ne!(a, b);
+
+        let b = HdrName { inner: Repr::Custom(MaybeLower {
+            buf: b"vaary",
             lower: true,
-        }),
-    });
+        })};
 
-    assert_eq!(name.inner, Repr::Custom(Custom(ByteStr::from_static("hello-world"))));
+        assert_eq!(a, b);
 
-    let name = HeaderName::from(HdrName {
-        inner: Repr::Custom(MaybeLower {
-            buf: b"Hello-World",
+        let b = HdrName { inner: Repr::Custom(MaybeLower {
+            buf: b"vaary",
             lower: false,
-        }),
-    });
+        })};
 
-    assert_eq!(name.inner, Repr::Custom(Custom(ByteStr::from_static("hello-world"))));
-}
+        assert_eq!(a, b);
 
-#[test]
-fn test_eq_hdr_name() {
-    use self::StandardHeader::Vary;
+        let b = HdrName { inner: Repr::Custom(MaybeLower {
+            buf: b"VAARY",
+            lower: false,
+        })};
 
-    let a = HeaderName { inner: Repr::Standard(Vary) };
-    let b = HdrName { inner: Repr::Standard(Vary) };
+        assert_eq!(a, b);
 
-    assert_eq!(a, b);
+        let a = HeaderName { inner: Repr::Standard(Vary) };
+        assert_ne!(a, b);
+    }
 
-    let a = HeaderName { inner: Repr::Custom(Custom(ByteStr::from_static("vaary"))) };
-    assert_ne!(a, b);
+    #[test]
+    fn test_from_static_std() {
+        let a = HeaderName { inner: Repr::Standard(Vary) };
+        
+        let b = HeaderName::from_static("vary");
+        assert_eq!(a, b);
 
-    let b = HdrName { inner: Repr::Custom(MaybeLower {
-        buf: b"vaary",
-        lower: true,
-    })};
+        let b = HeaderName::from_static("vaary");
+        assert_ne!(a, b);
+    }
 
-    assert_eq!(a, b);
+    #[test]
+    #[should_panic]
+    fn test_from_static_std_uppercase() {
+        HeaderName::from_static("Vary");
+    } 
 
-    let b = HdrName { inner: Repr::Custom(MaybeLower {
-        buf: b"vaary",
-        lower: false,
-    })};
+    #[test]
+    #[should_panic]
+    fn test_from_static_std_symbol() {
+        HeaderName::from_static("vary{}");
+    } 
 
-    assert_eq!(a, b);
+    // MaybeLower { lower: true }
+    #[test]
+    fn test_from_static_custom_short() {
+        let a = HeaderName { inner: Repr::Custom(Custom(ByteStr::from_static("customheader"))) };
+        let b = HeaderName::from_static("customheader");
+        assert_eq!(a, b);
+    }
 
-    let b = HdrName { inner: Repr::Custom(MaybeLower {
-        buf: b"VAARY",
-        lower: false,
-    })};
+    #[test]
+    #[should_panic]
+    fn test_from_static_custom_short_uppercase() {
+        HeaderName::from_static("custom header");
+    }
 
-    assert_eq!(a, b);
+    #[test]
+    #[should_panic]
+    fn test_from_static_custom_short_symbol() {
+        HeaderName::from_static("CustomHeader");
+    }
 
-    let a = HeaderName { inner: Repr::Standard(Vary) };
-    assert_ne!(a, b);
+    // MaybeLower { lower: false }
+    #[test]
+    fn test_from_static_custom_long() {
+        let a = HeaderName { inner: Repr::Custom(Custom(ByteStr::from_static(
+            "longer-than-63--thisheaderislongerthansixtythreecharactersandthushandleddifferent"
+        ))) };
+        let b = HeaderName::from_static(
+            "longer-than-63--thisheaderislongerthansixtythreecharactersandthushandleddifferent"
+        );
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_from_static_custom_long_uppercase() {
+        HeaderName::from_static(
+            "Longer-Than-63--ThisHeaderIsLongerThanSixtyThreeCharactersAndThusHandledDifferent"
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_from_static_custom_long_symbol() {
+        HeaderName::from_static(
+            "longer-than-63--thisheader{}{}{}{}islongerthansixtythreecharactersandthushandleddifferent"
+        );
+    }
+
+    #[test]
+    fn test_from_static_custom_single_char() {
+        let a = HeaderName { inner: Repr::Custom(Custom(ByteStr::from_static("a"))) };
+        let b = HeaderName::from_static("a");
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_from_static_empty() {
+        HeaderName::from_static("");
+    }
+
+    #[test]
+    fn test_all_tokens() {
+        HeaderName::from_static("!#$%&'*+-.^_`|~0123456789abcdefghijklmnopqrstuvwxyz");
+    }
 }
