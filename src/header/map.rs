@@ -1,8 +1,8 @@
 use std::{fmt, mem, ops, ptr, vec};
 use std::collections::hash_map::RandomState;
 use std::collections::HashMap;
-use std::hash::{BuildHasher, Hash, Hasher};
-use std::iter::FromIterator;
+use std::hash::{BuildHasher, Hasher, Hash};
+use std::iter::{FromIterator, FusedIterator};
 use std::marker::PhantomData;
 
 use convert::{HttpTryFrom, HttpTryInto};
@@ -2039,6 +2039,8 @@ impl<'a, T> Iterator for Iter<'a, T> {
     }
 }
 
+impl<'a, T> FusedIterator for Iter<'a, T> {}
+
 unsafe impl<'a, T: Sync> Sync for Iter<'a, T> {}
 unsafe impl<'a, T: Sync> Send for Iter<'a, T> {}
 
@@ -2100,6 +2102,8 @@ impl<'a, T> Iterator for IterMut<'a, T> {
     }
 }
 
+impl<'a, T> FusedIterator for IterMut<'a, T> {}
+
 unsafe impl<'a, T: Sync> Sync for IterMut<'a, T> {}
 unsafe impl<'a, T: Send> Send for IterMut<'a, T> {}
 
@@ -2118,6 +2122,7 @@ impl<'a, T> Iterator for Keys<'a, T> {
 }
 
 impl<'a, T> ExactSizeIterator for Keys<'a, T> {}
+impl<'a, T> FusedIterator for Keys<'a, T> {}
 
 // ===== impl Values ====
 
@@ -2133,6 +2138,8 @@ impl<'a, T> Iterator for Values<'a, T> {
     }
 }
 
+impl<'a, T> FusedIterator for Values<'a, T> {}
+
 // ===== impl ValuesMut ====
 
 impl<'a, T> Iterator for ValuesMut<'a, T> {
@@ -2146,6 +2153,8 @@ impl<'a, T> Iterator for ValuesMut<'a, T> {
         self.inner.size_hint()
     }
 }
+
+impl<'a, T> FusedIterator for ValuesMut<'a, T> {}
 
 // ===== impl Drain =====
 
@@ -2194,6 +2203,8 @@ impl<'a, T> Iterator for Drain<'a, T> {
         (lower, Some(lower))
     }
 }
+
+impl<'a, T> FusedIterator for Drain<'a, T> {}
 
 impl<'a, T> Drop for Drain<'a, T> {
     fn drop(&mut self) {
@@ -2551,6 +2562,8 @@ impl<'a, T: 'a> DoubleEndedIterator for ValueIter<'a, T> {
     }
 }
 
+impl<'a, T> FusedIterator for ValueIter<'a, T> {}
+
 // ===== impl ValueIterMut =====
 
 impl<'a, T: 'a> Iterator for ValueIterMut<'a, T> {
@@ -2630,6 +2643,8 @@ impl<'a, T: 'a> DoubleEndedIterator for ValueIterMut<'a, T> {
     }
 }
 
+impl<'a, T> FusedIterator for ValueIterMut<'a, T> {}
+
 unsafe impl<'a, T: Sync> Sync for ValueIterMut<'a, T> {}
 unsafe impl<'a, T: Send> Send for ValueIterMut<'a, T> {}
 
@@ -2669,6 +2684,8 @@ impl<T> Iterator for IntoIter<T> {
         (lower, None)
     }
 }
+
+impl<T> FusedIterator for IntoIter<T> {}
 
 impl<T> Drop for IntoIter<T> {
     fn drop(&mut self) {
@@ -3039,6 +3056,8 @@ impl<'a, T> Iterator for ValueDrain<'a, T> {
         }
     }
 }
+
+impl<'a, T> FusedIterator for ValueDrain<'a, T> {}
 
 impl<'a, T> Drop for ValueDrain<'a, T> {
     fn drop(&mut self) {
