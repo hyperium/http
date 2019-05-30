@@ -139,8 +139,9 @@ impl StatusCode {
     /// The reason phrase is defined as being exclusively for human readers. You should avoid
     /// deriving any meaning from it at all costs.
     ///
-    /// Bear in mind also that in HTTP/2.0 the reason phrase is abolished from transmission, and so
-    /// this canonical reason phrase really is the only reason phrase you’ll find.
+    /// Bear in mind also that in HTTP/2.0 and HTTP/3.0 the reason phrase is abolished from
+    /// transmission, and so this canonical reason phrase really is the only reason phrase you’ll
+    /// find.
     ///
     /// # Example
     ///
