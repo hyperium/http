@@ -1,3 +1,59 @@
+# 0.1.17 (April 5, 2019)
+
+* Add `Error::inner_ref()` to view the kind of error (#303)
+* Add `headers_ref()` and `headers_mut()` methods to `request::Builder` and `response::Builder` (#293)
+
+# 0.1.16 (February 19, 2019)
+
+* Fix `Uri` to permit more characters in the `path` (#296)
+
+# 0.1.15 (January 22, 2019)
+
+* Fix `Uri::host()` to include brackets of IPv6 literals (#292)
+* Add `scheme_str` and `port_u16` methods to `Uri` (#287)
+* Add `method_ref`, `uri_ref`, and `headers_ref` to `request::Builder` (#284)
+
+# 0.1.14 (November 21, 2018)
+
+* Add `Port` struct (#252, #255, #265)
+* Introduce `Uri` builder (#219)
+* Empty `Method` no longer considered valid (#262)
+* Fix `Uri` equality when terminating question mark is present (#270)
+* Allow % character in userinfo (#269)
+* Support additional tokens for header names (#271)
+* Export `http::headers::{IterMut, ValuesMut}` (#278)
+
+# 0.1.13 (September 14, 2018)
+
+* impl `fmt::Display` for `HeaderName` (#249)
+* Fix `uri::Authority` parsing when there is no host after an `@` (#248)
+* Fix `Uri` parsing to allow more characters in query strings (#247)
+
+# 0.1.12 (September 7, 2018)
+
+* Fix `HeaderValue` parsing to allow HTABs (#244)
+
+# 0.1.11 (September 5, 2018)
+
+* Add `From<&Self>` for `HeaderValue`, `Method`, and `StatusCode` (#238)
+* Add `Uri::from_static` (#240)
+
+# 0.1.10 (August 8, 2018)
+
+* impl HttpTryFrom<String> for HeaderValue (#236)
+
+# 0.1.9 (August 7, 2018)
+
+* Fix double percent encoding (#233)
+* Add additional HttpTryFrom impls (#234)
+
+# 0.1.8 (July 23, 2018)
+
+* Add fuller set of `PartialEq` for `Method` (#221)
+* Reduce size of `HeaderMap` by using `Box<[Entry]>` instea of `Vec` (#224)
+* Reduce size of `Extensions` by storing as `Option<Box<AnyMap>>` (#227)
+* Implement `Iterator::size_hint` for most iterators in `header` (#226)
+
 # 0.1.7 (June 22, 2018)
 
 * Add `From<uN> for HeaderValue` for most integer types (#218).
