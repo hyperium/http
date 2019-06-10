@@ -1026,17 +1026,32 @@ impl<T> HeaderMap<T> {
     /// ];
     ///
     /// for &header in headers {
-    ///     let counter = map.entry(header).unwrap().or_insert(0);
+    ///     let counter = map.entry(header).or_insert(0);
     ///     *counter += 1;
     /// }
     ///
     /// assert_eq!(map["content-length"], 2);
     /// assert_eq!(map["x-hello"], 1);
     /// ```
-    pub fn entry<K>(&mut self, key: K) -> Result<Entry<T>, InvalidHeaderName>
-        where K: AsHeaderName,
+    pub fn entry<K>(&mut self, key: K) -> Entry<T>
+        where K: IntoHeaderName,
     {
         key.entry(self)
+    }
+
+    /// Gets the given key's corresponding entry in the map for in-place
+    /// manipulation.
+    ///
+    /// # Errors
+    ///
+    /// This method differs from `entry` by allowing types that may not be
+    /// valid `HeaderName`s to passed as the key (such as `String`). If they
+    /// do not parse as a valid `HeaderName`, this returns an
+    /// `InvalidHeaderName` error.
+    pub fn try_entry<K>(&mut self, key: K) -> Result<Entry<T>, InvalidHeaderName>
+        where K: AsHeaderName,
+    {
+        key.try_entry(self)
     }
 
     fn entry2<K>(&mut self, key: K) -> Entry<T>
@@ -2237,7 +2252,6 @@ impl<'a, T> Entry<'a, T> {
     ///
     /// for &header in headers {
     ///     let counter = map.entry(header)
-    ///         .expect("valid header names")
     ///         .or_insert(0);
     ///     *counter += 1;
     /// }
@@ -2268,7 +2282,7 @@ impl<'a, T> Entry<'a, T> {
     /// # use http::HeaderMap;
     /// let mut map = HeaderMap::new();
     ///
-    /// let res = map.entry("x-hello").unwrap()
+    /// let res = map.entry("x-hello")
     ///     .or_insert_with(|| "world".parse().unwrap());
     ///
     /// assert_eq!(res, "world");
@@ -2283,7 +2297,6 @@ impl<'a, T> Entry<'a, T> {
     /// map.insert(HOST, "world".parse().unwrap());
     ///
     /// let res = map.entry("host")
-    ///     .expect("host is a valid string")
     ///     .or_insert_with(|| unreachable!());
     ///
     ///
@@ -2306,7 +2319,7 @@ impl<'a, T> Entry<'a, T> {
     /// # use http::HeaderMap;
     /// let mut map = HeaderMap::new();
     ///
-    /// assert_eq!(map.entry("x-hello").unwrap().key(), "x-hello");
+    /// assert_eq!(map.entry("x-hello").key(), "x-hello");
     /// ```
     pub fn key(&self) -> &HeaderName {
         use self::Entry::*;
@@ -2329,7 +2342,7 @@ impl<'a, T> VacantEntry<'a, T> {
     /// # use http::HeaderMap;
     /// let mut map = HeaderMap::new();
     ///
-    /// assert_eq!(map.entry("x-hello").unwrap().key().as_str(), "x-hello");
+    /// assert_eq!(map.entry("x-hello").key().as_str(), "x-hello");
     /// ```
     pub fn key(&self) -> &HeaderName {
         &self.key
@@ -2343,7 +2356,7 @@ impl<'a, T> VacantEntry<'a, T> {
     /// # use http::header::{HeaderMap, Entry};
     /// let mut map = HeaderMap::new();
     ///
-    /// if let Entry::Vacant(v) = map.entry("x-hello").unwrap() {
+    /// if let Entry::Vacant(v) = map.entry("x-hello") {
     ///     assert_eq!(v.into_key().as_str(), "x-hello");
     /// }
     /// ```
@@ -2362,7 +2375,7 @@ impl<'a, T> VacantEntry<'a, T> {
     /// # use http::header::{HeaderMap, Entry};
     /// let mut map = HeaderMap::new();
     ///
-    /// if let Entry::Vacant(v) = map.entry("x-hello").unwrap() {
+    /// if let Entry::Vacant(v) = map.entry("x-hello") {
     ///     v.insert("world".parse().unwrap());
     /// }
     ///
@@ -2391,7 +2404,7 @@ impl<'a, T> VacantEntry<'a, T> {
     /// # use http::header::*;
     /// let mut map = HeaderMap::new();
     ///
-    /// if let Entry::Vacant(v) = map.entry("x-hello").unwrap() {
+    /// if let Entry::Vacant(v) = map.entry("x-hello") {
     ///     let mut e = v.insert_entry("world".parse().unwrap());
     ///     e.insert("world2".parse().unwrap());
     /// }
@@ -2709,7 +2722,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// let mut map = HeaderMap::new();
     /// map.insert(HOST, "world".parse().unwrap());
     ///
-    /// if let Entry::Occupied(e) = map.entry("host").unwrap() {
+    /// if let Entry::Occupied(e) = map.entry("host") {
     ///     assert_eq!("host", e.key());
     /// }
     /// ```
@@ -2732,7 +2745,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// let mut map = HeaderMap::new();
     /// map.insert(HOST, "hello.world".parse().unwrap());
     ///
-    /// if let Entry::Occupied(mut e) = map.entry("host").unwrap() {
+    /// if let Entry::Occupied(mut e) = map.entry("host") {
     ///     assert_eq!(e.get(), &"hello.world");
     ///
     ///     e.append("hello.earth".parse().unwrap());
@@ -2759,7 +2772,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// let mut map = HeaderMap::default();
     /// map.insert(HOST, "hello.world".to_string());
     ///
-    /// if let Entry::Occupied(mut e) = map.entry("host").unwrap() {
+    /// if let Entry::Occupied(mut e) = map.entry("host") {
     ///     e.get_mut().push_str("-2");
     ///     assert_eq!(e.get(), &"hello.world-2");
     /// }
@@ -2785,7 +2798,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// map.insert(HOST, "hello.world".to_string());
     /// map.append(HOST, "hello.earth".to_string());
     ///
-    /// if let Entry::Occupied(e) = map.entry("host").unwrap() {
+    /// if let Entry::Occupied(e) = map.entry("host") {
     ///     e.into_mut().push_str("-2");
     /// }
     ///
@@ -2807,7 +2820,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// let mut map = HeaderMap::new();
     /// map.insert(HOST, "hello.world".parse().unwrap());
     ///
-    /// if let Entry::Occupied(mut e) = map.entry("host").unwrap() {
+    /// if let Entry::Occupied(mut e) = map.entry("host") {
     ///     let mut prev = e.insert("earth".parse().unwrap());
     ///     assert_eq!("hello.world", prev);
     /// }
@@ -2831,7 +2844,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// map.insert(HOST, "world".parse().unwrap());
     /// map.append(HOST, "world2".parse().unwrap());
     ///
-    /// if let Entry::Occupied(mut e) = map.entry("host").unwrap() {
+    /// if let Entry::Occupied(mut e) = map.entry("host") {
     ///     let mut prev = e.insert_mult("earth".parse().unwrap());
     ///     assert_eq!("world", prev.next().unwrap());
     ///     assert_eq!("world2", prev.next().unwrap());
@@ -2856,7 +2869,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// let mut map = HeaderMap::new();
     /// map.insert(HOST, "world".parse().unwrap());
     ///
-    /// if let Entry::Occupied(mut e) = map.entry("host").unwrap() {
+    /// if let Entry::Occupied(mut e) = map.entry("host") {
     ///     e.append("earth".parse().unwrap());
     /// }
     ///
@@ -2883,7 +2896,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// let mut map = HeaderMap::new();
     /// map.insert(HOST, "world".parse().unwrap());
     ///
-    /// if let Entry::Occupied(e) = map.entry("host").unwrap() {
+    /// if let Entry::Occupied(e) = map.entry("host") {
     ///     let mut prev = e.remove();
     ///     assert_eq!("world", prev);
     /// }
@@ -2907,7 +2920,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// let mut map = HeaderMap::new();
     /// map.insert(HOST, "world".parse().unwrap());
     ///
-    /// if let Entry::Occupied(e) = map.entry("host").unwrap() {
+    /// if let Entry::Occupied(e) = map.entry("host") {
     ///     let (key, mut prev) = e.remove_entry();
     ///     assert_eq!("host", key.as_str());
     ///     assert_eq!("world", prev);
@@ -2958,7 +2971,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// map.insert(HOST, "world".parse().unwrap());
     /// map.append(HOST, "earth".parse().unwrap());
     ///
-    /// if let Entry::Occupied(e) = map.entry("host").unwrap() {
+    /// if let Entry::Occupied(e) = map.entry("host") {
     ///     let mut iter = e.iter();
     ///     assert_eq!(&"world", iter.next().unwrap());
     ///     assert_eq!(&"earth", iter.next().unwrap());
@@ -2982,7 +2995,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// map.insert(HOST, "world".to_string());
     /// map.append(HOST, "earth".to_string());
     ///
-    /// if let Entry::Occupied(mut e) = map.entry("host").unwrap() {
+    /// if let Entry::Occupied(mut e) = map.entry("host") {
     ///     for e in e.iter_mut() {
     ///         e.push_str("-boop");
     ///     }
@@ -3227,7 +3240,7 @@ fn hash_elem_using<K: ?Sized>(danger: &Danger, k: &K) -> HashValue
 
 
 mod into_header_name {
-    use super::{HdrName, HeaderMap, HeaderName};
+    use super::{Entry, HdrName, HeaderMap, HeaderName};
 
     /// A marker trait used to identify values that can be used as insert keys
     /// to a `HeaderMap`.
@@ -3247,6 +3260,9 @@ mod into_header_name {
 
         #[doc(hidden)]
         fn append<T>(self, map: &mut HeaderMap<T>, val: T) -> bool;
+
+        #[doc(hidden)]
+        fn entry<T>(self, map: &mut HeaderMap<T>) -> Entry<T>;
     }
 
     // ==== impls ====
@@ -3263,6 +3279,12 @@ mod into_header_name {
         fn append<T>(self, map: &mut HeaderMap<T>, val: T) -> bool {
             map.append2(self, val)
         }
+
+        #[doc(hidden)]
+        #[inline]
+        fn entry<T>(self, map: &mut HeaderMap<T>) -> Entry<T> {
+            map.entry2(self)
+        }
     }
 
     impl IntoHeaderName for HeaderName {}
@@ -3278,6 +3300,12 @@ mod into_header_name {
         fn append<T>(self, map: &mut HeaderMap<T>, val: T) -> bool {
             map.append2(self, val)
         }
+
+        #[doc(hidden)]
+        #[inline]
+        fn entry<T>(self, map: &mut HeaderMap<T>) -> Entry<T> {
+            map.entry2(self)
+        }
     }
 
     impl<'a> IntoHeaderName for &'a HeaderName {}
@@ -3292,6 +3320,12 @@ mod into_header_name {
         #[inline]
         fn append<T>(self, map: &mut HeaderMap<T>, val: T) -> bool {
             HdrName::from_static(self, move |hdr| map.append2(hdr, val))
+        }
+
+        #[doc(hidden)]
+        #[inline]
+        fn entry<T>(self, map: &mut HeaderMap<T>) -> Entry<T> {
+            HdrName::from_static(self, move |hdr| map.entry2(hdr))
         }
     }
 
@@ -3315,7 +3349,7 @@ mod as_header_name {
     // without breaking any external crate.
     pub trait Sealed {
         #[doc(hidden)]
-        fn entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<T>, InvalidHeaderName>;
+        fn try_entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<T>, InvalidHeaderName>;
 
         #[doc(hidden)]
         fn find<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)>;
@@ -3329,7 +3363,7 @@ mod as_header_name {
     impl Sealed for HeaderName {
         #[doc(hidden)]
         #[inline]
-        fn entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<T>, InvalidHeaderName> {
+        fn try_entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<T>, InvalidHeaderName> {
             Ok(map.entry2(self))
         }
 
@@ -3350,7 +3384,7 @@ mod as_header_name {
     impl<'a> Sealed for &'a HeaderName {
         #[doc(hidden)]
         #[inline]
-        fn entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<T>, InvalidHeaderName> {
+        fn try_entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<T>, InvalidHeaderName> {
             Ok(map.entry2(self))
         }
 
@@ -3371,7 +3405,7 @@ mod as_header_name {
     impl<'a> Sealed for &'a str {
         #[doc(hidden)]
         #[inline]
-        fn entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<T>, InvalidHeaderName> {
+        fn try_entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<T>, InvalidHeaderName> {
             HdrName::from_bytes(self.as_bytes(), move |hdr| map.entry2(hdr))
         }
 
@@ -3392,8 +3426,8 @@ mod as_header_name {
     impl Sealed for String {
         #[doc(hidden)]
         #[inline]
-        fn entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<T>, InvalidHeaderName> {
-            self.as_str().entry(map)
+        fn try_entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<T>, InvalidHeaderName> {
+            self.as_str().try_entry(map)
         }
 
         #[doc(hidden)]
@@ -3413,8 +3447,8 @@ mod as_header_name {
     impl<'a> Sealed for &'a String {
         #[doc(hidden)]
         #[inline]
-        fn entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<T>, InvalidHeaderName> {
-            self.as_str().entry(map)
+        fn try_entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<T>, InvalidHeaderName> {
+            self.as_str().try_entry(map)
         }
 
         #[doc(hidden)]

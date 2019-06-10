@@ -11,7 +11,7 @@ fn smoke() {
 
     let name: HeaderName = "hello".parse().unwrap();
 
-    match headers.entry(&name).unwrap() {
+    match headers.entry(&name) {
         Entry::Vacant(e) => {
             e.insert("world".parse().unwrap());
         }
@@ -20,7 +20,7 @@ fn smoke() {
 
     assert!(headers.get("hello").is_some());
 
-    match headers.entry(&name).unwrap() {
+    match headers.entry(&name) {
         Entry::Occupied(mut e) => {
             assert_eq!(e.get(), &"world");
 
@@ -148,7 +148,7 @@ fn drain_entry() {
 
     // Using insert
     {
-        let mut e = match headers.entry("hello").unwrap() {
+        let mut e = match headers.entry("hello") {
             Entry::Occupied(e) => e,
             _ => panic!(),
         };
