@@ -3,9 +3,7 @@ use std::collections::HashMap;
 use std::hash::{BuildHasherDefault, Hasher};
 use std::fmt;
 
-// `Box<Any>` is now `Box<dyn Any>`, but we can't change yet (minimum Rust)
-#[allow(warnings)]
-type AnyMap = HashMap<TypeId, Box<Any + Send + Sync>, BuildHasherDefault<IdHasher>>;
+type AnyMap = HashMap<TypeId, Box<dyn Any + Send + Sync>, BuildHasherDefault<IdHasher>>;
 
 // With TypeIds as keys, there's no need to hash them. They are already hashes
 // themselves, coming from the compiler. The IdHasher just holds the u64 of
@@ -71,13 +69,10 @@ impl Extensions {
             .get_or_insert_with(|| Box::new(HashMap::default()))
             .insert(TypeId::of::<T>(), Box::new(val))
             .and_then(|boxed| {
-                #[allow(warnings)]
-                {
-                (boxed as Box<Any + 'static>)
+                (boxed as Box<dyn Any + 'static>)
                     .downcast()
                     .ok()
                     .map(|boxed| *boxed)
-                }
             })
     }
 
@@ -98,12 +93,7 @@ impl Extensions {
             .map
             .as_ref()
             .and_then(|map| map.get(&TypeId::of::<T>()))
-            .and_then(|boxed| {
-                #[allow(warnings)]
-                {
-                (&**boxed as &(Any + 'static)).downcast_ref()
-                }
-            })
+            .and_then(|boxed| (&**boxed as &(dyn Any + 'static)).downcast_ref())
     }
 
     /// Get a mutable reference to a type previously inserted on this `Extensions`.
@@ -123,12 +113,7 @@ impl Extensions {
             .map
             .as_mut()
             .and_then(|map| map.get_mut(&TypeId::of::<T>()))
-            .and_then(|boxed| {
-                #[allow(warnings)]
-                {
-                (&mut **boxed as &mut (Any + 'static)).downcast_mut()
-                }
-            })
+            .and_then(|boxed| (&mut **boxed as &mut (dyn Any + 'static)).downcast_mut())
     }
 
 
@@ -151,13 +136,10 @@ impl Extensions {
             .as_mut()
             .and_then(|map| map.remove(&TypeId::of::<T>()))
             .and_then(|boxed| {
-                #[allow(warnings)]
-                {
-                (boxed as Box<Any + 'static>)
+                (boxed as Box<dyn Any + 'static>)
                     .downcast()
                     .ok()
                     .map(|boxed| *boxed)
-                }
             })
     }
 
