@@ -19,7 +19,7 @@ impl<T> Port<T> {
     /// # use http::uri::Authority;
     /// let authority: Authority = "example.org:80".parse().unwrap();
     ///
-    /// let port = authority.port_part().unwrap();
+    /// let port = authority.port().unwrap();
     /// assert_eq!(port.as_u16(), 80);
     /// ```
     pub fn as_u16(&self) -> u16 {
@@ -57,7 +57,7 @@ where
     /// # use http::uri::Authority;
     /// let authority: Authority = "example.org:80".parse().unwrap();
     ///
-    /// let port = authority.port_part().unwrap();
+    /// let port = authority.port().unwrap();
     /// assert_eq!(port.as_str(), "80");
     /// ```
     pub fn as_str(&self) -> &str {
