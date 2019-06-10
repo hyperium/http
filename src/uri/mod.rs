@@ -17,7 +17,7 @@
 //! assert_eq!(uri.host(), None);
 //!
 //! let uri = "https://www.rust-lang.org/install.html".parse::<Uri>().unwrap();
-//! assert_eq!(uri.scheme_part().map(|s| s.as_str()), Some("https"));
+//! assert_eq!(uri.scheme_str(), Some("https"));
 //! assert_eq!(uri.host(), Some("www.rust-lang.org"));
 //! assert_eq!(uri.path(), "/install.html");
 //! ```
@@ -28,9 +28,6 @@ use byte_str::ByteStr;
 use bytes::Bytes;
 
 use std::{fmt, u8, u16};
-// Deprecated in 1.26, needed until our minimum version is >=1.23.
-#[allow(unused, deprecated)]
-use std::ascii::AsciiExt;
 use std::hash::{Hash, Hasher};
 use std::str::{self, FromStr};
 use std::error::Error;
@@ -91,7 +88,7 @@ mod tests;
 /// assert_eq!(uri.host(), None);
 ///
 /// let uri = "https://www.rust-lang.org/install.html".parse::<Uri>().unwrap();
-/// assert_eq!(uri.scheme_part().map(|s| s.as_str()), Some("https"));
+/// assert_eq!(uri.scheme_str(), Some("https"));
 /// assert_eq!(uri.host(), Some("www.rust-lang.org"));
 /// assert_eq!(uri.path(), "/install.html");
 /// ```
@@ -441,7 +438,7 @@ impl Uri {
     ///
     /// let uri: Uri = "http://example.org/hello/world".parse().unwrap();
     ///
-    /// assert_eq!(uri.scheme_part(), Some(&Scheme::HTTP));
+    /// assert_eq!(uri.scheme(), Some(&Scheme::HTTP));
     /// ```
     ///
     ///
@@ -451,22 +448,15 @@ impl Uri {
     /// # use http::Uri;
     /// let uri: Uri = "/hello/world".parse().unwrap();
     ///
-    /// assert!(uri.scheme_part().is_none());
+    /// assert!(uri.scheme().is_none());
     /// ```
     #[inline]
-    pub fn scheme_part(&self) -> Option<&Scheme> {
+    pub fn scheme(&self) -> Option<&Scheme> {
         if self.scheme.inner.is_none() {
             None
         } else {
             Some(&self.scheme)
         }
-    }
-
-    #[deprecated(since = "0.1.2", note = "use scheme_part or scheme_str instead")]
-    #[doc(hidden)]
-    #[inline]
-    pub fn scheme(&self) -> Option<&str> {
-        self.scheme_str()
     }
 
     /// Get the scheme of this `Uri` as a `&str`.
@@ -515,7 +505,7 @@ impl Uri {
     /// # use http::Uri;
     /// let uri: Uri = "http://example.org:80/hello/world".parse().unwrap();
     ///
-    /// assert_eq!(uri.authority_part().map(|a| a.as_str()), Some("example.org:80"));
+    /// assert_eq!(uri.authority().map(|a| a.as_str()), Some("example.org:80"));
     /// ```
     ///
     ///
@@ -525,25 +515,14 @@ impl Uri {
     /// # use http::Uri;
     /// let uri: Uri = "/hello/world".parse().unwrap();
     ///
-    /// assert!(uri.authority_part().is_none());
+    /// assert!(uri.authority().is_none());
     /// ```
     #[inline]
-    pub fn authority_part(&self) -> Option<&Authority> {
+    pub fn authority(&self) -> Option<&Authority> {
         if self.authority.data.is_empty() {
             None
         } else {
             Some(&self.authority)
-        }
-    }
-
-    #[deprecated(since = "0.1.1", note = "use authority_part instead")]
-    #[doc(hidden)]
-    #[inline]
-    pub fn authority(&self) -> Option<&str> {
-        if self.authority.data.is_empty() {
-            None
-        } else {
-            Some(self.authority.as_str())
         }
     }
 
@@ -582,13 +561,7 @@ impl Uri {
     /// ```
     #[inline]
     pub fn host(&self) -> Option<&str> {
-        self.authority_part().map(|a| a.host())
-    }
-
-    #[deprecated(since="0.1.14", note="use `port_part` or `port_u16` instead")]
-    #[doc(hidden)]
-    pub fn port(&self) -> Option<u16> {
-        self.port_u16()
+        self.authority().map(|a| a.host())
     }
 
     /// Get the port part of this `Uri`.
@@ -613,7 +586,7 @@ impl Uri {
     /// # use http::Uri;
     /// let uri: Uri = "http://example.org:80/hello/world".parse().unwrap();
     ///
-    /// let port = uri.port_part().unwrap();
+    /// let port = uri.port().unwrap();
     /// assert_eq!(port.as_u16(), 80);
     /// ```
     ///
@@ -623,7 +596,7 @@ impl Uri {
     /// # use http::Uri;
     /// let uri: Uri = "http://example.org/hello/world".parse().unwrap();
     ///
-    /// assert!(uri.port_part().is_none());
+    /// assert!(uri.port().is_none());
     /// ```
     ///
     /// Relative URI
@@ -632,11 +605,11 @@ impl Uri {
     /// # use http::Uri;
     /// let uri: Uri = "/hello/world".parse().unwrap();
     ///
-    /// assert!(uri.port_part().is_none());
+    /// assert!(uri.port().is_none());
     /// ```
-    pub fn port_part(&self) -> Option<Port<&str>> {
-        self.authority_part()
-            .and_then(|a| a.port_part())
+    pub fn port(&self) -> Option<Port<&str>> {
+        self.authority()
+            .and_then(|a| a.port())
     }
 
     /// Get the port of this `Uri` as a `u16`.
@@ -651,7 +624,7 @@ impl Uri {
     /// assert_eq!(uri.port_u16(), Some(80));
     /// ```
     pub fn port_u16(&self) -> Option<u16> {
-        self.port_part().and_then(|p| Some(p.as_u16()))
+        self.port().and_then(|p| Some(p.as_u16()))
     }
 
     /// Get the query string of this `Uri`, starting after the `?`.
@@ -776,7 +749,7 @@ impl<'a> HttpTryFrom<&'a Uri> for Uri {
 ///
 /// assert_eq!(uri.path(), "/foo");
 ///
-/// assert!(uri.scheme_part().is_none());
+/// assert!(uri.scheme().is_none());
 /// assert!(uri.authority().is_none());
 /// ```
 ///
@@ -791,7 +764,7 @@ impl<'a> HttpTryFrom<&'a Uri> for Uri {
 ///
 /// let uri = Uri::from_parts(parts).unwrap();
 ///
-/// assert_eq!(uri.scheme_part().unwrap().as_str(), "http");
+/// assert_eq!(uri.scheme().unwrap().as_str(), "http");
 /// assert_eq!(uri.authority().unwrap(), "foo.com");
 /// assert_eq!(uri.path(), "/foo");
 /// ```
@@ -894,11 +867,11 @@ impl FromStr for Uri {
 
 impl PartialEq for Uri {
     fn eq(&self, other: &Uri) -> bool {
-        if self.scheme_part() != other.scheme_part() {
+        if self.scheme() != other.scheme() {
             return false;
         }
 
-        if self.authority_part() != other.authority_part() {
+        if self.authority() != other.authority() {
             return false;
         }
 
@@ -919,7 +892,7 @@ impl PartialEq<str> for Uri {
         let mut other = other.as_bytes();
         let mut absolute = false;
 
-        if let Some(scheme) = self.scheme_part() {
+        if let Some(scheme) = self.scheme() {
             let scheme = scheme.as_str().as_bytes();
             absolute = true;
 
@@ -940,7 +913,7 @@ impl PartialEq<str> for Uri {
             other = &other[3..];
         }
 
-        if let Some(auth) = self.authority_part() {
+        if let Some(auth) = self.authority() {
             let len = auth.data.len();
             absolute = true;
 
@@ -1027,11 +1000,11 @@ impl Default for Uri {
 
 impl fmt::Display for Uri {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if let Some(scheme) = self.scheme_part() {
+        if let Some(scheme) = self.scheme() {
             write!(f, "{}://", scheme)?;
         }
 
-        if let Some(authority) = self.authority_part() {
+        if let Some(authority) = self.authority() {
             write!(f, "{}", authority)?;
         }
 
@@ -1124,7 +1097,7 @@ impl Hash for Uri {
             state.write_u8(0xff);
         }
 
-        if let Some(auth) = self.authority_part() {
+        if let Some(auth) = self.authority() {
             auth.hash(state);
         }
 

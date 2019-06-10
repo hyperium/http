@@ -65,10 +65,10 @@ impl PathAndQuery {
                     // percent-encoded in the path. If it should have been
                     // percent-encoded, then error.
                     0x21 |
-                    0x24...0x3B |
+                    0x24..=0x3B |
                     0x3D |
-                    0x40...0x5F |
-                    0x61...0x7A |
+                    0x40..=0x5F |
+                    0x61..=0x7A |
                     0x7C |
                     0x7E => {},
 
@@ -86,9 +86,9 @@ impl PathAndQuery {
                         //
                         // Allowed: 0x21 / 0x24 - 0x3B / 0x3D / 0x3F - 0x7E
                         0x21 |
-                        0x24...0x3B |
+                        0x24..=0x3B |
                         0x3D |
-                        0x3F...0x7E => {},
+                        0x3F..=0x7E => {},
 
                         b'#' => {
                             fragment = Some(i);
