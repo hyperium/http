@@ -55,8 +55,8 @@
 //! to edit the request/response:
 //!
 //! ```
-//! use http::{Response, StatusCode};
-//! use http::header::{CONTENT_TYPE, HeaderValue};
+//! use http::{HeaderValue, Response, StatusCode};
+//! use http::header::CONTENT_TYPE;
 //!
 //! fn add_server_headers<T>(response: &mut Response<T>) {
 //!     response.headers_mut()
@@ -118,7 +118,7 @@
 //! function:
 //!
 //! ```
-//! use http::header::HeaderValue;
+//! use http::HeaderValue;
 //!
 //! let value = HeaderValue::from_static("text/html");
 //! assert_eq!(value.as_bytes(), b"text/html");
@@ -127,7 +127,7 @@
 //! And header values can also be parsed like names:
 //!
 //! ```
-//! use http::header::HeaderValue;
+//! use http::HeaderValue;
 //!
 //! let value = "text/html";
 //! let value = value.parse::<HeaderValue>().unwrap();
@@ -180,7 +180,7 @@ pub use convert::HttpTryFrom;
 pub use error::{Error, Result};
 pub use extensions::Extensions;
 #[doc(no_inline)]
-pub use header::HeaderMap;
+pub use header::{HeaderMap, HeaderValue};
 pub use method::Method;
 pub use request::Request;
 pub use response::Response;
