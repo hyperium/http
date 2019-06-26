@@ -55,8 +55,8 @@
 //! to edit the request/response:
 //!
 //! ```
-//! use http::{Response, StatusCode};
-//! use http::header::{CONTENT_TYPE, HeaderValue};
+//! use http::{HeaderValue, Response, StatusCode};
+//! use http::header::CONTENT_TYPE;
 //!
 //! fn add_server_headers<T>(response: &mut Response<T>) {
 //!     response.headers_mut()
@@ -118,7 +118,7 @@
 //! function:
 //!
 //! ```
-//! use http::header::HeaderValue;
+//! use http::HeaderValue;
 //!
 //! let value = HeaderValue::from_static("text/html");
 //! assert_eq!(value.as_bytes(), b"text/html");
@@ -127,7 +127,7 @@
 //! And header values can also be parsed like names:
 //!
 //! ```
-//! use http::header::HeaderValue;
+//! use http::HeaderValue;
 //!
 //! let value = "text/html";
 //! let value = value.parse::<HeaderValue>().unwrap();
@@ -177,7 +177,7 @@ pub use crate::convert::HttpTryFrom;
 pub use crate::error::{Error, Result};
 pub use crate::extensions::Extensions;
 #[doc(no_inline)]
-pub use crate::header::HeaderMap;
+pub use crate::header::{HeaderMap, HeaderValue};
 pub use crate::method::Method;
 pub use crate::request::Request;
 pub use crate::response::Response;
