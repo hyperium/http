@@ -19,6 +19,7 @@ matrix:
 
 script:
   - cargo test
+  - cargo test --all-features
   - 'if [ "$TRAVIS_RUST_VERSION" == "nightly" ]; then cargo test --benches; fi'
 
 notifications:

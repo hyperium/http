@@ -1,4 +1,6 @@
 extern crate http;
+#[cfg(feature = "serde1")]
+extern crate serde_json;
 
 use http::*;
 
@@ -65,3 +67,29 @@ test_round_trip!(
     560, 561, 562, 563, 564, 565, 566, 567, 568, 569, 570, 571, 572, 573, 574, 575, 576, 577, 578, 579,
     580, 581, 582, 583, 584, 585, 586, 587, 588, 589, 590, 591, 592, 593, 594, 595, 596, 597, 598, 599,
     );
+
+
+#[cfg(feature = "serde1")]
+mod serde_tests {
+
+    use super::*;
+
+    #[test]
+    fn statuscode_serializes_to_number() {
+        let code = StatusCode::OK;
+
+        let result = serde_json::to_value(&code).expect("statuscode should serialize");
+
+        assert_eq!(result, serde_json::Value::Number(200u32.into()))
+    }
+
+    #[test]
+    fn statuscode_roundtrip() {
+        let code = StatusCode::OK;
+
+        let value = serde_json::to_string(&code).expect("statuscode should serialize");
+        let deserialized_code = serde_json::from_str::<StatusCode>(&value).expect("statuscode should deserialize");
+
+        assert_eq!(deserialized_code, code)
+    }
+}

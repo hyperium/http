@@ -40,6 +40,7 @@ use HttpTryFrom;
 /// assert!(StatusCode::OK.is_success());
 /// ```
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde1", derive(Serialize, Deserialize))]
 pub struct StatusCode(u16);
 
 /// A possible error value when converting a `StatusCode` from a `u16` or `&str`
