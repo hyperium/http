@@ -8,18 +8,15 @@ matrix:
     - rust: stable
     - rust: beta
     - rust: nightly
+      env: DO_BENCHMARKS=1 ALLOW_WARNINGS=1
     # ensure wasm always builds
     - rust: stable
-      script:
-        - rustup target add wasm32-unknown-unknown
-        - cargo build --target=wasm32-unknown-unknown
+      env: TARGET=wasm32-unknown-unknown SKIP_TESTS=1
     # minimum rustc version
     - rust: 1.20.0
-      script: cargo build
+      env: SKIP_TESTS=1
 
-script:
-  - cargo test
-  - 'if [ "$TRAVIS_RUST_VERSION" == "nightly" ]; then cargo test --benches; fi'
+script: bash -x ci/script.sh
 
 notifications:
   email:
