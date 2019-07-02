@@ -1,5 +1,7 @@
 use super::HeaderValue;
 use super::name::{HeaderName, HdrName, InvalidHeaderName};
+use crate::convert::HttpTryFrom;
+use sealed::Sealed;
 
 use std::{fmt, mem, ops, ptr, vec};
 use std::collections::hash_map::RandomState;
@@ -23,10 +25,11 @@ pub use self::into_header_name::IntoHeaderName;
 /// ```
 /// # use http::HeaderMap;
 /// # use http::header::{CONTENT_LENGTH, HOST, LOCATION};
-/// let mut headers = HeaderMap::new();
-///
-/// headers.insert(HOST, "example.com".parse().unwrap());
-/// headers.insert(CONTENT_LENGTH, "123".parse().unwrap());
+/// # use http::HttpTryFrom;
+/// let mut headers = HeaderMap::try_from(vec![
+///     (HOST, "example.com"),
+///     (CONTENT_LENGTH, "123")
+/// ]).unwrap();
 ///
 /// assert!(headers.contains_key(HOST));
 /// assert!(!headers.contains_key(LOCATION));
@@ -1717,6 +1720,45 @@ impl<T> FromIterator<(HeaderName, T)> for HeaderMap<T>
        let mut map = HeaderMap::default();
        map.extend(iter);
        map
+    }
+}
+
+impl<T> Sealed for HeaderMap<T> {}
+
+/// Convert a collection of tuples into a HeaderMap
+///
+/// # Examples
+///
+/// ```
+/// # use http::{HttpTryFrom, Result, header::HeaderMap};
+/// # use std::collections::HashMap;
+/// let mut headers_hashmap: HashMap<String, String> = vec![
+///     ("X-Custom-Header".to_string(), "my value".to_string()),
+/// ].iter().cloned().collect();
+///
+/// let good_headers: Result<HeaderMap> = HeaderMap::try_from(&headers_hashmap);
+/// assert!(good_headers.is_ok());
+///
+/// headers_hashmap.insert("\r".into(), "\0".into());
+/// let bad_headers: Result<HeaderMap> = HeaderMap::try_from(&headers_hashmap);
+/// assert!(bad_headers.is_err());
+/// ```
+impl<COLLECTION, K, V> HttpTryFrom<COLLECTION> for HeaderMap<HeaderValue>
+    where
+        COLLECTION: IntoIterator<Item=(K, V)>,
+        K: AsRef<str>,
+        V: AsRef<str>
+{
+    type Error = ::Error;
+
+    fn try_from(c: COLLECTION) -> Result<Self, Self::Error> {
+        c.into_iter()
+            .map(|(k, v)| -> ::Result<(HeaderName, HeaderValue)> {
+                let name = k.as_ref().parse()?;
+                let value = v.as_ref().parse()?;
+                Ok((name, value))
+            })
+            .collect()
     }
 }
 
