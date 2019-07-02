@@ -1,6 +1,7 @@
 use super::HeaderValue;
 use super::name::{HeaderName, HdrName, InvalidHeaderName};
-use crate::convert::HttpTryFrom;
+use convert::HttpTryFrom;
+use Error;
 use sealed::Sealed;
 
 use std::{fmt, mem, ops, ptr, vec};
@@ -1749,7 +1750,7 @@ impl<COLLECTION, K, V> HttpTryFrom<COLLECTION> for HeaderMap<HeaderValue>
         K: AsRef<str>,
         V: AsRef<str>
 {
-    type Error = ::Error;
+    type Error = Error;
 
     fn try_from(c: COLLECTION) -> Result<Self, Self::Error> {
         c.into_iter()
