@@ -521,6 +521,14 @@ impl<'a> HttpTryFrom<&'a str> for HeaderValue {
     }
 }
 
+impl<'a> HttpTryFrom<&'a String> for HeaderValue {
+    type Error = InvalidHeaderValue;
+    #[inline]
+    fn try_from(s: &'a String) -> Result<Self, Self::Error> {
+        Self::from_bytes(s.as_bytes())
+    }
+}
+
 impl<'a> HttpTryFrom<&'a [u8]> for HeaderValue {
     type Error = InvalidHeaderValue;
 

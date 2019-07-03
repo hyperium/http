@@ -1,6 +1,6 @@
 use super::HeaderValue;
 use super::name::{HeaderName, HdrName, InvalidHeaderName};
-use convert::HttpTryFrom;
+use convert::{HttpTryFrom, HttpTryInto};
 use Error;
 use sealed::Sealed;
 
@@ -1747,16 +1747,16 @@ impl<T> Sealed for HeaderMap<T> {}
 impl<COLLECTION, K, V> HttpTryFrom<COLLECTION> for HeaderMap<HeaderValue>
     where
         COLLECTION: IntoIterator<Item=(K, V)>,
-        K: AsRef<str>,
-        V: AsRef<str>
+        HeaderName: HttpTryFrom<K>,
+        HeaderValue: HttpTryFrom<V>
 {
     type Error = Error;
 
     fn try_from(c: COLLECTION) -> Result<Self, Self::Error> {
         c.into_iter()
             .map(|(k, v)| -> ::Result<(HeaderName, HeaderValue)> {
-                let name = k.as_ref().parse()?;
-                let value = v.as_ref().parse()?;
+                let name : HeaderName = k.http_try_into()?;
+                let value : HeaderValue = v.http_try_into()?;
                 Ok((name, value))
             })
             .collect()
