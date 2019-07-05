@@ -40,6 +40,10 @@ name = "header_map"
 path = "benches/header_map/mod.rs"
 
 [[bench]]
+name = "header_name"
+path = "benches/header_name.rs"
+
+[[bench]]
 name = "header_value"
 path = "benches/header_value.rs"
 
