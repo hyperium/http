@@ -47,6 +47,7 @@ impl Error {
     }
 
     /// Return a reference to the lower level, inner error.
+    #[allow(warnings)]
     pub fn get_ref(&self) -> &(error::Error + 'static) {
         use self::ErrorKind::*;
 
@@ -83,7 +84,7 @@ impl error::Error for Error {
 
     // Return any available cause from the inner error. Note the inner error is
     // not itself the cause.
-    #[allow(deprecated)]
+    #[allow(warnings)]
     fn cause(&self) -> Option<&error::Error> {
         self.get_ref().cause()
     }

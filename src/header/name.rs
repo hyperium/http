@@ -1530,6 +1530,7 @@ impl HeaderName {
     /// Converts a slice of bytes to an HTTP header name.
     ///
     /// This function normalizes the input.
+    #[allow(deprecated)]
     pub fn from_bytes(src: &[u8]) -> Result<HeaderName, InvalidHeaderName> {
         let mut buf = unsafe { mem::uninitialized() };
         match parse_hdr(src, &mut buf, &HEADER_CHARS)?.inner {
@@ -1578,6 +1579,7 @@ impl HeaderName {
     /// // Parsing a header that contains uppercase characters
     /// assert!(HeaderName::from_lowercase(b"Content-Length").is_err());
     /// ```
+    #[allow(deprecated)]
     pub fn from_lowercase(src: &[u8]) -> Result<HeaderName, InvalidHeaderName> {
         let mut buf = unsafe { mem::uninitialized() };
         match parse_hdr(src, &mut buf, &HEADER_CHARS_H2)?.inner {
@@ -1636,6 +1638,7 @@ impl HeaderName {
     /// let a = HeaderName::from_static("foobar");
     /// let b = HeaderName::from_static("FOOBAR"); // This line panics!
     /// ```
+    #[allow(deprecated)]
     pub fn from_static(src: &'static str) -> HeaderName {
         let bytes = src.as_bytes();
         let mut buf = unsafe { mem::uninitialized() };
@@ -1913,6 +1916,7 @@ impl<'a> HdrName<'a> {
         }
     }
 
+    #[allow(deprecated)]
     pub fn from_bytes<F, U>(hdr: &[u8], f: F) -> Result<U, InvalidHeaderName>
         where F: FnOnce(HdrName) -> U,
     {
@@ -1921,6 +1925,7 @@ impl<'a> HdrName<'a> {
         Ok(f(hdr))
     }
 
+    #[allow(deprecated)]
     pub fn from_static<F, U>(hdr: &'static str, f: F) -> U
         where F: FnOnce(HdrName) -> U,
     {
