@@ -255,7 +255,7 @@ impl Action {
             }
             Action::Remove { name, val } => {
                 // Just to help track the state, load all associated values.
-                map.get_all(&name).iter().collect::<Vec<_>>();
+                let _ = map.get_all(&name).iter().collect::<Vec<_>>();
 
                 let actual = map.remove(&name);
                 assert_eq!(actual, val);
