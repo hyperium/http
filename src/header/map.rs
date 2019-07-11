@@ -27,10 +27,10 @@ pub use self::into_header_name::IntoHeaderName;
 /// # use http::HeaderMap;
 /// # use http::header::{CONTENT_LENGTH, HOST, LOCATION};
 /// # use http::HttpTryFrom;
-/// let mut headers = HeaderMap::try_from(vec![
-///     (HOST, "example.com"),
-///     (CONTENT_LENGTH, "123")
-/// ]).unwrap();
+/// let mut headers = HeaderMap::new();
+///
+/// headers.insert(HOST, "example.com".parse().unwrap());
+/// headers.insert(CONTENT_LENGTH, "123".parse().unwrap());
 ///
 /// assert!(headers.contains_key(HOST));
 /// assert!(!headers.contains_key(LOCATION));
@@ -1744,15 +1744,15 @@ impl<T> Sealed for HeaderMap<T> {}
 /// let bad_headers: Result<HeaderMap> = HeaderMap::try_from(&headers_hashmap);
 /// assert!(bad_headers.is_err());
 /// ```
-impl<COLLECTION, K, V> HttpTryFrom<COLLECTION> for HeaderMap<HeaderValue>
+impl<C, K, V> HttpTryFrom<C> for HeaderMap<HeaderValue>
     where
-        COLLECTION: IntoIterator<Item=(K, V)>,
+        C: IntoIterator<Item=(K, V)>,
         HeaderName: HttpTryFrom<K>,
         HeaderValue: HttpTryFrom<V>
 {
     type Error = Error;
 
-    fn try_from(c: COLLECTION) -> Result<Self, Self::Error> {
+    fn try_from(c: C) -> Result<Self, Self::Error> {
         c.into_iter()
             .map(|(k, v)| -> ::Result<(HeaderName, HeaderValue)> {
                 let name : HeaderName = k.http_try_into()?;
