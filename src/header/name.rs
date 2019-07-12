@@ -1044,6 +1044,7 @@ const HEADER_CHARS_H2: [u8; 256] = [
         0,     0,     0,     0,     0,     0                              // 25x
 ];
 
+#[cfg(any(not(debug_assertions), not(target_arch = "wasm32")))]
 macro_rules! eq {
     (($($cmp:expr,)*) $v:ident[$n:expr] ==) => {
         $($cmp) && *
@@ -1059,6 +1060,10 @@ macro_rules! eq {
     };
 }
 
+#[cfg(any(not(debug_assertions), not(target_arch = "wasm32")))]
+/// This version is best under optimized mode, however in a wasm debug compile,
+/// the `eq` macro expands to 1 + 1 + 1 + 1... and wasm explodes when this chain gets too long
+/// See https://github.com/DenisKolodin/yew/issues/478
 fn parse_hdr<'a>(
     data: &'a [u8],
     b: &'a mut [u8; 64],
@@ -1522,6 +1527,128 @@ fn parse_hdr<'a>(
         }
     }
 }
+
+#[cfg(all(debug_assertions, target_arch = "wasm32"))]
+/// This version works best in debug mode in wasm
+fn parse_hdr<'a>(
+    data: &'a [u8],
+    b: &'a mut [u8; 64],
+    table: &[u8; 256],
+) -> Result<HdrName<'a>, InvalidHeaderName> {
+    use self::StandardHeader::*;
+
+    let len = data.len();
+
+    let validate = |buf: &'a [u8], len: usize| {
+        let buf = &buf[..len];
+        if buf.iter().any(|&b| b == 0) {
+            Err(InvalidHeaderName::new())
+        } else {
+            Ok(HdrName::custom(buf, true))
+        }
+    };
+
+    assert!(
+        len < super::MAX_HEADER_NAME_LEN,
+        "header name too long -- max length is {}",
+        super::MAX_HEADER_NAME_LEN
+    );
+
+    match len {
+        0 => Err(InvalidHeaderName::new()),
+        len if len > 64 => Ok(HdrName::custom(data, false)),
+        len => {
+            // Read from data into the buffer - transforming using `table` as we go
+            data.iter().zip(b.iter_mut()).for_each(|(index, out)| *out = table[*index as usize]);
+            match &b[0..len] {
+                b"te" => Ok(Te.into()),
+                b"age" => Ok(Age.into()),
+                b"via" => Ok(Via.into()),
+                b"dnt" => Ok(Dnt.into()),
+                b"date" => Ok(Date.into()),
+                b"etag" => Ok(Etag.into()),
+                b"from" => Ok(From.into()),
+                b"host" => Ok(Host.into()),
+                b"link" => Ok(Link.into()),
+                b"vary" => Ok(Vary.into()),
+                b"allow" => Ok(Allow.into()),
+                b"range" => Ok(Range.into()),
+                b"accept" => Ok(Accept.into()),
+                b"cookie" => Ok(Cookie.into()),
+                b"expect" => Ok(Expect.into()),
+                b"origin" => Ok(Origin.into()),
+                b"pragma" => Ok(Pragma.into()),
+                b"server" => Ok(Server.into()),
+                b"alt-svc" => Ok(AltSvc.into()),
+                b"expires" => Ok(Expires.into()),
+                b"referer" => Ok(Referer.into()),
+                b"refresh" => Ok(Refresh.into()),
+                b"trailer" => Ok(Trailer.into()),
+                b"upgrade" => Ok(Upgrade.into()),
+                b"warning" => Ok(Warning.into()),
+                b"if-match" => Ok(IfMatch.into()),
+                b"if-range" => Ok(IfRange.into()),
+                b"location" => Ok(Location.into()),
+                b"forwarded" => Ok(Forwarded.into()),
+                b"connection" => Ok(Connection.into()),
+                b"set-cookie" => Ok(SetCookie.into()),
+                b"user-agent" => Ok(UserAgent.into()),
+                b"retry-after" => Ok(RetryAfter.into()),
+                b"content-type" => Ok(ContentType.into()),
+                b"max-forwards" => Ok(MaxForwards.into()),
+                b"accept-ranges" => Ok(AcceptRanges.into()),
+                b"authorization" => Ok(Authorization.into()),
+                b"cache-control" => Ok(CacheControl.into()),
+                b"content-range" => Ok(ContentRange.into()),
+                b"if-none-match" => Ok(IfNoneMatch.into()),
+                b"last-modified" => Ok(LastModified.into()),
+                b"accept-charset" => Ok(AcceptCharset.into()),
+                b"content-length" => Ok(ContentLength.into()),
+                b"accept-encoding" => Ok(AcceptEncoding.into()),
+                b"accept-language" => Ok(AcceptLanguage.into()),
+                b"public-key-pins" => Ok(PublicKeyPins.into()),
+                b"x-frame-options" => Ok(XFrameOptions.into()),
+                b"referrer-policy" => Ok(ReferrerPolicy.into()),
+                b"content-language" => Ok(ContentLanguage.into()),
+                b"content-location" => Ok(ContentLocation.into()),
+                b"content-encoding" => Ok(ContentEncoding.into()),
+                b"www-authenticate" => Ok(WwwAuthenticate.into()),
+                b"x-xss-protection" => Ok(XXssProtection.into()),
+                b"transfer-encoding" => Ok(TransferEncoding.into()),
+                b"if-modified-since" => Ok(IfModifiedSince.into()),
+                b"sec-websocket-key" => Ok(SecWebSocketKey.into()),
+                b"proxy-authenticate" => Ok(ProxyAuthenticate.into()),
+                b"content-disposition" => Ok(ContentDisposition.into()),
+                b"if-unmodified-since" => Ok(IfUnmodifiedSince.into()),
+                b"proxy-authorization" => Ok(ProxyAuthorization.into()),
+                b"sec-websocket-accept" => Ok(SecWebSocketAccept.into()),
+                b"sec-websocket-version" => Ok(SecWebSocketVersion.into()),
+                b"access-control-max-age" => Ok(AccessControlMaxAge.into()),
+                b"x-content-type-options" => Ok(XContentTypeOptions.into()),
+                b"x-dns-prefetch-control" => Ok(XDnsPrefetchControl.into()),
+                b"sec-websocket-protocol" => Ok(SecWebSocketProtocol.into()),
+                b"content-security-policy" => Ok(ContentSecurityPolicy.into()),
+                b"sec-websocket-extensions" => Ok(SecWebSocketExtensions.into()),
+                b"strict-transport-security" => Ok(StrictTransportSecurity.into()),
+                b"upgrade-insecure-requests" => Ok(UpgradeInsecureRequests.into()),
+                b"access-control-allow-origin" => Ok(AccessControlAllowOrigin.into()),
+                b"public-key-pins-report-only" => Ok(PublicKeyPinsReportOnly.into()),
+                b"access-control-allow-headers" => Ok(AccessControlAllowHeaders.into()),
+                b"access-control-allow-methods" => Ok(AccessControlAllowMethods.into()),
+                b"access-control-expose-headers" => Ok(AccessControlExposeHeaders.into()),
+                b"access-control-request-method" => Ok(AccessControlRequestMethod.into()),
+                b"access-control-request-headers" => Ok(AccessControlRequestHeaders.into()),
+                b"access-control-allow-credentials" => Ok(AccessControlAllowCredentials.into()),
+                b"content-security-policy-report-only" => {
+                    Ok(ContentSecurityPolicyReportOnly.into())
+                }
+                other => validate(other, len),
+            }
+        }
+    }
+}
+
+
 
 impl<'a> From<StandardHeader> for HdrName<'a> {
     fn from(hdr: StandardHeader) -> HdrName<'a> {
