@@ -1659,6 +1659,7 @@ impl HeaderName {
     /// This function normalizes the input.
     #[allow(deprecated)]
     pub fn from_bytes(src: &[u8]) -> Result<HeaderName, InvalidHeaderName> {
+        #[allow(deprecated)]
         let mut buf = unsafe { mem::uninitialized() };
         match parse_hdr(src, &mut buf, &HEADER_CHARS)?.inner {
             Repr::Standard(std) => Ok(std.into()),
@@ -1708,6 +1709,7 @@ impl HeaderName {
     /// ```
     #[allow(deprecated)]
     pub fn from_lowercase(src: &[u8]) -> Result<HeaderName, InvalidHeaderName> {
+        #[allow(deprecated)]
         let mut buf = unsafe { mem::uninitialized() };
         match parse_hdr(src, &mut buf, &HEADER_CHARS_H2)?.inner {
             Repr::Standard(std) => Ok(std.into()),
@@ -1768,6 +1770,7 @@ impl HeaderName {
     #[allow(deprecated)]
     pub fn from_static(src: &'static str) -> HeaderName {
         let bytes = src.as_bytes();
+        #[allow(deprecated)]
         let mut buf = unsafe { mem::uninitialized() };
         match parse_hdr(bytes, &mut buf, &HEADER_CHARS_H2) {
             Ok(hdr_name) => match hdr_name.inner {
@@ -2063,6 +2066,7 @@ impl<'a> HdrName<'a> {
     pub fn from_bytes<F, U>(hdr: &[u8], f: F) -> Result<U, InvalidHeaderName>
         where F: FnOnce(HdrName) -> U,
     {
+        #[allow(deprecated)]
         let mut buf = unsafe { mem::uninitialized() };
         let hdr = parse_hdr(hdr, &mut buf, &HEADER_CHARS)?;
         Ok(f(hdr))
@@ -2072,6 +2076,7 @@ impl<'a> HdrName<'a> {
     pub fn from_static<F, U>(hdr: &'static str, f: F) -> U
         where F: FnOnce(HdrName) -> U,
     {
+        #[allow(deprecated)]
         let mut buf = unsafe { mem::uninitialized() };
         let hdr = parse_hdr(hdr.as_bytes(), &mut buf, &HEADER_CHARS)
             .expect("static str is invalid name");
