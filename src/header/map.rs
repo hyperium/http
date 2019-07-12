@@ -1,14 +1,15 @@
-use super::HeaderValue;
-use super::name::{HeaderName, HdrName, InvalidHeaderName};
-use convert::{HttpTryFrom, HttpTryInto};
-use Error;
-use sealed::Sealed;
-
 use std::{fmt, mem, ops, ptr, vec};
+use std::collections::{BTreeMap, HashMap};
 use std::collections::hash_map::RandomState;
-use std::hash::{BuildHasher, Hasher, Hash};
+use std::hash::{BuildHasher, Hash, Hasher};
 use std::iter::FromIterator;
 use std::marker::PhantomData;
+
+use convert::{HttpTryFrom, HttpTryInto};
+use Error;
+
+use super::HeaderValue;
+use super::name::{HdrName, HeaderName, InvalidHeaderName};
 
 pub use self::as_header_name::AsHeaderName;
 pub use self::into_header_name::IntoHeaderName;
@@ -1724,7 +1725,23 @@ impl<T> FromIterator<(HeaderName, T)> for HeaderMap<T>
     }
 }
 
-impl<T> Sealed for HeaderMap<T> {}
+/// A marker trait that allows conversion from a type to HeaderMap
+/// This trait is needed to have both a fast implementation of
+/// HttpTryFrom<HeaderMap> and a generic implementation
+/// of HttpTryFrom<IntoIterator<Item=(K,V)>> for HeaderMap that do not conflict.
+pub trait IntoHeaderMapAllowed {}
+
+impl<K, V, S> IntoHeaderMapAllowed for HashMap<K, V, S> {}
+
+impl<'a, K, V, S> IntoHeaderMapAllowed for &'a HashMap<K, V, S> {}
+
+impl<K, V> IntoHeaderMapAllowed for BTreeMap<K, V> {}
+
+impl<'a, K, V> IntoHeaderMapAllowed for &'a BTreeMap<K, V> {}
+
+impl<'a, T> IntoHeaderMapAllowed for &'a [T] {}
+
+impl<T> IntoHeaderMapAllowed for Vec<T> {}
 
 /// Convert a collection of tuples into a HeaderMap
 ///
@@ -1746,7 +1763,7 @@ impl<T> Sealed for HeaderMap<T> {}
 /// ```
 impl<C, K, V> HttpTryFrom<C> for HeaderMap<HeaderValue>
     where
-        C: IntoIterator<Item=(K, V)>,
+        C: IntoIterator<Item=(K, V)> + IntoHeaderMapAllowed,
         HeaderName: HttpTryFrom<K>,
         HeaderValue: HttpTryFrom<V>
 {

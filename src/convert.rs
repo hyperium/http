@@ -1,5 +1,5 @@
 use Error;
-use header::{HeaderName, HeaderValue};
+use header::{HeaderName, HeaderValue, HeaderMap};
 use method::Method;
 use sealed::Sealed;
 use status::StatusCode;
@@ -56,6 +56,7 @@ reflexive! {
     Uri,
     Method,
     StatusCode,
+    HeaderMap,
     HeaderName,
     HeaderValue,
     Scheme,
