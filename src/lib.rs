@@ -163,6 +163,13 @@ extern crate bytes;
 extern crate fnv;
 extern crate itoa;
 
+#[cfg(test)]
+#[macro_use]
+extern crate doc_comment;
+
+#[cfg(test)]
+doctest!("../README.md");
+
 pub mod header;
 pub mod method;
 pub mod request;
