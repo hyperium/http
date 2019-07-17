@@ -315,13 +315,13 @@ impl From<PathAndQuery> for Bytes {
 }
 
 impl fmt::Debug for PathAndQuery {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(self, f)
     }
 }
 
 impl fmt::Display for PathAndQuery {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         if !self.data.is_empty() {
             match self.data.as_bytes()[0] {
                 b'/' | b'*' => write!(fmt, "{}", &self.data[..]),

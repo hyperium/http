@@ -186,7 +186,7 @@ impl StatusCode {
 }
 
 impl fmt::Debug for StatusCode {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&self.0, f)
     }
 }
@@ -200,7 +200,7 @@ impl fmt::Debug for StatusCode {
 /// assert_eq!(format!("{}", StatusCode::OK), "200 OK");
 /// ```
 impl fmt::Display for StatusCode {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} {}", u16::from(*self),
                self.canonical_reason().unwrap_or("<unknown status code>"))
     }
@@ -514,7 +514,7 @@ status_codes! {
 }
 
 impl fmt::Display for InvalidStatusCode {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.description())
     }
 }

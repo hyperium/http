@@ -684,7 +684,7 @@ impl<T: Default> Default for Request<T> {
 }
 
 impl<T: fmt::Debug> fmt::Debug for Request<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Request")
             .field("method", self.method())
             .field("uri", self.uri())
@@ -711,7 +711,7 @@ impl Parts {
 }
 
 impl fmt::Debug for Parts {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Parts")
             .field("method", &self.method)
             .field("uri", &self.uri)

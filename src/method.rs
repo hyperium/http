@@ -321,13 +321,13 @@ impl<'a> PartialEq<Method> for &'a str {
 }
 
 impl fmt::Debug for Method {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_ref())
     }
 }
 
 impl fmt::Display for Method {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.write_str(self.as_ref())
     }
 }
@@ -391,7 +391,7 @@ impl InvalidMethod {
 }
 
 impl fmt::Display for InvalidMethod {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.description())
     }
 }

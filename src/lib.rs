@@ -160,9 +160,9 @@
 
 #![deny(warnings, missing_docs, missing_debug_implementations)]
 
-extern crate bytes;
-extern crate fnv;
-extern crate itoa;
+
+
+
 
 pub mod header;
 pub mod method;

@@ -22,7 +22,7 @@ impl<K: PartialEq, V> VecMap<K, V> {
     }
 
     #[inline]
-    pub fn entry(&mut self, key: K) -> Entry<K, V> {
+    pub fn entry(&mut self, key: K) -> Entry<'_, K, V> {
         match self.find(&key) {
             Some(pos) => Entry::Occupied(OccupiedEntry {
                 vec: self,
@@ -54,7 +54,7 @@ impl<K: PartialEq, V> VecMap<K, V> {
     pub fn len(&self) -> usize { self.vec.len() }
 
     #[inline]
-    pub fn iter(&self) -> ::std::slice::Iter<(K, V)> {
+    pub fn iter(&self) -> ::std::slice::Iter<'_, (K, V)> {
         self.vec.iter()
     }
     #[inline]
@@ -77,7 +77,7 @@ pub enum Entry<'a, K: 'a, V: 'a> {
     Occupied(OccupiedEntry<'a, K, V>)
 }
 
-pub struct VacantEntry<'a, K: 'a, V: 'a> {
+pub struct VacantEntry<'a, K, V> {
     vec: &'a mut VecMap<K, V>,
     key: K,
 }
@@ -91,7 +91,7 @@ impl<'a, K, V> VacantEntry<'a, K, V> {
     }
 }
 
-pub struct OccupiedEntry<'a, K: 'a, V: 'a> {
+pub struct OccupiedEntry<'a, K, V> {
     vec: &'a mut VecMap<K, V>,
     pos: usize,
 }

@@ -1,7 +1,7 @@
 #![feature(test)]
 
-extern crate bytes;
-extern crate http;
+
+
 extern crate test;
 
 use bytes::Bytes;

@@ -60,7 +60,7 @@ impl Default for Version {
 }
 
 impl fmt::Debug for Version {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use self::Http::*;
 
         f.write_str(match self.0 {

@@ -330,7 +330,7 @@ impl AsRef<[u8]> for HeaderValue {
 }
 
 impl fmt::Debug for HeaderValue {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.is_sensitive {
             f.write_str("Sensitive")
         } else {
@@ -582,7 +582,7 @@ fn is_valid(b: u8) -> bool {
 }
 
 impl fmt::Display for InvalidHeaderValue {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.description().fmt(f)
     }
 }
@@ -594,7 +594,7 @@ impl Error for InvalidHeaderValue {
 }
 
 impl fmt::Display for InvalidHeaderValueBytes {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
     }
 }
@@ -606,7 +606,7 @@ impl Error for InvalidHeaderValueBytes {
 }
 
 impl fmt::Display for ToStrError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.description().fmt(f)
     }
 }

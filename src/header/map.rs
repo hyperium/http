@@ -77,7 +77,7 @@ pub struct HeaderMap<T = HeaderValue> {
 /// Yields `(&HeaderName, &value)` tuples. The same header name may be yielded
 /// more than once if it has more than one associated value.
 #[derive(Debug)]
-pub struct Iter<'a, T: 'a> {
+pub struct Iter<'a, T> {
     inner: IterMut<'a, T>,
 }
 
@@ -86,7 +86,7 @@ pub struct Iter<'a, T: 'a> {
 /// Yields `(&HeaderName, &mut value)` tuples. The same header name may be
 /// yielded more than once if it has more than one associated value.
 #[derive(Debug)]
-pub struct IterMut<'a, T: 'a> {
+pub struct IterMut<'a, T> {
     map: *mut HeaderMap<T>,
     entry: usize,
     cursor: Option<Cursor>,
@@ -109,7 +109,7 @@ pub struct IntoIter<T> {
 /// Each header name is yielded only once, even if it has more than one
 /// associated value.
 #[derive(Debug)]
-pub struct Keys<'a, T: 'a> {
+pub struct Keys<'a, T> {
     inner: ::std::slice::Iter<'a, Bucket<T>>,
 }
 
@@ -117,19 +117,19 @@ pub struct Keys<'a, T: 'a> {
 ///
 /// Each value contained in the `HeaderMap` will be yielded.
 #[derive(Debug)]
-pub struct Values<'a, T: 'a> {
+pub struct Values<'a, T> {
     inner: Iter<'a, T>,
 }
 
 /// `HeaderMap` mutable value iterator
 #[derive(Debug)]
-pub struct ValuesMut<'a, T: 'a> {
+pub struct ValuesMut<'a, T> {
     inner: IterMut<'a, T>,
 }
 
 /// A drain iterator for `HeaderMap`.
 #[derive(Debug)]
-pub struct Drain<'a, T: 'a> {
+pub struct Drain<'a, T> {
     idx: usize,
     map: *mut HeaderMap<T>,
     lt: PhantomData<&'a mut HeaderMap<T>>,
@@ -139,7 +139,7 @@ pub struct Drain<'a, T: 'a> {
 ///
 /// This struct is returned by `HeaderMap::get_all`.
 #[derive(Debug)]
-pub struct GetAll<'a, T: 'a> {
+pub struct GetAll<'a, T> {
     map: &'a HeaderMap<T>,
     index: Option<usize>,
 }
@@ -158,7 +158,7 @@ pub enum Entry<'a, T: 'a> {
 ///
 /// This struct is returned as part of the `Entry` enum.
 #[derive(Debug)]
-pub struct VacantEntry<'a, T: 'a> {
+pub struct VacantEntry<'a, T> {
     map: &'a mut HeaderMap<T>,
     key: HeaderName,
     hash: HashValue,
@@ -170,7 +170,7 @@ pub struct VacantEntry<'a, T: 'a> {
 ///
 /// This struct is returned as part of the `Entry` enum.
 #[derive(Debug)]
-pub struct OccupiedEntry<'a, T: 'a> {
+pub struct OccupiedEntry<'a, T> {
     map: &'a mut HeaderMap<T>,
     probe: usize,
     index: usize,
@@ -178,7 +178,7 @@ pub struct OccupiedEntry<'a, T: 'a> {
 
 /// An iterator of all values associated with a single header name.
 #[derive(Debug)]
-pub struct ValueIter<'a, T: 'a> {
+pub struct ValueIter<'a, T> {
     map: &'a HeaderMap<T>,
     index: usize,
     front: Option<Cursor>,
@@ -187,7 +187,7 @@ pub struct ValueIter<'a, T: 'a> {
 
 /// A mutable iterator of all values associated with a single header name.
 #[derive(Debug)]
-pub struct ValueIterMut<'a, T: 'a> {
+pub struct ValueIterMut<'a, T> {
     map: *mut HeaderMap<T>,
     index: usize,
     front: Option<Cursor>,
@@ -197,7 +197,7 @@ pub struct ValueIterMut<'a, T: 'a> {
 
 /// An drain iterator of all values associated with a single header name.
 #[derive(Debug)]
-pub struct ValueDrain<'a, T: 'a> {
+pub struct ValueDrain<'a, T> {
     map: *mut HeaderMap<T>,
     first: Option<T>,
     next: Option<usize>,
@@ -728,7 +728,7 @@ impl<T> HeaderMap<T> {
     /// assert_eq!(&"goodbye", iter.next().unwrap());
     /// assert!(iter.next().is_none());
     /// ```
-    pub fn get_all<K>(&self, key: K) -> GetAll<T>
+    pub fn get_all<K>(&self, key: K) -> GetAll<'_, T>
         where K: AsHeaderName
     {
         GetAll {
@@ -777,7 +777,7 @@ impl<T> HeaderMap<T> {
     ///     println!("{:?}: {:?}", key, value);
     /// }
     /// ```
-    pub fn iter(&self) -> Iter<T> {
+    pub fn iter(&self) -> Iter<'_, T> {
         Iter {
             inner: IterMut {
                 map: self as *const _ as *mut _,
@@ -809,7 +809,7 @@ impl<T> HeaderMap<T> {
     ///     value.push_str("-boop");
     /// }
     /// ```
-    pub fn iter_mut(&mut self) -> IterMut<T> {
+    pub fn iter_mut(&mut self) -> IterMut<'_, T> {
         IterMut {
             map: self as *mut _,
             entry: 0,
@@ -839,7 +839,7 @@ impl<T> HeaderMap<T> {
     ///     println!("{:?}", key);
     /// }
     /// ```
-    pub fn keys(&self) -> Keys<T> {
+    pub fn keys(&self) -> Keys<'_, T> {
         Keys { inner: self.entries.iter() }
     }
 
@@ -863,7 +863,7 @@ impl<T> HeaderMap<T> {
     ///     println!("{:?}", value);
     /// }
     /// ```
-    pub fn values(&self) -> Values<T> {
+    pub fn values(&self) -> Values<'_, T> {
         Values { inner: self.iter() }
     }
 
@@ -887,7 +887,7 @@ impl<T> HeaderMap<T> {
     ///     value.push_str("-boop");
     /// }
     /// ```
-    pub fn values_mut(&mut self) -> ValuesMut<T> {
+    pub fn values_mut(&mut self) -> ValuesMut<'_, T> {
         ValuesMut { inner: self.iter_mut() }
     }
 
@@ -921,7 +921,7 @@ impl<T> HeaderMap<T> {
     /// assert_eq!("123", vals.next().unwrap());
     /// assert!(vals.next().is_none());
     /// ```
-    pub fn drain(&mut self) -> Drain<T> {
+    pub fn drain(&mut self) -> Drain<'_, T> {
         for i in self.indices.iter_mut() {
             *i = Pos::none();
         }
@@ -933,7 +933,7 @@ impl<T> HeaderMap<T> {
         }
     }
 
-    fn value_iter(&self, idx: Option<usize>) -> ValueIter<T> {
+    fn value_iter(&self, idx: Option<usize>) -> ValueIter<'_, T> {
         use self::Cursor::*;
 
         if let Some(idx) = idx {
@@ -961,7 +961,7 @@ impl<T> HeaderMap<T> {
         }
     }
 
-    fn value_iter_mut(&mut self, idx: usize) -> ValueIterMut<T> {
+    fn value_iter_mut(&mut self, idx: usize) -> ValueIterMut<'_, T> {
         use self::Cursor::*;
 
         let back = {
@@ -1005,7 +1005,7 @@ impl<T> HeaderMap<T> {
     /// assert_eq!(map["content-length"], 2);
     /// assert_eq!(map["x-hello"], 1);
     /// ```
-    pub fn entry<K>(&mut self, key: K) -> Entry<T>
+    pub fn entry<K>(&mut self, key: K) -> Entry<'_, T>
         where K: IntoHeaderName,
     {
         key.entry(self)
@@ -1020,13 +1020,13 @@ impl<T> HeaderMap<T> {
     /// valid `HeaderName`s to passed as the key (such as `String`). If they
     /// do not parse as a valid `HeaderName`, this returns an
     /// `InvalidHeaderName` error.
-    pub fn try_entry<K>(&mut self, key: K) -> Result<Entry<T>, InvalidHeaderName>
+    pub fn try_entry<K>(&mut self, key: K) -> Result<Entry<'_, T>, InvalidHeaderName>
         where K: AsHeaderName,
     {
         key.try_entry(self)
     }
 
-    fn entry2<K>(&mut self, key: K) -> Entry<T>
+    fn entry2<K>(&mut self, key: K) -> Entry<'_, T>
         where K: Hash + Into<HeaderName>,
               HeaderName: PartialEq<K>,
     {
@@ -1136,7 +1136,7 @@ impl<T> HeaderMap<T> {
         mem::replace(&mut entry.value, value)
     }
 
-    fn insert_occupied_mult(&mut self, index: usize, value: T) -> ValueDrain<T> {
+    fn insert_occupied_mult(&mut self, index: usize, value: T) -> ValueDrain<'_, T> {
         let old;
         let links;
 
@@ -1857,7 +1857,7 @@ impl<T: PartialEq> PartialEq for HeaderMap<T> {
 impl<T: Eq> Eq for HeaderMap<T> {}
 
 impl<T: fmt::Debug> fmt::Debug for HeaderMap<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_map().entries(self.iter()).finish()
     }
 }
@@ -2762,7 +2762,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     ///
     /// assert_eq!("earth", map["host"]);
     /// ```
-    pub fn insert_mult(&mut self, value: T) -> ValueDrain<T> {
+    pub fn insert_mult(&mut self, value: T) -> ValueDrain<'_, T> {
         self.map.insert_occupied_mult(self.index, value.into())
     }
 
@@ -2881,7 +2881,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     ///     assert!(iter.next().is_none());
     /// }
     /// ```
-    pub fn iter(&self) -> ValueIter<T> {
+    pub fn iter(&self) -> ValueIter<'_, T> {
         self.map.value_iter(Some(self.index))
     }
 
@@ -2909,7 +2909,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// assert_eq!(&"world-boop", i.next().unwrap());
     /// assert_eq!(&"earth-boop", i.next().unwrap());
     /// ```
-    pub fn iter_mut(&mut self) -> ValueIterMut<T> {
+    pub fn iter_mut(&mut self) -> ValueIterMut<'_, T> {
         self.map.value_iter_mut(self.index)
     }
 }
@@ -3140,7 +3140,7 @@ mod into_header_name {
         fn append<T>(self, map: &mut HeaderMap<T>, val: T) -> bool;
 
         #[doc(hidden)]
-        fn entry<T>(self, map: &mut HeaderMap<T>) -> Entry<T>;
+        fn entry<T>(self, map: &mut HeaderMap<T>) -> Entry<'_, T>;
     }
 
     // ==== impls ====
@@ -3160,7 +3160,7 @@ mod into_header_name {
 
         #[doc(hidden)]
         #[inline]
-        fn entry<T>(self, map: &mut HeaderMap<T>) -> Entry<T> {
+        fn entry<T>(self, map: &mut HeaderMap<T>) -> Entry<'_, T> {
             map.entry2(self)
         }
     }
@@ -3181,7 +3181,7 @@ mod into_header_name {
 
         #[doc(hidden)]
         #[inline]
-        fn entry<T>(self, map: &mut HeaderMap<T>) -> Entry<T> {
+        fn entry<T>(self, map: &mut HeaderMap<T>) -> Entry<'_, T> {
             map.entry2(self)
         }
     }
@@ -3202,7 +3202,7 @@ mod into_header_name {
 
         #[doc(hidden)]
         #[inline]
-        fn entry<T>(self, map: &mut HeaderMap<T>) -> Entry<T> {
+        fn entry<T>(self, map: &mut HeaderMap<T>) -> Entry<'_, T> {
             HdrName::from_static(self, move |hdr| map.entry2(hdr))
         }
     }
@@ -3227,7 +3227,7 @@ mod as_header_name {
     // without breaking any external crate.
     pub trait Sealed {
         #[doc(hidden)]
-        fn try_entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<T>, InvalidHeaderName>;
+        fn try_entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<'_, T>, InvalidHeaderName>;
 
         #[doc(hidden)]
         fn find<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)>;
@@ -3241,7 +3241,7 @@ mod as_header_name {
     impl Sealed for HeaderName {
         #[doc(hidden)]
         #[inline]
-        fn try_entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<T>, InvalidHeaderName> {
+        fn try_entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<'_, T>, InvalidHeaderName> {
             Ok(map.entry2(self))
         }
 
@@ -3262,7 +3262,7 @@ mod as_header_name {
     impl<'a> Sealed for &'a HeaderName {
         #[doc(hidden)]
         #[inline]
-        fn try_entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<T>, InvalidHeaderName> {
+        fn try_entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<'_, T>, InvalidHeaderName> {
             Ok(map.entry2(self))
         }
 
@@ -3283,7 +3283,7 @@ mod as_header_name {
     impl<'a> Sealed for &'a str {
         #[doc(hidden)]
         #[inline]
-        fn try_entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<T>, InvalidHeaderName> {
+        fn try_entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<'_, T>, InvalidHeaderName> {
             HdrName::from_bytes(self.as_bytes(), move |hdr| map.entry2(hdr))
         }
 
@@ -3304,7 +3304,7 @@ mod as_header_name {
     impl Sealed for String {
         #[doc(hidden)]
         #[inline]
-        fn try_entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<T>, InvalidHeaderName> {
+        fn try_entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<'_, T>, InvalidHeaderName> {
             self.as_str().try_entry(map)
         }
 
@@ -3325,7 +3325,7 @@ mod as_header_name {
     impl<'a> Sealed for &'a String {
         #[doc(hidden)]
         #[inline]
-        fn try_entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<T>, InvalidHeaderName> {
+        fn try_entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<'_, T>, InvalidHeaderName> {
             self.as_str().try_entry(map)
         }
 

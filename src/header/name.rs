@@ -1710,13 +1710,13 @@ impl Borrow<str> for HeaderName {
 }
 
 impl fmt::Debug for HeaderName {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(self.as_str(), fmt)
     }
 }
 
 impl fmt::Display for HeaderName {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(self.as_str(), fmt)
     }
 }
@@ -1882,7 +1882,7 @@ impl<'a> PartialEq<HeaderName> for &'a str {
 }
 
 impl fmt::Display for InvalidHeaderName {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.description().fmt(f)
     }
 }
@@ -1894,7 +1894,7 @@ impl Error for InvalidHeaderName {
 }
 
 impl fmt::Display for InvalidHeaderNameBytes {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
     }
 }
@@ -1918,7 +1918,7 @@ impl<'a> HdrName<'a> {
     }
 
     pub fn from_bytes<F, U>(hdr: &[u8], f: F) -> Result<U, InvalidHeaderName>
-        where F: FnOnce(HdrName) -> U,
+        where F: FnOnce(HdrName<'_>) -> U,
     {
         #[allow(deprecated)]
         let mut buf = unsafe { mem::uninitialized() };
@@ -1927,7 +1927,7 @@ impl<'a> HdrName<'a> {
     }
 
     pub fn from_static<F, U>(hdr: &'static str, f: F) -> U
-        where F: FnOnce(HdrName) -> U,
+        where F: FnOnce(HdrName<'_>) -> U,
     {
         #[allow(deprecated)]
         let mut buf = unsafe { mem::uninitialized() };

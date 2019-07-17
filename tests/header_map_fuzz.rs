@@ -1,6 +1,6 @@
-extern crate http;
-extern crate rand;
-extern crate quickcheck;
+
+
+use quickcheck;
 
 use http::*;
 use http::header::*;

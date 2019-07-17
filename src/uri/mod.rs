@@ -999,7 +999,7 @@ impl Default for Uri {
 }
 
 impl fmt::Display for Uri {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(scheme) = self.scheme() {
             write!(f, "{}://", scheme)?;
         }
@@ -1019,7 +1019,7 @@ impl fmt::Display for Uri {
 }
 
 impl fmt::Debug for Uri {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(self, f)
     }
 }
@@ -1043,7 +1043,7 @@ impl From<ErrorKind> for InvalidUriParts {
 }
 
 impl fmt::Display for InvalidUri {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.description().fmt(f)
     }
 }
@@ -1067,13 +1067,13 @@ impl Error for InvalidUri {
 }
 
 impl fmt::Display for InvalidUriBytes {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
     }
 }
 
 impl fmt::Display for InvalidUriParts {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
     }
 }

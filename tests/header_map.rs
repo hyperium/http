@@ -1,4 +1,4 @@
-extern crate http;
+
 
 use http::*;
 use http::header::*;

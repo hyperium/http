@@ -485,7 +485,7 @@ impl<T: Default> Default for Response<T> {
 }
 
 impl<T: fmt::Debug> fmt::Debug for Response<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Response")
             .field("status", &self.status())
             .field("version", &self.version())
@@ -510,7 +510,7 @@ impl Parts {
 }
 
 impl fmt::Debug for Parts {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Parts")
             .field("status", &self.status)
             .field("version", &self.version)
