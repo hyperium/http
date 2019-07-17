@@ -14,8 +14,8 @@
 //! assert!(StatusCode::OK.is_success());
 //! ```
 
-use std::fmt;
 use std::error::Error;
+use std::fmt;
 use std::str::FromStr;
 
 use crate::HttpTryFrom;
@@ -153,7 +153,6 @@ impl StatusCode {
         canonical_reason(self.0)
     }
 
-
     /// Check if status is within 100-199.
     #[inline]
     pub fn is_informational(&self) -> bool {
@@ -201,8 +200,12 @@ impl fmt::Debug for StatusCode {
 /// ```
 impl fmt::Display for StatusCode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {}", u16::from(*self),
-               self.canonical_reason().unwrap_or("<unknown status code>"))
+        write!(
+            f,
+            "{} {}",
+            u16::from(*self),
+            self.canonical_reason().unwrap_or("<unknown status code>")
+        )
     }
 }
 
@@ -287,9 +290,7 @@ impl HttpTryFrom<u16> for StatusCode {
 
 impl InvalidStatusCode {
     fn new() -> InvalidStatusCode {
-        InvalidStatusCode {
-            _priv: (),
-        }
+        InvalidStatusCode { _priv: () }
     }
 }
 

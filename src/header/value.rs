@@ -1,8 +1,8 @@
 use bytes::{Bytes, BytesMut};
 
-use std::{cmp, fmt, mem, str};
 use std::error::Error;
 use std::str::FromStr;
+use std::{cmp, fmt, mem, str};
 
 use crate::convert::HttpTryFrom;
 use crate::error::Never;
@@ -180,7 +180,7 @@ impl HeaderValue {
                     //TODO: if the Bytes were part of the InvalidHeaderValueBytes,
                     //this message could include the invalid bytes.
                     panic!("HeaderValue::from_shared_unchecked() with invalid bytes");
-                },
+                }
             }
         } else {
             HeaderValue {
@@ -193,9 +193,7 @@ impl HeaderValue {
     fn try_from<T: AsRef<[u8]> + Into<Bytes>>(src: T) -> Result<HeaderValue, InvalidHeaderValue> {
         for &b in src.as_ref() {
             if !is_valid(b) {
-                return Err(InvalidHeaderValue {
-                    _priv: (),
-                });
+                return Err(InvalidHeaderValue { _priv: () });
             }
         }
         Ok(HeaderValue {
@@ -340,9 +338,7 @@ impl fmt::Debug for HeaderValue {
             for (i, &b) in bytes.iter().enumerate() {
                 if !is_visible_ascii(b) || b == b'"' {
                     if from != i {
-                        f.write_str(unsafe {
-                            str::from_utf8_unchecked(&bytes[from..i])
-                        })?;
+                        f.write_str(unsafe { str::from_utf8_unchecked(&bytes[from..i]) })?;
                     }
                     if b == b'"' {
                         f.write_str("\\\"")?;
@@ -353,9 +349,7 @@ impl fmt::Debug for HeaderValue {
                 }
             }
 
-            f.write_str(unsafe {
-                str::from_utf8_unchecked(&bytes[from..])
-            })?;
+            f.write_str(unsafe { str::from_utf8_unchecked(&bytes[from..]) })?;
             f.write_str("\"")
         }
     }
@@ -466,7 +460,10 @@ mod from_header_name_tests {
     fn it_can_insert_header_name_as_header_value() {
         let mut map = HeaderMap::new();
         map.insert(name::UPGRADE, name::SEC_WEBSOCKET_PROTOCOL.into());
-        map.insert(name::ACCEPT, name::HeaderName::from_bytes(b"hello-world").unwrap().into());
+        map.insert(
+            name::ACCEPT,
+            name::HeaderName::from_bytes(b"hello-world").unwrap().into(),
+        );
 
         assert_eq!(
             map.get(name::UPGRADE).unwrap(),
@@ -741,7 +738,8 @@ impl<'a> PartialOrd<HeaderValue> for &'a HeaderValue {
 }
 
 impl<'a, T: ?Sized> PartialEq<&'a T> for HeaderValue
-    where HeaderValue: PartialEq<T>
+where
+    HeaderValue: PartialEq<T>,
 {
     #[inline]
     fn eq(&self, other: &&'a T) -> bool {
@@ -750,7 +748,8 @@ impl<'a, T: ?Sized> PartialEq<&'a T> for HeaderValue
 }
 
 impl<'a, T: ?Sized> PartialOrd<&'a T> for HeaderValue
-    where HeaderValue: PartialOrd<T>
+where
+    HeaderValue: PartialOrd<T>,
 {
     #[inline]
     fn partial_cmp(&self, other: &&'a T) -> Option<cmp::Ordering> {

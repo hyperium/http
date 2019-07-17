@@ -160,17 +160,13 @@
 
 #![deny(warnings, missing_docs, missing_debug_implementations)]
 
-
-
-
-
 pub mod header;
 pub mod method;
 pub mod request;
 pub mod response;
 pub mod status;
-pub mod version;
 pub mod uri;
+pub mod version;
 
 mod byte_str;
 mod convert;
