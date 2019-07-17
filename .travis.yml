@@ -14,7 +14,7 @@ matrix:
         - rustup target add wasm32-unknown-unknown
         - cargo build --target=wasm32-unknown-unknown
     # minimum rustc version
-    - rust: 1.30.0
+    - rust: 1.37.0
       script: cargo build
 
 script:
