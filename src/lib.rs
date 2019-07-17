@@ -177,17 +177,17 @@ mod convert;
 mod error;
 mod extensions;
 
-pub use convert::HttpTryFrom;
-pub use error::{Error, Result};
-pub use extensions::Extensions;
+pub use crate::convert::HttpTryFrom;
+pub use crate::error::{Error, Result};
+pub use crate::extensions::Extensions;
 #[doc(no_inline)]
-pub use header::HeaderMap;
-pub use method::Method;
-pub use request::Request;
-pub use response::Response;
-pub use status::StatusCode;
-pub use uri::Uri;
-pub use version::Version;
+pub use crate::header::HeaderMap;
+pub use crate::method::Method;
+pub use crate::request::Request;
+pub use crate::response::Response;
+pub use crate::status::StatusCode;
+pub use crate::uri::Uri;
+pub use crate::version::Version;
 
 fn _assert_types() {
     fn assert_send<T: Send>() {}

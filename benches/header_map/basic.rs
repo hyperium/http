@@ -25,7 +25,7 @@ macro_rules! bench {
 
             #[bench]
             fn vec_map($b: &mut Bencher) {
-                use vec_map::VecMap;
+                use crate::vec_map::VecMap;
 
                 let $map = || VecMap::with_capacity(0);
                 $body

@@ -2,10 +2,10 @@ use std::error;
 use std::fmt;
 use std::result;
 
-use header;
-use method;
-use status;
-use uri;
+use crate::header;
+use crate::method;
+use crate::status;
+use crate::uri;
 
 /// A generic "error" for HTTP connections
 ///

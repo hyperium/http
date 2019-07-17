@@ -15,7 +15,7 @@
 //! assert_eq!(Method::POST.as_str(), "POST");
 //! ```
 
-use HttpTryFrom;
+use crate::HttpTryFrom;
 use self::Inner::*;
 
 use std::{fmt, str};
@@ -347,7 +347,7 @@ impl<'a> From<&'a Method> for Method {
 }
 
 impl<'a> HttpTryFrom<&'a Method> for Method {
-    type Error = ::error::Never;
+    type Error = crate::error::Never;
 
     #[inline]
     fn try_from(t: &'a Method) -> Result<Self, Self::Error> {

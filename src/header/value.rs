@@ -4,9 +4,9 @@ use std::{cmp, fmt, mem, str};
 use std::error::Error;
 use std::str::FromStr;
 
-use ::convert::HttpTryFrom;
-use ::error::Never;
-use header::name::HeaderName;
+use crate::convert::HttpTryFrom;
+use crate::error::Never;
+use crate::header::name::HeaderName;
 
 /// Represents an HTTP header field value.
 ///
@@ -459,8 +459,8 @@ from_integers! {
 #[cfg(test)]
 mod from_header_name_tests {
     use super::*;
-    use header::map::HeaderMap;
-    use header::name;
+    use crate::header::map::HeaderMap;
+    use crate::header::name;
 
     #[test]
     fn it_can_insert_header_name_as_header_value() {
@@ -504,7 +504,7 @@ impl<'a> From<&'a HeaderValue> for HeaderValue {
 }
 
 impl<'a> HttpTryFrom<&'a HeaderValue> for HeaderValue {
-    type Error = ::error::Never;
+    type Error = crate::error::Never;
 
     #[inline]
     fn try_from(t: &'a HeaderValue) -> Result<Self, Self::Error> {
@@ -561,7 +561,7 @@ impl HttpTryFrom<HeaderName> for HeaderValue {
 #[cfg(test)]
 mod try_from_header_name_tests {
     use super::*;
-    use header::name;
+    use crate::header::name;
 
     #[test]
     fn it_converts_using_try_from() {

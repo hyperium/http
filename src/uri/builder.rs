@@ -1,5 +1,5 @@
-use {Uri, Result};
-use convert::{HttpTryFrom, HttpTryInto};
+use crate::{Uri, Result};
+use crate::convert::{HttpTryFrom, HttpTryInto};
 use super::{Authority, Scheme, Parts, PathAndQuery};
 
 /// A builder for `Uri`s.

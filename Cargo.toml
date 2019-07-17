@@ -20,6 +20,7 @@ A set of types for representing HTTP requests and responses.
 """
 keywords = ["http"]
 categories = ["web-programming"]
+edition = "2018"
 
 # 0.2.x isn't ready just yet
 publish = false

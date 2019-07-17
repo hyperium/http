@@ -18,7 +18,7 @@ use std::fmt;
 use std::error::Error;
 use std::str::FromStr;
 
-use HttpTryFrom;
+use crate::HttpTryFrom;
 
 /// An HTTP status code (`status-code` in RFC 7230 et al.).
 ///
@@ -250,7 +250,7 @@ impl<'a> From<&'a StatusCode> for StatusCode {
 }
 
 impl<'a> HttpTryFrom<&'a StatusCode> for StatusCode {
-    type Error = ::error::Never;
+    type Error = crate::error::Never;
 
     #[inline]
     fn try_from(t: &'a StatusCode) -> Result<Self, Self::Error> {

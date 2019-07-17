@@ -7,8 +7,8 @@ use std::str::FromStr;
 
 use bytes::Bytes;
 
-use byte_str::ByteStr;
-use convert::HttpTryFrom;
+use crate::byte_str::ByteStr;
+use crate::convert::HttpTryFrom;
 use super::{ErrorKind, InvalidUri, InvalidUriBytes, URI_CHARS, Port};
 
 /// Represents the authority component of a URI.

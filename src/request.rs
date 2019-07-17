@@ -55,10 +55,10 @@
 use std::any::Any;
 use std::fmt;
 
-use {Uri, Error, Result, HttpTryFrom, Extensions};
-use header::{HeaderMap, HeaderName, HeaderValue};
-use method::Method;
-use version::Version;
+use crate::{Uri, Error, Result, HttpTryFrom, Extensions};
+use crate::header::{HeaderMap, HeaderName, HeaderValue};
+use crate::method::Method;
+use crate::version::Version;
 
 /// Represents an HTTP request.
 ///

@@ -64,10 +64,10 @@
 use std::any::Any;
 use std::fmt;
 
-use {Error, Result, HttpTryFrom, Extensions};
-use header::{HeaderMap, HeaderName, HeaderValue};
-use status::StatusCode;
-use version::Version;
+use crate::{Error, Result, HttpTryFrom, Extensions};
+use crate::header::{HeaderMap, HeaderName, HeaderValue};
+use crate::status::StatusCode;
+use crate::version::Version;
 
 /// Represents an HTTP response
 ///

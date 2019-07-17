@@ -1,9 +1,9 @@
-use Error;
-use header::{HeaderName, HeaderValue};
-use method::Method;
-use sealed::Sealed;
-use status::StatusCode;
-use uri::{Scheme, Authority, PathAndQuery, Uri};
+use crate::Error;
+use crate::header::{HeaderName, HeaderValue};
+use crate::method::Method;
+use crate::sealed::Sealed;
+use crate::status::StatusCode;
+use crate::uri::{Scheme, Authority, PathAndQuery, Uri};
 
 /// Private trait for the `http` crate to have generic methods with fallible
 /// conversions.

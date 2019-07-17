@@ -22,8 +22,8 @@
 //! assert_eq!(uri.path(), "/install.html");
 //! ```
 
-use HttpTryFrom;
-use byte_str::ByteStr;
+use crate::HttpTryFrom;
+use crate::byte_str::ByteStr;
 
 use bytes::Bytes;
 
@@ -726,7 +726,7 @@ impl HttpTryFrom<Parts> for Uri {
 }
 
 impl<'a> HttpTryFrom<&'a Uri> for Uri {
-    type Error = ::Error;
+    type Error = crate::Error;
 
     #[inline]
     fn try_from(src: &'a Uri) -> Result<Self, Self::Error> {

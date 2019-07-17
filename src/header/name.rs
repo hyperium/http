@@ -1,5 +1,5 @@
-use HttpTryFrom;
-use byte_str::ByteStr;
+use crate::HttpTryFrom;
+use crate::byte_str::ByteStr;
 use bytes::{Bytes, BytesMut};
 
 use std::{fmt, mem};
@@ -1760,7 +1760,7 @@ impl From<HeaderName> for Bytes {
 }
 
 impl<'a> HttpTryFrom<&'a HeaderName> for HeaderName {
-    type Error = ::error::Never;
+    type Error = crate::error::Never;
 
     #[inline]
     fn try_from(t: &'a HeaderName) -> Result<Self, Self::Error> {
