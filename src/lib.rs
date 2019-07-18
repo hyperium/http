@@ -160,10 +160,6 @@
 
 #![deny(warnings, missing_docs, missing_debug_implementations)]
 
-extern crate bytes;
-extern crate fnv;
-extern crate itoa;
-
 #[cfg(test)]
 #[macro_use]
 extern crate doc_comment;
@@ -176,25 +172,25 @@ pub mod method;
 pub mod request;
 pub mod response;
 pub mod status;
-pub mod version;
 pub mod uri;
+pub mod version;
 
 mod byte_str;
 mod convert;
 mod error;
 mod extensions;
 
-pub use convert::HttpTryFrom;
-pub use error::{Error, Result};
-pub use extensions::Extensions;
+pub use crate::convert::HttpTryFrom;
+pub use crate::error::{Error, Result};
+pub use crate::extensions::Extensions;
 #[doc(no_inline)]
-pub use header::{HeaderMap, HeaderValue};
-pub use method::Method;
-pub use request::Request;
-pub use response::Response;
-pub use status::StatusCode;
-pub use uri::Uri;
-pub use version::Version;
+pub use crate::header::{HeaderMap, HeaderValue};
+pub use crate::method::Method;
+pub use crate::request::Request;
+pub use crate::response::Response;
+pub use crate::status::StatusCode;
+pub use crate::uri::Uri;
+pub use crate::version::Version;
 
 fn _assert_types() {
     fn assert_send<T: Send>() {}

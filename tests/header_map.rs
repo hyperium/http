@@ -1,7 +1,5 @@
-extern crate http;
-
-use http::*;
 use http::header::*;
+use http::*;
 
 #[test]
 fn smoke() {
@@ -76,9 +74,18 @@ fn drain() {
     assert!(headers.is_empty());
 
     // Insert two sequential values
-    headers.insert("hello".parse::<HeaderName>().unwrap(), "world".parse().unwrap());
-    headers.insert("zomg".parse::<HeaderName>().unwrap(), "bar".parse().unwrap());
-    headers.append("hello".parse::<HeaderName>().unwrap(), "world2".parse().unwrap());
+    headers.insert(
+        "hello".parse::<HeaderName>().unwrap(),
+        "world".parse().unwrap(),
+    );
+    headers.insert(
+        "zomg".parse::<HeaderName>().unwrap(),
+        "bar".parse().unwrap(),
+    );
+    headers.append(
+        "hello".parse::<HeaderName>().unwrap(),
+        "world2".parse().unwrap(),
+    );
 
     // Drain...
     {
@@ -140,11 +147,26 @@ fn drain_forget() {
 fn drain_entry() {
     let mut headers = HeaderMap::new();
 
-    headers.insert("hello".parse::<HeaderName>().unwrap(), "world".parse().unwrap());
-    headers.insert("zomg".parse::<HeaderName>().unwrap(), "foo".parse().unwrap());
-    headers.append("hello".parse::<HeaderName>().unwrap(), "world2".parse().unwrap());
-    headers.insert("more".parse::<HeaderName>().unwrap(), "words".parse().unwrap());
-    headers.append("more".parse::<HeaderName>().unwrap(), "insertions".parse().unwrap());
+    headers.insert(
+        "hello".parse::<HeaderName>().unwrap(),
+        "world".parse().unwrap(),
+    );
+    headers.insert(
+        "zomg".parse::<HeaderName>().unwrap(),
+        "foo".parse().unwrap(),
+    );
+    headers.append(
+        "hello".parse::<HeaderName>().unwrap(),
+        "world2".parse().unwrap(),
+    );
+    headers.insert(
+        "more".parse::<HeaderName>().unwrap(),
+        "words".parse().unwrap(),
+    );
+    headers.append(
+        "more".parse::<HeaderName>().unwrap(),
+        "insertions".parse().unwrap(),
+    );
 
     // Using insert
     {
@@ -167,10 +189,16 @@ fn eq() {
 
     assert_eq!(a, b);
 
-    a.insert("hello".parse::<HeaderName>().unwrap(), "world".parse().unwrap());
+    a.insert(
+        "hello".parse::<HeaderName>().unwrap(),
+        "world".parse().unwrap(),
+    );
     assert_ne!(a, b);
 
-    b.insert("hello".parse::<HeaderName>().unwrap(), "world".parse().unwrap());
+    b.insert(
+        "hello".parse::<HeaderName>().unwrap(),
+        "world".parse().unwrap(),
+    );
     assert_eq!(a, b);
 
     a.insert("foo".parse::<HeaderName>().unwrap(), "bar".parse().unwrap());
@@ -228,13 +256,18 @@ fn insert_all_std_headers() {
     for (i, hdr) in STD.iter().enumerate() {
         m.insert(hdr.clone(), hdr.as_str().parse().unwrap());
 
-        for j in 0..(i+1) {
+        for j in 0..(i + 1) {
             assert_eq!(m[&STD[j]], STD[j].as_str());
         }
 
         if i != 0 {
-            for j in (i+1)..STD.len() {
-                assert!(m.get(&STD[j]).is_none(), "contained {}; j={}", STD[j].as_str(), j);
+            for j in (i + 1)..STD.len() {
+                assert!(
+                    m.get(&STD[j]).is_none(),
+                    "contained {}; j={}",
+                    STD[j].as_str(),
+                    j
+                );
             }
         }
     }
@@ -248,11 +281,11 @@ fn insert_79_custom_std_headers() {
     for (i, hdr) in hdrs.iter().enumerate() {
         h.insert(hdr.clone(), hdr.as_str().parse().unwrap());
 
-        for j in 0..(i+1) {
+        for j in 0..(i + 1) {
             assert_eq!(h[&hdrs[j]], hdrs[j].as_str());
         }
 
-        for j in (i+1)..hdrs.len() {
+        for j in (i + 1)..hdrs.len() {
             assert!(h.get(&hdrs[j]).is_none());
         }
     }
@@ -266,7 +299,8 @@ fn append_multiple_values() {
     map.append(header::CONTENT_TYPE, "html".parse().unwrap());
     map.append(header::CONTENT_TYPE, "xml".parse().unwrap());
 
-    let vals = map.get_all(&header::CONTENT_TYPE)
+    let vals = map
+        .get_all(&header::CONTENT_TYPE)
         .iter()
         .collect::<Vec<_>>();
 
@@ -274,10 +308,12 @@ fn append_multiple_values() {
 }
 
 fn custom_std(n: usize) -> Vec<HeaderName> {
-    (0..n).map(|i| {
-        let s = format!("{}-{}", STD[i % STD.len()].as_str(), i);
-        s.parse().unwrap()
-    }).collect()
+    (0..n)
+        .map(|i| {
+            let s = format!("{}-{}", STD[i % STD.len()].as_str(), i);
+            s.parse().unwrap()
+        })
+        .collect()
 }
 
 const STD: &'static [HeaderName] = &[

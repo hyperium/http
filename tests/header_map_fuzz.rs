@@ -1,12 +1,10 @@
-extern crate http;
-extern crate rand;
-extern crate quickcheck;
+use quickcheck;
 
-use http::*;
 use http::header::*;
+use http::*;
 
 use quickcheck::{Arbitrary, Gen, QuickCheck, TestResult};
-use rand::{StdRng, SeedableRng, Rng};
+use rand::{Rng, SeedableRng, StdRng};
 
 use std::collections::HashMap;
 
@@ -17,8 +15,7 @@ fn header_map_fuzz() {
         TestResult::from_bool(true)
     }
 
-    QuickCheck::new()
-        .quickcheck(prop as fn(Fuzz) -> TestResult)
+    QuickCheck::new().quickcheck(prop as fn(Fuzz) -> TestResult)
 }
 
 #[derive(Debug, Clone)]
@@ -49,8 +46,8 @@ struct Step {
 #[derive(Debug, Clone)]
 enum Action {
     Insert {
-        name: HeaderName, // Name to insert
-        val: HeaderValue, // Value to insert
+        name: HeaderName,         // Name to insert
+        val: HeaderValue,         // Value to insert
         old: Option<HeaderValue>, // Old value
     },
     Append {
@@ -59,7 +56,7 @@ enum Action {
         ret: bool,
     },
     Remove {
-        name: HeaderName, // Name to remove
+        name: HeaderName,         // Name to remove
         val: Option<HeaderValue>, // Value to get
     },
 }
@@ -129,9 +126,7 @@ impl AltMap {
 
     /// This will also apply the action against `self`
     fn gen_action(&mut self, weight: &Weight, rng: &mut StdRng) -> Action {
-        let sum = weight.insert +
-            weight.remove +
-            weight.append;
+        let sum = weight.insert + weight.remove + weight.append;
 
         let mut num = rng.gen_range(0, sum);
 
@@ -180,8 +175,7 @@ impl AltMap {
         let name = self.gen_name(-5, rng);
         let val = gen_header_value(rng);
 
-        let vals = self.map.entry(name.clone())
-            .or_insert(vec![]);
+        let vals = self.map.entry(name.clone()).or_insert(vec![]);
 
         let ret = !vals.is_empty();
         vals.push(val.clone());
@@ -255,7 +249,7 @@ impl Action {
             }
             Action::Remove { name, val } => {
                 // Just to help track the state, load all associated values.
-                let _ = map.get_all(&name).iter().collect::<Vec<_>>();
+                map.get_all(&name).iter().for_each(drop);
 
                 let actual = map.remove(&name);
                 assert_eq!(actual, val);
@@ -343,7 +337,9 @@ fn gen_header_name(g: &mut StdRng) -> HeaderName {
             header::X_DNS_PREFETCH_CONTROL,
             header::X_FRAME_OPTIONS,
             header::X_XSS_PROTECTION,
-        ]).unwrap().clone()
+        ])
+        .unwrap()
+        .clone()
     } else {
         let value = gen_string(g, 1, 25);
         HeaderName::from_bytes(value.as_bytes()).unwrap()
@@ -356,10 +352,14 @@ fn gen_header_value(g: &mut StdRng) -> HeaderValue {
 }
 
 fn gen_string(g: &mut StdRng, min: usize, max: usize) -> String {
-    let bytes: Vec<_> = (min..max).map(|_| {
-        // Chars to pick from
-        g.choose(b"ABCDEFGHIJKLMNOPQRSTUVabcdefghilpqrstuvwxyz----").unwrap().clone()
-    }).collect();
+    let bytes: Vec<_> = (min..max)
+        .map(|_| {
+            // Chars to pick from
+            g.choose(b"ABCDEFGHIJKLMNOPQRSTUVabcdefghilpqrstuvwxyz----")
+                .unwrap()
+                .clone()
+        })
+        .collect();
 
     String::from_utf8(bytes).unwrap()
 }
