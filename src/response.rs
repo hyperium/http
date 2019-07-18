@@ -64,10 +64,10 @@
 use std::any::Any;
 use std::fmt;
 
-use {Error, Result, HttpTryFrom, Extensions};
-use header::{HeaderMap, HeaderName, HeaderValue};
-use status::StatusCode;
-use version::Version;
+use crate::header::{HeaderMap, HeaderName, HeaderValue};
+use crate::status::StatusCode;
+use crate::version::Version;
+use crate::{Error, Extensions, HttpTryFrom, Result};
 
 /// Represents an HTTP response
 ///
@@ -471,9 +471,13 @@ impl<T> Response<T> {
     /// ```
     #[inline]
     pub fn map<F, U>(self, f: F) -> Response<U>
-        where F: FnOnce(T) -> U
+    where
+        F: FnOnce(T) -> U,
     {
-        Response { body: f(self.body), head: self.head }
+        Response {
+            body: f(self.body),
+            head: self.head,
+        }
     }
 }
 
@@ -485,7 +489,7 @@ impl<T: Default> Default for Response<T> {
 }
 
 impl<T: fmt::Debug> fmt::Debug for Response<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Response")
             .field("status", &self.status())
             .field("version", &self.version())
@@ -499,7 +503,7 @@ impl<T: fmt::Debug> fmt::Debug for Response<T> {
 impl Parts {
     /// Creates a new default instance of `Parts`
     fn new() -> Parts {
-        Parts{
+        Parts {
             status: StatusCode::default(),
             version: Version::default(),
             headers: HeaderMap::default(),
@@ -510,7 +514,7 @@ impl Parts {
 }
 
 impl fmt::Debug for Parts {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Parts")
             .field("status", &self.status)
             .field("version", &self.version)
@@ -558,7 +562,8 @@ impl Builder {
     ///     .unwrap();
     /// ```
     pub fn status<T>(&mut self, status: T) -> &mut Builder
-        where StatusCode: HttpTryFrom<T>,
+    where
+        StatusCode: HttpTryFrom<T>,
     {
         if let Some(head) = head(&mut self.head, &self.err) {
             match HttpTryFrom::try_from(status) {
@@ -613,16 +618,17 @@ impl Builder {
     ///     .unwrap();
     /// ```
     pub fn header<K, V>(&mut self, key: K, value: V) -> &mut Builder
-        where HeaderName: HttpTryFrom<K>,
-              HeaderValue: HttpTryFrom<V>
+    where
+        HeaderName: HttpTryFrom<K>,
+        HeaderValue: HttpTryFrom<V>,
     {
         if let Some(head) = head(&mut self.head, &self.err) {
             match <HeaderName as HttpTryFrom<K>>::try_from(key) {
-                Ok(key) => {
-                    match <HeaderValue as HttpTryFrom<V>>::try_from(value) {
-                        Ok(value) => { head.headers.append(key, value); }
-                        Err(e) => self.err = Some(e.into()),
+                Ok(key) => match <HeaderValue as HttpTryFrom<V>>::try_from(value) {
+                    Ok(value) => {
+                        head.headers.append(key, value);
                     }
+                    Err(e) => self.err = Some(e.into()),
                 },
                 Err(e) => self.err = Some(e.into()),
             };
@@ -632,9 +638,9 @@ impl Builder {
 
     /// Get header on this response builder.
     /// when builder has error returns None
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```
     /// # use http::*;
     /// # use http::header::HeaderValue;
@@ -650,18 +656,17 @@ impl Builder {
         if self.err.is_some() {
             return None;
         }
-        match self.head
-        {
+        match self.head {
             Some(ref head) => Some(&head.headers),
-            None => None
+            None => None,
         }
     }
 
     /// Get header on this response builder.
     /// when builder has error returns None
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```
     /// # use http::*;
     /// # use http::header::HeaderValue;
@@ -680,10 +685,9 @@ impl Builder {
         if self.err.is_some() {
             return None;
         }
-        match self.head
-        {
+        match self.head {
             Some(ref mut head) => Some(&mut head.headers),
-            None => None
+            None => None,
         }
     }
 
@@ -703,7 +707,8 @@ impl Builder {
     ///            Some(&"My Extension"));
     /// ```
     pub fn extension<T>(&mut self, extension: T) -> &mut Builder
-        where T: Any + Send + Sync + 'static,
+    where
+        T: Any + Send + Sync + 'static,
     {
         if let Some(head) = head(&mut self.head, &self.err) {
             head.extensions.insert(extension);
@@ -714,7 +719,7 @@ impl Builder {
     fn take_parts(&mut self) -> Result<Parts> {
         let ret = self.head.take().expect("cannot reuse response builder");
         if let Some(e) = self.err.take() {
-            return Err(e)
+            return Err(e);
         }
         Ok(ret)
     }
@@ -752,11 +757,9 @@ impl Builder {
     }
 }
 
-fn head<'a>(head: &'a mut Option<Parts>, err: &Option<Error>)
-    -> Option<&'a mut Parts>
-{
+fn head<'a>(head: &'a mut Option<Parts>, err: &Option<Error>) -> Option<&'a mut Parts> {
     if err.is_some() {
-        return None
+        return None;
     }
     head.as_mut()
 }

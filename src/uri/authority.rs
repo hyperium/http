@@ -1,15 +1,15 @@
 // Deprecated in 1.26, needed until our minimum version is >=1.23.
 #[allow(unused, deprecated)]
 use std::ascii::AsciiExt;
-use std::{cmp, fmt, str};
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
+use std::{cmp, fmt, str};
 
 use bytes::Bytes;
 
-use byte_str::ByteStr;
-use convert::HttpTryFrom;
-use super::{ErrorKind, InvalidUri, InvalidUriBytes, URI_CHARS, Port};
+use super::{ErrorKind, InvalidUri, InvalidUriBytes, Port, URI_CHARS};
+use crate::byte_str::ByteStr;
+use crate::convert::HttpTryFrom;
 
 /// Represents the authority component of a URI.
 #[derive(Clone)]
@@ -19,7 +19,9 @@ pub struct Authority {
 
 impl Authority {
     pub(super) fn empty() -> Self {
-        Authority { data: ByteStr::new() }
+        Authority {
+            data: ByteStr::new(),
+        }
     }
 
     /// Attempt to convert an `Authority` from `Bytes`.
@@ -75,7 +77,8 @@ impl Authority {
     pub fn from_static(src: &'static str) -> Self {
         let s = src.as_bytes();
         let b = Bytes::from_static(s);
-        let authority_end = Authority::parse_non_empty(&b[..]).expect("static str is not valid authority");
+        let authority_end =
+            Authority::parse_non_empty(&b[..]).expect("static str is not valid authority");
 
         if authority_end != b.len() {
             panic!("static str is not valid authority");
@@ -423,7 +426,10 @@ impl PartialOrd<Authority> for String {
 /// assert_eq!(a, b);
 /// ```
 impl Hash for Authority {
-    fn hash<H>(&self, state: &mut H) where H: Hasher {
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: Hasher,
+    {
         self.data.len().hash(state);
         for &b in self.data.as_bytes() {
             state.write_u8(b.to_ascii_lowercase());
@@ -480,29 +486,32 @@ impl From<Authority> for Bytes {
 }
 
 impl fmt::Debug for Authority {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())
     }
 }
 
 impl fmt::Display for Authority {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())
     }
 }
 
 fn host(auth: &str) -> &str {
-    let host_port = auth.rsplitn(2, '@')
+    let host_port = auth
+        .rsplitn(2, '@')
         .next()
         .expect("split always has at least 1 item");
 
     if host_port.as_bytes()[0] == b'[' {
-        let i = host_port.find(']')
+        let i = host_port
+            .find(']')
             .expect("parsing should validate brackets");
         // ..= ranges aren't available in 1.20, our minimum Rust version...
-        &host_port[0 .. i + 1]
+        &host_port[0..i + 1]
     } else {
-        host_port.split(':')
+        host_port
+            .split(':')
             .next()
             .expect("split always has at least 1 item")
     }

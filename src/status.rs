@@ -14,11 +14,11 @@
 //! assert!(StatusCode::OK.is_success());
 //! ```
 
-use std::fmt;
 use std::error::Error;
+use std::fmt;
 use std::str::FromStr;
 
-use HttpTryFrom;
+use crate::HttpTryFrom;
 
 /// An HTTP status code (`status-code` in RFC 7230 et al.).
 ///
@@ -152,7 +152,6 @@ impl StatusCode {
         canonical_reason(self.0)
     }
 
-
     /// Check if status is within 100-199.
     #[inline]
     pub fn is_informational(&self) -> bool {
@@ -185,7 +184,7 @@ impl StatusCode {
 }
 
 impl fmt::Debug for StatusCode {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&self.0, f)
     }
 }
@@ -199,9 +198,13 @@ impl fmt::Debug for StatusCode {
 /// assert_eq!(format!("{}", StatusCode::OK), "200 OK");
 /// ```
 impl fmt::Display for StatusCode {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} {}", u16::from(*self),
-               self.canonical_reason().unwrap_or("<unknown status code>"))
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} {}",
+            u16::from(*self),
+            self.canonical_reason().unwrap_or("<unknown status code>")
+        )
     }
 }
 
@@ -249,7 +252,7 @@ impl<'a> From<&'a StatusCode> for StatusCode {
 }
 
 impl<'a> HttpTryFrom<&'a StatusCode> for StatusCode {
-    type Error = ::error::Never;
+    type Error = crate::error::Never;
 
     #[inline]
     fn try_from(t: &'a StatusCode) -> Result<Self, Self::Error> {
@@ -521,7 +524,7 @@ impl fmt::Debug for InvalidStatusCode {
 }
 
 impl fmt::Display for InvalidStatusCode {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.description())
     }
 }

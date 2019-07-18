@@ -1,12 +1,12 @@
 use bytes::{Bytes, BytesMut};
 
-use std::{cmp, fmt, mem, str};
 use std::error::Error;
 use std::str::FromStr;
+use std::{cmp, fmt, mem, str};
 
-use ::convert::HttpTryFrom;
-use ::error::Never;
-use header::name::HeaderName;
+use crate::convert::HttpTryFrom;
+use crate::error::Never;
+use crate::header::name::HeaderName;
 
 /// Represents an HTTP header field value.
 ///
@@ -179,7 +179,7 @@ impl HeaderValue {
                     //TODO: if the Bytes were part of the InvalidHeaderValueBytes,
                     //this message could include the invalid bytes.
                     panic!("HeaderValue::from_shared_unchecked() with invalid bytes");
-                },
+                }
             }
         } else {
             HeaderValue {
@@ -192,9 +192,7 @@ impl HeaderValue {
     fn try_from<T: AsRef<[u8]> + Into<Bytes>>(src: T) -> Result<HeaderValue, InvalidHeaderValue> {
         for &b in src.as_ref() {
             if !is_valid(b) {
-                return Err(InvalidHeaderValue {
-                    _priv: (),
-                });
+                return Err(InvalidHeaderValue { _priv: () });
             }
         }
         Ok(HeaderValue {
@@ -329,7 +327,7 @@ impl AsRef<[u8]> for HeaderValue {
 }
 
 impl fmt::Debug for HeaderValue {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.is_sensitive {
             f.write_str("Sensitive")
         } else {
@@ -339,9 +337,7 @@ impl fmt::Debug for HeaderValue {
             for (i, &b) in bytes.iter().enumerate() {
                 if !is_visible_ascii(b) || b == b'"' {
                     if from != i {
-                        f.write_str(unsafe {
-                            str::from_utf8_unchecked(&bytes[from..i])
-                        })?;
+                        f.write_str(unsafe { str::from_utf8_unchecked(&bytes[from..i]) })?;
                     }
                     if b == b'"' {
                         f.write_str("\\\"")?;
@@ -352,9 +348,7 @@ impl fmt::Debug for HeaderValue {
                 }
             }
 
-            f.write_str(unsafe {
-                str::from_utf8_unchecked(&bytes[from..])
-            })?;
+            f.write_str(unsafe { str::from_utf8_unchecked(&bytes[from..]) })?;
             f.write_str("\"")
         }
     }
@@ -458,14 +452,17 @@ from_integers! {
 #[cfg(test)]
 mod from_header_name_tests {
     use super::*;
-    use header::map::HeaderMap;
-    use header::name;
+    use crate::header::map::HeaderMap;
+    use crate::header::name;
 
     #[test]
     fn it_can_insert_header_name_as_header_value() {
         let mut map = HeaderMap::new();
         map.insert(name::UPGRADE, name::SEC_WEBSOCKET_PROTOCOL.into());
-        map.insert(name::ACCEPT, name::HeaderName::from_bytes(b"hello-world").unwrap().into());
+        map.insert(
+            name::ACCEPT,
+            name::HeaderName::from_bytes(b"hello-world").unwrap().into(),
+        );
 
         assert_eq!(
             map.get(name::UPGRADE).unwrap(),
@@ -503,7 +500,7 @@ impl<'a> From<&'a HeaderValue> for HeaderValue {
 }
 
 impl<'a> HttpTryFrom<&'a HeaderValue> for HeaderValue {
-    type Error = ::error::Never;
+    type Error = crate::error::Never;
 
     #[inline]
     fn try_from(t: &'a HeaderValue) -> Result<Self, Self::Error> {
@@ -568,7 +565,7 @@ impl HttpTryFrom<HeaderName> for HeaderValue {
 #[cfg(test)]
 mod try_from_header_name_tests {
     use super::*;
-    use header::name;
+    use crate::header::name;
 
     #[test]
     fn it_converts_using_try_from() {
@@ -597,7 +594,7 @@ impl fmt::Debug for InvalidHeaderValue {
 }
 
 impl fmt::Display for InvalidHeaderValue {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.description().fmt(f)
     }
 }
@@ -609,7 +606,7 @@ impl Error for InvalidHeaderValue {
 }
 
 impl fmt::Display for InvalidHeaderValueBytes {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
     }
 }
@@ -621,7 +618,7 @@ impl Error for InvalidHeaderValueBytes {
 }
 
 impl fmt::Display for ToStrError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.description().fmt(f)
     }
 }
@@ -756,7 +753,8 @@ impl<'a> PartialOrd<HeaderValue> for &'a HeaderValue {
 }
 
 impl<'a, T: ?Sized> PartialEq<&'a T> for HeaderValue
-    where HeaderValue: PartialEq<T>
+where
+    HeaderValue: PartialEq<T>,
 {
     #[inline]
     fn eq(&self, other: &&'a T) -> bool {
@@ -765,7 +763,8 @@ impl<'a, T: ?Sized> PartialEq<&'a T> for HeaderValue
 }
 
 impl<'a, T: ?Sized> PartialOrd<&'a T> for HeaderValue
-    where HeaderValue: PartialOrd<T>
+where
+    HeaderValue: PartialOrd<T>,
 {
     #[inline]
     fn partial_cmp(&self, other: &&'a T) -> Option<cmp::Ordering> {
