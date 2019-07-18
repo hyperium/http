@@ -15,13 +15,13 @@
 //! assert_eq!(Method::POST.as_str(), "POST");
 //! ```
 
-use HttpTryFrom;
 use self::Inner::*;
+use crate::HttpTryFrom;
 
-use std::{fmt, str};
 use std::convert::AsRef;
 use std::error::Error;
 use std::str::FromStr;
+use std::{fmt, str};
 
 /// The Request Method (VERB)
 ///
@@ -111,7 +111,6 @@ const METHOD_CHARS: [u8; 256] = [
     b'\0', b'\0', b'\0', b'\0', b'\0', b'\0'                              // 25x
 ];
 
-
 impl Method {
     /// GET
     pub const GET: Method = Method(Get);
@@ -143,43 +142,31 @@ impl Method {
     /// Converts a slice of bytes to an HTTP method.
     pub fn from_bytes(src: &[u8]) -> Result<Method, InvalidMethod> {
         match src.len() {
-            0 => {
-                Err(InvalidMethod::new())
-            }
-            3 => {
-                match src {
-                    b"GET" => Ok(Method(Get)),
-                    b"PUT" => Ok(Method(Put)),
-                    _ => Method::extension_inline(src),
-                }
-            }
-            4 => {
-                match src {
-                    b"POST" => Ok(Method(Post)),
-                    b"HEAD" => Ok(Method(Head)),
-                    _ => Method::extension_inline(src),
-                }
-            }
-            5 => {
-                match src {
-                    b"PATCH" => Ok(Method(Patch)),
-                    b"TRACE" => Ok(Method(Trace)),
-                    _ => Method::extension_inline(src),
-                }
-            }
-            6 => {
-                match src {
-                    b"DELETE" => Ok(Method(Delete)),
-                    _ => Method::extension_inline(src),
-                }
-            }
-            7 => {
-                match src {
-                    b"OPTIONS" => Ok(Method(Options)),
-                    b"CONNECT" => Ok(Method(Connect)),
-                    _ => Method::extension_inline(src),
-                }
-            }
+            0 => Err(InvalidMethod::new()),
+            3 => match src {
+                b"GET" => Ok(Method(Get)),
+                b"PUT" => Ok(Method(Put)),
+                _ => Method::extension_inline(src),
+            },
+            4 => match src {
+                b"POST" => Ok(Method(Post)),
+                b"HEAD" => Ok(Method(Head)),
+                _ => Method::extension_inline(src),
+            },
+            5 => match src {
+                b"PATCH" => Ok(Method(Patch)),
+                b"TRACE" => Ok(Method(Trace)),
+                _ => Method::extension_inline(src),
+            },
+            6 => match src {
+                b"DELETE" => Ok(Method(Delete)),
+                _ => Method::extension_inline(src),
+            },
+            7 => match src {
+                b"OPTIONS" => Ok(Method(Options)),
+                b"CONNECT" => Ok(Method(Connect)),
+                _ => Method::extension_inline(src),
+            },
             _ => {
                 if src.len() < MAX_INLINE {
                     Method::extension_inline(src)
@@ -210,7 +197,7 @@ impl Method {
     pub fn is_safe(&self) -> bool {
         match self.0 {
             Get | Head | Options | Trace => true,
-            _ => false
+            _ => false,
         }
     }
 
@@ -225,7 +212,7 @@ impl Method {
         } else {
             match self.0 {
                 Put | Delete => true,
-                _ => false
+                _ => false,
             }
         }
     }
@@ -243,16 +230,10 @@ impl Method {
             Trace => "TRACE",
             Connect => "CONNECT",
             Patch => "PATCH",
-            ExtensionInline(ref data, len) => {
-                unsafe {
-                    str::from_utf8_unchecked(&data[..len as usize])
-                }
-            }
-            ExtensionAllocated(ref data) => {
-                unsafe {
-                    str::from_utf8_unchecked(data)
-                }
-            }
+            ExtensionInline(ref data, len) => unsafe {
+                str::from_utf8_unchecked(&data[..len as usize])
+            },
+            ExtensionAllocated(ref data) => unsafe { str::from_utf8_unchecked(data) },
         }
     }
 }
@@ -280,7 +261,7 @@ impl AsRef<str> for Method {
 
 impl<'a> PartialEq<&'a Method> for Method {
     #[inline]
-    fn eq(&self, other: & &'a Method) -> bool {
+    fn eq(&self, other: &&'a Method) -> bool {
         self == *other
     }
 }
@@ -321,13 +302,13 @@ impl<'a> PartialEq<Method> for &'a str {
 }
 
 impl fmt::Debug for Method {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_ref())
     }
 }
 
 impl fmt::Display for Method {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.write_str(self.as_ref())
     }
 }
@@ -347,7 +328,7 @@ impl<'a> From<&'a Method> for Method {
 }
 
 impl<'a> HttpTryFrom<&'a Method> for Method {
-    type Error = ::error::Never;
+    type Error = crate::error::Never;
 
     #[inline]
     fn try_from(t: &'a Method) -> Result<Self, Self::Error> {
@@ -384,14 +365,12 @@ impl FromStr for Method {
 
 impl InvalidMethod {
     fn new() -> InvalidMethod {
-        InvalidMethod {
-            _priv: (),
-        }
+        InvalidMethod { _priv: () }
     }
 }
 
 impl fmt::Display for InvalidMethod {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.description())
     }
 }

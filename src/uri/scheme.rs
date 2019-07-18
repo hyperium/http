@@ -7,9 +7,9 @@ use std::str::FromStr;
 
 use bytes::Bytes;
 
-use byte_str::ByteStr;
-use convert::HttpTryFrom;
 use super::{ErrorKind, InvalidUri, InvalidUriBytes};
+use crate::byte_str::ByteStr;
+use crate::convert::HttpTryFrom;
 
 /// Represents the scheme component of a URI
 #[derive(Clone)]
@@ -92,8 +92,8 @@ impl Scheme {
     /// ```
     #[inline]
     pub fn as_str(&self) -> &str {
-        use self::Scheme2::*;
         use self::Protocol::*;
+        use self::Scheme2::*;
 
         match self.inner {
             Standard(Http) => "http",
@@ -129,9 +129,7 @@ impl<'a> HttpTryFrom<&'a [u8]> for Scheme {
             Standard(p) => Ok(Standard(p).into()),
             Other(_) => {
                 // Unsafe: parse_exact already checks for a strict subset of UTF-8
-                Ok(Other(Box::new(unsafe {
-                    ByteStr::from_utf8_unchecked(s.into())
-                })).into())
+                Ok(Other(Box::new(unsafe { ByteStr::from_utf8_unchecked(s.into()) })).into())
             }
         }
     }
@@ -156,8 +154,8 @@ impl FromStr for Scheme {
 impl From<Scheme> for Bytes {
     #[inline]
     fn from(src: Scheme) -> Self {
-        use self::Scheme2::*;
         use self::Protocol::*;
+        use self::Scheme2::*;
 
         match src.inner {
             None => Bytes::new(),
@@ -169,13 +167,13 @@ impl From<Scheme> for Bytes {
 }
 
 impl fmt::Debug for Scheme {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(self.as_str(), f)
     }
 }
 
 impl fmt::Display for Scheme {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())
     }
 }
@@ -228,7 +226,10 @@ impl PartialEq<Scheme> for str {
 
 /// Case-insensitive hashing
 impl Hash for Scheme {
-    fn hash<H>(&self, state: &mut H) where H: Hasher {
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: Hasher,
+    {
         match self.inner {
             Scheme2::None => (),
             Scheme2::Standard(Protocol::Http) => state.write_u8(1),
@@ -348,7 +349,7 @@ impl Scheme2<usize> {
                         }
 
                         // Not a scheme
-                        if &s[i+1..i+3] != b"//" {
+                        if &s[i + 1..i + 3] != b"//" {
                             break;
                         }
 

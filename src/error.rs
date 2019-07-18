@@ -2,10 +2,10 @@ use std::error;
 use std::fmt;
 use std::result;
 
-use header;
-use method;
-use status;
-use uri;
+use crate::header;
+use crate::method;
+use crate::status;
+use crate::uri;
 
 /// A generic "error" for HTTP connections
 ///
@@ -35,7 +35,7 @@ enum ErrorKind {
 }
 
 impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         error::Error::description(self).fmt(f)
     }
 }
@@ -90,55 +90,73 @@ impl error::Error for Error {
 
 impl From<status::InvalidStatusCode> for Error {
     fn from(err: status::InvalidStatusCode) -> Error {
-        Error { inner: ErrorKind::StatusCode(err) }
+        Error {
+            inner: ErrorKind::StatusCode(err),
+        }
     }
 }
 
 impl From<method::InvalidMethod> for Error {
     fn from(err: method::InvalidMethod) -> Error {
-        Error { inner: ErrorKind::Method(err) }
+        Error {
+            inner: ErrorKind::Method(err),
+        }
     }
 }
 
 impl From<uri::InvalidUri> for Error {
     fn from(err: uri::InvalidUri) -> Error {
-        Error { inner: ErrorKind::Uri(err) }
+        Error {
+            inner: ErrorKind::Uri(err),
+        }
     }
 }
 
 impl From<uri::InvalidUriBytes> for Error {
     fn from(err: uri::InvalidUriBytes) -> Error {
-        Error { inner: ErrorKind::UriShared(err) }
+        Error {
+            inner: ErrorKind::UriShared(err),
+        }
     }
 }
 
 impl From<uri::InvalidUriParts> for Error {
     fn from(err: uri::InvalidUriParts) -> Error {
-        Error { inner: ErrorKind::UriParts(err) }
+        Error {
+            inner: ErrorKind::UriParts(err),
+        }
     }
 }
 
 impl From<header::InvalidHeaderName> for Error {
     fn from(err: header::InvalidHeaderName) -> Error {
-        Error { inner: ErrorKind::HeaderName(err) }
+        Error {
+            inner: ErrorKind::HeaderName(err),
+        }
     }
 }
 
 impl From<header::InvalidHeaderNameBytes> for Error {
     fn from(err: header::InvalidHeaderNameBytes) -> Error {
-        Error { inner: ErrorKind::HeaderNameShared(err) }
+        Error {
+            inner: ErrorKind::HeaderNameShared(err),
+        }
     }
 }
 
 impl From<header::InvalidHeaderValue> for Error {
     fn from(err: header::InvalidHeaderValue) -> Error {
-        Error { inner: ErrorKind::HeaderValue(err) }
+        Error {
+            inner: ErrorKind::HeaderValue(err),
+        }
     }
 }
 
 impl From<header::InvalidHeaderValueBytes> for Error {
     fn from(err: header::InvalidHeaderValueBytes) -> Error {
-        Error { inner: ErrorKind::HeaderValueShared(err) }
+        Error {
+            inner: ErrorKind::HeaderValueShared(err),
+        }
     }
 }
 
@@ -155,13 +173,13 @@ impl From<Never> for Error {
 }
 
 impl fmt::Debug for Never {
-    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {}
     }
 }
 
 impl fmt::Display for Never {
-    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {}
     }
 }
@@ -182,11 +200,11 @@ mod tests {
             let err: Error = e.into();
             let ie = err.get_ref();
             assert!(!ie.is::<header::InvalidHeaderValue>());
-            assert!( ie.is::<status::InvalidStatusCode>());
+            assert!(ie.is::<status::InvalidStatusCode>());
             ie.downcast_ref::<status::InvalidStatusCode>().unwrap();
 
             assert!(!err.is::<header::InvalidHeaderValue>());
-            assert!( err.is::<status::InvalidStatusCode>());
+            assert!(err.is::<status::InvalidStatusCode>());
         } else {
             panic!("Bad status allowed!");
         }
