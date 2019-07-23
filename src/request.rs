@@ -12,12 +12,12 @@
 //! ```no_run
 //! use http::{Request, Response};
 //!
-//! let mut request = Request::builder();
-//! request.uri("https://www.rust-lang.org/")
-//!        .header("User-Agent", "my-awesome-agent/1.0");
+//! let mut request = Request::builder()
+//!     .uri("https://www.rust-lang.org/")
+//!     .header("User-Agent", "my-awesome-agent/1.0");
 //!
 //! if needs_awesome_header() {
-//!     request.header("Awesome", "yes");
+//!     request = request.header("Awesome", "yes");
 //! }
 //!
 //! let response = send(request.body(()).unwrap());
@@ -58,7 +58,7 @@ use std::fmt;
 use crate::header::{HeaderMap, HeaderName, HeaderValue};
 use crate::method::Method;
 use crate::version::Version;
-use crate::{Error, Extensions, HttpTryFrom, Result, Uri};
+use crate::{Extensions, HttpTryFrom, Result, Uri};
 
 /// Represents an HTTP request.
 ///
@@ -74,12 +74,12 @@ use crate::{Error, Extensions, HttpTryFrom, Result, Uri};
 /// ```no_run
 /// use http::{Request, Response};
 ///
-/// let mut request = Request::builder();
-/// request.uri("https://www.rust-lang.org/")
-///        .header("User-Agent", "my-awesome-agent/1.0");
+/// let mut request = Request::builder()
+///     .uri("https://www.rust-lang.org/")
+///     .header("User-Agent", "my-awesome-agent/1.0");
 ///
 /// if needs_awesome_header() {
-///     request.header("Awesome", "yes");
+///     request = request.header("Awesome", "yes");
 /// }
 ///
 /// let response = send(request.body(()).unwrap());
@@ -187,8 +187,7 @@ pub struct Parts {
 /// through a builder-like pattern.
 #[derive(Debug)]
 pub struct Builder {
-    head: Option<Parts>,
-    err: Option<Error>,
+    inner: Result<Parts>,
 }
 
 impl Request<()> {
@@ -231,9 +230,7 @@ impl Request<()> {
     where
         Uri: HttpTryFrom<T>,
     {
-        let mut b = Builder::new();
-        b.method(Method::GET).uri(uri);
-        b
+        Builder::new().method(Method::GET).uri(uri)
     }
 
     /// Creates a new `Builder` initialized with a PUT method and the given URI.
@@ -254,9 +251,7 @@ impl Request<()> {
     where
         Uri: HttpTryFrom<T>,
     {
-        let mut b = Builder::new();
-        b.method(Method::PUT).uri(uri);
-        b
+        Builder::new().method(Method::PUT).uri(uri)
     }
 
     /// Creates a new `Builder` initialized with a POST method and the given URI.
@@ -277,9 +272,7 @@ impl Request<()> {
     where
         Uri: HttpTryFrom<T>,
     {
-        let mut b = Builder::new();
-        b.method(Method::POST).uri(uri);
-        b
+        Builder::new().method(Method::POST).uri(uri)
     }
 
     /// Creates a new `Builder` initialized with a DELETE method and the given URI.
@@ -300,9 +293,7 @@ impl Request<()> {
     where
         Uri: HttpTryFrom<T>,
     {
-        let mut b = Builder::new();
-        b.method(Method::DELETE).uri(uri);
-        b
+        Builder::new().method(Method::DELETE).uri(uri)
     }
 
     /// Creates a new `Builder` initialized with an OPTIONS method and the given URI.
@@ -324,9 +315,7 @@ impl Request<()> {
     where
         Uri: HttpTryFrom<T>,
     {
-        let mut b = Builder::new();
-        b.method(Method::OPTIONS).uri(uri);
-        b
+        Builder::new().method(Method::OPTIONS).uri(uri)
     }
 
     /// Creates a new `Builder` initialized with a HEAD method and the given URI.
@@ -347,9 +336,7 @@ impl Request<()> {
     where
         Uri: HttpTryFrom<T>,
     {
-        let mut b = Builder::new();
-        b.method(Method::HEAD).uri(uri);
-        b
+        Builder::new().method(Method::HEAD).uri(uri)
     }
 
     /// Creates a new `Builder` initialized with a CONNECT method and the given URI.
@@ -370,9 +357,7 @@ impl Request<()> {
     where
         Uri: HttpTryFrom<T>,
     {
-        let mut b = Builder::new();
-        b.method(Method::CONNECT).uri(uri);
-        b
+        Builder::new().method(Method::CONNECT).uri(uri)
     }
 
     /// Creates a new `Builder` initialized with a PATCH method and the given URI.
@@ -393,9 +378,7 @@ impl Request<()> {
     where
         Uri: HttpTryFrom<T>,
     {
-        let mut b = Builder::new();
-        b.method(Method::PATCH).uri(uri);
-        b
+        Builder::new().method(Method::PATCH).uri(uri)
     }
 
     /// Creates a new `Builder` initialized with a TRACE method and the given URI.
@@ -416,9 +399,7 @@ impl Request<()> {
     where
         Uri: HttpTryFrom<T>,
     {
-        let mut b = Builder::new();
-        b.method(Method::TRACE).uri(uri);
-        b
+        Builder::new().method(Method::TRACE).uri(uri)
     }
 }
 
@@ -778,23 +759,19 @@ impl Builder {
     ///     .body(())
     ///     .unwrap();
     /// ```
-    pub fn method<T>(&mut self, method: T) -> &mut Builder
+    pub fn method<T>(self, method: T) -> Builder
     where
         Method: HttpTryFrom<T>,
     {
-        if let Some(head) = head(&mut self.head, &self.err) {
-            match HttpTryFrom::try_from(method) {
-                Ok(s) => head.method = s,
-                Err(e) => self.err = Some(e.into()),
-            }
-        }
-        self
+        self.and_then(move |mut head| {
+            head.method = HttpTryFrom::try_from(method).map_err(Into::into)?;
+            Ok(head)
+        })
     }
 
     /// Get the HTTP Method for this request.
     ///
-    /// By default this is `GET`.
-    /// if builder has error, returns None.
+    /// By default this is `GET`. If builder has error, returns None.
     ///
     /// # Examples
     ///
@@ -803,19 +780,12 @@ impl Builder {
     ///
     /// let mut req = Request::builder();
     /// assert_eq!(req.method_ref(),Some(&Method::GET));
-    /// req.method("POST");
+    ///
+    /// req = req.method("POST");
     /// assert_eq!(req.method_ref(),Some(&Method::POST));
-    /// req.method("DELETE");
-    /// assert_eq!(req.method_ref(),Some(&Method::DELETE));
     /// ```
     pub fn method_ref(&self) -> Option<&Method> {
-        if self.err.is_some() {
-            return None;
-        }
-        match self.head {
-            Some(ref head) => Some(&head.method),
-            None => None,
-        }
+        self.inner.as_ref().ok().map(|h| &h.method)
     }
 
     /// Set the URI for this request.
@@ -835,40 +805,33 @@ impl Builder {
     ///     .body(())
     ///     .unwrap();
     /// ```
-    pub fn uri<T>(&mut self, uri: T) -> &mut Builder
+    pub fn uri<T>(self, uri: T) -> Builder
     where
         Uri: HttpTryFrom<T>,
     {
-        if let Some(head) = head(&mut self.head, &self.err) {
-            match HttpTryFrom::try_from(uri) {
-                Ok(s) => head.uri = s,
-                Err(e) => self.err = Some(e.into()),
-            }
-        }
-        self
+        self.and_then(move |mut head| {
+            head.uri = HttpTryFrom::try_from(uri).map_err(Into::into)?;
+            Ok(head)
+        })
     }
 
     /// Get the URI for this request
     ///
-    /// By default this is `/`
+    /// By default this is `/`.
+    ///
     /// # Examples
     ///
     /// ```
     /// # use http::*;
     ///
     /// let mut req = Request::builder();
-    /// assert_eq!(req.uri_ref().unwrap().to_string(), "/" );
-    /// req.uri("https://www.rust-lang.org/");
-    /// assert_eq!(req.uri_ref().unwrap().to_string(), "https://www.rust-lang.org/" );
+    /// assert_eq!(req.uri_ref().unwrap(), "/" );
+    ///
+    /// req = req.uri("https://www.rust-lang.org/");
+    /// assert_eq!(req.uri_ref().unwrap(), "https://www.rust-lang.org/" );
     /// ```
     pub fn uri_ref(&self) -> Option<&Uri> {
-        if self.err.is_some() {
-            return None;
-        }
-        match self.head {
-            Some(ref head) => Some(&head.uri),
-            None => None,
-        }
+        self.inner.as_ref().ok().map(|h| &h.uri)
     }
 
     /// Set the HTTP version for this request.
@@ -888,11 +851,11 @@ impl Builder {
     ///     .body(())
     ///     .unwrap();
     /// ```
-    pub fn version(&mut self, version: Version) -> &mut Builder {
-        if let Some(head) = head(&mut self.head, &self.err) {
+    pub fn version(self, version: Version) -> Builder {
+        self.and_then(move |mut head| {
             head.version = version;
-        }
-        self
+            Ok(head)
+        })
     }
 
     /// Appends a header to this request builder.
@@ -913,23 +876,17 @@ impl Builder {
     ///     .body(())
     ///     .unwrap();
     /// ```
-    pub fn header<K, V>(&mut self, key: K, value: V) -> &mut Builder
+    pub fn header<K, V>(self, key: K, value: V) -> Builder
     where
         HeaderName: HttpTryFrom<K>,
         HeaderValue: HttpTryFrom<V>,
     {
-        if let Some(head) = head(&mut self.head, &self.err) {
-            match <HeaderName as HttpTryFrom<K>>::try_from(key) {
-                Ok(key) => match <HeaderValue as HttpTryFrom<V>>::try_from(value) {
-                    Ok(value) => {
-                        head.headers.append(key, value);
-                    }
-                    Err(e) => self.err = Some(e.into()),
-                },
-                Err(e) => self.err = Some(e.into()),
-            };
-        }
-        self
+        self.and_then(move |mut head| {
+            let name = <HeaderName as HttpTryFrom<K>>::try_from(key).map_err(Into::into)?;
+            let value = <HeaderValue as HttpTryFrom<V>>::try_from(value).map_err(Into::into)?;
+            head.headers.append(name, value);
+            Ok(head)
+        })
     }
 
     /// Get header on this request builder.
@@ -938,35 +895,26 @@ impl Builder {
     /// # Example
     ///
     /// ```
-    /// # use http::*;
-    /// # use http::header::HeaderValue;
-    /// # use http::request::Builder;
-    /// let mut req = Request::builder();
-    /// req.header("Accept", "text/html")
-    ///    .header("X-Custom-Foo", "bar");
+    /// # use http::Request;
+    /// let req = Request::builder()
+    ///     .header("Accept", "text/html")
+    ///     .header("X-Custom-Foo", "bar");
     /// let headers = req.headers_ref().unwrap();
     /// assert_eq!( headers["Accept"], "text/html" );
     /// assert_eq!( headers["X-Custom-Foo"], "bar" );
     /// ```
     pub fn headers_ref(&self) -> Option<&HeaderMap<HeaderValue>> {
-        if self.err.is_some() {
-            return None;
-        }
-        match self.head {
-            Some(ref head) => Some(&head.headers),
-            None => None,
-        }
+        self.inner.as_ref().ok().map(|h| &h.headers)
     }
 
-    /// Get header on this request builder.
-    /// when builder has error returns None
+    /// Get headers on this request builder.
+    ///
+    /// When builder has error returns None.
     ///
     /// # Example
     ///
     /// ```
-    /// # use http::*;
-    /// # use http::header::HeaderValue;
-    /// # use http::request::Builder;
+    /// # use http::{header::HeaderValue, Request};
     /// let mut req = Request::builder();
     /// {
     ///   let headers = req.headers_mut().unwrap();
@@ -978,13 +926,7 @@ impl Builder {
     /// assert_eq!( headers["X-Custom-Foo"], "bar" );
     /// ```
     pub fn headers_mut(&mut self) -> Option<&mut HeaderMap<HeaderValue>> {
-        if self.err.is_some() {
-            return None;
-        }
-        match self.head {
-            Some(ref mut head) => Some(&mut head.headers),
-            None => None,
-        }
+        self.inner.as_mut().ok().map(|h| &mut h.headers)
     }
 
     /// Adds an extension to this builder
@@ -1002,22 +944,14 @@ impl Builder {
     /// assert_eq!(req.extensions().get::<&'static str>(),
     ///            Some(&"My Extension"));
     /// ```
-    pub fn extension<T>(&mut self, extension: T) -> &mut Builder
+    pub fn extension<T>(self, extension: T) -> Builder
     where
         T: Any + Send + Sync + 'static,
     {
-        if let Some(head) = head(&mut self.head, &self.err) {
+        self.and_then(move |mut head| {
             head.extensions.insert(extension);
-        }
-        self
-    }
-
-    fn take_parts(&mut self) -> Result<Parts> {
-        let ret = self.head.take().expect("cannot reuse request builder");
-        if let Some(e) = self.err.take() {
-            return Err(e);
-        }
-        Ok(ret)
+            Ok(head)
+        })
     }
 
     /// "Consumes" this builder, using the provided `body` to return a
@@ -1031,11 +965,6 @@ impl Builder {
     /// "Bar\r\n")` the error will be returned when this function is called
     /// rather than when `header` was called.
     ///
-    /// # Panics
-    ///
-    /// This method will panic if the builder is reused. The `body` function can
-    /// only be called once.
-    ///
     /// # Examples
     ///
     /// ```
@@ -1045,27 +974,32 @@ impl Builder {
     ///     .body(())
     ///     .unwrap();
     /// ```
-    pub fn body<T>(&mut self, body: T) -> Result<Request<T>> {
-        Ok(Request {
-            head: self.take_parts()?,
-            body: body,
+    pub fn body<T>(self, body: T) -> Result<Request<T>> {
+        self.inner.map(move |head| {
+            Request {
+                head,
+                body,
+            }
         })
     }
-}
 
-fn head<'a>(head: &'a mut Option<Parts>, err: &Option<Error>) -> Option<&'a mut Parts> {
-    if err.is_some() {
-        return None;
+    // private
+
+    fn and_then<F>(self, func: F) -> Self
+    where
+        F: FnOnce(Parts) -> Result<Parts>
+    {
+        Builder {
+            inner: self.inner.and_then(func),
+        }
     }
-    head.as_mut()
 }
 
 impl Default for Builder {
     #[inline]
     fn default() -> Builder {
         Builder {
-            head: Some(Parts::new()),
-            err: None,
+            inner: Ok(Parts::new()),
         }
     }
 }
