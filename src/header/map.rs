@@ -1,5 +1,5 @@
 use std::{fmt, mem, ops, ptr, vec};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{HashMap};
 use std::collections::hash_map::RandomState;
 use std::hash::{BuildHasher, Hash, Hasher};
 use std::iter::FromIterator;
@@ -1734,14 +1734,6 @@ pub trait IntoHeaderMapAllowed {}
 impl<K, V, S> IntoHeaderMapAllowed for HashMap<K, V, S> {}
 
 impl<'a, K, V, S> IntoHeaderMapAllowed for &'a HashMap<K, V, S> {}
-
-impl<K, V> IntoHeaderMapAllowed for BTreeMap<K, V> {}
-
-impl<'a, K, V> IntoHeaderMapAllowed for &'a BTreeMap<K, V> {}
-
-impl<'a, T> IntoHeaderMapAllowed for &'a [T] {}
-
-impl<T> IntoHeaderMapAllowed for Vec<T> {}
 
 /// Convert a collection of tuples into a HeaderMap
 ///
