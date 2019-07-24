@@ -1,6 +1,6 @@
 use std::{fmt, mem, ops, ptr, vec};
-use std::collections::{HashMap};
 use std::collections::hash_map::RandomState;
+use std::collections::HashMap;
 use std::hash::{BuildHasher, Hash, Hasher};
 use std::iter::FromIterator;
 use std::marker::PhantomData;
@@ -1725,16 +1725,6 @@ impl<T> FromIterator<(HeaderName, T)> for HeaderMap<T>
     }
 }
 
-/// A marker trait that allows conversion from a type to HeaderMap
-/// This trait is needed to have both a fast implementation of
-/// HttpTryFrom<HeaderMap> and a generic implementation
-/// of HttpTryFrom<IntoIterator<Item=(K,V)>> for HeaderMap that do not conflict.
-pub trait IntoHeaderMapAllowed {}
-
-impl<K, V, S> IntoHeaderMapAllowed for HashMap<K, V, S> {}
-
-impl<'a, K, V, S> IntoHeaderMapAllowed for &'a HashMap<K, V, S> {}
-
 /// Convert a collection of tuples into a HeaderMap
 ///
 /// # Examples
@@ -1753,15 +1743,14 @@ impl<'a, K, V, S> IntoHeaderMapAllowed for &'a HashMap<K, V, S> {}
 /// let bad_headers: Result<HeaderMap> = HeaderMap::try_from(&headers_hashmap);
 /// assert!(bad_headers.is_err());
 /// ```
-impl<C, K, V> HttpTryFrom<C> for HeaderMap<HeaderValue>
+impl<'a, K, V> HttpTryFrom<&'a HashMap<K, V>> for HeaderMap<HeaderValue>
     where
-        C: IntoIterator<Item=(K, V)> + IntoHeaderMapAllowed,
-        HeaderName: HttpTryFrom<K>,
-        HeaderValue: HttpTryFrom<V>
+        HeaderName: HttpTryFrom<&'a K>,
+        HeaderValue: HttpTryFrom<&'a V>
 {
     type Error = Error;
 
-    fn try_from(c: C) -> Result<Self, Self::Error> {
+    fn try_from(c: &'a HashMap<K, V>) -> Result<Self, Self::Error> {
         c.into_iter()
             .map(|(k, v)| -> ::Result<(HeaderName, HeaderValue)> {
                 let name : HeaderName = k.http_try_into()?;
@@ -3213,7 +3202,7 @@ mod as_header_name {
     use super::{Entry, HdrName, HeaderMap, HeaderName, InvalidHeaderName};
 
     /// A marker trait used to identify values that can be used as search keys
-    /// to a `HeaderMap`.
+                    /// to a `HeaderMap`.
     pub trait AsHeaderName: Sealed {}
 
     // All methods are on this pub(super) trait, instead of `AsHeaderName`,
