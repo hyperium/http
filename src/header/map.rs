@@ -1,11 +1,15 @@
-use super::HeaderValue;
-use super::name::{HeaderName, HdrName, InvalidHeaderName};
-
 use std::{fmt, mem, ops, ptr, vec};
 use std::collections::hash_map::RandomState;
-use std::hash::{BuildHasher, Hasher, Hash};
+use std::collections::HashMap;
+use std::hash::{BuildHasher, Hash, Hasher};
 use std::iter::FromIterator;
 use std::marker::PhantomData;
+
+use convert::{HttpTryFrom, HttpTryInto};
+use Error;
+
+use super::HeaderValue;
+use super::name::{HdrName, HeaderName, InvalidHeaderName};
 
 pub use self::as_header_name::AsHeaderName;
 pub use self::into_header_name::IntoHeaderName;
@@ -23,6 +27,7 @@ pub use self::into_header_name::IntoHeaderName;
 /// ```
 /// # use http::HeaderMap;
 /// # use http::header::{CONTENT_LENGTH, HOST, LOCATION};
+/// # use http::HttpTryFrom;
 /// let mut headers = HeaderMap::new();
 ///
 /// headers.insert(HOST, "example.com".parse().unwrap());
@@ -1720,6 +1725,43 @@ impl<T> FromIterator<(HeaderName, T)> for HeaderMap<T>
     }
 }
 
+/// Convert a collection of tuples into a HeaderMap
+///
+/// # Examples
+///
+/// ```
+/// # use http::{HttpTryFrom, Result, header::HeaderMap};
+/// # use std::collections::HashMap;
+/// let mut headers_hashmap: HashMap<String, String> = vec![
+///     ("X-Custom-Header".to_string(), "my value".to_string()),
+/// ].iter().cloned().collect();
+///
+/// let good_headers: Result<HeaderMap> = HeaderMap::try_from(&headers_hashmap);
+/// assert!(good_headers.is_ok());
+///
+/// headers_hashmap.insert("\r".into(), "\0".into());
+/// let bad_headers: Result<HeaderMap> = HeaderMap::try_from(&headers_hashmap);
+/// assert!(bad_headers.is_err());
+/// ```
+impl<'a, K, V> HttpTryFrom<&'a HashMap<K, V>> for HeaderMap<HeaderValue>
+    where
+        K: Eq + Hash,
+        HeaderName: HttpTryFrom<&'a K>,
+        HeaderValue: HttpTryFrom<&'a V>
+{
+    type Error = Error;
+
+    fn try_from(c: &'a HashMap<K, V>) -> Result<Self, Self::Error> {
+        c.into_iter()
+            .map(|(k, v)| -> ::Result<(HeaderName, HeaderValue)> {
+                let name : HeaderName = k.http_try_into()?;
+                let value : HeaderValue = v.http_try_into()?;
+                Ok((name, value))
+            })
+            .collect()
+    }
+}
+
 impl<T> Extend<(Option<HeaderName>, T)> for HeaderMap<T> {
     /// Extend a `HeaderMap` with the contents of another `HeaderMap`.
     ///
@@ -3161,7 +3203,7 @@ mod as_header_name {
     use super::{Entry, HdrName, HeaderMap, HeaderName, InvalidHeaderName};
 
     /// A marker trait used to identify values that can be used as search keys
-    /// to a `HeaderMap`.
+                    /// to a `HeaderMap`.
     pub trait AsHeaderName: Sealed {}
 
     // All methods are on this pub(super) trait, instead of `AsHeaderName`,
