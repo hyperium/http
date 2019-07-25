@@ -1,4 +1,4 @@
-use crate::header::{HeaderName, HeaderValue};
+use crate::header::{HeaderMap, HeaderName, HeaderValue};
 use crate::method::Method;
 use crate::sealed::Sealed;
 use crate::status::StatusCode;
@@ -55,6 +55,7 @@ reflexive! {
     Uri,
     Method,
     StatusCode,
+    HeaderMap,
     HeaderName,
     HeaderValue,
     Scheme,
