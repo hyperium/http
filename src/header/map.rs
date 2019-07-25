@@ -1745,6 +1745,7 @@ impl<T> FromIterator<(HeaderName, T)> for HeaderMap<T>
 /// ```
 impl<'a, K, V> HttpTryFrom<&'a HashMap<K, V>> for HeaderMap<HeaderValue>
     where
+        K: Eq + Hash,
         HeaderName: HttpTryFrom<&'a K>,
         HeaderValue: HttpTryFrom<&'a V>
 {
