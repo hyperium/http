@@ -56,10 +56,21 @@ reflexive! {
     Uri,
     Method,
     StatusCode,
-    HeaderMap,
     HeaderName,
     HeaderValue,
     Scheme,
     Authority,
     PathAndQuery,
 }
+
+// HeaderMap<T> can't use reflexive easily due to the generic T
+
+impl<T> HttpTryFrom<HeaderMap<T>> for HeaderMap<T> {
+    type Error = Error;
+
+    fn try_from(t: Self) -> Result<Self, Self::Error> {
+        Ok(t)
+    }
+}
+
+impl<T> Sealed for HeaderMap<T> {}
