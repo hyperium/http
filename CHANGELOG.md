@@ -1,3 +1,9 @@
+# 0.1.18 (July 26, 2019)
+
+* Fix compilation of `HeaderName` parsing on WASM targets (#324).
+* Implement `HttpTryFrom<HashMap>` for `HeaderMap` (#326).
+* Export `http::header::HeaderValue` as `http::HeaderValue`.
+
 # 0.1.17 (April 5, 2019)
 
 * Add `Error::inner_ref()` to view the kind of error (#303)

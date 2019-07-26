@@ -4,11 +4,10 @@ name = "http"
 # - Update html_root_url in lib.rs.
 # - Update CHANGELOG.md.
 # - Create git tag
-version = "0.1.17"
+version = "0.1.18"
 readme = "README.md"
 documentation = "https://docs.rs/http"
 repository = "https://github.com/hyperium/http"
-homepage = "https://github.com/hyperium/http"
 license = "MIT/Apache-2.0"
 authors = [
   "Alex Crichton <alex@alexcrichton.com>",
