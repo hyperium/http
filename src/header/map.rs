@@ -27,7 +27,6 @@ pub use self::into_header_name::IntoHeaderName;
 /// ```
 /// # use http::HeaderMap;
 /// # use http::header::{CONTENT_LENGTH, HOST, LOCATION};
-/// # use http::HttpTryFrom;
 /// let mut headers = HeaderMap::new();
 ///
 /// headers.insert(HOST, "example.com".parse().unwrap());
@@ -1754,37 +1753,33 @@ impl<T> FromIterator<(HeaderName, T)> for HeaderMap<T> {
     }
 }
 
-/// Convert a collection of tuples into a HeaderMap
+/// Try to convert a `HashMap` into a `HeaderMap`.
 ///
 /// # Examples
 ///
 /// ```
-/// # use http::{HttpTryFrom, Result, header::HeaderMap};
-/// # use std::collections::HashMap;
-/// let mut headers_hashmap: HashMap<String, String> = vec![
-///     ("X-Custom-Header".to_string(), "my value".to_string()),
-/// ].iter().cloned().collect();
+/// use std::collections::HashMap;
+/// use http::{HttpTryFrom, header::HeaderMap};
 ///
-/// let good_headers: Result<HeaderMap> = HeaderMap::try_from(&headers_hashmap);
-/// assert!(good_headers.is_ok());
+/// let mut map = HashMap::new();
+/// map.insert("X-Custom-Header".to_string(), "my value".to_string());
 ///
-/// headers_hashmap.insert("\r".into(), "\0".into());
-/// let bad_headers: Result<HeaderMap> = HeaderMap::try_from(&headers_hashmap);
-/// assert!(bad_headers.is_err());
+/// let headers: HeaderMap = HttpTryFrom::try_from(&map).expect("valid headers");
+/// assert_eq!(headers["X-Custom-Header"], "my value");
 /// ```
-impl<'a, K, V> HttpTryFrom<&'a HashMap<K, V>> for HeaderMap<HeaderValue>
+impl<'a, K, V, T> HttpTryFrom<&'a HashMap<K, V>> for HeaderMap<T>
     where
         K: Eq + Hash,
         HeaderName: HttpTryFrom<&'a K>,
-        HeaderValue: HttpTryFrom<&'a V>
+        T: HttpTryFrom<&'a V>
 {
     type Error = Error;
 
     fn try_from(c: &'a HashMap<K, V>) -> Result<Self, Self::Error> {
         c.into_iter()
-            .map(|(k, v)| -> crate::Result<(HeaderName, HeaderValue)> {
-                let name : HeaderName = k.http_try_into()?;
-                let value : HeaderValue = v.http_try_into()?;
+            .map(|(k, v)| -> crate::Result<(HeaderName, T)> {
+                let name = k.http_try_into()?;
+                let value = v.http_try_into()?;
                 Ok((name, value))
             })
             .collect()
