@@ -46,10 +46,11 @@ pub struct StatusCode(u16);
 ///
 /// This error indicates that the supplied input was not a valid number, was less
 /// than 100, or was greater than 599.
+///
+/// Invalid value converted from `u16` is preserved. Invalid value converted from `&str` is
+/// preserved if and only if the string consists of exactly three digits.
 #[derive(Debug)]
-pub struct InvalidStatusCode {
-    _priv: (),
-}
+pub struct InvalidStatusCode(u16);
 
 impl StatusCode {
     /// Converts a u16 to a status code.
@@ -71,7 +72,7 @@ impl StatusCode {
     #[inline]
     pub fn from_u16(src: u16) -> Result<StatusCode, InvalidStatusCode> {
         if src < 100 || src >= 600 {
-            return Err(InvalidStatusCode::new());
+            return Err(InvalidStatusCode(src));
         }
 
         Ok(StatusCode(src))
@@ -80,19 +81,21 @@ impl StatusCode {
     /// Converts a &[u8] to a status code
     pub fn from_bytes(src: &[u8]) -> Result<StatusCode, InvalidStatusCode> {
         if src.len() != 3 {
-            return Err(InvalidStatusCode::new());
+            return Err(InvalidStatusCode::unknown());
         }
 
         let a = src[0].wrapping_sub(b'0') as u16;
         let b = src[1].wrapping_sub(b'0') as u16;
         let c = src[2].wrapping_sub(b'0') as u16;
 
-        if a == 0 || a > 5 || b > 9 || c > 9 {
-            return Err(InvalidStatusCode::new());
-        }
-
         let status = (a * 100) + (b * 10) + c;
-        Ok(StatusCode(status))
+        if a >= 1 && a <= 5 && b <= 9 && c <= 9 {
+            Ok(StatusCode(status))
+        } else if a <= 9 && b <= 9 && c <= 9 {
+            Err(InvalidStatusCode(status))
+        } else {
+            Err(InvalidStatusCode::unknown())
+        }
     }
 
     /// Returns the `u16` corresponding to this `StatusCode`.
@@ -284,10 +287,34 @@ impl HttpTryFrom<u16> for StatusCode {
     }
 }
 
+/// Placeholder for unknown invalid status code from `&str`.
+///
+/// A valid status code is chosen here because it cannot be stored in
+/// `InvalidStatusCode` otherwise.
+const UNKNOWN_INVALID_STATUS_CODE: u16 = 404;
+
 impl InvalidStatusCode {
-    fn new() -> InvalidStatusCode {
-        InvalidStatusCode {
-            _priv: (),
+    fn unknown() -> InvalidStatusCode {
+        InvalidStatusCode(UNKNOWN_INVALID_STATUS_CODE)
+    }
+
+    /// Returns `u16` corresponding to this `InvalidStatusCode`.
+    /// `None` is returned if there is no such value, or the value was not preserved.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http::StatusCode;
+    /// let status = StatusCode::from_u16(600).unwrap_err();
+    /// assert_eq!(status.as_u16(), Some(600));
+    ///
+    /// let status = StatusCode::from_bytes(b"x").unwrap_err();
+    /// assert_eq!(status.as_u16(), None);
+    /// ```
+    pub fn as_u16(&self) -> Option<u16> {
+        match self.0 {
+            UNKNOWN_INVALID_STATUS_CODE => None,
+            v => Some(v),
         }
     }
 }
