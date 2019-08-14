@@ -1,11 +1,10 @@
 use bytes::{Bytes, BytesMut};
 
+use std::convert::TryFrom;
 use std::error::Error;
 use std::str::FromStr;
 use std::{cmp, fmt, mem, str};
 
-use crate::convert::HttpTryFrom;
-use crate::error::Never;
 use crate::header::name::HeaderName;
 
 /// Represents an HTTP header field value.
@@ -398,15 +397,6 @@ macro_rules! from_integers {
             }
         }
 
-        impl HttpTryFrom<$t> for HeaderValue {
-            type Error = Never;
-
-            #[inline]
-            fn try_from(num: $t) -> Result<Self, Self::Error> {
-                Ok(num.into())
-            }
-        }
-
         #[test]
         fn $name() {
             let n: $t = 55;
@@ -500,16 +490,7 @@ impl<'a> From<&'a HeaderValue> for HeaderValue {
     }
 }
 
-impl<'a> HttpTryFrom<&'a HeaderValue> for HeaderValue {
-    type Error = crate::error::Never;
-
-    #[inline]
-    fn try_from(t: &'a HeaderValue) -> Result<Self, Self::Error> {
-        Ok(t.clone())
-    }
-}
-
-impl<'a> HttpTryFrom<&'a str> for HeaderValue {
+impl<'a> TryFrom<&'a str> for HeaderValue {
     type Error = InvalidHeaderValue;
 
     #[inline]
@@ -518,7 +499,7 @@ impl<'a> HttpTryFrom<&'a str> for HeaderValue {
     }
 }
 
-impl<'a> HttpTryFrom<&'a [u8]> for HeaderValue {
+impl<'a> TryFrom<&'a [u8]> for HeaderValue {
     type Error = InvalidHeaderValue;
 
     #[inline]
@@ -527,7 +508,7 @@ impl<'a> HttpTryFrom<&'a [u8]> for HeaderValue {
     }
 }
 
-impl HttpTryFrom<String> for HeaderValue {
+impl TryFrom<String> for HeaderValue {
     type Error = InvalidHeaderValueBytes;
 
     #[inline]
@@ -536,22 +517,12 @@ impl HttpTryFrom<String> for HeaderValue {
     }
 }
 
-impl HttpTryFrom<Bytes> for HeaderValue {
+impl TryFrom<Bytes> for HeaderValue {
     type Error = InvalidHeaderValueBytes;
 
     #[inline]
     fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
         HeaderValue::from_shared(bytes)
-    }
-}
-
-impl HttpTryFrom<HeaderName> for HeaderValue {
-    type Error = InvalidHeaderValue;
-
-    #[inline]
-    fn try_from(name: HeaderName) -> Result<Self, Self::Error> {
-        // Infallable as header names have the same validations
-        Ok(name.into())
     }
 }
 

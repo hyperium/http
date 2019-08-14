@@ -169,11 +169,9 @@ pub mod uri;
 pub mod version;
 
 mod byte_str;
-mod convert;
 mod error;
 mod extensions;
 
-pub use crate::convert::HttpTryFrom;
 pub use crate::error::{Error, Result};
 pub use crate::extensions::Extensions;
 #[doc(no_inline)]

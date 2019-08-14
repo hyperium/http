@@ -1,3 +1,4 @@
+use std::convert::TryFrom;
 use std::str::FromStr;
 use std::{cmp, fmt, str};
 
@@ -5,7 +6,6 @@ use bytes::Bytes;
 
 use super::{ErrorKind, InvalidUri, InvalidUriBytes};
 use crate::byte_str::ByteStr;
-use crate::convert::HttpTryFrom;
 
 /// Represents the path component of a URI
 #[derive(Clone)]
@@ -275,7 +275,7 @@ impl PathAndQuery {
     }
 }
 
-impl HttpTryFrom<Bytes> for PathAndQuery {
+impl TryFrom<Bytes> for PathAndQuery {
     type Error = InvalidUriBytes;
     #[inline]
     fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
@@ -283,7 +283,7 @@ impl HttpTryFrom<Bytes> for PathAndQuery {
     }
 }
 
-impl<'a> HttpTryFrom<&'a [u8]> for PathAndQuery {
+impl<'a> TryFrom<&'a [u8]> for PathAndQuery {
     type Error = InvalidUri;
     #[inline]
     fn try_from(s: &'a [u8]) -> Result<Self, Self::Error> {
@@ -291,11 +291,11 @@ impl<'a> HttpTryFrom<&'a [u8]> for PathAndQuery {
     }
 }
 
-impl<'a> HttpTryFrom<&'a str> for PathAndQuery {
+impl<'a> TryFrom<&'a str> for PathAndQuery {
     type Error = InvalidUri;
     #[inline]
     fn try_from(s: &'a str) -> Result<Self, Self::Error> {
-        HttpTryFrom::try_from(s.as_bytes())
+        TryFrom::try_from(s.as_bytes())
     }
 }
 
@@ -303,7 +303,7 @@ impl FromStr for PathAndQuery {
     type Err = InvalidUri;
     #[inline]
     fn from_str(s: &str) -> Result<Self, InvalidUri> {
-        HttpTryFrom::try_from(s)
+        TryFrom::try_from(s)
     }
 }
 

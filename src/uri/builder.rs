@@ -1,5 +1,6 @@
+use std::convert::{TryFrom, TryInto};
+
 use super::{Authority, Parts, PathAndQuery, Scheme};
-use crate::convert::{HttpTryFrom, HttpTryInto};
 use crate::{Result, Uri};
 
 /// A builder for `Uri`s.
@@ -43,10 +44,10 @@ impl Builder {
     /// ```
     pub fn scheme<T>(self, scheme: T) -> Self
     where
-        Scheme: HttpTryFrom<T>,
+        Scheme: TryFrom<T>,
     {
         self.map(move |mut parts| {
-            parts.scheme = Some(scheme.http_try_into()?);
+            parts.scheme = Some(scheme.try_into()?);
             Ok(parts)
         })
     }
@@ -65,10 +66,11 @@ impl Builder {
     /// ```
     pub fn authority<T>(self, auth: T) -> Self
     where
-        Authority: HttpTryFrom<T>,
+        Authority: TryFrom<T>,
+        <T as TryInto<Authority>>::Error: Into<crate::Error>,
     {
         self.map(move |mut parts| {
-            parts.authority = Some(auth.http_try_into()?);
+            parts.authority = Some(auth.try_into()?);
             Ok(parts)
         })
     }
@@ -87,10 +89,10 @@ impl Builder {
     /// ```
     pub fn path_and_query<T>(self, p_and_q: T) -> Self
     where
-        PathAndQuery: HttpTryFrom<T>,
+        PathAndQuery: TryFrom<T>,
     {
         self.map(move |mut parts| {
-            parts.path_and_query = Some(p_and_q.http_try_into()?);
+            parts.path_and_query = Some(p_and_q.try_into()?);
             Ok(parts)
         })
     }
@@ -120,9 +122,8 @@ impl Builder {
     ///     .unwrap();
     /// ```
     pub fn build(self) -> Result<Uri> {
-        self
-            .parts
-            .and_then(|parts| parts.http_try_into())
+        let parts = self.parts;
+        parts.try_into()
     }
 
     // private
