@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 use std::collections::hash_map::RandomState;
+use std::convert::TryFrom;
 use std::hash::{BuildHasher, Hash, Hasher};
 use std::iter::{FromIterator, FusedIterator};
 use std::marker::PhantomData;
 use std::{fmt, mem, ops, ptr, vec};
 
-use crate::convert::{HttpTryFrom, HttpTryInto};
 use crate::Error;
 
 use super::HeaderValue;
@@ -1796,27 +1796,30 @@ impl<T> FromIterator<(HeaderName, T)> for HeaderMap<T> {
 ///
 /// ```
 /// use std::collections::HashMap;
-/// use http::{HttpTryFrom, header::HeaderMap};
+/// use std::convert::TryFrom;
+/// use http::HeaderMap;
 ///
 /// let mut map = HashMap::new();
 /// map.insert("X-Custom-Header".to_string(), "my value".to_string());
 ///
-/// let headers: HeaderMap = HttpTryFrom::try_from(&map).expect("valid headers");
+/// let headers = HeaderMap::try_from(&map).expect("valid headers");
 /// assert_eq!(headers["X-Custom-Header"], "my value");
 /// ```
-impl<'a, K, V, T> HttpTryFrom<&'a HashMap<K, V>> for HeaderMap<T>
+impl<'a, K, V, T> TryFrom<&'a HashMap<K, V>> for HeaderMap<T>
     where
         K: Eq + Hash,
-        HeaderName: HttpTryFrom<&'a K>,
-        T: HttpTryFrom<&'a V>
+        HeaderName: TryFrom<&'a K>,
+        <HeaderName as TryFrom<&'a K>>::Error: Into<crate::Error>,
+        T: TryFrom<&'a V>,
+        T::Error: Into<crate::Error>,
 {
     type Error = Error;
 
     fn try_from(c: &'a HashMap<K, V>) -> Result<Self, Self::Error> {
         c.into_iter()
             .map(|(k, v)| -> crate::Result<(HeaderName, T)> {
-                let name = k.http_try_into()?;
-                let value = v.http_try_into()?;
+                let name = TryFrom::try_from(k).map_err(Into::into)?;
+                let value = TryFrom::try_from(v).map_err(Into::into)?;
                 Ok((name, value))
             })
             .collect()

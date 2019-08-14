@@ -62,12 +62,13 @@
 //! ```
 
 use std::any::Any;
+use std::convert::TryFrom;
 use std::fmt;
 
 use crate::header::{HeaderMap, HeaderName, HeaderValue};
 use crate::status::StatusCode;
 use crate::version::Version;
-use crate::{Extensions, HttpTryFrom, Result};
+use crate::{Extensions, Result};
 
 /// Represents an HTTP response
 ///
@@ -562,10 +563,11 @@ impl Builder {
     /// ```
     pub fn status<T>(self, status: T) -> Builder
     where
-        StatusCode: HttpTryFrom<T>,
+        StatusCode: TryFrom<T>,
+        <StatusCode as TryFrom<T>>::Error: Into<crate::Error>,
     {
         self.and_then(move |mut head| {
-            head.status = HttpTryFrom::try_from(status).map_err(Into::into)?;
+            head.status = TryFrom::try_from(status).map_err(Into::into)?;
             Ok(head)
         })
     }
@@ -615,12 +617,14 @@ impl Builder {
     /// ```
     pub fn header<K, V>(self, key: K, value: V) -> Builder
     where
-        HeaderName: HttpTryFrom<K>,
-        HeaderValue: HttpTryFrom<V>,
+        HeaderName: TryFrom<K>,
+        <HeaderName as TryFrom<K>>::Error: Into<crate::Error>,
+        HeaderValue: TryFrom<V>,
+        <HeaderValue as TryFrom<V>>::Error: Into<crate::Error>,
     {
         self.and_then(move |mut head| {
-            let name = <HeaderName as HttpTryFrom<K>>::try_from(key).map_err(Into::into)?;
-            let value = <HeaderValue as HttpTryFrom<V>>::try_from(value).map_err(Into::into)?;
+            let name = <HeaderName as TryFrom<K>>::try_from(key).map_err(Into::into)?;
+            let value = <HeaderValue as TryFrom<V>>::try_from(value).map_err(Into::into)?;
             head.headers.append(name, value);
             Ok(head)
         })

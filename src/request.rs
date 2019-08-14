@@ -53,12 +53,13 @@
 //! ```
 
 use std::any::Any;
+use std::convert::{TryFrom};
 use std::fmt;
 
 use crate::header::{HeaderMap, HeaderName, HeaderValue};
 use crate::method::Method;
 use crate::version::Version;
-use crate::{Extensions, HttpTryFrom, Result, Uri};
+use crate::{Extensions, Result, Uri};
 
 /// Represents an HTTP request.
 ///
@@ -228,7 +229,9 @@ impl Request<()> {
     /// ```
     pub fn get<T>(uri: T) -> Builder
     where
-        Uri: HttpTryFrom<T>,
+        Uri: TryFrom<T>,
+        <Uri as TryFrom<T>>::Error: Into<crate::Error>,
+
     {
         Builder::new().method(Method::GET).uri(uri)
     }
@@ -249,7 +252,9 @@ impl Request<()> {
     /// ```
     pub fn put<T>(uri: T) -> Builder
     where
-        Uri: HttpTryFrom<T>,
+        Uri: TryFrom<T>,
+        <Uri as TryFrom<T>>::Error: Into<crate::Error>,
+
     {
         Builder::new().method(Method::PUT).uri(uri)
     }
@@ -270,7 +275,9 @@ impl Request<()> {
     /// ```
     pub fn post<T>(uri: T) -> Builder
     where
-        Uri: HttpTryFrom<T>,
+        Uri: TryFrom<T>,
+        <Uri as TryFrom<T>>::Error: Into<crate::Error>,
+
     {
         Builder::new().method(Method::POST).uri(uri)
     }
@@ -291,7 +298,9 @@ impl Request<()> {
     /// ```
     pub fn delete<T>(uri: T) -> Builder
     where
-        Uri: HttpTryFrom<T>,
+        Uri: TryFrom<T>,
+        <Uri as TryFrom<T>>::Error: Into<crate::Error>,
+
     {
         Builder::new().method(Method::DELETE).uri(uri)
     }
@@ -313,7 +322,9 @@ impl Request<()> {
     /// ```
     pub fn options<T>(uri: T) -> Builder
     where
-        Uri: HttpTryFrom<T>,
+        Uri: TryFrom<T>,
+        <Uri as TryFrom<T>>::Error: Into<crate::Error>,
+
     {
         Builder::new().method(Method::OPTIONS).uri(uri)
     }
@@ -334,7 +345,9 @@ impl Request<()> {
     /// ```
     pub fn head<T>(uri: T) -> Builder
     where
-        Uri: HttpTryFrom<T>,
+        Uri: TryFrom<T>,
+        <Uri as TryFrom<T>>::Error: Into<crate::Error>,
+
     {
         Builder::new().method(Method::HEAD).uri(uri)
     }
@@ -355,7 +368,9 @@ impl Request<()> {
     /// ```
     pub fn connect<T>(uri: T) -> Builder
     where
-        Uri: HttpTryFrom<T>,
+        Uri: TryFrom<T>,
+        <Uri as TryFrom<T>>::Error: Into<crate::Error>,
+
     {
         Builder::new().method(Method::CONNECT).uri(uri)
     }
@@ -376,7 +391,8 @@ impl Request<()> {
     /// ```
     pub fn patch<T>(uri: T) -> Builder
     where
-        Uri: HttpTryFrom<T>,
+        Uri: TryFrom<T>,
+        <Uri as TryFrom<T>>::Error: Into<crate::Error>,
     {
         Builder::new().method(Method::PATCH).uri(uri)
     }
@@ -397,7 +413,8 @@ impl Request<()> {
     /// ```
     pub fn trace<T>(uri: T) -> Builder
     where
-        Uri: HttpTryFrom<T>,
+        Uri: TryFrom<T>,
+        <Uri as TryFrom<T>>::Error: Into<crate::Error>,
     {
         Builder::new().method(Method::TRACE).uri(uri)
     }
@@ -761,10 +778,12 @@ impl Builder {
     /// ```
     pub fn method<T>(self, method: T) -> Builder
     where
-        Method: HttpTryFrom<T>,
+        Method: TryFrom<T>,
+        <Method as TryFrom<T>>::Error: Into<crate::Error>,
     {
         self.and_then(move |mut head| {
-            head.method = HttpTryFrom::try_from(method).map_err(Into::into)?;
+            let method = TryFrom::try_from(method).map_err(Into::into)?;
+            head.method = method;
             Ok(head)
         })
     }
@@ -807,10 +826,11 @@ impl Builder {
     /// ```
     pub fn uri<T>(self, uri: T) -> Builder
     where
-        Uri: HttpTryFrom<T>,
+        Uri: TryFrom<T>,
+        <Uri as TryFrom<T>>::Error: Into<crate::Error>,
     {
         self.and_then(move |mut head| {
-            head.uri = HttpTryFrom::try_from(uri).map_err(Into::into)?;
+            head.uri = TryFrom::try_from(uri).map_err(Into::into)?;
             Ok(head)
         })
     }
@@ -878,12 +898,14 @@ impl Builder {
     /// ```
     pub fn header<K, V>(self, key: K, value: V) -> Builder
     where
-        HeaderName: HttpTryFrom<K>,
-        HeaderValue: HttpTryFrom<V>,
+        HeaderName: TryFrom<K>,
+        <HeaderName as TryFrom<K>>::Error: Into<crate::Error>,
+        HeaderValue: TryFrom<V>,
+        <HeaderValue as TryFrom<V>>::Error: Into<crate::Error>,
     {
         self.and_then(move |mut head| {
-            let name = <HeaderName as HttpTryFrom<K>>::try_from(key).map_err(Into::into)?;
-            let value = <HeaderValue as HttpTryFrom<V>>::try_from(value).map_err(Into::into)?;
+            let name = <HeaderName as TryFrom<K>>::try_from(key).map_err(Into::into)?;
+            let value = <HeaderValue as TryFrom<V>>::try_from(value).map_err(Into::into)?;
             head.headers.append(name, value);
             Ok(head)
         })

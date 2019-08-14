@@ -16,11 +16,11 @@
 //! ```
 
 use self::Inner::*;
-use crate::HttpTryFrom;
 
 use std::convert::AsRef;
 use std::error::Error;
 use std::str::FromStr;
+use std::convert::TryFrom;
 use std::{fmt, str};
 
 /// The Request Method (VERB)
@@ -326,16 +326,7 @@ impl<'a> From<&'a Method> for Method {
     }
 }
 
-impl<'a> HttpTryFrom<&'a Method> for Method {
-    type Error = crate::error::Never;
-
-    #[inline]
-    fn try_from(t: &'a Method) -> Result<Self, Self::Error> {
-        Ok(t.clone())
-    }
-}
-
-impl<'a> HttpTryFrom<&'a [u8]> for Method {
+impl<'a> TryFrom<&'a [u8]> for Method {
     type Error = InvalidMethod;
 
     #[inline]
@@ -344,12 +335,12 @@ impl<'a> HttpTryFrom<&'a [u8]> for Method {
     }
 }
 
-impl<'a> HttpTryFrom<&'a str> for Method {
+impl<'a> TryFrom<&'a str> for Method {
     type Error = InvalidMethod;
 
     #[inline]
     fn try_from(t: &'a str) -> Result<Self, Self::Error> {
-        HttpTryFrom::try_from(t.as_bytes())
+        TryFrom::try_from(t.as_bytes())
     }
 }
 
@@ -358,7 +349,7 @@ impl FromStr for Method {
 
     #[inline]
     fn from_str(t: &str) -> Result<Self, Self::Err> {
-        HttpTryFrom::try_from(t)
+        TryFrom::try_from(t)
     }
 }
 
