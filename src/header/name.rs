@@ -1,9 +1,9 @@
 use crate::byte_str::ByteStr;
-use crate::HttpTryFrom;
 use bytes::{Bytes, BytesMut};
 
 use std::borrow::Borrow;
 use std::error::Error;
+use std::convert::{TryFrom};
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 use std::{fmt, mem};
@@ -1888,16 +1888,7 @@ impl From<HeaderName> for Bytes {
     }
 }
 
-impl<'a> HttpTryFrom<&'a HeaderName> for HeaderName {
-    type Error = crate::error::Never;
-
-    #[inline]
-    fn try_from(t: &'a HeaderName) -> Result<Self, Self::Error> {
-        Ok(t.clone())
-    }
-}
-
-impl<'a> HttpTryFrom<&'a str> for HeaderName {
+impl<'a> TryFrom<&'a str> for HeaderName {
     type Error = InvalidHeaderName;
     #[inline]
     fn try_from(s: &'a str) -> Result<Self, Self::Error> {
@@ -1905,7 +1896,7 @@ impl<'a> HttpTryFrom<&'a str> for HeaderName {
     }
 }
 
-impl<'a> HttpTryFrom<&'a String> for HeaderName {
+impl<'a> TryFrom<&'a String> for HeaderName {
     type Error = InvalidHeaderName;
     #[inline]
     fn try_from(s: &'a String) -> Result<Self, Self::Error> {
@@ -1913,7 +1904,7 @@ impl<'a> HttpTryFrom<&'a String> for HeaderName {
     }
 }
 
-impl<'a> HttpTryFrom<&'a [u8]> for HeaderName {
+impl<'a> TryFrom<&'a [u8]> for HeaderName {
     type Error = InvalidHeaderName;
     #[inline]
     fn try_from(s: &'a [u8]) -> Result<Self, Self::Error> {
@@ -1921,7 +1912,7 @@ impl<'a> HttpTryFrom<&'a [u8]> for HeaderName {
     }
 }
 
-impl HttpTryFrom<Bytes> for HeaderName {
+impl TryFrom<Bytes> for HeaderName {
     type Error = InvalidHeaderNameBytes;
     #[inline]
     fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
