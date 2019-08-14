@@ -23,7 +23,6 @@
 //! ```
 
 use crate::byte_str::ByteStr;
-use crate::HttpTryFrom;
 use std::convert::TryFrom;
 
 use bytes::Bytes;
@@ -707,7 +706,7 @@ impl TryFrom<Bytes> for Uri {
     }
 }
 
-impl<'a> HttpTryFrom<&'a str> for Uri {
+impl<'a> TryFrom<&'a str> for Uri {
     type Error = InvalidUri;
 
     #[inline]
@@ -716,7 +715,7 @@ impl<'a> HttpTryFrom<&'a str> for Uri {
     }
 }
 
-impl<'a> HttpTryFrom<&'a String> for Uri {
+impl<'a> TryFrom<&'a String> for Uri {
     type Error = InvalidUri;
 
     #[inline]
@@ -725,7 +724,7 @@ impl<'a> HttpTryFrom<&'a String> for Uri {
     }
 }
 
-impl HttpTryFrom<String> for Uri {
+impl TryFrom<String> for Uri {
     type Error = InvalidUriBytes;
 
     #[inline]
@@ -734,16 +733,7 @@ impl HttpTryFrom<String> for Uri {
     }
 }
 
-impl HttpTryFrom<Bytes> for Uri {
-    type Error = InvalidUriBytes;
-
-    #[inline]
-    fn try_from(t: Bytes) -> Result<Self, Self::Error> {
-        Uri::from_shared(t)
-    }
-}
-
-impl HttpTryFrom<Parts> for Uri {
+impl TryFrom<Parts> for Uri {
     type Error = InvalidUriParts;
 
     #[inline]
@@ -752,7 +742,7 @@ impl HttpTryFrom<Parts> for Uri {
     }
 }
 
-impl<'a> HttpTryFrom<&'a Uri> for Uri {
+impl<'a> TryFrom<&'a Uri> for Uri {
     type Error = crate::Error;
 
     #[inline]

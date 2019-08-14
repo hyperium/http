@@ -10,7 +10,6 @@ use bytes::Bytes;
 
 use super::{ErrorKind, InvalidUri, InvalidUriBytes, Port, URI_CHARS};
 use crate::byte_str::ByteStr;
-use crate::convert::HttpTryFrom;
 
 /// Represents the authority component of a URI.
 #[derive(Clone)]
@@ -463,15 +462,7 @@ impl Hash for Authority {
     }
 }
 
-impl HttpTryFrom<Bytes> for Authority {
-    type Error = InvalidUriBytes;
-    #[inline]
-    fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
-        Authority::from_shared(bytes)
-    }
-}
-
-impl<'a> HttpTryFrom<&'a [u8]> for Authority {
+impl<'a> TryFrom<&'a [u8]> for Authority {
     type Error = InvalidUri;
     #[inline]
     fn try_from(s: &'a [u8]) -> Result<Self, Self::Error> {
@@ -488,11 +479,11 @@ impl<'a> HttpTryFrom<&'a [u8]> for Authority {
     }
 }
 
-impl<'a> HttpTryFrom<&'a str> for Authority {
+impl<'a> TryFrom<&'a str> for Authority {
     type Error = InvalidUri;
     #[inline]
     fn try_from(s: &'a str) -> Result<Self, Self::Error> {
-        HttpTryFrom::try_from(s.as_bytes())
+        TryFrom::try_from(s.as_bytes())
     }
 }
 
@@ -500,7 +491,7 @@ impl FromStr for Authority {
     type Err = InvalidUri;
 
     fn from_str(s: &str) -> Result<Self, InvalidUri> {
-        HttpTryFrom::try_from(s)
+        TryFrom::try_from(s)
     }
 }
 

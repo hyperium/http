@@ -10,7 +10,6 @@ use bytes::Bytes;
 
 use super::{ErrorKind, InvalidUri, InvalidUriBytes};
 use crate::byte_str::ByteStr;
-use crate::convert::HttpTryFrom;
 
 /// Represents the scheme component of a URI
 #[derive(Clone)]
@@ -101,14 +100,6 @@ impl Scheme {
     }
 }
 
-impl HttpTryFrom<Bytes> for Scheme {
-    type Error = InvalidUriBytes;
-    #[inline]
-    fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
-        Scheme::from_shared(bytes)
-    }
-}
-
 impl TryFrom<Bytes> for Scheme {
     type Error = InvalidUriBytes;
 
@@ -145,7 +136,7 @@ impl TryFrom<Bytes> for Scheme {
     }
 }
 
-impl<'a> HttpTryFrom<&'a [u8]> for Scheme {
+impl<'a> TryFrom<&'a [u8]> for Scheme {
     type Error = InvalidUri;
     #[inline]
     fn try_from(s: &'a [u8]) -> Result<Self, Self::Error> {
@@ -162,11 +153,11 @@ impl<'a> HttpTryFrom<&'a [u8]> for Scheme {
     }
 }
 
-impl<'a> HttpTryFrom<&'a str> for Scheme {
+impl<'a> TryFrom<&'a str> for Scheme {
     type Error = InvalidUri;
     #[inline]
     fn try_from(s: &'a str) -> Result<Self, Self::Error> {
-        HttpTryFrom::try_from(s.as_bytes())
+        TryFrom::try_from(s.as_bytes())
     }
 }
 
@@ -174,7 +165,7 @@ impl FromStr for Scheme {
     type Err = InvalidUri;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        HttpTryFrom::try_from(s)
+        TryFrom::try_from(s)
     }
 }
 

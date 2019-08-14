@@ -14,11 +14,10 @@
 //! assert!(StatusCode::OK.is_success());
 //! ```
 
+use std::convert::TryFrom;
 use std::error::Error;
 use std::fmt;
 use std::str::FromStr;
-
-use crate::HttpTryFrom;
 
 /// An HTTP status code (`status-code` in RFC 7230 et al.).
 ///
@@ -251,16 +250,7 @@ impl<'a> From<&'a StatusCode> for StatusCode {
     }
 }
 
-impl<'a> HttpTryFrom<&'a StatusCode> for StatusCode {
-    type Error = crate::error::Never;
-
-    #[inline]
-    fn try_from(t: &'a StatusCode) -> Result<Self, Self::Error> {
-        Ok(t.clone())
-    }
-}
-
-impl<'a> HttpTryFrom<&'a [u8]> for StatusCode {
+impl<'a> TryFrom<&'a [u8]> for StatusCode {
     type Error = InvalidStatusCode;
 
     #[inline]
@@ -269,7 +259,7 @@ impl<'a> HttpTryFrom<&'a [u8]> for StatusCode {
     }
 }
 
-impl<'a> HttpTryFrom<&'a str> for StatusCode {
+impl<'a> TryFrom<&'a str> for StatusCode {
     type Error = InvalidStatusCode;
 
     #[inline]
@@ -278,7 +268,7 @@ impl<'a> HttpTryFrom<&'a str> for StatusCode {
     }
 }
 
-impl HttpTryFrom<u16> for StatusCode {
+impl TryFrom<u16> for StatusCode {
     type Error = InvalidStatusCode;
 
     #[inline]
