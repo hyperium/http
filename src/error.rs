@@ -32,6 +32,7 @@ enum ErrorKind {
     HeaderNameShared(header::InvalidHeaderNameBytes),
     HeaderValue(header::InvalidHeaderValue),
     HeaderValueShared(header::InvalidHeaderValueBytes),
+    Infallible(std::convert::Infallible)
 }
 
 impl fmt::Display for Error {
@@ -156,6 +157,14 @@ impl From<header::InvalidHeaderValueBytes> for Error {
     fn from(err: header::InvalidHeaderValueBytes) -> Error {
         Error {
             inner: ErrorKind::HeaderValueShared(err),
+        }
+    }
+}
+
+impl From<std::convert::Infallible> for Error {
+    fn from(err: std::convert::Infallible) -> Error {
+        Error {
+            inner: ErrorKind::Infallible(err),
         }
     }
 }

@@ -564,6 +564,7 @@ impl Builder {
     pub fn status<T>(self, status: T) -> Builder
     where
         StatusCode: TryFrom<T>,
+        <StatusCode as TryFrom<T>>::Error: Into<crate::Error>,
     {
         self.and_then(move |mut head| {
             head.status = TryFrom::try_from(status).map_err(Into::into)?;
@@ -617,7 +618,9 @@ impl Builder {
     pub fn header<K, V>(self, key: K, value: V) -> Builder
     where
         HeaderName: TryFrom<K>,
+        <HeaderName as TryFrom<K>>::Error: Into<crate::Error>,
         HeaderValue: TryFrom<V>,
+        <HeaderValue as TryFrom<V>>::Error: Into<crate::Error>,
     {
         self.and_then(move |mut head| {
             let name = <HeaderName as TryFrom<K>>::try_from(key).map_err(Into::into)?;

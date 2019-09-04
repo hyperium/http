@@ -230,7 +230,7 @@ impl Request<()> {
     pub fn get<T>(uri: T) -> Builder
     where
         Uri: TryFrom<T>,
-        <T as TryFrom<T>>::Error: Into<crate::Error>,
+        <Uri as TryFrom<T>>::Error: Into<crate::Error>,
 
     {
         Builder::new().method(Method::GET).uri(uri)
@@ -253,7 +253,7 @@ impl Request<()> {
     pub fn put<T>(uri: T) -> Builder
     where
         Uri: TryFrom<T>,
-        <T as TryFrom<T>>::Error: Into<crate::Error>,
+        <Uri as TryFrom<T>>::Error: Into<crate::Error>,
 
     {
         Builder::new().method(Method::PUT).uri(uri)
@@ -276,7 +276,7 @@ impl Request<()> {
     pub fn post<T>(uri: T) -> Builder
     where
         Uri: TryFrom<T>,
-        <T as TryFrom<T>>::Error: Into<crate::Error>,
+        <Uri as TryFrom<T>>::Error: Into<crate::Error>,
 
     {
         Builder::new().method(Method::POST).uri(uri)
@@ -299,7 +299,7 @@ impl Request<()> {
     pub fn delete<T>(uri: T) -> Builder
     where
         Uri: TryFrom<T>,
-        <T as TryFrom<T>>::Error: Into<crate::Error>,
+        <Uri as TryFrom<T>>::Error: Into<crate::Error>,
 
     {
         Builder::new().method(Method::DELETE).uri(uri)
@@ -323,7 +323,7 @@ impl Request<()> {
     pub fn options<T>(uri: T) -> Builder
     where
         Uri: TryFrom<T>,
-        <T as TryFrom<T>>::Error: Into<crate::Error>,
+        <Uri as TryFrom<T>>::Error: Into<crate::Error>,
 
     {
         Builder::new().method(Method::OPTIONS).uri(uri)
@@ -346,7 +346,7 @@ impl Request<()> {
     pub fn head<T>(uri: T) -> Builder
     where
         Uri: TryFrom<T>,
-        <T as TryFrom<T>>::Error: Into<crate::Error>,
+        <Uri as TryFrom<T>>::Error: Into<crate::Error>,
 
     {
         Builder::new().method(Method::HEAD).uri(uri)
@@ -369,7 +369,7 @@ impl Request<()> {
     pub fn connect<T>(uri: T) -> Builder
     where
         Uri: TryFrom<T>,
-                <T as TryFrom<T>>::Error: Into<crate::Error>,
+        <Uri as TryFrom<T>>::Error: Into<crate::Error>,
 
     {
         Builder::new().method(Method::CONNECT).uri(uri)
@@ -392,7 +392,7 @@ impl Request<()> {
     pub fn patch<T>(uri: T) -> Builder
     where
         Uri: TryFrom<T>,
-        <T as TryFrom<T>>::Error: Into<crate::Error>,
+        <Uri as TryFrom<T>>::Error: Into<crate::Error>,
     {
         Builder::new().method(Method::PATCH).uri(uri)
     }
@@ -414,7 +414,7 @@ impl Request<()> {
     pub fn trace<T>(uri: T) -> Builder
     where
         Uri: TryFrom<T>,
-        <T as TryFrom<T>>::Error: Into<crate::Error>,
+        <Uri as TryFrom<T>>::Error: Into<crate::Error>,
     {
         Builder::new().method(Method::TRACE).uri(uri)
     }
@@ -779,7 +779,7 @@ impl Builder {
     pub fn method<T>(self, method: T) -> Builder
     where
         Method: TryFrom<T>,
-        <T as TryFrom<T>>::Error: Into<crate::Error>,
+        <Method as TryFrom<T>>::Error: Into<crate::Error>,
     {
         self.and_then(move |mut head| {
             let method = TryFrom::try_from(method).map_err(Into::into)?;
@@ -827,9 +827,10 @@ impl Builder {
     pub fn uri<T>(self, uri: T) -> Builder
     where
         Uri: TryFrom<T>,
+        <Uri as TryFrom<T>>::Error: Into<crate::Error>,
     {
         self.and_then(move |mut head| {
-            head.uri = <Uri as TryFrom<T>>::try_from(uri).map_err(Into::into)?;
+            head.uri = TryFrom::try_from(uri).map_err(Into::into)?;
             Ok(head)
         })
     }
@@ -898,7 +899,9 @@ impl Builder {
     pub fn header<K, V>(self, key: K, value: V) -> Builder
     where
         HeaderName: TryFrom<K>,
+        <HeaderName as TryFrom<K>>::Error: Into<crate::Error>,
         HeaderValue: TryFrom<V>,
+        <HeaderValue as TryFrom<V>>::Error: Into<crate::Error>,
     {
         self.and_then(move |mut head| {
             let name = <HeaderName as TryFrom<K>>::try_from(key).map_err(Into::into)?;

@@ -1,7 +1,7 @@
 use std::convert::{TryFrom, TryInto};
 
 use super::{Authority, Parts, PathAndQuery, Scheme};
-use crate::{Result, Uri};
+use crate::Uri;
 
 /// A builder for `Uri`s.
 ///
@@ -9,7 +9,7 @@ use crate::{Result, Uri};
 /// through a builder pattern.
 #[derive(Debug)]
 pub struct Builder {
-    parts: Result<Parts>,
+    parts: Result<Parts, crate::Error>,
 }
 
 impl Builder {
@@ -45,9 +45,11 @@ impl Builder {
     pub fn scheme<T>(self, scheme: T) -> Self
     where
         Scheme: TryFrom<T>,
+        <Scheme as TryFrom<T>>::Error: Into<crate::Error>,
     {
         self.map(move |mut parts| {
-            parts.scheme = Some(scheme.try_into()?);
+            let scheme = scheme.try_into()?;
+            parts.scheme = Some(scheme);
             Ok(parts)
         })
     }
@@ -67,7 +69,7 @@ impl Builder {
     pub fn authority<T>(self, auth: T) -> Self
     where
         Authority: TryFrom<T>,
-        <T as TryInto<Authority>>::Error: Into<crate::Error>,
+        <Authority as TryFrom<T>>::Error: Into<crate::Error>,
     {
         self.map(move |mut parts| {
             parts.authority = Some(auth.try_into()?);
@@ -90,6 +92,7 @@ impl Builder {
     pub fn path_and_query<T>(self, p_and_q: T) -> Self
     where
         PathAndQuery: TryFrom<T>,
+        <PathAndQuery as TryFrom<T>>::Error: Into<crate::Error>,
     {
         self.map(move |mut parts| {
             parts.path_and_query = Some(p_and_q.try_into()?);
@@ -121,16 +124,16 @@ impl Builder {
     ///     .build()
     ///     .unwrap();
     /// ```
-    pub fn build(self) -> Result<Uri> {
+    pub fn build(self) -> Result<Uri, crate::Error> {
         let parts = self.parts;
-        parts.try_into()
+        parts.try_into()?
     }
 
     // private
 
     fn map<F>(self, func: F) -> Self
     where
-        F: FnOnce(Parts) -> Result<Parts>,
+        F: FnOnce(Parts) -> Result<Parts, crate::Error>,
     {
 
         Builder {

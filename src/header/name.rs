@@ -3,7 +3,7 @@ use bytes::{Bytes, BytesMut};
 
 use std::borrow::Borrow;
 use std::error::Error;
-use std::convert::TryFrom;
+use std::convert::{TryFrom};
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 use std::{fmt, mem};
