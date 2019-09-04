@@ -61,6 +61,7 @@ impl Error {
             HeaderNameShared(ref e) => e,
             HeaderValue(ref e) => e,
             HeaderValueShared(ref e) => e,
+            Infallible(ref e) => e,
         }
     }
 }
@@ -79,6 +80,7 @@ impl error::Error for Error {
             HeaderNameShared(ref e) => e.description(),
             HeaderValue(ref e) => e.description(),
             HeaderValueShared(ref e) => e.description(),
+            Infallible(ref e) => e.description(),
         }
     }
 

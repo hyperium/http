@@ -48,7 +48,7 @@ impl Builder {
         <Scheme as TryFrom<T>>::Error: Into<crate::Error>,
     {
         self.map(move |mut parts| {
-            let scheme = scheme.try_into()?;
+            let scheme = scheme.try_into().map_err(Into::into)?;
             parts.scheme = Some(scheme);
             Ok(parts)
         })
@@ -72,7 +72,8 @@ impl Builder {
         <Authority as TryFrom<T>>::Error: Into<crate::Error>,
     {
         self.map(move |mut parts| {
-            parts.authority = Some(auth.try_into()?);
+            let auth = auth.try_into().map_err(Into::into)?;
+            parts.authority = Some(auth);
             Ok(parts)
         })
     }
@@ -95,7 +96,8 @@ impl Builder {
         <PathAndQuery as TryFrom<T>>::Error: Into<crate::Error>,
     {
         self.map(move |mut parts| {
-            parts.path_and_query = Some(p_and_q.try_into()?);
+            let p_and_q = p_and_q.try_into().map_err(Into::into)?;
+            parts.path_and_query = Some(p_and_q);
             Ok(parts)
         })
     }
