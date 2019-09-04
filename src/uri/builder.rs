@@ -125,8 +125,8 @@ impl Builder {
     ///     .unwrap();
     /// ```
     pub fn build(self) -> Result<Uri, crate::Error> {
-        let parts = self.parts;
-        parts.try_into()?
+        let parts = self.parts?;
+        Uri::from_parts(parts).map_err(Into::into)
     }
 
     // private
