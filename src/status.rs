@@ -46,7 +46,6 @@ pub struct StatusCode(u16);
 ///
 /// This error indicates that the supplied input was not a valid number, was less
 /// than 100, or was greater than 599.
-#[derive(Debug)]
 pub struct InvalidStatusCode {
     _priv: (),
 }
@@ -284,14 +283,6 @@ impl HttpTryFrom<u16> for StatusCode {
     }
 }
 
-impl InvalidStatusCode {
-    fn new() -> InvalidStatusCode {
-        InvalidStatusCode {
-            _priv: (),
-        }
-    }
-}
-
 macro_rules! status_codes {
     (
         $(
@@ -510,6 +501,22 @@ status_codes! {
     /// 511 Network Authentication Required
     /// [[RFC6585](https://tools.ietf.org/html/rfc6585)]
     (511, NETWORK_AUTHENTICATION_REQUIRED, "Network Authentication Required");
+}
+
+impl InvalidStatusCode {
+    fn new() -> InvalidStatusCode {
+        InvalidStatusCode {
+            _priv: (),
+        }
+    }
+}
+
+impl fmt::Debug for InvalidStatusCode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("InvalidStatusCode")
+            // skip _priv noise
+            .finish()
+    }
 }
 
 impl fmt::Display for InvalidStatusCode {
