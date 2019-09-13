@@ -627,4 +627,13 @@ mod tests {
         let result: Authority = authority_str.parse().unwrap();
         assert_eq!(result, authority_str);
     }
+
+    #[test]
+    fn rejects_percent_outside_ipv6_address() {
+        let err = Authority::parse_non_empty(b"1234%20[fe80::1:2:3:4]").unwrap_err();
+        assert_eq!(err.0, ErrorKind::InvalidAuthority);
+
+        let err = Authority::parse_non_empty(b"[fe80::1:2:3:4]%20").unwrap_err();
+        assert_eq!(err.0, ErrorKind::InvalidAuthority);
+    }
 }
