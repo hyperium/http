@@ -56,7 +56,6 @@ struct MaybeLower<'a> {
 }
 
 /// A possible error when converting a `HeaderName` from another type.
-#[derive(Debug)]
 pub struct InvalidHeaderName {
     _priv: (),
 }
@@ -2012,6 +2011,14 @@ impl<'a> PartialEq<HeaderName> for &'a str {
     #[inline]
     fn eq(&self, other: &HeaderName) -> bool {
         *other == *self
+    }
+}
+
+impl fmt::Debug for InvalidHeaderName {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("InvalidHeaderName")
+            // skip _priv noise
+            .finish()
     }
 }
 

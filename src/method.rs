@@ -45,7 +45,6 @@ use std::{fmt, str};
 pub struct Method(Inner);
 
 /// A possible error value when converting `Method` from bytes.
-#[derive(Debug)]
 pub struct InvalidMethod {
     _priv: (),
 }
@@ -366,6 +365,14 @@ impl FromStr for Method {
 impl InvalidMethod {
     fn new() -> InvalidMethod {
         InvalidMethod { _priv: () }
+    }
+}
+
+impl fmt::Debug for InvalidMethod {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("InvalidMethod")
+            // skip _priv noise
+            .finish()
     }
 }
 
