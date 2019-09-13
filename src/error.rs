@@ -13,7 +13,6 @@ use uri;
 /// functions in this crate, but all other errors can be converted to this
 /// error. Consumers of this crate can typically consume and work with this form
 /// of error for conversions with the `?` operator.
-#[derive(Debug)]
 pub struct Error {
     inner: ErrorKind,
 }
@@ -21,7 +20,6 @@ pub struct Error {
 /// A `Result` typedef to use with the `http::Error` type
 pub type Result<T> = result::Result<T, Error>;
 
-#[derive(Debug)]
 enum ErrorKind {
     StatusCode(status::InvalidStatusCode),
     Method(method::InvalidMethod),
@@ -34,9 +32,18 @@ enum ErrorKind {
     HeaderValueShared(header::InvalidHeaderValueBytes),
 }
 
+impl fmt::Debug for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_tuple("http::Error")
+            // Skip the noise of the ErrorKind enum
+            .field(&self.get_ref())
+            .finish()
+    }
+}
+
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        error::Error::description(self).fmt(f)
+        fmt::Display::fmt(self.get_ref(), f)
     }
 }
 
