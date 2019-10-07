@@ -103,15 +103,20 @@ impl Authority {
                 }
                 b':' => {
                     colon_cnt += 1;
-                },
+                }
                 b'[' => {
                     start_bracket = true;
+                    if has_percent {
+                        // Something other than the userinfo has a `%`, so reject it.
+                        return Err(ErrorKind::InvalidAuthority.into());
+                    }
                 }
                 b']' => {
                     end_bracket = true;
 
                     // Those were part of an IPv6 hostname, so forget them...
                     colon_cnt = 0;
+                    has_percent = false;
                 }
                 b'@' => {
                     at_sign_pos = Some(i);
@@ -127,8 +132,11 @@ impl Authority {
                     // the userinfo can have a percent-encoded username and password,
                     // so record that a `%` was found. If this turns out to be
                     // part of the userinfo, this flag will be cleared.
+                    // Also per https://tools.ietf.org/html/rfc6874, percent-encoding can
+                    // be used to indicate a zone identifier.
                     // If the flag hasn't been cleared at the end, that means this
-                    // was part of the hostname, and will fail with an error.
+                    // was part of the hostname (and not part of an IPv6 address), and
+                    // will fail with an error.
                     has_percent = true;
                 }
                 0 => {
@@ -610,6 +618,22 @@ mod tests {
         assert_eq!(err.0, ErrorKind::InvalidAuthority);
 
         let err = Authority::parse_non_empty(b"a%2f:b%2f@example%2f.com").unwrap_err();
+        assert_eq!(err.0, ErrorKind::InvalidAuthority);
+    }
+
+    #[test]
+    fn allows_percent_in_ipv6_address() {
+        let authority_str = "[fe80::1:2:3:4%25eth0]";
+        let result: Authority = authority_str.parse().unwrap();
+        assert_eq!(result, authority_str);
+    }
+
+    #[test]
+    fn rejects_percent_outside_ipv6_address() {
+        let err = Authority::parse_non_empty(b"1234%20[fe80::1:2:3:4]").unwrap_err();
+        assert_eq!(err.0, ErrorKind::InvalidAuthority);
+
+        let err = Authority::parse_non_empty(b"[fe80::1:2:3:4]%20").unwrap_err();
         assert_eq!(err.0, ErrorKind::InvalidAuthority);
     }
 }
