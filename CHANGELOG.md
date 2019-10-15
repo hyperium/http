@@ -1,3 +1,7 @@
+# 0.1.19 (October 15, 2019)
+
+* Allow `%` in IPv6 addresses in `Uri` (#343).
+
 # 0.1.18 (July 26, 2019)
 
 * Fix compilation of `HeaderName` parsing on WASM targets (#324).
