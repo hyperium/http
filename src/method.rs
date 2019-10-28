@@ -219,13 +219,9 @@ impl Method {
     /// See [the spec](https://tools.ietf.org/html/rfc7231#section-4.2.2) for
     /// more words.
     pub fn is_idempotent(&self) -> bool {
-        if self.is_safe() {
-            true
-        } else {
-            match self.0 {
-                Put | Delete => true,
-                _ => false
-            }
+        match self.0 {
+            Put | Delete | _ if self.is_safe() => true,
+            _ => false
         }
     }
 
