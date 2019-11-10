@@ -23,10 +23,17 @@ pub struct HeaderValue {
     is_sensitive: bool,
 }
 
+#[derive(Debug)]
+enum InvalidHeaderValueKind {
+    InvalidByte,
+    LeadingWhitespace,
+    TrailingWhitespace
+}
+
 /// A possible error when converting a `HeaderValue` from a string or byte
 /// slice.
 pub struct InvalidHeaderValue {
-    _priv: (),
+    kind: InvalidHeaderValueKind
 }
 
 /// A possible error when converting a `HeaderValue` from a string or byte
@@ -70,7 +77,16 @@ impl HeaderValue {
                 panic!("invalid header value");
             }
         }
-
+        if let Some(&b) = bytes.first() {
+            if is_whitespace(b) {
+                panic!("invalid header value");
+            }
+        }
+        if let Some(&b) = bytes.last() {
+            if is_whitespace(b) {
+                panic!("invalid header value");
+            }
+        }
         HeaderValue {
             inner: Bytes::from_static(bytes),
             is_sensitive: false,
@@ -193,7 +209,21 @@ impl HeaderValue {
         for &b in src.as_ref() {
             if !is_valid(b) {
                 return Err(InvalidHeaderValue {
-                    _priv: (),
+                    kind: InvalidHeaderValueKind::InvalidByte
+                });
+            }
+        }
+        if let Some(&b) = src.as_ref().first() {
+            if is_whitespace(b) {
+                return Err(InvalidHeaderValue {
+                    kind: InvalidHeaderValueKind::LeadingWhitespace
+                });
+            }
+        }
+        if let Some(&b) = src.as_ref().last() {
+            if is_whitespace(b) {
+                return Err(InvalidHeaderValue {
+                    kind: InvalidHeaderValueKind::TrailingWhitespace
                 });
             }
         }
@@ -583,6 +613,10 @@ fn is_visible_ascii(b: u8) -> bool {
     b >= 32 && b < 127 || b == b'\t'
 }
 
+fn is_whitespace(b: u8) -> bool {
+    b == b' ' || b == b'\t'
+}
+
 #[inline]
 fn is_valid(b: u8) -> bool {
     b >= 32 && b != 127 || b == b'\t'
@@ -604,7 +638,11 @@ impl fmt::Display for InvalidHeaderValue {
 
 impl Error for InvalidHeaderValue {
     fn description(&self) -> &str {
-        "failed to parse header value"
+        match self.kind {
+            InvalidHeaderValueKind::InvalidByte => "failed to parse header value (invalid character)",
+            InvalidHeaderValueKind::LeadingWhitespace => "failed to parse header value (leading whitespace)",
+            InvalidHeaderValueKind::TrailingWhitespace => "failed to parse header value (trailing whitespace)"
+        }
     }
 }
 
@@ -789,7 +827,7 @@ impl<'a> PartialOrd<HeaderValue> for &'a str {
 
 #[test]
 fn test_try_from() {
-    HeaderValue::try_from(vec![127]).unwrap_err();
+    assert_eq!(HeaderValue::try_from(vec![127]).unwrap_err().description(), "failed to parse header value (invalid character)");
 }
 
 #[test]
@@ -809,4 +847,40 @@ fn test_debug() {
     let mut sensitive = HeaderValue::from_static("password");
     sensitive.set_sensitive(true);
     assert_eq!("Sensitive", format!("{:?}", sensitive));
+}
+
+#[test]
+fn test_leading_whitespace() {
+    assert_eq!(HeaderValue::from_str(" A").unwrap_err().description(), "failed to parse header value (leading whitespace)");
+    assert_eq!(HeaderValue::from_str("\tA").unwrap_err().description(), "failed to parse header value (leading whitespace)");
+}
+
+#[test]
+#[should_panic(expected = "invalid header value")]
+fn test_leading_whitespace_static() {
+    HeaderValue::from_static(" A");
+}
+
+#[test]
+#[should_panic(expected = "invalid header value")]
+fn test_leading_tab_static() {
+    HeaderValue::from_static("\tA");
+}
+
+#[test]
+fn test_trailing_whitespace() {
+    assert_eq!(HeaderValue::from_str("A ").unwrap_err().description(), "failed to parse header value (trailing whitespace)");
+    assert_eq!(HeaderValue::from_str("A\t").unwrap_err().description(), "failed to parse header value (trailing whitespace)");
+}
+
+#[test]
+#[should_panic(expected = "invalid header value")]
+fn test_trailing_whitespace_static() {
+    HeaderValue::from_static("A ");
+}
+
+#[test]
+#[should_panic(expected = "invalid header value")]
+fn test_trailing_tab_static() {
+    HeaderValue::from_static("A\t");
 }
