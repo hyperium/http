@@ -336,12 +336,12 @@ impl Scheme2<usize> {
             for i in 0..s.len() {
                 let b = s[i];
 
-                if i == MAX_SCHEME_LEN {
-                    return Err(ErrorKind::SchemeTooLong.into());
-                }
-
                 match SCHEME_CHARS[b as usize] {
                     b':' => {
+                        if i > MAX_SCHEME_LEN {
+                            return Err(ErrorKind::SchemeTooLong.into());
+                        }
+
                         // Not enough data remaining
                         if s.len() < i + 3 {
                             break;
