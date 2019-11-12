@@ -232,6 +232,18 @@ test_parse! {
 }
 
 test_parse! {
+    test_uri_parse_long_host_with_no_scheme,
+    "thequickbrownfoxjumpedoverthelazydogtofindthelargedangerousdragon.localhost",
+    [],
+
+    scheme_part = None,
+    authority_part = part!("thequickbrownfoxjumpedoverthelazydogtofindthelargedangerousdragon.localhost"),
+    path = "",
+    query = None,
+    port_part = None,
+}
+
+test_parse! {
     test_userinfo1,
     "http://a:b@127.0.0.1:1234/",
     [],
@@ -430,7 +442,7 @@ fn test_max_uri_len() {
 }
 
 #[test]
-fn test_long_scheme() {
+fn test_overflowing_scheme() {
     let mut uri = vec![];
     uri.extend(vec![b'a'; 256]);
     uri.extend(b"://localhost/");
@@ -439,6 +451,18 @@ fn test_long_scheme() {
     let res: Result<Uri, InvalidUri> = uri.parse();
 
     assert_eq!(res.unwrap_err().0, ErrorKind::SchemeTooLong);
+}
+
+#[test]
+fn test_max_length_scheme() {
+    let mut uri = vec![];
+    uri.extend(vec![b'a'; 64]);
+    uri.extend(b"://localhost/");
+
+    let uri = String::from_utf8(uri).unwrap();
+    let uri: Uri = uri.parse().unwrap();
+
+    assert_eq!(uri.scheme_str().unwrap().len(), 64);
 }
 
 #[test]
