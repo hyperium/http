@@ -338,10 +338,6 @@ impl Scheme2<usize> {
 
                 match SCHEME_CHARS[b as usize] {
                     b':' => {
-                        if i > MAX_SCHEME_LEN {
-                            return Err(ErrorKind::SchemeTooLong.into());
-                        }
-
                         // Not enough data remaining
                         if s.len() < i + 3 {
                             break;
@@ -350,6 +346,10 @@ impl Scheme2<usize> {
                         // Not a scheme
                         if &s[i+1..i+3] != b"//" {
                             break;
+                        }
+
+                        if i > MAX_SCHEME_LEN {
+                            return Err(ErrorKind::SchemeTooLong.into());
                         }
 
                         // Return scheme
