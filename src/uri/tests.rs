@@ -244,6 +244,18 @@ test_parse! {
 }
 
 test_parse! {
+    test_uri_parse_long_host_with_port_and_no_scheme,
+    "thequickbrownfoxjumpedoverthelazydogtofindthelargedangerousdragon.localhost:1234",
+    [],
+
+    scheme_part = None,
+    authority_part = part!("thequickbrownfoxjumpedoverthelazydogtofindthelargedangerousdragon.localhost:1234"),
+    path = "",
+    query = None,
+    port_part = Port::from_str("1234").ok(),
+}
+
+test_parse! {
     test_userinfo1,
     "http://a:b@127.0.0.1:1234/",
     [],
