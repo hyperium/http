@@ -1666,7 +1666,7 @@ impl HeaderName {
         match parse_hdr(src, &mut buf, &HEADER_CHARS)?.inner {
             Repr::Standard(std) => Ok(std.into()),
             Repr::Custom(MaybeLower { buf, lower: true }) => {
-                let buf = Bytes::from(buf);
+                let buf = Bytes::copy_from_slice(buf);
                 let val = unsafe { ByteStr::from_utf8_unchecked(buf) };
                 Ok(Custom(val).into())
             }
@@ -1681,7 +1681,7 @@ impl HeaderName {
                         return Err(InvalidHeaderName::new());
                     }
 
-                    dst.put(b);
+                    dst.put_u8(b);
                 }
 
                 let val = unsafe { ByteStr::from_utf8_unchecked(dst.freeze()) };
@@ -1716,7 +1716,7 @@ impl HeaderName {
         match parse_hdr(src, &mut buf, &HEADER_CHARS_H2)?.inner {
             Repr::Standard(std) => Ok(std.into()),
             Repr::Custom(MaybeLower { buf, lower: true }) => {
-                let buf = Bytes::from(buf);
+                let buf = Bytes::copy_from_slice(buf);
                 let val = unsafe { ByteStr::from_utf8_unchecked(buf) };
                 Ok(Custom(val).into())
             }
@@ -1727,7 +1727,7 @@ impl HeaderName {
                     }
                 }
 
-                let buf = Bytes::from(buf);
+                let buf = Bytes::copy_from_slice(buf);
                 let val = unsafe { ByteStr::from_utf8_unchecked(buf) };
                 Ok(Custom(val).into())
             }
@@ -2084,7 +2084,7 @@ impl<'a> From<HdrName<'a>> for HeaderName {
             },
             Repr::Custom(maybe_lower) => {
                 if maybe_lower.lower {
-                    let buf = Bytes::from(&maybe_lower.buf[..]);
+                    let buf = Bytes::copy_from_slice(&maybe_lower.buf[..]);
                     let byte_str = unsafe { ByteStr::from_utf8_unchecked(buf) };
 
                     HeaderName {
@@ -2095,7 +2095,7 @@ impl<'a> From<HdrName<'a>> for HeaderName {
                     let mut dst = BytesMut::with_capacity(maybe_lower.buf.len());
 
                     for b in maybe_lower.buf.iter() {
-                        dst.put(HEADER_CHARS[*b as usize]);
+                        dst.put_u8(HEADER_CHARS[*b as usize]);
                     }
 
                     let buf = unsafe { ByteStr::from_utf8_unchecked(dst.freeze()) };

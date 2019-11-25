@@ -295,7 +295,7 @@ impl<'a> TryFrom<&'a [u8]> for PathAndQuery {
     type Error = InvalidUri;
     #[inline]
     fn try_from(s: &'a [u8]) -> Result<Self, Self::Error> {
-        PathAndQuery::from_shared(s.into()).map_err(|e| e.0)
+        PathAndQuery::from_shared(Bytes::copy_from_slice(s)).map_err(|e| e.0)
     }
 }
 

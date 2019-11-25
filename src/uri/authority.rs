@@ -1,6 +1,3 @@
-// Deprecated in 1.26, needed until our minimum version is >=1.23.
-#[allow(unused, deprecated)]
-use std::ascii::AsciiExt;
 use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
@@ -474,7 +471,9 @@ impl<'a> TryFrom<&'a [u8]> for Authority {
         }
 
         Ok(Authority {
-            data: unsafe { ByteStr::from_utf8_unchecked(s.into()) },
+            data: unsafe {
+                ByteStr::from_utf8_unchecked(Bytes::copy_from_slice(s))
+            },
         })
     }
 }
