@@ -638,6 +638,8 @@ impl<T> HeaderMap<T> {
 
         if cap > self.indices.len() {
             let cap = cap.next_power_of_two();
+            assert!(cap < MAX_SIZE, "header map reserve over max capacity");
+            assert!(cap != 0, "header map reserve overflowed");
 
             if self.entries.len() == 0 {
                 self.mask = cap - 1;
