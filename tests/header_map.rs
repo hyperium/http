@@ -94,6 +94,40 @@ fn drain() {
 }
 
 #[test]
+fn drain_drop_immediately() {
+    // test mem::forgetting does not double-free
+
+    let mut headers = HeaderMap::new();
+    headers.insert("hello", "world".parse().unwrap());
+    headers.insert("zomg", "bar".parse().unwrap());
+    headers.append("hello", "world2".parse().unwrap());
+
+    let iter = headers.drain();
+    assert_eq!(iter.size_hint(), (2, Some(2)));
+    // not consuming `iter`
+}
+
+#[test]
+fn drain_forget() {
+    // test mem::forgetting does not double-free
+
+    let mut headers = HeaderMap::<HeaderValue>::new();
+    headers.insert("hello", "world".parse().unwrap());
+    headers.insert("zomg", "bar".parse().unwrap());
+
+    assert_eq!(headers.len(), 2);
+
+    {
+        let mut iter = headers.drain();
+        assert_eq!(iter.size_hint(), (2, Some(2)));
+        let _ = iter.next().unwrap();
+        std::mem::forget(iter);
+    }
+
+    assert_eq!(headers.len(), 0);
+}
+
+#[test]
 fn drain_entry() {
     let mut headers = HeaderMap::new();
 
