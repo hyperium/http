@@ -1796,13 +1796,13 @@ impl<T> FromIterator<(HeaderName, T)> for HeaderMap<T> {
 ///
 /// ```
 /// use std::collections::HashMap;
-/// use std::convert::TryFrom;
+/// use std::convert::TryInto;
 /// use http::HeaderMap;
 ///
 /// let mut map = HashMap::new();
 /// map.insert("X-Custom-Header".to_string(), "my value".to_string());
 ///
-/// let headers = HeaderMap::try_from(&map).expect("valid headers");
+/// let headers: HeaderMap = (&map).try_into().expect("valid headers");
 /// assert_eq!(headers["X-Custom-Header"], "my value");
 /// ```
 impl<'a, K, V, T> TryFrom<&'a HashMap<K, V>> for HeaderMap<T>
