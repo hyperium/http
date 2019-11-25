@@ -878,7 +878,7 @@ impl FromStr for Uri {
 
     #[inline]
     fn from_str(s: &str) -> Result<Uri, InvalidUri> {
-        Uri::from_shared(s.into()).map_err(|e| e.0)
+        Uri::from_shared(Bytes::copy_from_slice(s.as_bytes())).map_err(|e| e.0)
     }
 }
 

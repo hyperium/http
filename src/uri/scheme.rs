@@ -1,6 +1,3 @@
-// Deprecated in 1.26, needed until our minimum version is >=1.23.
-#[allow(unused, deprecated)]
-use std::ascii::AsciiExt;
 use std::convert::TryFrom;
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -147,7 +144,9 @@ impl<'a> TryFrom<&'a [u8]> for Scheme {
             Standard(p) => Ok(Standard(p).into()),
             Other(_) => {
                 // Unsafe: parse_exact already checks for a strict subset of UTF-8
-                Ok(Other(Box::new(unsafe { ByteStr::from_utf8_unchecked(s.into()) })).into())
+                Ok(Other(Box::new(unsafe {
+                    ByteStr::from_utf8_unchecked(Bytes::copy_from_slice(s))
+                })).into())
             }
         }
     }

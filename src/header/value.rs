@@ -103,7 +103,7 @@ impl HeaderValue {
     /// ```
     #[inline]
     pub fn from_str(src: &str) -> Result<HeaderValue, InvalidHeaderValue> {
-        HeaderValue::try_from(src)
+        HeaderValue::try_from_generic(src, |s| Bytes::copy_from_slice(s.as_bytes()))
     }
 
     /// Converts a HeaderName into a HeaderValue
@@ -149,7 +149,7 @@ impl HeaderValue {
     /// ```
     #[inline]
     pub fn from_bytes(src: &[u8]) -> Result<HeaderValue, InvalidHeaderValue> {
-        HeaderValue::try_from(src)
+        HeaderValue::try_from_generic(src, Bytes::copy_from_slice)
     }
 
     /// Attempt to convert a `Bytes` buffer to a `HeaderValue`.
@@ -162,7 +162,7 @@ impl HeaderValue {
     /// implementation once the trait is stabilized in std.
     #[inline]
     pub fn from_shared(src: Bytes) -> Result<HeaderValue, InvalidHeaderValueBytes> {
-        HeaderValue::try_from(src).map_err(InvalidHeaderValueBytes)
+        HeaderValue::try_from_generic(src, std::convert::identity).map_err(InvalidHeaderValueBytes)
     }
 
     /// Convert a `Bytes` directly into a `HeaderValue` without validating.
@@ -188,14 +188,14 @@ impl HeaderValue {
         }
     }
 
-    fn try_from<T: AsRef<[u8]> + Into<Bytes>>(src: T) -> Result<HeaderValue, InvalidHeaderValue> {
+    fn try_from_generic<T: AsRef<[u8]>, F: FnOnce(T) -> Bytes>(src: T, into: F) -> Result<HeaderValue, InvalidHeaderValue> {
         for &b in src.as_ref() {
             if !is_valid(b) {
                 return Err(InvalidHeaderValue { _priv: () });
             }
         }
         Ok(HeaderValue {
-            inner: src.into(),
+            inner: into(src),
             is_sensitive: false,
         })
     }
@@ -521,6 +521,15 @@ impl TryFrom<String> for HeaderValue {
     #[inline]
     fn try_from(t: String) -> Result<Self, Self::Error> {
         HeaderValue::from_shared(t.into())
+    }
+}
+
+impl TryFrom<Vec<u8>> for HeaderValue {
+    type Error = InvalidHeaderValueBytes;
+
+    #[inline]
+    fn try_from(vec: Vec<u8>) -> Result<Self, Self::Error> {
+        HeaderValue::from_shared(vec.into())
     }
 }
 
