@@ -3030,8 +3030,10 @@ impl<'a, T> Drop for ValueDrain<'a, T> {
     }
 }
 
-unsafe impl<'a, T: Sync> Sync for ValueDrain<'a, T> {}
-unsafe impl<'a, T: Send> Send for ValueDrain<'a, T> {}
+// `ValueDrain` cannot be `Send` because it has un-synchronized mutation of
+// the `extra_values` vector.
+//
+// See https://github.com/hyperium/http/issues/355
 
 // ===== impl RawLinks =====
 
@@ -3399,7 +3401,7 @@ mod as_header_name {
 
 #[test]
 fn test_bounds() {
-    fn check_bounds<T: Send + Send>() {}
+    fn check_bounds<T: Send + Sync>() {}
 
     check_bounds::<HeaderMap<()>>();
     check_bounds::<Iter<'static, ()>>();
@@ -3414,7 +3416,7 @@ fn test_bounds() {
     check_bounds::<OccupiedEntry<'static, ()>>();
     check_bounds::<ValueIter<'static, ()>>();
     check_bounds::<ValueIterMut<'static, ()>>();
-    check_bounds::<ValueDrain<'static, ()>>();
+    // cannot: ValueDrain<'static, ()>
 }
 
 #[test]
