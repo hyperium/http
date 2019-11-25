@@ -60,7 +60,7 @@ impl<'a> From<&'a str> for ByteStr {
     #[inline]
     fn from(src: &'a str) -> ByteStr {
         ByteStr {
-            bytes: Bytes::from(src),
+            bytes: Bytes::copy_from_slice(src.as_bytes()),
         }
     }
 }
