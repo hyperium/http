@@ -135,7 +135,9 @@ pub struct ValuesMut<'a, T: 'a> {
 #[derive(Debug)]
 pub struct Drain<'a, T: 'a> {
     idx: usize,
-    map: *mut HeaderMap<T>,
+    len: usize,
+    entries: *mut [Bucket<T>],
+    extra_values: *mut Vec<ExtraValue<T>>,
     lt: PhantomData<&'a mut HeaderMap<T>>,
 }
 
@@ -202,7 +204,8 @@ pub struct ValueIterMut<'a, T: 'a> {
 /// An drain iterator of all values associated with a single header name.
 #[derive(Debug)]
 pub struct ValueDrain<'a, T: 'a> {
-    map: *mut HeaderMap<T>,
+    raw_links: RawLinks<T>,
+    extra_values: *mut Vec<ExtraValue<T>>,
     first: Option<T>,
     next: Option<usize>,
     lt: PhantomData<&'a mut HeaderMap<T>>,
@@ -269,6 +272,13 @@ struct Links {
     next: usize,
     tail: usize,
 }
+
+/// Access to the `links` value in a slice of buckets.
+///
+/// It's important that no other field is accessed, since it may have been
+/// freed in a `Drain` iterator.
+#[derive(Debug)]
+struct RawLinks<T>(*mut [Bucket<T>]);
 
 /// Node in doubly-linked list of header value entries
 #[derive(Debug, Clone)]
@@ -930,9 +940,23 @@ impl<T> HeaderMap<T> {
             *i = Pos::none();
         }
 
+        // Memory safety
+        //
+        // When the Drain is first created, it shortens the length of
+        // the source vector to make sure no uninitialized or moved-from
+        // elements are accessible at all if the Drain's destructor never
+        // gets to run.
+
+        let entries = &mut self.entries[..] as *mut _;
+        let extra_values = &mut self.extra_values as *mut _;
+        let len = self.entries.len();
+        unsafe { self.entries.set_len(0); }
+
         Drain {
             idx: 0,
-            map: self as *mut _,
+            len,
+            entries,
+            extra_values,
             lt: PhantomData,
         }
     }
@@ -1136,8 +1160,12 @@ impl<T> HeaderMap<T> {
             links = entry.links.take();
         }
 
+        let raw_links = self.raw_links();
+        let extra_values = &mut self.extra_values as *mut _;
+
         ValueDrain {
-            map: self as *mut _,
+            raw_links,
+            extra_values,
             first: Some(old),
             next: links.map(|l| l.next),
             lt: PhantomData,
@@ -1364,124 +1392,8 @@ impl<T> HeaderMap<T> {
     /// Removes the `ExtraValue` at the given index.
     #[inline]
     fn remove_extra_value(&mut self, idx: usize) -> ExtraValue<T> {
-        let prev;
-        let next;
-
-        {
-            debug_assert!(self.extra_values.len() > idx);
-            let extra = &self.extra_values[idx];
-            prev = extra.prev;
-            next = extra.next;
-        }
-
-        // First unlink the extra value
-        match (prev, next) {
-            (Link::Entry(prev), Link::Entry(next)) => {
-                debug_assert_eq!(prev, next);
-                debug_assert!(self.entries.len() > prev);
-
-                self.entries[prev].links = None;
-            }
-            (Link::Entry(prev), Link::Extra(next)) => {
-                debug_assert!(self.entries.len() > prev);
-                debug_assert!(self.entries[prev].links.is_some());
-
-                self.entries[prev].links.as_mut().unwrap()
-                    .next = next;
-
-                debug_assert!(self.extra_values.len() > next);
-                self.extra_values[next].prev = Link::Entry(prev);
-            }
-            (Link::Extra(prev), Link::Entry(next)) => {
-                debug_assert!(self.entries.len() > next);
-                debug_assert!(self.entries[next].links.is_some());
-
-                self.entries[next].links.as_mut().unwrap()
-                    .tail = prev;
-
-                debug_assert!(self.extra_values.len() > prev);
-                self.extra_values[prev].next = Link::Entry(next);
-            }
-            (Link::Extra(prev), Link::Extra(next)) => {
-                debug_assert!(self.extra_values.len() > next);
-                debug_assert!(self.extra_values.len() > prev);
-
-                self.extra_values[prev].next = Link::Extra(next);
-                self.extra_values[next].prev = Link::Extra(prev);
-            }
-        }
-
-        // Remove the extra value
-        let mut extra = self.extra_values.swap_remove(idx);
-
-        // This is the index of the value that was moved (possibly `extra`)
-        let old_idx = self.extra_values.len();
-
-        // Update the links
-        if extra.prev == Link::Extra(old_idx) {
-            extra.prev = Link::Extra(idx);
-        }
-
-        if extra.next == Link::Extra(old_idx) {
-            extra.next = Link::Extra(idx);
-        }
-
-        // Check if another entry was displaced. If it was, then the links
-        // need to be fixed.
-        if idx != old_idx {
-            let next;
-            let prev;
-
-            {
-                debug_assert!(self.extra_values.len() > idx);
-                let moved = &self.extra_values[idx];
-                next = moved.next;
-                prev = moved.prev;
-            }
-
-            // An entry was moved, we have to the links
-            match prev {
-                Link::Entry(entry_idx) => {
-                    // It is critical that we do not attempt to read the
-                    // header name or value as that memory may have been
-                    // "released" already.
-                    debug_assert!(self.entries.len() > entry_idx);
-                    debug_assert!(self.entries[entry_idx].links.is_some());
-
-                    let links = self.entries[entry_idx].links.as_mut().unwrap();
-                    links.next = idx;
-                }
-                Link::Extra(extra_idx) => {
-                    debug_assert!(self.extra_values.len() > extra_idx);
-                    self.extra_values[extra_idx].next = Link::Extra(idx);
-                }
-            }
-
-            match next {
-                Link::Entry(entry_idx) => {
-                    debug_assert!(self.entries.len() > entry_idx);
-                    debug_assert!(self.entries[entry_idx].links.is_some());
-
-                    let links = self.entries[entry_idx].links.as_mut().unwrap();
-                    links.tail = idx;
-                }
-                Link::Extra(extra_idx) => {
-                    debug_assert!(self.extra_values.len() > extra_idx);
-                    self.extra_values[extra_idx].prev = Link::Extra(idx);
-                }
-            }
-        }
-
-        debug_assert!({
-            for v in &self.extra_values {
-                assert!(v.next != Link::Extra(old_idx));
-                assert!(v.prev != Link::Extra(old_idx));
-            }
-
-            true
-        });
-
-        extra
+        let raw_links = self.raw_links();
+        remove_extra_value(raw_links, &mut self.extra_values, idx)
     }
 
     fn remove_all_extra_values(&mut self, mut head: usize) {
@@ -1631,6 +1543,129 @@ impl<T> HeaderMap<T> {
         let more = self.capacity() - self.entries.len();
         self.entries.reserve_exact(more);
     }
+
+    #[inline]
+    fn raw_links(&mut self) -> RawLinks<T> {
+        RawLinks(&mut self.entries[..] as *mut _)
+    }
+}
+
+/// Removes the `ExtraValue` at the given index.
+#[inline]
+fn remove_extra_value<T>(mut raw_links: RawLinks<T>, extra_values: &mut Vec<ExtraValue<T>>, idx: usize) -> ExtraValue<T> {
+    let prev;
+    let next;
+
+    {
+        debug_assert!(extra_values.len() > idx);
+        let extra = &extra_values[idx];
+        prev = extra.prev;
+        next = extra.next;
+    }
+
+    // First unlink the extra value
+    match (prev, next) {
+        (Link::Entry(prev), Link::Entry(next)) => {
+            debug_assert_eq!(prev, next);
+
+            raw_links[prev] = None;
+        }
+        (Link::Entry(prev), Link::Extra(next)) => {
+            debug_assert!(raw_links[prev].is_some());
+
+            raw_links[prev].as_mut().unwrap()
+                .next = next;
+
+            debug_assert!(extra_values.len() > next);
+            extra_values[next].prev = Link::Entry(prev);
+        }
+        (Link::Extra(prev), Link::Entry(next)) => {
+            debug_assert!(raw_links[next].is_some());
+
+            raw_links[next].as_mut().unwrap()
+                .tail = prev;
+
+            debug_assert!(extra_values.len() > prev);
+            extra_values[prev].next = Link::Entry(next);
+        }
+        (Link::Extra(prev), Link::Extra(next)) => {
+            debug_assert!(extra_values.len() > next);
+            debug_assert!(extra_values.len() > prev);
+
+            extra_values[prev].next = Link::Extra(next);
+            extra_values[next].prev = Link::Extra(prev);
+        }
+    }
+
+    // Remove the extra value
+    let mut extra = extra_values.swap_remove(idx);
+
+    // This is the index of the value that was moved (possibly `extra`)
+    let old_idx = extra_values.len();
+
+    // Update the links
+    if extra.prev == Link::Extra(old_idx) {
+        extra.prev = Link::Extra(idx);
+    }
+
+    if extra.next == Link::Extra(old_idx) {
+        extra.next = Link::Extra(idx);
+    }
+
+    // Check if another entry was displaced. If it was, then the links
+    // need to be fixed.
+    if idx != old_idx {
+        let next;
+        let prev;
+
+        {
+            debug_assert!(extra_values.len() > idx);
+            let moved = &extra_values[idx];
+            next = moved.next;
+            prev = moved.prev;
+        }
+
+        // An entry was moved, we have to the links
+        match prev {
+            Link::Entry(entry_idx) => {
+                // It is critical that we do not attempt to read the
+                // header name or value as that memory may have been
+                // "released" already.
+                debug_assert!(raw_links[entry_idx].is_some());
+
+                let links = raw_links[entry_idx].as_mut().unwrap();
+                links.next = idx;
+            }
+            Link::Extra(extra_idx) => {
+                debug_assert!(extra_values.len() > extra_idx);
+                extra_values[extra_idx].next = Link::Extra(idx);
+            }
+        }
+
+        match next {
+            Link::Entry(entry_idx) => {
+                debug_assert!(raw_links[entry_idx].is_some());
+
+                let links = raw_links[entry_idx].as_mut().unwrap();
+                links.tail = idx;
+            }
+            Link::Extra(extra_idx) => {
+                debug_assert!(extra_values.len() > extra_idx);
+                extra_values[extra_idx].prev = Link::Extra(idx);
+            }
+        }
+    }
+
+    debug_assert!({
+        for v in &*extra_values {
+            assert!(v.next != Link::Extra(old_idx));
+            assert!(v.prev != Link::Extra(old_idx));
+        }
+
+        true
+    });
+
+    extra
 }
 
 impl<'a, T> IntoIterator for &'a HeaderMap<T> {
@@ -2102,7 +2137,7 @@ impl<'a, T> Iterator for Drain<'a, T> {
     fn next(&mut self) -> Option<Self::Item> {
         let idx = self.idx;
 
-        if idx == unsafe { (*self.map).entries.len() } {
+        if idx == self.len {
             return None;
         }
 
@@ -2112,38 +2147,39 @@ impl<'a, T> Iterator for Drain<'a, T> {
         let value;
         let next;
 
-        unsafe {
-            let entry = &(*self.map).entries[idx];
+        let values = unsafe {
+            let entry = &(*self.entries)[idx];
 
             // Read the header name
             key = ptr::read(&entry.key as *const _);
             value = ptr::read(&entry.value as *const _);
             next = entry.links.map(|l| l.next);
-        };
 
-        let values = ValueDrain {
-            map: self.map,
-            first: Some(value),
-            next: next,
-            lt: PhantomData,
+
+            let raw_links = RawLinks(self.entries);
+            let extra_values = self.extra_values;
+
+            ValueDrain {
+                raw_links,
+                extra_values,
+                first: Some(value),
+                next: next,
+                lt: PhantomData,
+            }
         };
 
         Some((key, values))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let lower = unsafe { (*self.map).entries.len() } - self.idx;
+        let lower = self.len - self.idx;
         (lower, Some(lower))
     }
 }
 
 impl<'a, T> Drop for Drain<'a, T> {
     fn drop(&mut self) {
-        unsafe {
-            let map = &mut *self.map;
-            debug_assert!(map.extra_values.is_empty());
-            map.entries.set_len(0);
-        }
+        for _ in self {}
     }
 }
 
@@ -2860,8 +2896,11 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// returned.
     pub fn remove_entry_mult(self) -> (HeaderName, ValueDrain<'a, T>) {
         let entry = self.map.remove_found(self.probe, self.index);
+        let raw_links = self.map.raw_links();
+        let extra_values = &mut self.map.extra_values as *mut _;
         let drain = ValueDrain {
-            map: self.map as *mut _,
+            raw_links,
+            extra_values,
             first: Some(entry.value),
             next: entry.links.map(|l| l.next),
             lt: PhantomData,
@@ -2958,7 +2997,9 @@ impl<'a, T> Iterator for ValueDrain<'a, T> {
             self.first.take()
         } else if let Some(next) = self.next {
             // Remove the extra value
-            let extra = unsafe { &mut (*self.map) }.remove_extra_value(next);
+            let extra = unsafe {
+                remove_extra_value(self.raw_links, &mut *self.extra_values, next)
+            };
 
             match extra.next {
                 Link::Extra(idx) => self.next = Some(idx),
@@ -2992,6 +3033,34 @@ impl<'a, T> Drop for ValueDrain<'a, T> {
 
 unsafe impl<'a, T: Sync> Sync for ValueDrain<'a, T> {}
 unsafe impl<'a, T: Send> Send for ValueDrain<'a, T> {}
+
+// ===== impl RawLinks =====
+
+impl<T> Clone for RawLinks<T> {
+    fn clone(&self) -> RawLinks<T> {
+        *self
+    }
+}
+
+impl<T> Copy for RawLinks<T> {}
+
+impl<T> ops::Index<usize> for RawLinks<T> {
+    type Output = Option<Links>;
+
+    fn index(&self, idx: usize) -> &Self::Output {
+        unsafe {
+            &(*self.0)[idx].links
+        }
+    }
+}
+
+impl<T> ops::IndexMut<usize> for RawLinks<T> {
+    fn index_mut(&mut self, idx: usize) -> &mut Self::Output {
+        unsafe {
+            &mut (*self.0)[idx].links
+        }
+    }
+}
 
 // ===== impl Pos =====
 
