@@ -1856,7 +1856,6 @@ impl<T> Extend<(Option<HeaderName>, T)> for HeaderMap<T> {
 
             // As long as `HeaderName` is none, keep inserting the value into
             // the current entry
-            'inner:
             loop {
                 match iter.next() {
                     Some((Some(k), v)) => {
