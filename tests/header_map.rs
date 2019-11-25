@@ -38,6 +38,22 @@ fn smoke() {
 }
 
 #[test]
+#[should_panic]
+fn reserve_over_capacity() {
+    // See https://github.com/hyperium/http/issues/352
+    let mut headers = HeaderMap::<u32>::with_capacity(32);
+    headers.reserve(50_000); // over MAX_SIZE
+}
+
+#[test]
+#[should_panic]
+fn reserve_overflow() {
+    // See https://github.com/hyperium/http/issues/352
+    let mut headers = HeaderMap::<u32>::with_capacity(0);
+    headers.reserve(std::usize::MAX); // next_power_of_two overflows
+}
+
+#[test]
 fn drain() {
     let mut headers = HeaderMap::new();
 
