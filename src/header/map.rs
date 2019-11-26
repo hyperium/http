@@ -3283,7 +3283,7 @@ mod as_header_name {
     use super::{Entry, HdrName, HeaderMap, HeaderName, InvalidHeaderName};
 
     /// A marker trait used to identify values that can be used as search keys
-                    /// to a `HeaderMap`.
+    /// to a `HeaderMap`.
     pub trait AsHeaderName: Sealed {}
 
     // All methods are on this pub(super) trait, instead of `AsHeaderName`,
