@@ -1,3 +1,10 @@
+# 0.1.20 (November 26, 2019)
+
+* Fix possible double-free if `header::Drain` iterator is `std::mem::forgot`en (#357).
+* Fix possible data race if multiple `header::ValueDrain`s are iterated on different threads (#362).
+* Fix `HeaderMap::reserve` capacity overflows (#360).
+* Fix parsing long authority-form `Uri`s (#351).
+
 # 0.1.19 (October 15, 2019)
 
 * Allow `%` in IPv6 addresses in `Uri` (#343).
