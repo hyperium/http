@@ -204,10 +204,8 @@ pub struct ValueIterMut<'a, T: 'a> {
 /// An drain iterator of all values associated with a single header name.
 #[derive(Debug)]
 pub struct ValueDrain<'a, T: 'a> {
-    raw_links: RawLinks<T>,
-    extra_values: *mut Vec<ExtraValue<T>>,
     first: Option<T>,
-    next: Option<usize>,
+    next: Option<::std::vec::IntoIter<T>>,
     lt: PhantomData<&'a mut HeaderMap<T>>,
 }
 
@@ -1161,13 +1159,16 @@ impl<T> HeaderMap<T> {
         }
 
         let raw_links = self.raw_links();
-        let extra_values = &mut self.extra_values as *mut _;
+        let extra_values = &mut self.extra_values;
+
+        let next = links.map(|l| {
+            drain_all_extra_values(raw_links, extra_values, l.next)
+                .into_iter()
+        });
 
         ValueDrain {
-            raw_links,
-            extra_values,
             first: Some(old),
-            next: links.map(|l| l.next),
+            next: next,
             lt: PhantomData,
         }
     }
@@ -1668,6 +1669,22 @@ fn remove_extra_value<T>(mut raw_links: RawLinks<T>, extra_values: &mut Vec<Extr
     extra
 }
 
+
+fn drain_all_extra_values<T>(raw_links: RawLinks<T>, extra_values: &mut Vec<ExtraValue<T>>, mut head: usize) -> Vec<T> {
+    let mut vec = Vec::new();
+    loop {
+        let extra = remove_extra_value(raw_links, extra_values, head);
+        vec.push(extra.value);
+
+        if let Link::Extra(idx) = extra.next {
+            head = idx;
+        } else {
+            break;
+        }
+    }
+    vec
+}
+
 impl<'a, T> IntoIterator for &'a HeaderMap<T> {
     type Item = (&'a HeaderName, &'a T);
     type IntoIter = Iter<'a, T>;
@@ -2152,17 +2169,17 @@ impl<'a, T> Iterator for Drain<'a, T> {
             // Read the header name
             key = ptr::read(&entry.key as *const _);
             value = ptr::read(&entry.value as *const _);
-            next = entry.links.map(|l| l.next);
-
 
             let raw_links = RawLinks(self.entries);
-            let extra_values = self.extra_values;
+            let extra_values = &mut *self.extra_values;
+            next = entry.links.map(|l| {
+                drain_all_extra_values(raw_links, extra_values, l.next)
+                    .into_iter()
+            });
 
             ValueDrain {
-                raw_links,
-                extra_values,
                 first: Some(value),
-                next: next,
+                next,
                 lt: PhantomData,
             }
         };
@@ -2896,12 +2913,15 @@ impl<'a, T> OccupiedEntry<'a, T> {
     pub fn remove_entry_mult(self) -> (HeaderName, ValueDrain<'a, T>) {
         let entry = self.map.remove_found(self.probe, self.index);
         let raw_links = self.map.raw_links();
-        let extra_values = &mut self.map.extra_values as *mut _;
+        let extra_values = &mut self.map.extra_values;
+
+        let next = entry.links.map(|l| {
+            drain_all_extra_values(raw_links, extra_values, l.next)
+                .into_iter()
+        });
         let drain = ValueDrain {
-            raw_links,
-            extra_values,
             first: Some(entry.value),
-            next: entry.links.map(|l| l.next),
+            next,
             lt: PhantomData,
         };
         (entry.key, drain)
@@ -2994,31 +3014,26 @@ impl<'a, T> Iterator for ValueDrain<'a, T> {
     fn next(&mut self) -> Option<T> {
         if self.first.is_some() {
             self.first.take()
-        } else if let Some(next) = self.next {
-            // Remove the extra value
-            let extra = unsafe {
-                remove_extra_value(self.raw_links, &mut *self.extra_values, next)
-            };
-
-            match extra.next {
-                Link::Extra(idx) => self.next = Some(idx),
-                Link::Entry(_) => self.next = None,
-            }
-
-            Some(extra.value)
+        } else if let Some(ref mut extras) = self.next {
+            extras.next()
         } else {
             None
         }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        match (&self.first, self.next) {
+        match (&self.first, &self.next) {
             // Exactly 1
-            (&Some(_), None) => (1, Some(1)),
-            // At least 1
-            (&_, Some(_)) => (1, None),
+            (&Some(_), &None) => (1, Some(1)),
+            // 1 + extras
+            (&Some(_), &Some(ref extras)) => {
+                let (l, u) = extras.size_hint();
+                (l + 1, u.map(|u| u + 1))
+            },
+            // Extras only
+            (&None, &Some(ref extras)) => extras.size_hint(),
             // No more
-            (&None, None) => (0, Some(0)),
+            (&None, &None) => (0, Some(0)),
         }
     }
 }
