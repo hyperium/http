@@ -137,6 +137,8 @@ pub struct Drain<'a, T> {
     idx: usize,
     len: usize,
     entries: *mut [Bucket<T>],
+    // If None, pull from `entries`
+    next: Option<usize>,
     extra_values: *mut Vec<ExtraValue<T>>,
     lt: PhantomData<&'a mut HeaderMap<T>>,
 }
@@ -922,6 +924,10 @@ impl<T> HeaderMap<T> {
     ///
     /// The internal memory is kept for reuse.
     ///
+    /// For each yielded item that has `None` provided for the `HeaderName`,
+    /// then the associated header name is the same as that of the previously
+    /// yielded item. The first yielded item will have `HeaderName` set.
+    ///
     /// # Examples
     ///
     /// ```
@@ -935,18 +941,13 @@ impl<T> HeaderMap<T> {
     ///
     /// let mut drain = map.drain();
     ///
-    /// let (key, mut vals) = drain.next().unwrap();
     ///
-    /// assert_eq!("host", key);
-    /// assert_eq!("hello", vals.next().unwrap());
-    /// assert_eq!("goodbye", vals.next().unwrap());
-    /// assert!(vals.next().is_none());
+    /// assert_eq!(drain.next(), Some((Some(HOST), "hello".parse().unwrap())));
+    /// assert_eq!(drain.next(), Some((None, "goodbye".parse().unwrap())));
     ///
-    /// let (key, mut vals) = drain.next().unwrap();
+    /// assert_eq!(drain.next(), Some((Some(CONTENT_LENGTH), "123".parse().unwrap())));
     ///
-    /// assert_eq!("content-length", key);
-    /// assert_eq!("123", vals.next().unwrap());
-    /// assert!(vals.next().is_none());
+    /// assert_eq!(drain.next(), None);
     /// ```
     pub fn drain(&mut self) -> Drain<'_, T> {
         for i in self.indices.iter_mut() {
@@ -970,6 +971,7 @@ impl<T> HeaderMap<T> {
             len,
             entries,
             extra_values,
+            next: None,
             lt: PhantomData,
         }
     }
@@ -2165,9 +2167,25 @@ impl<'a, T> FusedIterator for ValuesMut<'a, T> {}
 // ===== impl Drain =====
 
 impl<'a, T> Iterator for Drain<'a, T> {
-    type Item = (HeaderName, ValueDrain<'a, T>);
+    type Item = (Option<HeaderName>, T);
 
     fn next(&mut self) -> Option<Self::Item> {
+        if let Some(next) = self.next {
+            // Remove the extra value
+
+            let raw_links = RawLinks(self.entries);
+            let extra = unsafe {
+                remove_extra_value(raw_links, &mut *self.extra_values, next)
+            };
+
+            match extra.next {
+                Link::Extra(idx) => self.next = Some(idx),
+                Link::Entry(_) => self.next = None,
+            }
+
+            return Some((None, extra.value));
+        }
+
         let idx = self.idx;
 
         if idx == self.len {
@@ -2176,37 +2194,27 @@ impl<'a, T> Iterator for Drain<'a, T> {
 
         self.idx += 1;
 
-        let key;
-        let value;
-        let next;
-
-        let values = unsafe {
+        unsafe {
             let entry = &(*self.entries)[idx];
 
             // Read the header name
-            key = ptr::read(&entry.key as *const _);
-            value = ptr::read(&entry.value as *const _);
-            next = entry.links.map(|l| l.next);
+            let key = ptr::read(&entry.key as *const _);
+            let value = ptr::read(&entry.value as *const _);
+            self.next = entry.links.map(|l| l.next);
 
-
-            let raw_links = RawLinks(self.entries);
-            let extra_values = self.extra_values;
-
-            ValueDrain {
-                raw_links,
-                extra_values,
-                first: Some(value),
-                next: next,
-                lt: PhantomData,
-            }
-        };
-
-        Some((key, values))
+            Some((Some(key), value))
+        }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
+        // At least this many names... It's unknown if the user wants
+        // to count the extra_values on top.
+        //
+        // For instance, extending a new `HeaderMap` wouldn't need to
+        // reserve the upper-bound in `entries`, only the lower-bound.
         let lower = self.len - self.idx;
-        (lower, Some(lower))
+        let upper = unsafe { (*self.extra_values).len() } + lower;
+        (lower, Some(upper))
     }
 }
 

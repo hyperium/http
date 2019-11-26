@@ -61,12 +61,10 @@ fn drain() {
 
     {
         let mut iter = headers.drain();
-        let (name, values) = iter.next().unwrap();
-        assert_eq!(name.as_str(), "hello");
+        let (name, value) = iter.next().unwrap();
+        assert_eq!(name.unwrap().as_str(), "hello");
 
-        let values: Vec<_> = values.collect();
-        assert_eq!(values.len(), 1);
-        assert_eq!(values[0], "world");
+        assert_eq!(value, "world");
 
         assert!(iter.next().is_none());
     }
@@ -90,20 +88,18 @@ fn drain() {
     // Drain...
     {
         let mut iter = headers.drain();
-        let (name, values) = iter.next().unwrap();
-        assert_eq!(name.as_str(), "hello");
 
-        let values: Vec<_> = values.collect();
-        assert_eq!(values.len(), 2);
-        assert_eq!(values[0], "world");
-        assert_eq!(values[1], "world2");
+        let (name, value) = iter.next().unwrap();
+        assert_eq!(name.unwrap().as_str(), "hello");
+        assert_eq!(value, "world");
 
-        let (name, values) = iter.next().unwrap();
-        assert_eq!(name.as_str(), "zomg");
+        let (name, value) = iter.next().unwrap();
+        assert_eq!(name, None);
+        assert_eq!(value, "world2");
 
-        let values: Vec<_> = values.collect();
-        assert_eq!(values.len(), 1);
-        assert_eq!(values[0], "bar");
+        let (name, value) = iter.next().unwrap();
+        assert_eq!(name.unwrap().as_str(), "zomg");
+        assert_eq!(value, "bar");
 
         assert!(iter.next().is_none());
     }
@@ -119,7 +115,7 @@ fn drain_drop_immediately() {
     headers.append("hello", "world2".parse().unwrap());
 
     let iter = headers.drain();
-    assert_eq!(iter.size_hint(), (2, Some(2)));
+    assert_eq!(iter.size_hint(), (2, Some(3)));
     // not consuming `iter`
 }
 
