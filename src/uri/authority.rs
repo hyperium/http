@@ -41,8 +41,16 @@ impl Authority {
     /// assert_eq!(authority.host(), "example.com");
     /// # }
     /// ```
-    pub fn from_shared(s: Bytes) -> Result<Self, InvalidUriBytes> {
-        TryFrom::try_from(s)
+    pub(super) fn from_shared(s: Bytes) -> Result<Self, InvalidUriBytes> {
+        let authority_end = Authority::parse_non_empty(&s[..]).map_err(InvalidUriBytes)?;
+
+        if authority_end != s.len() {
+            return Err(ErrorKind::InvalidUriChar.into());
+        }
+
+        Ok(Authority {
+            data: unsafe { ByteStr::from_utf8_unchecked(s) },
+        })
     }
 
     /// Attempt to convert an `Authority` from a static string.
@@ -257,14 +265,9 @@ impl Authority {
     pub fn as_str(&self) -> &str {
         &self.data[..]
     }
-
-    /// Converts this `Authority` back to a sequence of bytes
-    #[inline]
-    pub fn into_bytes(self) -> Bytes {
-        self.into()
-    }
 }
 
+/*
 impl TryFrom<Bytes> for Authority {
     type Error = InvalidUriBytes;
     /// Attempt to convert an `Authority` from `Bytes`.
@@ -298,6 +301,7 @@ impl TryFrom<Bytes> for Authority {
         })
     }
 }
+*/
 
 impl AsRef<str> for Authority {
     fn as_ref(&self) -> &str {
@@ -491,13 +495,6 @@ impl FromStr for Authority {
 
     fn from_str(s: &str) -> Result<Self, InvalidUri> {
         TryFrom::try_from(s)
-    }
-}
-
-impl From<Authority> for Bytes {
-    #[inline]
-    fn from(src: Authority) -> Bytes {
-        src.data.into()
     }
 }
 
