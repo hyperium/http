@@ -161,10 +161,11 @@ impl HeaderValue {
     /// This function is intended to be replaced in the future by a `TryFrom`
     /// implementation once the trait is stabilized in std.
     #[inline]
-    pub fn from_shared(src: Bytes) -> Result<HeaderValue, InvalidHeaderValueBytes> {
+    fn from_shared(src: Bytes) -> Result<HeaderValue, InvalidHeaderValueBytes> {
         HeaderValue::try_from_generic(src, std::convert::identity).map_err(InvalidHeaderValueBytes)
     }
 
+    /*
     /// Convert a `Bytes` directly into a `HeaderValue` without validating.
     ///
     /// This function does NOT validate that illegal bytes are not contained
@@ -187,6 +188,7 @@ impl HeaderValue {
             }
         }
     }
+    */
 
     fn try_from_generic<T: AsRef<[u8]>, F: FnOnce(T) -> Bytes>(src: T, into: F) -> Result<HeaderValue, InvalidHeaderValue> {
         for &b in src.as_ref() {
@@ -357,7 +359,7 @@ impl From<HeaderName> for HeaderValue {
     #[inline]
     fn from(h: HeaderName) -> HeaderValue {
         HeaderValue {
-            inner: h.into(),
+            inner: h.into_bytes(),
             is_sensitive: false,
         }
     }
@@ -475,13 +477,6 @@ impl FromStr for HeaderValue {
     }
 }
 
-impl From<HeaderValue> for Bytes {
-    #[inline]
-    fn from(value: HeaderValue) -> Bytes {
-        value.inner
-    }
-}
-
 impl<'a> From<&'a HeaderValue> for HeaderValue {
     #[inline]
     fn from(t: &'a HeaderValue) -> Self {
@@ -530,15 +525,6 @@ impl TryFrom<Vec<u8>> for HeaderValue {
     #[inline]
     fn try_from(vec: Vec<u8>) -> Result<Self, Self::Error> {
         HeaderValue::from_shared(vec.into())
-    }
-}
-
-impl TryFrom<Bytes> for HeaderValue {
-    type Error = InvalidHeaderValueBytes;
-
-    #[inline]
-    fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
-        HeaderValue::from_shared(bytes)
     }
 }
 

@@ -5,7 +5,7 @@ use std::str::FromStr;
 
 use bytes::Bytes;
 
-use super::{ErrorKind, InvalidUri, InvalidUriBytes};
+use super::{ErrorKind, InvalidUri};
 use crate::byte_str::ByteStr;
 
 /// Represents the scheme component of a URI
@@ -38,30 +38,6 @@ impl Scheme {
         inner: Scheme2::Standard(Protocol::Https),
     };
 
-    /// Attempt to convert a `Scheme` from `Bytes`
-    ///
-    /// This function has been replaced by `TryFrom` implementation
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # extern crate http;
-    /// # use http::uri::*;
-    /// extern crate bytes;
-    ///
-    /// use bytes::Bytes;
-    ///
-    /// # pub fn main() {
-    /// let bytes = Bytes::from("http");
-    /// let scheme = Scheme::from_shared(bytes).unwrap();
-    ///
-    /// assert_eq!(scheme.as_str(), "http");
-    /// # }
-    /// ```
-    pub fn from_shared(s: Bytes) -> Result<Self, InvalidUriBytes> {
-        TryFrom::try_from(s)
-    }
-
     pub(super) fn empty() -> Self {
         Scheme {
             inner: Scheme2::None,
@@ -87,48 +63,6 @@ impl Scheme {
             Standard(Https) => "https",
             Other(ref v) => &v[..],
             None => unreachable!(),
-        }
-    }
-
-    /// Converts this `Scheme` back to a sequence of bytes
-    #[inline]
-    pub fn into_bytes(self) -> Bytes {
-        self.into()
-    }
-}
-
-impl TryFrom<Bytes> for Scheme {
-    type Error = InvalidUriBytes;
-
-    /// Attempt to convert a `Scheme` from `Bytes`
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # extern crate http;
-    /// # use http::uri::*;
-    /// extern crate bytes;
-    ///
-    /// use std::convert::TryFrom;
-    /// use bytes::Bytes;
-    ///
-    /// # pub fn main() {
-    /// let bytes = Bytes::from("http");
-    /// let scheme = Scheme::try_from(bytes).unwrap();
-    ///
-    /// assert_eq!(scheme.as_str(), "http");
-    /// # }
-    /// ```
-    fn try_from(s: Bytes) -> Result<Self, Self::Error> {
-        use self::Scheme2::*;
-
-        match Scheme2::parse_exact(&s[..]).map_err(InvalidUriBytes)? {
-            None => Err(ErrorKind::InvalidScheme.into()),
-            Standard(p) => Ok(Standard(p).into()),
-            Other(_) => {
-                let b = unsafe { ByteStr::from_utf8_unchecked(s) };
-                Ok(Other(Box::new(b)).into())
-            }
         }
     }
 }
@@ -165,21 +99,6 @@ impl FromStr for Scheme {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         TryFrom::try_from(s)
-    }
-}
-
-impl From<Scheme> for Bytes {
-    #[inline]
-    fn from(src: Scheme) -> Self {
-        use self::Protocol::*;
-        use self::Scheme2::*;
-
-        match src.inner {
-            None => Bytes::new(),
-            Standard(Http) => Bytes::from_static(b"http"),
-            Standard(Https) => Bytes::from_static(b"https"),
-            Other(v) => (*v).into(),
-        }
     }
 }
 

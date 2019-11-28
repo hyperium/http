@@ -39,7 +39,7 @@ impl PathAndQuery {
     /// assert_eq!(path_and_query.query(), Some("world"));
     /// # }
     /// ```
-    pub fn from_shared(mut src: Bytes) -> Result<Self, InvalidUriBytes> {
+    pub(super) fn from_shared(mut src: Bytes) -> Result<Self, InvalidUriBytes> {
         let mut query = NONE;
         let mut fragment = None;
 
@@ -275,20 +275,6 @@ impl PathAndQuery {
         }
         ret
     }
-
-    /// Converts this `PathAndQuery` back to a sequence of bytes
-    #[inline]
-    pub fn into_bytes(self) -> Bytes {
-        self.into()
-    }
-}
-
-impl TryFrom<Bytes> for PathAndQuery {
-    type Error = InvalidUriBytes;
-    #[inline]
-    fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
-        PathAndQuery::from_shared(bytes)
-    }
 }
 
 impl<'a> TryFrom<&'a [u8]> for PathAndQuery {
@@ -312,12 +298,6 @@ impl FromStr for PathAndQuery {
     #[inline]
     fn from_str(s: &str) -> Result<Self, InvalidUri> {
         TryFrom::try_from(s)
-    }
-}
-
-impl From<PathAndQuery> for Bytes {
-    fn from(src: PathAndQuery) -> Bytes {
-        src.data.into()
     }
 }
 
