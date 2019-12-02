@@ -220,8 +220,8 @@ impl Method {
     /// more words.
     pub fn is_idempotent(&self) -> bool {
         match self.0 {
-            Put | Delete | _ if self.is_safe() => true,
-            _ => false
+            Put | Delete => true,
+            _ => self.is_safe(),
         }
     }
 
@@ -422,4 +422,18 @@ fn test_method_eq() {
 fn test_invalid_method() {
     assert!(Method::from_str("").is_err());
     assert!(Method::from_bytes(b"").is_err());
+}
+
+#[test]
+fn test_is_idempotent() {
+    assert!(Method::OPTIONS.is_idempotent());
+    assert!(Method::GET.is_idempotent());
+    assert!(Method::PUT.is_idempotent());
+    assert!(Method::DELETE.is_idempotent());
+    assert!(Method::HEAD.is_idempotent());
+    assert!(Method::TRACE.is_idempotent());
+
+    assert!(!Method::POST.is_idempotent());
+    assert!(!Method::CONNECT.is_idempotent());
+    assert!(!Method::PATCH.is_idempotent());
 }
