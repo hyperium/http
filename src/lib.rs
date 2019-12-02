@@ -167,6 +167,9 @@ extern crate doc_comment;
 #[cfg(test)]
 doctest!("../README.md");
 
+#[macro_use]
+mod convert;
+
 pub mod header;
 pub mod method;
 pub mod request;

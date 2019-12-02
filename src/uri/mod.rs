@@ -235,27 +235,22 @@ impl Uri {
         })
     }
 
-    /// Attempt to convert a `Uri` from `Bytes`
+    /// Attempt to convert a `Bytes` buffer to a `Uri`.
     ///
-    /// This function has been replaced by `TryFrom` implementation.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # extern crate http;
-    /// # use http::uri::*;
-    /// extern crate bytes;
-    ///
-    /// use bytes::Bytes;
-    ///
-    /// # pub fn main() {
-    /// let bytes = Bytes::from("http://example.com/foo");
-    /// let uri = Uri::from_shared(bytes).unwrap();
-    ///
-    /// assert_eq!(uri.host().unwrap(), "example.com");
-    /// assert_eq!(uri.path(), "/foo");
-    /// # }
-    /// ```
+    /// This will try to prevent a copy if the type passed is the type used
+    /// internally, and will copy the data if it is not.
+    pub fn from_maybe_shared<T>(src: T) -> Result<Self, InvalidUri>
+    where
+        T: AsRef<[u8]> + 'static,
+    {
+        if_downcast_into!(T, Bytes, src, {
+            return Uri::from_shared(src);
+        });
+
+        Uri::try_from(src.as_ref())
+    }
+
+    // Not public while `bytes` is unstable.
     fn from_shared(s: Bytes) -> Result<Uri, InvalidUri> {
         use self::ErrorKind::*;
 
@@ -674,6 +669,15 @@ impl Uri {
     }
 }
 
+impl<'a> TryFrom<&'a [u8]> for Uri {
+    type Error = InvalidUri;
+
+    #[inline]
+    fn try_from(t: &'a [u8]) -> Result<Self, Self::Error> {
+        Uri::from_shared(Bytes::copy_from_slice(t))
+    }
+}
+
 impl<'a> TryFrom<&'a str> for Uri {
     type Error = InvalidUri;
 
@@ -846,7 +850,7 @@ impl FromStr for Uri {
 
     #[inline]
     fn from_str(s: &str) -> Result<Uri, InvalidUri> {
-        Uri::from_shared(Bytes::copy_from_slice(s.as_bytes()))
+        Uri::try_from(s.as_bytes())
     }
 }
 

@@ -17,28 +17,7 @@ pub struct PathAndQuery {
 const NONE: u16 = ::std::u16::MAX;
 
 impl PathAndQuery {
-    /// Attempt to convert a `PathAndQuery` from `Bytes`.
-    ///
-    /// This function will be replaced by a `TryFrom` implementation once the
-    /// trait lands in stable.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # extern crate http;
-    /// # use http::uri::*;
-    /// extern crate bytes;
-    ///
-    /// use bytes::Bytes;
-    ///
-    /// # pub fn main() {
-    /// let bytes = Bytes::from("/hello?world");
-    /// let path_and_query = PathAndQuery::from_shared(bytes).unwrap();
-    ///
-    /// assert_eq!(path_and_query.path(), "/hello");
-    /// assert_eq!(path_and_query.query(), Some("world"));
-    /// # }
-    /// ```
+    // Not public while `bytes` is unstable.
     pub(super) fn from_shared(mut src: Bytes) -> Result<Self, InvalidUri> {
         let mut query = NONE;
         let mut fragment = None;
@@ -142,6 +121,21 @@ impl PathAndQuery {
         let src = Bytes::from_static(src.as_bytes());
 
         PathAndQuery::from_shared(src).unwrap()
+    }
+
+    /// Attempt to convert a `Bytes` buffer to a `PathAndQuery`.
+    ///
+    /// This will try to prevent a copy if the type passed is the type used
+    /// internally, and will copy the data if it is not.
+    pub fn from_maybe_shared<T>(src: T) -> Result<Self, InvalidUri>
+    where
+        T: AsRef<[u8]> + 'static,
+    {
+        if_downcast_into!(T, Bytes, src, {
+            return PathAndQuery::from_shared(src);
+        });
+
+        PathAndQuery::try_from(src.as_ref())
     }
 
     pub(super) fn empty() -> Self {

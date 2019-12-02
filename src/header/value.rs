@@ -149,39 +149,54 @@ impl HeaderValue {
 
     /// Attempt to convert a `Bytes` buffer to a `HeaderValue`.
     ///
-    /// If the argument contains invalid header value bytes, an error is
-    /// returned. Only byte values between 32 and 255 (inclusive) are permitted,
-    /// excluding byte 127 (DEL).
-    ///
-    /// This function is intended to be replaced in the future by a `TryFrom`
-    /// implementation once the trait is stabilized in std.
-    #[inline]
-    fn from_shared(src: Bytes) -> Result<HeaderValue, InvalidHeaderValue> {
-        HeaderValue::try_from_generic(src, std::convert::identity)
+    /// This will try to prevent a copy if the type passed is the type used
+    /// internally, and will copy the data if it is not.
+    pub fn from_maybe_shared<T>(src: T) -> Result<HeaderValue, InvalidHeaderValue>
+    where
+        T: AsRef<[u8]> + 'static,
+    {
+        if_downcast_into!(T, Bytes, src, {
+            return HeaderValue::from_shared(src);
+        });
+
+        HeaderValue::from_bytes(src.as_ref())
     }
 
-    /*
     /// Convert a `Bytes` directly into a `HeaderValue` without validating.
     ///
     /// This function does NOT validate that illegal bytes are not contained
     /// within the buffer.
-    #[inline]
-    pub unsafe fn from_shared_unchecked(src: Bytes) -> HeaderValue {
+    pub unsafe fn from_maybe_shared_unchecked<T>(src: T) -> HeaderValue
+    where
+        T: AsRef<[u8]> + 'static,
+    {
         if cfg!(debug_assertions) {
-            match HeaderValue::from_shared(src) {
+            match HeaderValue::from_maybe_shared(src) {
                 Ok(val) => val,
                 Err(_err) => {
-                    panic!("HeaderValue::from_shared_unchecked() with invalid bytes");
+                    panic!("HeaderValue::from_maybe_shared_unchecked() with invalid bytes");
                 }
             }
         } else {
+
+            if_downcast_into!(T, Bytes, src, {
+                return HeaderValue {
+                    inner: src,
+                    is_sensitive: false,
+                };
+            });
+
+            let src = Bytes::copy_from_slice(src.as_ref());
             HeaderValue {
                 inner: src,
                 is_sensitive: false,
             }
         }
     }
-    */
+
+    fn from_shared(src: Bytes) -> Result<HeaderValue, InvalidHeaderValue> {
+        HeaderValue::try_from_generic(src, std::convert::identity)
+    }
 
     fn try_from_generic<T: AsRef<[u8]>, F: FnOnce(T) -> Bytes>(src: T, into: F) -> Result<HeaderValue, InvalidHeaderValue> {
         for &b in src.as_ref() {
