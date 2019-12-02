@@ -4,7 +4,7 @@ use std::{cmp, fmt, str};
 
 use bytes::Bytes;
 
-use super::{ErrorKind, InvalidUri, InvalidUriBytes};
+use super::{ErrorKind, InvalidUri};
 use crate::byte_str::ByteStr;
 
 /// Represents the path component of a URI
@@ -39,7 +39,7 @@ impl PathAndQuery {
     /// assert_eq!(path_and_query.query(), Some("world"));
     /// # }
     /// ```
-    pub(super) fn from_shared(mut src: Bytes) -> Result<Self, InvalidUriBytes> {
+    pub(super) fn from_shared(mut src: Bytes) -> Result<Self, InvalidUri> {
         let mut query = NONE;
         let mut fragment = None;
 
@@ -281,7 +281,7 @@ impl<'a> TryFrom<&'a [u8]> for PathAndQuery {
     type Error = InvalidUri;
     #[inline]
     fn try_from(s: &'a [u8]) -> Result<Self, Self::Error> {
-        PathAndQuery::from_shared(Bytes::copy_from_slice(s)).map_err(|e| e.0)
+        PathAndQuery::from_shared(Bytes::copy_from_slice(s))
     }
 }
 

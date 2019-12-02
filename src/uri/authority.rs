@@ -5,7 +5,7 @@ use std::{cmp, fmt, str};
 
 use bytes::Bytes;
 
-use super::{ErrorKind, InvalidUri, InvalidUriBytes, Port, URI_CHARS};
+use super::{ErrorKind, InvalidUri, Port, URI_CHARS};
 use crate::byte_str::ByteStr;
 
 /// Represents the authority component of a URI.
@@ -41,8 +41,8 @@ impl Authority {
     /// assert_eq!(authority.host(), "example.com");
     /// # }
     /// ```
-    pub(super) fn from_shared(s: Bytes) -> Result<Self, InvalidUriBytes> {
-        let authority_end = Authority::parse_non_empty(&s[..]).map_err(InvalidUriBytes)?;
+    pub(super) fn from_shared(s: Bytes) -> Result<Self, InvalidUri> {
+        let authority_end = Authority::parse_non_empty(&s[..])?;
 
         if authority_end != s.len() {
             return Err(ErrorKind::InvalidUriChar.into());
@@ -269,7 +269,7 @@ impl Authority {
 
 /*
 impl TryFrom<Bytes> for Authority {
-    type Error = InvalidUriBytes;
+    type Error = InvalidUri;
     /// Attempt to convert an `Authority` from `Bytes`.
     ///
     /// # Examples
@@ -290,7 +290,7 @@ impl TryFrom<Bytes> for Authority {
     /// # }
     /// ```
     fn try_from(s: Bytes) -> Result<Self, Self::Error> {
-        let authority_end = Authority::parse_non_empty(&s[..]).map_err(InvalidUriBytes)?;
+        let authority_end = Authority::parse_non_empty(&s[..])?;
 
         if authority_end != s.len() {
             return Err(ErrorKind::InvalidUriChar.into());

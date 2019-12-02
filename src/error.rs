@@ -24,12 +24,9 @@ enum ErrorKind {
     StatusCode(status::InvalidStatusCode),
     Method(method::InvalidMethod),
     Uri(uri::InvalidUri),
-    UriShared(uri::InvalidUriBytes),
     UriParts(uri::InvalidUriParts),
     HeaderName(header::InvalidHeaderName),
-    HeaderNameShared(header::InvalidHeaderNameBytes),
     HeaderValue(header::InvalidHeaderValue),
-    HeaderValueShared(header::InvalidHeaderValueBytes),
 }
 
 impl fmt::Debug for Error {
@@ -61,12 +58,9 @@ impl Error {
             StatusCode(ref e) => e,
             Method(ref e) => e,
             Uri(ref e) => e,
-            UriShared(ref e) => e,
             UriParts(ref e) => e,
             HeaderName(ref e) => e,
-            HeaderNameShared(ref e) => e,
             HeaderValue(ref e) => e,
-            HeaderValueShared(ref e) => e,
         }
     }
 }
@@ -79,12 +73,9 @@ impl error::Error for Error {
             StatusCode(ref e) => e.description(),
             Method(ref e) => e.description(),
             Uri(ref e) => e.description(),
-            UriShared(ref e) => e.description(),
             UriParts(ref e) => e.description(),
             HeaderName(ref e) => e.description(),
-            HeaderNameShared(ref e) => e.description(),
             HeaderValue(ref e) => e.description(),
-            HeaderValueShared(ref e) => e.description(),
         }
     }
 
@@ -119,14 +110,6 @@ impl From<uri::InvalidUri> for Error {
     }
 }
 
-impl From<uri::InvalidUriBytes> for Error {
-    fn from(err: uri::InvalidUriBytes) -> Error {
-        Error {
-            inner: ErrorKind::UriShared(err),
-        }
-    }
-}
-
 impl From<uri::InvalidUriParts> for Error {
     fn from(err: uri::InvalidUriParts) -> Error {
         Error {
@@ -143,26 +126,10 @@ impl From<header::InvalidHeaderName> for Error {
     }
 }
 
-impl From<header::InvalidHeaderNameBytes> for Error {
-    fn from(err: header::InvalidHeaderNameBytes) -> Error {
-        Error {
-            inner: ErrorKind::HeaderNameShared(err),
-        }
-    }
-}
-
 impl From<header::InvalidHeaderValue> for Error {
     fn from(err: header::InvalidHeaderValue) -> Error {
         Error {
             inner: ErrorKind::HeaderValue(err),
-        }
-    }
-}
-
-impl From<header::InvalidHeaderValueBytes> for Error {
-    fn from(err: header::InvalidHeaderValueBytes) -> Error {
-        Error {
-            inner: ErrorKind::HeaderValueShared(err),
         }
     }
 }
