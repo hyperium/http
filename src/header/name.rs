@@ -60,10 +60,6 @@ pub struct InvalidHeaderName {
     _priv: (),
 }
 
-/// A possible error when converting a `HeaderName` from another type.
-#[derive(Debug)]
-pub struct InvalidHeaderNameBytes(InvalidHeaderName);
-
 macro_rules! standard_headers {
     (
         $(
@@ -2014,18 +2010,6 @@ impl fmt::Display for InvalidHeaderName {
 impl Error for InvalidHeaderName {
     fn description(&self) -> &str {
         "invalid HTTP header name"
-    }
-}
-
-impl fmt::Display for InvalidHeaderNameBytes {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl Error for InvalidHeaderNameBytes {
-    fn description(&self) -> &str {
-        self.0.description()
     }
 }
 

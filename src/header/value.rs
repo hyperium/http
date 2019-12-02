@@ -28,11 +28,6 @@ pub struct InvalidHeaderValue {
     _priv: (),
 }
 
-/// A possible error when converting a `HeaderValue` from a string or byte
-/// slice.
-#[derive(Debug)]
-pub struct InvalidHeaderValueBytes(InvalidHeaderValue);
-
 /// A possible error when converting a `HeaderValue` to a string representation.
 ///
 /// Header field values may contain opaque bytes, in which case it is not
@@ -161,8 +156,8 @@ impl HeaderValue {
     /// This function is intended to be replaced in the future by a `TryFrom`
     /// implementation once the trait is stabilized in std.
     #[inline]
-    fn from_shared(src: Bytes) -> Result<HeaderValue, InvalidHeaderValueBytes> {
-        HeaderValue::try_from_generic(src, std::convert::identity).map_err(InvalidHeaderValueBytes)
+    fn from_shared(src: Bytes) -> Result<HeaderValue, InvalidHeaderValue> {
+        HeaderValue::try_from_generic(src, std::convert::identity)
     }
 
     /*
@@ -176,8 +171,6 @@ impl HeaderValue {
             match HeaderValue::from_shared(src) {
                 Ok(val) => val,
                 Err(_err) => {
-                    //TODO: if the Bytes were part of the InvalidHeaderValueBytes,
-                    //this message could include the invalid bytes.
                     panic!("HeaderValue::from_shared_unchecked() with invalid bytes");
                 }
             }
@@ -511,7 +504,7 @@ impl<'a> TryFrom<&'a [u8]> for HeaderValue {
 }
 
 impl TryFrom<String> for HeaderValue {
-    type Error = InvalidHeaderValueBytes;
+    type Error = InvalidHeaderValue;
 
     #[inline]
     fn try_from(t: String) -> Result<Self, Self::Error> {
@@ -520,7 +513,7 @@ impl TryFrom<String> for HeaderValue {
 }
 
 impl TryFrom<Vec<u8>> for HeaderValue {
-    type Error = InvalidHeaderValueBytes;
+    type Error = InvalidHeaderValue;
 
     #[inline]
     fn try_from(vec: Vec<u8>) -> Result<Self, Self::Error> {
@@ -568,18 +561,6 @@ impl fmt::Display for InvalidHeaderValue {
 impl Error for InvalidHeaderValue {
     fn description(&self) -> &str {
         "failed to parse header value"
-    }
-}
-
-impl fmt::Display for InvalidHeaderValueBytes {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl Error for InvalidHeaderValueBytes {
-    fn description(&self) -> &str {
-        self.0.description()
     }
 }
 

@@ -123,10 +123,6 @@ pub struct InvalidUri(ErrorKind);
 
 /// An error resulting from a failed attempt to construct a URI.
 #[derive(Debug)]
-pub struct InvalidUriBytes(InvalidUri);
-
-/// An error resulting from a failed attempt to construct a URI.
-#[derive(Debug)]
 pub struct InvalidUriParts(InvalidUri);
 
 #[derive(Debug, Eq, PartialEq)]
@@ -260,7 +256,7 @@ impl Uri {
     /// assert_eq!(uri.path(), "/foo");
     /// # }
     /// ```
-    fn from_shared(s: Bytes) -> Result<Uri, InvalidUriBytes> {
+    fn from_shared(s: Bytes) -> Result<Uri, InvalidUri> {
         use self::ErrorKind::*;
 
         if s.len() > MAX_LEN {
@@ -697,7 +693,7 @@ impl<'a> TryFrom<&'a String> for Uri {
 }
 
 impl TryFrom<String> for Uri {
-    type Error = InvalidUriBytes;
+    type Error = InvalidUri;
 
     #[inline]
     fn try_from(t: String) -> Result<Self, Self::Error> {
@@ -785,9 +781,9 @@ impl From<Uri> for Parts {
     }
 }
 
-fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUriBytes> {
+fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUri> {
     // Parse the scheme
-    let scheme = match Scheme2::parse(&s[..]).map_err(InvalidUriBytes)? {
+    let scheme = match Scheme2::parse(&s[..])? {
         Scheme2::None => Scheme2::None,
         Scheme2::Standard(p) => {
             // TODO: use truncate
@@ -810,7 +806,7 @@ fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUriBytes> {
 
     // Find the end of the authority. The scheme will already have been
     // extracted.
-    let authority_end = Authority::parse(&s[..]).map_err(InvalidUriBytes)?;
+    let authority_end = Authority::parse(&s[..])?;
 
     if scheme.is_none() {
         if authority_end != s.len() {
@@ -850,7 +846,7 @@ impl FromStr for Uri {
 
     #[inline]
     fn from_str(s: &str) -> Result<Uri, InvalidUri> {
-        Uri::from_shared(Bytes::copy_from_slice(s.as_bytes())).map_err(|e| e.0)
+        Uri::from_shared(Bytes::copy_from_slice(s.as_bytes()))
     }
 }
 
@@ -1019,12 +1015,6 @@ impl From<ErrorKind> for InvalidUri {
     }
 }
 
-impl From<ErrorKind> for InvalidUriBytes {
-    fn from(src: ErrorKind) -> InvalidUriBytes {
-        InvalidUriBytes(src.into())
-    }
-}
-
 impl From<ErrorKind> for InvalidUriParts {
     fn from(src: ErrorKind) -> InvalidUriParts {
         InvalidUriParts(src.into())
@@ -1055,21 +1045,9 @@ impl Error for InvalidUri {
     }
 }
 
-impl fmt::Display for InvalidUriBytes {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
 impl fmt::Display for InvalidUriParts {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
-    }
-}
-
-impl Error for InvalidUriBytes {
-    fn description(&self) -> &str {
-        self.0.description()
     }
 }
 
