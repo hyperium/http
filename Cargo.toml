@@ -4,7 +4,7 @@ name = "http"
 # - Update html_root_url in lib.rs.
 # - Update CHANGELOG.md.
 # - Create git tag
-version = "0.2.0-alpha.0"
+version = "0.2.0"
 readme = "README.md"
 documentation = "https://docs.rs/http"
 repository = "https://github.com/hyperium/http"
@@ -20,9 +20,6 @@ A set of types for representing HTTP requests and responses.
 keywords = ["http"]
 categories = ["web-programming"]
 edition = "2018"
-
-# 0.2.x isn't ready just yet
-publish = false
 
 [dependencies]
 bytes = "0.5"
