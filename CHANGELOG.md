@@ -1,3 +1,7 @@
+# 0.1.21 (December 2, 2019)
+
+* Fix `Method::is_idempotent` returning `false` for `PUT` and `DELETE.
+
 # 0.1.20 (November 26, 2019)
 
 * Fix possible double-free if `header::Drain` iterator is `std::mem::forgot`en (#357).
