@@ -21,26 +21,7 @@ impl Authority {
         }
     }
 
-    /// Attempt to convert an `Authority` from `Bytes`.
-    ///
-    /// This function has been replaced by `TryFrom` implementation.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # extern crate http;
-    /// # use http::uri::*;
-    /// extern crate bytes;
-    ///
-    /// use bytes::Bytes;
-    ///
-    /// # pub fn main() {
-    /// let bytes = Bytes::from("example.com");
-    /// let authority = Authority::from_shared(bytes).unwrap();
-    ///
-    /// assert_eq!(authority.host(), "example.com");
-    /// # }
-    /// ```
+    // Not public while `bytes` is unstable.
     pub(super) fn from_shared(s: Bytes) -> Result<Self, InvalidUri> {
         let authority_end = Authority::parse_non_empty(&s[..])?;
 
@@ -83,6 +64,22 @@ impl Authority {
         Authority {
             data: unsafe { ByteStr::from_utf8_unchecked(b) },
         }
+    }
+
+
+    /// Attempt to convert a `Bytes` buffer to a `Authority`.
+    ///
+    /// This will try to prevent a copy if the type passed is the type used
+    /// internally, and will copy the data if it is not.
+    pub fn from_maybe_shared<T>(src: T) -> Result<Self, InvalidUri>
+    where
+        T: AsRef<[u8]> + 'static,
+    {
+        if_downcast_into!(T, Bytes, src, {
+            return Authority::from_shared(src);
+        });
+
+        Authority::try_from(src.as_ref())
     }
 
     // Note: this may return an *empty* Authority. You might want `parse_non_empty`.
@@ -267,41 +264,8 @@ impl Authority {
     }
 }
 
-/*
-impl TryFrom<Bytes> for Authority {
-    type Error = InvalidUri;
-    /// Attempt to convert an `Authority` from `Bytes`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # extern crate http;
-    /// # use http::uri::*;
-    /// extern crate bytes;
-    ///
-    /// use std::convert::TryFrom;
-    /// use bytes::Bytes;
-    ///
-    /// # pub fn main() {
-    /// let bytes = Bytes::from("example.com");
-    /// let authority = Authority::try_from(bytes).unwrap();
-    ///
-    /// assert_eq!(authority.host(), "example.com");
-    /// # }
-    /// ```
-    fn try_from(s: Bytes) -> Result<Self, Self::Error> {
-        let authority_end = Authority::parse_non_empty(&s[..])?;
-
-        if authority_end != s.len() {
-            return Err(ErrorKind::InvalidUriChar.into());
-        }
-
-        Ok(Authority {
-            data: unsafe { ByteStr::from_utf8_unchecked(s) },
-        })
-    }
-}
-*/
+// Purposefully not public while `bytes` is unstable.
+// impl TryFrom<Bytes> for Authority
 
 impl AsRef<str> for Authority {
     fn as_ref(&self) -> &str {
