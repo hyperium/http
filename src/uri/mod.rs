@@ -723,7 +723,7 @@ impl<'a> TryFrom<&'a Uri> for Uri {
     }
 }
 
-#[cfg(feature = "url")]
+#[cfg(feature = "url_2")]
 impl TryFrom<url_2::Url> for Uri {
     type Error = InvalidUri;
     fn try_from(url: url_2::Url) -> Result<Self, Self::Error> {
@@ -731,7 +731,7 @@ impl TryFrom<url_2::Url> for Uri {
     }
 }
 
-#[cfg(feature = "url")]
+#[cfg(feature = "url_2")]
 impl<'a> TryFrom<&'a url_2::Url> for Uri {
     type Error = InvalidUri;
     fn try_from(url: &'a url_2::Url) -> Result<Self, Self::Error> {

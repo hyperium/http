@@ -23,7 +23,6 @@ edition = "2018"
 
 [features]
 default = []
-url = ["url_2"]
 
 [dependencies]
 bytes = "0.5"

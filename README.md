@@ -68,12 +68,12 @@ fn main() {
 
 `http` also supports conversions from
 [`url::Url`](https://github.com/servo/rust-url) using
-`std::convert::TryFrom`. To make use of this feature enable the `url`
+`std::convert::TryFrom`. To make use of this feature enable the `url_2`
 feature on `http`:
 
 ```toml
 [dependencies]
-http = { version = "0.2", features = ["url"] }
+http = { version = "0.2", features = ["url_2"] }
 ```
 
 Note that `http::Uri` is probably sufficient for most use-cases.

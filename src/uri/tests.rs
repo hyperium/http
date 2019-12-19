@@ -518,7 +518,7 @@ fn test_partial_eq_path_with_terminating_questionmark() {
     assert_eq!(uri, a);
 }
 
-#[cfg(feature = "url")]
+#[cfg(feature = "url_2")]
 #[test]
 fn test_conversion_from_url() {
     use std::convert::TryFrom;
