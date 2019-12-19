@@ -517,3 +517,17 @@ fn test_partial_eq_path_with_terminating_questionmark() {
 
     assert_eq!(uri, a);
 }
+
+#[cfg(feature = "url")]
+#[test]
+fn test_conversion_from_url() {
+    use std::convert::TryFrom;
+
+    let url = url_2::Url::parse(
+        "https://github.com/rust-lang/rust/issues?labels=E-easy&state=open"
+    ).unwrap();
+
+    let _ = Uri::try_from(&url).expect("Could not parse URI");
+    let _ = Uri::try_from(url).expect("Could not parse URI");
+}
+    
