@@ -568,6 +568,7 @@ impl fmt::Debug for InvalidHeaderValue {
 }
 
 impl fmt::Display for InvalidHeaderValue {
+    #[allow(deprecated)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.description().fmt(f)
     }
@@ -580,6 +581,7 @@ impl Error for InvalidHeaderValue {
 }
 
 impl fmt::Display for ToStrError {
+    #[allow(deprecated)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.description().fmt(f)
     }

@@ -514,6 +514,7 @@ impl fmt::Debug for InvalidStatusCode {
 }
 
 impl fmt::Display for InvalidStatusCode {
+    #[allow(deprecated)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.description())
     }

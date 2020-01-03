@@ -364,6 +364,7 @@ impl fmt::Debug for InvalidMethod {
 }
 
 impl fmt::Display for InvalidMethod {
+    #[allow(deprecated)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.description())
     }

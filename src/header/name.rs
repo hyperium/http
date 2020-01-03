@@ -2002,6 +2002,7 @@ impl fmt::Debug for InvalidHeaderName {
 }
 
 impl fmt::Display for InvalidHeaderName {
+    #[allow(deprecated)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.description().fmt(f)
     }

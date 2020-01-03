@@ -66,6 +66,7 @@ impl Error {
 }
 
 impl error::Error for Error {
+    #[allow(deprecated)]
     fn description(&self) -> &str {
         use self::ErrorKind::*;
 

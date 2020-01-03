@@ -1026,6 +1026,7 @@ impl From<ErrorKind> for InvalidUriParts {
 }
 
 impl fmt::Display for InvalidUri {
+    #[allow(deprecated)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.description().fmt(f)
     }
@@ -1056,6 +1057,7 @@ impl fmt::Display for InvalidUriParts {
 }
 
 impl Error for InvalidUriParts {
+    #[allow(deprecated)]
     fn description(&self) -> &str {
         self.0.description()
     }
