@@ -3,6 +3,9 @@ sudo: false
 
 cache: cargo
 
+env: # important!
+  global: RUSTFLAGS=-Dwarnings
+
 matrix:
   include:
     - rust: stable
