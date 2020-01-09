@@ -592,4 +592,7 @@ const STD: &'static [HeaderName] = &[
     X_DNS_PREFETCH_CONTROL,
     X_FRAME_OPTIONS,
     X_XSS_PROTECTION,
+    X_FORWARDED_FOR,
+    X_FORWARDED_PROTO,
+    X_FORWARDED_PORT,
 ];

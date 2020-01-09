@@ -342,6 +342,9 @@ fn gen_header_name(g: &mut StdRng) -> HeaderName {
         header::X_DNS_PREFETCH_CONTROL,
         header::X_FRAME_OPTIONS,
         header::X_XSS_PROTECTION,
+        header::X_FORWARDED_FOR,
+        header::X_FORWARDED_PROTO,
+        header::X_FORWARDED_PORT,
     ];
 
     if g.gen_ratio(1, 2) {

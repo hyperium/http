@@ -993,6 +993,42 @@ standard_headers! {
     /// for users of older web browsers that don't yet support CSP.
     "#,
     "x-xss-protection";
+
+    r#"
+    /// Helps you identify the IP address of a client when you use an
+    /// HTTP or HTTPS load balancer.
+    ///
+    /// The X-Forwarded-For request header helps you identify the IP
+    /// address of a client when you use an HTTP or HTTPS load
+    /// balancer. Because load balancers intercept traffic between
+    /// clients and servers, your server access logs contain only the
+    /// IP address of the load balancer. To see the IP address of the
+    /// client, use the `x-forwarded-for` request header.
+    "#,
+    "x-forwarded-for";
+
+    r#"
+    /// Identifies the protocol (HTTP or HTTPS) that a client used to
+    /// connect to your load balancer.
+    ///
+    /// Your server access logs contain only the protocol used between
+    /// the server and the load balancer; they contain no information
+    /// about the protocol used between the client and the load
+    /// balancer. To determine the protocol used between the client
+    /// and the load balancer, use the `x-forwarded-proto` request
+    /// header.
+    "#,
+    "x-forwarded-proto";
+
+    r#"
+    /// Identifies the destination port used to connect to the load
+    /// balancer.
+    ///
+    /// The `x-forwarded-port` request header helps you identify the
+    /// destination port that the client used to connect to the load
+    /// balancer.
+    "#,
+    "x-forwarded-port";
 }
 
 fn constantize(s: &str) -> String {

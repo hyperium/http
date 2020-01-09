@@ -962,6 +962,36 @@ standard_headers! {
     /// inline JavaScript ('unsafe-inline'), they can still provide protections
     /// for users of older web browsers that don't yet support CSP.
     (XXssProtection, X_XSS_PROTECTION, "x-xss-protection");
+
+    /// Helps you identify the IP address of a client when you use an
+    /// HTTP or HTTPS load balancer.
+    ///
+    /// The X-Forwarded-For request header helps you identify the IP
+    /// address of a client when you use an HTTP or HTTPS load
+    /// balancer. Because load balancers intercept traffic between
+    /// clients and servers, your server access logs contain only the
+    /// IP address of the load balancer. To see the IP address of the
+    /// client, use the `x-forwarded-for` request header.
+    (XForwardedFor, X_FORWARDED_FOR, "x-forwarded-for");
+
+    /// Identifies the protocol (HTTP or HTTPS) that a client used to
+    /// connect to your load balancer.
+    ///
+    /// Your server access logs contain only the protocol used between
+    /// the server and the load balancer; they contain no information
+    /// about the protocol used between the client and the load
+    /// balancer. To determine the protocol used between the client
+    /// and the load balancer, use the `x-forwarded-proto` request
+    /// header.
+    (XForwardedProto, X_FORWARDED_PROTO, "x-forwarded-proto");
+
+    /// Identifies the destination port used to connect to the load
+    /// balancer.
+    ///
+    /// The `x-forwarded-port` request header helps you identify the
+    /// destination port that the client used to connect to the load
+    /// balancer.
+    (XForwardedPort, X_FORWARDED_PORT, "x-forwarded-port");
 }
 
 /// Valid header name characters
@@ -1322,8 +1352,9 @@ fn parse_hdr<'a>(
                 return Ok(PublicKeyPins.into())
             } else if eq!(b == b'x' b'-' b'f' b'r' b'a' b'm' b'e' b'-' b'o' b'p' b't' b'i' b'o' b'n' b's') {
                 return Ok(XFrameOptions.into())
-            }
-            else if eq!(b == b'r' b'e' b'f' b'e' b'r' b'r' b'e' b'r' b'-' b'p' b'o' b'l' b'i' b'c' b'y') {
+            } else if eq!(b == b'x' b'-' b'f' b'o' b'r' b'w' b'a' b'r' b'd' b'e' b'd' b'-' b'f' b'o' b'r') {
+                return Ok(XForwardedFor.into())
+            } else if eq!(b == b'r' b'e' b'f' b'e' b'r' b'r' b'e' b'r' b'-' b'p' b'o' b'l' b'i' b'c' b'y') {
                 return Ok(ReferrerPolicy.into())
             }
 
@@ -1344,6 +1375,8 @@ fn parse_hdr<'a>(
                 return Ok(WwwAuthenticate.into())
             } else if eq!(b == b'x' b'-' b'x' b's' b's' b'-' b'p' b'r' b'o' b't' b'e' b'c' b't' b'i' b'o' b'n') {
                 return Ok(XXssProtection.into())
+            } else if eq!(b == b'x' b'-' b'f' b'o' b'r' b'w' b'a' b'r' b'd' b'e' b'd' b'-' b'p' b'o' b'r' b't') {
+                return Ok(XForwardedPort.into())
             }
 
             validate(b, len)
@@ -1357,6 +1390,8 @@ fn parse_hdr<'a>(
                 Ok(IfModifiedSince.into())
             } else if eq!(b == b's' b'e' b'c' b'-' b'w' b'e' b'b' b's' b'o' b'c' b'k' b'e' b't' b'-' b'k' b'e' b'y') {
                 Ok(SecWebSocketKey.into())
+            } else if eq!(b == b'x' b'-' b'f' b'o' b'r' b'w' b'a' b'r' b'd' b'e' b'd' b'-' b'p' b'r' b'o' b't' b'o') {
+                Ok(XForwardedProto.into())
             } else {
                 validate(b, len)
             }
@@ -1621,6 +1656,9 @@ fn parse_hdr<'a>(
                 b"access-control-max-age" => Ok(AccessControlMaxAge.into()),
                 b"x-content-type-options" => Ok(XContentTypeOptions.into()),
                 b"x-dns-prefetch-control" => Ok(XDnsPrefetchControl.into()),
+                b"x-forwarded-for" => Ok(XForwardedFor.into()),
+                b"x-forwarded-proto" => Ok(XForwardedProto.into()),
+                b"x-forwarded-port" => Ok(XForwardedPort.into()),
                 b"sec-websocket-protocol" => Ok(SecWebSocketProtocol.into()),
                 b"content-security-policy" => Ok(ContentSecurityPolicy.into()),
                 b"sec-websocket-extensions" => Ok(SecWebSocketExtensions.into()),

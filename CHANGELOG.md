@@ -1,3 +1,5 @@
+* Add headers `x-forwarded-for`, `x-forwarded-port`, and `x-forwarded-proto`, commonly used in load balancer setups.
+
 # 0.2.0 (December 2, 2019)
 
 * Add `Version::HTTP_3` constant.
