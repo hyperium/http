@@ -232,7 +232,7 @@ enum Cursor {
 /// You may notice that `u16` may represent more than 32,768 values. This is
 /// true, but 32,768 should be plenty and it allows us to reserve the top bit
 /// for future usage.
-type Size = usize;
+type Size = u16;
 
 /// This limit falls out from above.
 const MAX_SIZE: usize = (1 << 15);
@@ -252,7 +252,7 @@ struct Pos {
 /// bits is fine since we know that the `indices` vector will never grow beyond
 /// that size.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-struct HashValue(usize);
+struct HashValue(u16);
 
 /// Stores the data associated with a `HeaderMap` entry. Only the first value is
 /// included in this struct. If a header name has more than one associated
@@ -646,7 +646,7 @@ impl<T> HeaderMap<T> {
             assert!(cap != 0, "header map reserve overflowed");
 
             if self.entries.len() == 0 {
-                self.mask = cap - 1;
+                self.mask = cap as Size - 1;
                 self.indices = vec![Pos::none(); cap].into_boxed_slice();
                 self.entries = Vec::with_capacity(usable_capacity(cap));
             } else {
@@ -3136,7 +3136,7 @@ impl Pos {
     #[inline]
     fn resolve(&self) -> Option<(usize, HashValue)> {
         if self.is_some() {
-            Some((self.index, self.hash))
+            Some((self.index as usize, self.hash))
         } else {
             None
         }
@@ -3192,13 +3192,13 @@ fn to_raw_capacity(n: usize) -> usize {
 
 #[inline]
 fn desired_pos(mask: Size, hash: HashValue) -> usize {
-    (hash.0 & mask)
+    (hash.0 & mask) as usize
 }
 
 /// The number of steps that `current` is forward of the desired position for hash
 #[inline]
 fn probe_distance(mask: Size, hash: HashValue, current: usize) -> usize {
-    current.wrapping_sub(desired_pos(mask, hash)) & mask
+    current.wrapping_sub(desired_pos(mask, hash)) & mask as usize
 }
 
 fn hash_elem_using<K: ?Sized>(danger: &Danger, k: &K) -> HashValue
@@ -3224,7 +3224,7 @@ where
         }
     };
 
-    HashValue((hash & MASK) as usize)
+    HashValue((hash & MASK) as u16)
 }
 
 /*
