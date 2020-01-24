@@ -569,27 +569,19 @@ impl fmt::Debug for InvalidHeaderValue {
 
 impl fmt::Display for InvalidHeaderValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.description().fmt(f)
+        f.write_str("failed to parse header value")
     }
 }
 
-impl Error for InvalidHeaderValue {
-    fn description(&self) -> &str {
-        "failed to parse header value"
-    }
-}
+impl Error for InvalidHeaderValue {}
 
 impl fmt::Display for ToStrError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.description().fmt(f)
+        f.write_str("failed to convert header to a str")
     }
 }
 
-impl Error for ToStrError {
-    fn description(&self) -> &str {
-        "failed to convert header to a str"
-    }
-}
+impl Error for ToStrError {}
 
 // ===== PartialEq / PartialOrd =====
 
