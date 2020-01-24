@@ -465,8 +465,6 @@ impl<T> HeaderMap<T> {
     /// assert_eq!(12, map.capacity());
     /// ```
     pub fn with_capacity(capacity: usize) -> HeaderMap<T> {
-        assert!(capacity <= MAX_SIZE, "requested capacity too large");
-
         if capacity == 0 {
             HeaderMap {
                 mask: 0,
@@ -477,6 +475,7 @@ impl<T> HeaderMap<T> {
             }
         } else {
             let raw_cap = to_raw_capacity(capacity).next_power_of_two();
+            assert!(raw_cap <= MAX_SIZE, "requested capacity too large");
             debug_assert!(raw_cap > 0);
 
             HeaderMap {
@@ -642,7 +641,7 @@ impl<T> HeaderMap<T> {
 
         if cap > self.indices.len() {
             let cap = cap.next_power_of_two();
-            assert!(cap < MAX_SIZE, "header map reserve over max capacity");
+            assert!(cap <= MAX_SIZE, "header map reserve over max capacity");
             assert!(cap != 0, "header map reserve overflowed");
 
             if self.entries.len() == 0 {
@@ -1543,6 +1542,7 @@ impl<T> HeaderMap<T> {
 
     #[inline]
     fn grow(&mut self, new_raw_cap: usize) {
+        assert!(new_raw_cap <= MAX_SIZE, "requested capacity too large");
         // This path can never be reached when handling the first allocation in
         // the map.
 
@@ -3109,6 +3109,7 @@ impl<T> ops::IndexMut<usize> for RawLinks<T> {
 impl Pos {
     #[inline]
     fn new(index: usize, hash: HashValue) -> Self {
+        debug_assert!(index < MAX_SIZE);
         Pos {
             index: index as Size,
             hash: hash,
