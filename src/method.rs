@@ -365,15 +365,11 @@ impl fmt::Debug for InvalidMethod {
 
 impl fmt::Display for InvalidMethod {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.description())
+        f.write_str("invalid HTTP method")
     }
 }
 
-impl Error for InvalidMethod {
-    fn description(&self) -> &str {
-        "invalid HTTP method"
-    }
-}
+impl Error for InvalidMethod {}
 
 #[test]
 fn test_method_eq() {

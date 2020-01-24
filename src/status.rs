@@ -515,15 +515,11 @@ impl fmt::Debug for InvalidStatusCode {
 
 impl fmt::Display for InvalidStatusCode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.description())
+        f.write_str("invalid status code")
     }
 }
 
-impl Error for InvalidStatusCode {
-    fn description(&self) -> &str {
-        "invalid status code"
-    }
-}
+impl Error for InvalidStatusCode {}
 
 macro_rules! status_code_strs {
     ($($num:expr,)+) => {

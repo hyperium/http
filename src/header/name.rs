@@ -2003,15 +2003,11 @@ impl fmt::Debug for InvalidHeaderName {
 
 impl fmt::Display for InvalidHeaderName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.description().fmt(f)
+        f.write_str("invalid HTTP header name")
     }
 }
 
-impl Error for InvalidHeaderName {
-    fn description(&self) -> &str {
-        "invalid HTTP header name"
-    }
-}
+impl Error for InvalidHeaderName {}
 
 // ===== HdrName =====
 
