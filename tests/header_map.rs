@@ -44,6 +44,18 @@ fn reserve_over_capacity() {
 }
 
 #[test]
+fn with_capacity_max() {
+    // The largest capacity such that (cap + cap / 3) < MAX_SIZE.
+    HeaderMap::<u32>::with_capacity(24_576);
+}
+
+#[test]
+#[should_panic]
+fn with_capacity_overflow() {
+    HeaderMap::<u32>::with_capacity(24_577);
+}
+
+#[test]
 #[should_panic]
 fn reserve_overflow() {
     // See https://github.com/hyperium/http/issues/352
