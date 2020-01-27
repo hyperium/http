@@ -4,6 +4,8 @@ sudo: false
 cache: cargo
 
 matrix:
+  allow_failures:
+    - rust: nightly
   include:
     - rust: stable
     - rust: beta
