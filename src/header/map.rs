@@ -3192,7 +3192,7 @@ fn to_raw_capacity(n: usize) -> usize {
 
 #[inline]
 fn desired_pos(mask: Size, hash: HashValue) -> usize {
-    (hash.0 & mask)
+    hash.0 & mask
 }
 
 /// The number of steps that `current` is forward of the desired position for hash
