@@ -39,6 +39,7 @@ pub use self::builder::Builder;
 pub use self::path::PathAndQuery;
 pub use self::port::Port;
 pub use self::scheme::Scheme;
+pub use self::userinfo::UserInfo;
 
 mod authority;
 mod builder;
@@ -47,6 +48,7 @@ mod port;
 mod scheme;
 #[cfg(test)]
 mod tests;
+mod userinfo;
 
 /// The URI component of a request.
 ///
@@ -143,6 +145,7 @@ enum ErrorKind {
 // u16::MAX is reserved for None
 const MAX_LEN: usize = (u16::MAX - 1) as usize;
 
+#[rustfmt::skip]
 const URI_CHARS: [u8; 256] = [
     //  0      1      2      3      4      5      6      7      8      9
         0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //   x

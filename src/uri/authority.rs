@@ -5,7 +5,7 @@ use std::{cmp, fmt, str};
 
 use bytes::Bytes;
 
-use super::{ErrorKind, InvalidUri, Port, URI_CHARS};
+use super::{ErrorKind, InvalidUri, Port, UserInfo, URI_CHARS};
 use crate::byte_str::ByteStr;
 
 /// Represents the authority component of a URI.
@@ -65,7 +65,6 @@ impl Authority {
             data: unsafe { ByteStr::from_utf8_unchecked(b) },
         }
     }
-
 
     /// Attempt to convert a `Bytes` buffer to a `Authority`.
     ///
@@ -199,6 +198,111 @@ impl Authority {
     #[inline]
     pub fn host(&self) -> &str {
         host(self.as_str())
+    }
+
+    /// Get the username of this `Authority`.
+    /// ```notrust
+    /// abc://username:password@example.com:123/path/data?key=value&key2=value2#fragid1
+    ///       |------|
+    ///          |
+    ///       username
+    /// ```
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::uri::*;
+    /// let authority: Authority = "root@example.org:80".parse().unwrap();
+    ///
+    /// assert_eq!(authority.username(), Some("root"));
+    /// ```
+    #[inline]
+    pub fn username(&self) -> Option<&str> {
+        username_password(self.as_str())?.split(":").next()
+    }
+
+    /// Get the password of this `Authority`.
+    /// ```notrust
+    /// abc://username:password@example.com:123/path/data?key=value&key2=value2#fragid1
+    ///                |------|
+    ///                    |
+    ///                password
+    /// ```
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::uri::*;
+    /// let authority: Authority = "root:mypassword@example.org:80".parse().unwrap();
+    ///
+    /// assert_eq!(authority.password(), Some("mypassword"));
+    /// ```
+    #[inline]
+    pub fn password(&self) -> Option<&str> {
+        let mut user_pass = username_password(self.as_str())?.split(":");
+        let _user = user_pass.next().expect("split always has at least 1 item");
+        user_pass.next()
+    }
+
+    /// Get the `UserInfo` of this `Authority`.
+    /// ```notrust
+    /// abc://username:password@example.com:123/path/data?key=value&key2=value2#fragid1
+    ///       |---------------|
+    ///               |
+    ///           user info
+    /// ```
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::uri::*;
+    /// let authority: Authority = "root:mypassword@example.org:80".parse().unwrap();
+    /// let user_info = authority.user_info();
+    ///
+    /// assert_eq!(user_info.username(), Some("root"));
+    /// assert_eq!(user_info.password(), Some("mypassword"));
+    /// ```
+    #[inline]
+    pub fn user_info(&self) -> UserInfo {
+        let mut user_pass = match username_password(self.as_str()) {
+            Some(v) => v.split(":"),
+            None => return UserInfo::new(None, None),
+        };
+        let opt_user = user_pass.next();
+        let opt_pass = user_pass.next();
+        UserInfo::new(opt_user, opt_pass)
+    }
+
+    /// Get the username and password of this `Authority`.
+    ///
+    /// ```notrust
+    /// abc://username:password@example.com:123/path/data?key=value&key2=value2#fragid1
+    ///       |---------------|
+    ///               |
+    ///           user info
+    /// ```
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::uri::*;
+    /// let authority: Authority = "root:mypassword@example.org:80".parse().unwrap();
+    /// if let (Some(username), opt_pass) = authority.user_info2() {
+    ///   assert_eq!(username, "root");
+    ///   assert_eq!(opt_pass, Some("mypassword"));
+    /// } else {
+    ///   unreachable!();
+    /// }
+    /// ```
+    #[inline]
+    pub fn user_info2(&self) -> (Option<&str>, Option<&str>) {
+        let mut user_pass = match username_password(self.as_str()) {
+            Some(v) => v.split(":"),
+            None => return (None, None),
+        };
+        let opt_user = user_pass.next();
+        let opt_pass = user_pass.next();
+        (opt_user, opt_pass)
     }
 
     /// Get the port part of this `Authority`.
@@ -439,9 +543,7 @@ impl<'a> TryFrom<&'a [u8]> for Authority {
         }
 
         Ok(Authority {
-            data: unsafe {
-                ByteStr::from_utf8_unchecked(Bytes::copy_from_slice(s))
-            },
+            data: unsafe { ByteStr::from_utf8_unchecked(Bytes::copy_from_slice(s)) },
         })
     }
 }
@@ -472,6 +574,12 @@ impl fmt::Display for Authority {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())
     }
+}
+
+fn username_password(auth: &str) -> Option<&str> {
+    let mut user_pass = auth.rsplitn(2, '@');
+    user_pass.next(); //host_port;
+    user_pass.next()
 }
 
 fn host(auth: &str) -> &str {
