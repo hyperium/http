@@ -1,3 +1,7 @@
+# 0.2.1 (March 25, 2020)
+
+* Add `extensions_ref` and `extensions_mut` to `request::Builder` and `response::Builder`.
+
 # 0.2.0 (December 2, 2019)
 
 * Add `Version::HTTP_3` constant.
