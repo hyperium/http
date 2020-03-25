@@ -235,7 +235,7 @@ enum Cursor {
 type Size = u16;
 
 /// This limit falls out from above.
-const MAX_SIZE: usize = (1 << 15);
+const MAX_SIZE: usize = 1 << 15;
 
 /// An entry in the hash table. This represents the full hash code for an entry
 /// as well as the position of the entry in the `entries` vector.
