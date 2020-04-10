@@ -371,35 +371,51 @@ impl fmt::Display for InvalidMethod {
 
 impl Error for InvalidMethod {}
 
-#[test]
-fn test_method_eq() {
-    assert_eq!(Method::GET, Method::GET);
-    assert_eq!(Method::GET, "GET");
-    assert_eq!(&Method::GET, "GET");
+#[cfg(test)]
+mod test {
+    use super::*;
 
-    assert_eq!("GET", Method::GET);
-    assert_eq!("GET", &Method::GET);
+    #[test]
+    fn test_method_eq() {
+        assert_eq!(Method::GET, Method::GET);
+        assert_eq!(Method::GET, "GET");
+        assert_eq!(&Method::GET, "GET");
 
-    assert_eq!(&Method::GET, Method::GET);
-    assert_eq!(Method::GET, &Method::GET);
-}
+        assert_eq!("GET", Method::GET);
+        assert_eq!("GET", &Method::GET);
 
-#[test]
-fn test_invalid_method() {
-    assert!(Method::from_str("").is_err());
-    assert!(Method::from_bytes(b"").is_err());
-}
+        assert_eq!(&Method::GET, Method::GET);
+        assert_eq!(Method::GET, &Method::GET);
+    }
 
-#[test]
-fn test_is_idempotent() {
-    assert!(Method::OPTIONS.is_idempotent());
-    assert!(Method::GET.is_idempotent());
-    assert!(Method::PUT.is_idempotent());
-    assert!(Method::DELETE.is_idempotent());
-    assert!(Method::HEAD.is_idempotent());
-    assert!(Method::TRACE.is_idempotent());
+    #[test]
+    fn test_invalid_method() {
+        assert!(Method::from_str("").is_err());
+        assert!(Method::from_bytes(b"").is_err());
+        assert!(Method::from_bytes(&[0xC0]).is_err()); // invalid utf-8
+        assert!(Method::from_bytes(&[0x10]).is_err()); // invalid method characters
+    }
 
-    assert!(!Method::POST.is_idempotent());
-    assert!(!Method::CONNECT.is_idempotent());
-    assert!(!Method::PATCH.is_idempotent());
+    #[test]
+    fn test_is_idempotent() {
+        assert!(Method::OPTIONS.is_idempotent());
+        assert!(Method::GET.is_idempotent());
+        assert!(Method::PUT.is_idempotent());
+        assert!(Method::DELETE.is_idempotent());
+        assert!(Method::HEAD.is_idempotent());
+        assert!(Method::TRACE.is_idempotent());
+
+        assert!(!Method::POST.is_idempotent());
+        assert!(!Method::CONNECT.is_idempotent());
+        assert!(!Method::PATCH.is_idempotent());
+    }
+
+    #[test]
+    fn test_extention_method() {
+        assert_eq!(Method::from_str("WOW").unwrap(), "WOW");
+        assert_eq!(Method::from_str("wOw!!").unwrap(), "wOw!!");
+
+        let long_method = "This_is_a_very_long_method.It_is_valid_but_unlikely.";
+        assert_eq!(Method::from_str(&long_method).unwrap(), long_method);
+    }
 }
