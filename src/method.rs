@@ -16,6 +16,7 @@
 //! ```
 
 use self::Inner::*;
+use self::extension::{InlineExtension, AllocatedExtension};
 
 use std::convert::AsRef;
 use std::error::Error;
@@ -61,54 +62,11 @@ enum Inner {
     Connect,
     Patch,
     // If the extension is short enough, store it inline
-    ExtensionInline([u8; MAX_INLINE], u8),
+    ExtensionInline(InlineExtension),
     // Otherwise, allocate it
-    ExtensionAllocated(Box<[u8]>),
+    ExtensionAllocated(AllocatedExtension),
 }
 
-const MAX_INLINE: usize = 15;
-
-// From the HTTP spec section 5.1.1, the HTTP method is case-sensitive and can
-// contain the following characters:
-//
-// ```
-// method = token
-// token = 1*tchar
-// tchar = "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "." /
-//     "^" / "_" / "`" / "|" / "~" / DIGIT / ALPHA
-// ```
-//
-// https://www.w3.org/Protocols/HTTP/1.1/draft-ietf-http-v11-spec-01#Method
-//
-const METHOD_CHARS: [u8; 256] = [
-    //  0      1      2      3      4      5      6      7      8      9
-    b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', //   x
-    b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', //  1x
-    b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', //  2x
-    b'\0', b'\0', b'\0',  b'!', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', //  3x
-    b'\0', b'\0',  b'*',  b'+', b'\0',  b'-',  b'.', b'\0',  b'0',  b'1', //  4x
-     b'2',  b'3',  b'4',  b'5',  b'6',  b'7',  b'8',  b'9', b'\0', b'\0', //  5x
-    b'\0', b'\0', b'\0', b'\0', b'\0',  b'A',  b'B',  b'C',  b'D',  b'E', //  6x
-     b'F',  b'G',  b'H',  b'I',  b'J',  b'K',  b'L',  b'M',  b'N',  b'O', //  7x
-     b'P',  b'Q',  b'R',  b'S',  b'T',  b'U',  b'V',  b'W',  b'X',  b'Y', //  8x
-     b'Z', b'\0', b'\0', b'\0',  b'^',  b'_',  b'`',  b'a',  b'b',  b'c', //  9x
-     b'd',  b'e',  b'f',  b'g',  b'h',  b'i',  b'j',  b'k',  b'l',  b'm', // 10x
-     b'n',  b'o',  b'p',  b'q',  b'r',  b's',  b't',  b'u',  b'v',  b'w', // 11x
-     b'x',  b'y',  b'z', b'\0',  b'|', b'\0',  b'~', b'\0', b'\0', b'\0', // 12x
-    b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', // 13x
-    b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', // 14x
-    b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', // 15x
-    b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', // 16x
-    b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', // 17x
-    b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', // 18x
-    b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', // 19x
-    b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', // 20x
-    b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', // 21x
-    b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', // 22x
-    b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', // 23x
-    b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', // 24x
-    b'\0', b'\0', b'\0', b'\0', b'\0', b'\0'                              // 25x
-];
 
 impl Method {
     /// GET
@@ -167,25 +125,21 @@ impl Method {
                 _ => Method::extension_inline(src),
             },
             _ => {
-                if src.len() < MAX_INLINE {
+                if src.len() < InlineExtension::MAX {
                     Method::extension_inline(src)
                 } else {
-                    let mut data: Vec<u8> = vec![0; src.len()];
+                    let allocated = AllocatedExtension::new(src)?;
 
-                    write_checked(src, &mut data)?;
-
-                    Ok(Method(ExtensionAllocated(data.into_boxed_slice())))
+                    Ok(Method(ExtensionAllocated(allocated)))
                 }
             }
         }
     }
 
     fn extension_inline(src: &[u8]) -> Result<Method, InvalidMethod> {
-        let mut data: [u8; MAX_INLINE] = Default::default();
+        let inline = InlineExtension::new(src)?;
 
-        write_checked(src, &mut data)?;
-
-        Ok(Method(ExtensionInline(data, src.len() as u8)))
+        Ok(Method(ExtensionInline(inline)))
     }
 
     /// Whether a method is considered "safe", meaning the request is
@@ -225,26 +179,10 @@ impl Method {
             Trace => "TRACE",
             Connect => "CONNECT",
             Patch => "PATCH",
-            ExtensionInline(ref data, len) => unsafe {
-                str::from_utf8_unchecked(&data[..len as usize])
-            },
-            ExtensionAllocated(ref data) => unsafe { str::from_utf8_unchecked(data) },
+            ExtensionInline(ref inline) => inline.as_str(),
+            ExtensionAllocated(ref allocated) => allocated.as_str(),
         }
     }
-}
-
-fn write_checked(src: &[u8], dst: &mut [u8]) -> Result<(), InvalidMethod> {
-    for (i, &b) in src.iter().enumerate() {
-        let b = METHOD_CHARS[b as usize];
-
-        if b == 0 {
-            return Err(InvalidMethod::new());
-        }
-
-        dst[i] = b;
-    }
-
-    Ok(())
 }
 
 impl AsRef<str> for Method {
@@ -370,6 +308,105 @@ impl fmt::Display for InvalidMethod {
 }
 
 impl Error for InvalidMethod {}
+
+mod extension {
+    use super::InvalidMethod;
+    use std::str;
+
+    #[derive(Clone, PartialEq, Eq, Hash)]
+    pub struct InlineExtension([u8; InlineExtension::MAX], u8);
+
+    #[derive(Clone, PartialEq, Eq, Hash)]
+    pub struct AllocatedExtension(Box<[u8]>);
+
+    impl InlineExtension {
+        // Method::from_bytes() assumes this is at least 7
+        pub const MAX: usize = 15;
+
+        pub fn new(src: &[u8]) -> Result<InlineExtension, InvalidMethod> {
+            let mut data: [u8; InlineExtension::MAX] = Default::default();
+
+            write_checked(src, &mut data)?;
+
+            Ok(InlineExtension(data, src.len() as u8))
+        }
+
+        pub fn as_str(&self) -> &str {
+            let InlineExtension(ref data, len) = self;
+            unsafe {str::from_utf8_unchecked(&data[..*len as usize])}
+        }
+    }
+
+    impl AllocatedExtension {
+        pub fn new(src: &[u8]) -> Result<AllocatedExtension, InvalidMethod> {
+            let mut data: Vec<u8> = vec![0; src.len()];
+
+            write_checked(src, &mut data)?;
+
+            Ok(AllocatedExtension(data.into_boxed_slice()))
+        }
+
+        pub fn as_str(&self) -> &str {
+            unsafe {str::from_utf8_unchecked(&self.0)}
+        }
+    }
+
+    // From the HTTP spec section 5.1.1, the HTTP method is case-sensitive and can
+    // contain the following characters:
+    //
+    // ```
+    // method = token
+    // token = 1*tchar
+    // tchar = "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "." /
+    //     "^" / "_" / "`" / "|" / "~" / DIGIT / ALPHA
+    // ```
+    //
+    // https://www.w3.org/Protocols/HTTP/1.1/draft-ietf-http-v11-spec-01#Method
+    //
+    const METHOD_CHARS: [u8; 256] = [
+        //  0      1      2      3      4      5      6      7      8      9
+        b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', //   x
+        b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', //  1x
+        b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', //  2x
+        b'\0', b'\0', b'\0',  b'!', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', //  3x
+        b'\0', b'\0',  b'*',  b'+', b'\0',  b'-',  b'.', b'\0',  b'0',  b'1', //  4x
+         b'2',  b'3',  b'4',  b'5',  b'6',  b'7',  b'8',  b'9', b'\0', b'\0', //  5x
+        b'\0', b'\0', b'\0', b'\0', b'\0',  b'A',  b'B',  b'C',  b'D',  b'E', //  6x
+         b'F',  b'G',  b'H',  b'I',  b'J',  b'K',  b'L',  b'M',  b'N',  b'O', //  7x
+         b'P',  b'Q',  b'R',  b'S',  b'T',  b'U',  b'V',  b'W',  b'X',  b'Y', //  8x
+         b'Z', b'\0', b'\0', b'\0',  b'^',  b'_',  b'`',  b'a',  b'b',  b'c', //  9x
+         b'd',  b'e',  b'f',  b'g',  b'h',  b'i',  b'j',  b'k',  b'l',  b'm', // 10x
+         b'n',  b'o',  b'p',  b'q',  b'r',  b's',  b't',  b'u',  b'v',  b'w', // 11x
+         b'x',  b'y',  b'z', b'\0',  b'|', b'\0',  b'~', b'\0', b'\0', b'\0', // 12x
+        b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', // 13x
+        b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', // 14x
+        b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', // 15x
+        b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', // 16x
+        b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', // 17x
+        b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', // 18x
+        b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', // 19x
+        b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', // 20x
+        b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', // 21x
+        b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', // 22x
+        b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', // 23x
+        b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', // 24x
+        b'\0', b'\0', b'\0', b'\0', b'\0', b'\0'                              // 25x
+    ];
+
+    fn write_checked(src: &[u8], dst: &mut [u8]) -> Result<(), InvalidMethod> {
+        for (i, &b) in src.iter().enumerate() {
+            let b = METHOD_CHARS[b as usize];
+
+            if b == 0 {
+                return Err(InvalidMethod::new());
+            }
+
+            dst[i] = b;
+        }
+
+        Ok(())
+    }
+}
 
 #[cfg(test)]
 mod test {
