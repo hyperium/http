@@ -314,9 +314,11 @@ mod extension {
     use std::str;
 
     #[derive(Clone, PartialEq, Eq, Hash)]
+    // Invariant: the first self.1 bytes of self.0 are valid UTF-8.
     pub struct InlineExtension([u8; InlineExtension::MAX], u8);
 
     #[derive(Clone, PartialEq, Eq, Hash)]
+    // Invariant: self.0 contains valid UTF-8.
     pub struct AllocatedExtension(Box<[u8]>);
 
     impl InlineExtension {
@@ -328,11 +330,15 @@ mod extension {
 
             write_checked(src, &mut data)?;
 
+            // Invariant: write_checked ensures that the first src.len() bytes
+            // of data are valid UTF-8.
             Ok(InlineExtension(data, src.len() as u8))
         }
 
         pub fn as_str(&self) -> &str {
             let InlineExtension(ref data, len) = self;
+            // Safety: the invariant of InlineExtension ensures that the first
+            // len bytes of data contain valid UTF-8.
             unsafe {str::from_utf8_unchecked(&data[..*len as usize])}
         }
     }
@@ -343,10 +349,14 @@ mod extension {
 
             write_checked(src, &mut data)?;
 
+            // Invariant: data is exactly src.len() long and write_checked
+            // ensures that the first src.len() bytes of data are valid UTF-8.
             Ok(AllocatedExtension(data.into_boxed_slice()))
         }
 
         pub fn as_str(&self) -> &str {
+            // Safety: the invariant of AllocatedExtension ensures that self.0
+            // contains valid UTF-8.
             unsafe {str::from_utf8_unchecked(&self.0)}
         }
     }
@@ -363,6 +373,9 @@ mod extension {
     //
     // https://www.w3.org/Protocols/HTTP/1.1/draft-ietf-http-v11-spec-01#Method
     //
+    // Note that this definition means that any &[u8] that consists solely of valid
+    // characters is also valid UTF-8 because the valid method characters are a
+    // subset of the valid 1 byte UTF-8 encoding.
     const METHOD_CHARS: [u8; 256] = [
         //  0      1      2      3      4      5      6      7      8      9
         b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', //   x
@@ -393,6 +406,8 @@ mod extension {
         b'\0', b'\0', b'\0', b'\0', b'\0', b'\0'                              // 25x
     ];
 
+    // write_checked ensures (among other things) that the first src.len() bytes
+    // of dst are valid UTF-8
     fn write_checked(src: &[u8], dst: &mut [u8]) -> Result<(), InvalidMethod> {
         for (i, &b) in src.iter().enumerate() {
             let b = METHOD_CHARS[b as usize];
