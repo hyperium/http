@@ -518,6 +518,7 @@ mod tests {
         assert_eq!("a", pq_bytes(&[b'a']));
         assert_eq!("a?", pq_bytes(&[b'a', b'?']));
         assert_eq!("a?b", pq_bytes(&[b'a', b'?', b'b']));
+        assert_eq!("a?{b}", pq_bytes(&[b'a', b'?', b'{', b'b', b'}']));
         assert_eq!("a", pq_bytes(&[b'a', b'#', b'b']));
         assert_eq!("a?b", pq_bytes(&[b'a', b'?', b'b', b'#', b'c']));
 
@@ -530,6 +531,7 @@ mod tests {
     fn from_invalid_u8_slice_is_error() {
         assert!(is_invalid_pq_bytes(&[0xc0])); // invalid UTF-8
         assert!(is_invalid_pq_bytes(&[b' '])); // need percent encoding
+        assert!(is_invalid_pq_bytes(&[b'{'])); // need percent encoding
         assert!(is_invalid_pq_bytes(&[b'a', b'?', 0xc0])); // invalid UTF-8
         assert!(is_invalid_pq_bytes(&[b'a', b'?', b' '])); // needs percent encoding
     }
