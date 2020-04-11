@@ -511,7 +511,38 @@ mod tests {
         assert_eq!("qr=%3", pq("/a/b?qr=%3").query().unwrap());
     }
 
+    #[test]
+    fn from_u8_slice_equates_with_string() {
+        assert_eq!("/", pq_bytes(&[b'/']));
+        assert_eq!("/ab", pq_bytes(&[b'/', b'a', b'b']));
+        assert_eq!("a", pq_bytes(&[b'a']));
+        assert_eq!("a?", pq_bytes(&[b'a', b'?']));
+        assert_eq!("a?b", pq_bytes(&[b'a', b'?', b'b']));
+        assert_eq!("a", pq_bytes(&[b'a', b'#', b'b']));
+        assert_eq!("a?b", pq_bytes(&[b'a', b'?', b'b', b'#', b'c']));
+
+        // This example has invalid UTF-8 in the fragment but the path
+        // and query are valid UTF-8
+        assert_eq!("a?b", pq_bytes(&[b'a', b'?', b'b', b'#', 0xc0]));
+    }
+
+    #[test]
+    fn from_invalid_u8_slice_is_error() {
+        assert!(is_invalid_pq_bytes(&[0xc0])); // invalid UTF-8
+        assert!(is_invalid_pq_bytes(&[b' '])); // need percent encoding
+        assert!(is_invalid_pq_bytes(&[b'a', b'?', 0xc0])); // invalid UTF-8
+        assert!(is_invalid_pq_bytes(&[b'a', b'?', b' '])); // needs percent encoding
+    }
+
     fn pq(s: &str) -> PathAndQuery {
         s.parse().expect(&format!("parsing {}", s))
+    }
+
+    fn pq_bytes(s: &[u8]) -> PathAndQuery {
+        PathAndQuery::try_from(s).expect(&format!("converting {:?}", s))
+    }
+
+    fn is_invalid_pq_bytes(s: &[u8]) -> bool {
+        PathAndQuery::try_from(s).is_err()
     }
 }
