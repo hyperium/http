@@ -19,74 +19,50 @@ const NONE: u16 = ::std::u16::MAX;
 impl PathAndQuery {
     // Not public while `bytes` is unstable.
     pub(super) fn from_shared(mut src: Bytes) -> Result<Self, InvalidUri> {
-        let mut query = NONE;
-        let mut fragment = None;
-
-        // block for iterator borrow
-        {
-            let mut iter = src.as_ref().iter().enumerate();
-
-            // path ...
-            for (i, &b) in &mut iter {
-                // See https://url.spec.whatwg.org/#path-state
-                match b {
-                    b'?' => {
-                        debug_assert_eq!(query, NONE);
-                        query = i as u16;
-                        break;
-                    }
-                    b'#' => {
-                        fragment = Some(i);
-                        break;
-                    }
+        let (query, len) = src.as_ref().iter()
+            // stop at the fragment specifier
+            .take_while(|&&c| c != b'#')
+            .try_fold((None, 0u16), |(query, i), &c| {
+                match c {
+                    // match the query specifier if this is the first occurance
+                    b'?' if query.is_none() => Ok((Some(i), i+1)),
 
                     // This is the range of bytes that don't need to be
                     // percent-encoded in the path. If it should have been
                     // percent-encoded, then error.
+                    //
+                    // See https://url.spec.whatwg.org/#path-state
                     0x21 |
                     0x24..=0x3B |
                     0x3D |
                     0x40..=0x5F |
                     0x61..=0x7A |
                     0x7C |
-                    0x7E => {},
+                    0x7E => Ok((query, i+1)),
 
-                    _ => return Err(ErrorKind::InvalidUriChar.into()),
+                    // While queries *should* be percent-encoded, most
+                    // bytes are actually allowed...
+                    // See https://url.spec.whatwg.org/#query-state
+                    //
+                    // Allowed: 0x21 / 0x24 - 0x3B / 0x3D / 0x3F - 0x7E
+                    //
+                    // The list below is the bytes that are allowed in the
+                    // query but not in the path. The bytes allowed in both
+                    // are matched in the previous arm.
+                    0x3F |
+                    0x60 |
+                    0x7B |
+                    0x7D if query.is_some() => Ok((query, i+1)),
+
+                    _ => Err(InvalidUri(ErrorKind::InvalidUriChar)),
                 }
-            }
+            })?;
 
-            // query ...
-            if query != NONE {
-                for (i, &b) in iter {
-                    match b {
-                        // While queries *should* be percent-encoded, most
-                        // bytes are actually allowed...
-                        // See https://url.spec.whatwg.org/#query-state
-                        //
-                        // Allowed: 0x21 / 0x24 - 0x3B / 0x3D / 0x3F - 0x7E
-                        0x21 |
-                        0x24..=0x3B |
-                        0x3D |
-                        0x3F..=0x7E => {},
-
-                        b'#' => {
-                            fragment = Some(i);
-                            break;
-                        }
-
-                        _ => return Err(ErrorKind::InvalidUriChar.into()),
-                    }
-                }
-            }
-        }
-
-        if let Some(i) = fragment {
-            src.truncate(i);
-        }
+        src.truncate(len as usize);
 
         Ok(PathAndQuery {
             data: unsafe { ByteStr::from_utf8_unchecked(src) },
-            query: query,
+            query: query.unwrap_or(NONE),
         })
     }
 
