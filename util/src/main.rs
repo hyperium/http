@@ -982,6 +982,11 @@ standard_headers! {
     "x-frame-options";
 
     r#"
+    /// Correlates HTTP requests between a client and server.
+    "#,
+    "x-request-id";
+
+    r#"
     /// Stop pages from loading when an XSS attack is detected.
     ///
     /// The HTTP X-XSS-Protection response header is a feature of Internet

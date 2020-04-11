@@ -591,5 +591,6 @@ const STD: &'static [HeaderName] = &[
     X_CONTENT_TYPE_OPTIONS,
     X_DNS_PREFETCH_CONTROL,
     X_FRAME_OPTIONS,
+    X_REQUEST_ID,
     X_XSS_PROTECTION,
 ];

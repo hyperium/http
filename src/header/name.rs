@@ -952,6 +952,9 @@ standard_headers! {
     /// is using a browser supporting `x-frame-options`.
     (XFrameOptions, X_FRAME_OPTIONS, "x-frame-options");
 
+    /// Correlates HTTP requests between a client and server.
+    (XRequestId, X_REQUEST_ID, "x-request-id");
+
     /// Stop pages from loading when an XSS attack is detected.
     ///
     /// The HTTP X-XSS-Protection response header is a feature of Internet
@@ -1269,6 +1272,8 @@ fn parse_hdr<'a>(
                 Ok(ContentType.into())
             } else if eq!(b == b'm' b'a' b'x' b'-' b'f' b'o' b'r' b'w' b'a' b'r' b'd' b's') {
                 Ok(MaxForwards.into())
+            } else if eq!(b == b'x' b'-' b'r' b'e' b'q' b'u' b'e' b's' b't' b'-' b'i' b'd') {
+                Ok(XRequestId.into())
             } else {
                 validate(b, len)
             }
@@ -1591,6 +1596,7 @@ fn parse_hdr<'a>(
                 b"retry-after" => Ok(RetryAfter.into()),
                 b"content-type" => Ok(ContentType.into()),
                 b"max-forwards" => Ok(MaxForwards.into()),
+                b"x-request-id" => Ok(XRequestId.into()),
                 b"accept-ranges" => Ok(AcceptRanges.into()),
                 b"authorization" => Ok(Authorization.into()),
                 b"cache-control" => Ok(CacheControl.into()),
