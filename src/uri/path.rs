@@ -54,6 +54,9 @@ impl PathAndQuery {
                     0x7B |
                     0x7D if query.is_some() => Ok((query, i+1)),
 
+                    // all bytes 0x80 and above match here (among others)
+                    // so all Ok() returns in the other match arms identify
+                    // a single byte UTF-8 code point
                     _ => Err(InvalidUri(ErrorKind::InvalidUriChar)),
                 }
             })?;
@@ -61,6 +64,9 @@ impl PathAndQuery {
         src.truncate(len as usize);
 
         Ok(PathAndQuery {
+            // Safety: The try_fold() checks that each byte in the now truncated
+            // src is a single byte UTF-8 code point so src as a whole is valid
+            // UTF-8.
             data: unsafe { ByteStr::from_utf8_unchecked(src) },
             query: query.unwrap_or(NONE),
         })
