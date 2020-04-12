@@ -616,4 +616,14 @@ mod tests {
         let err = Authority::parse_non_empty(b"[fe80::1:2:3:4]%20").unwrap_err();
         assert_eq!(err.0, ErrorKind::InvalidAuthority);
     }
+
+    #[test]
+    fn rejects_invalid_utf8() {
+        let err = Authority::try_from([0xc0u8].as_ref()).unwrap_err();
+        assert_eq!(err.0, ErrorKind::InvalidUriChar);
+
+        let err = Authority::from_shared(Bytes::from_static([0xc0u8].as_ref()))
+            .unwrap_err();
+        assert_eq!(err.0, ErrorKind::InvalidUriChar);
+    }
 }
