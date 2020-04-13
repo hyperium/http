@@ -530,6 +530,12 @@ mod tests {
     }
 
     #[test]
+    fn from_static_equates_with_a_str() {
+        let authority = Authority::from_static("example.com");
+        assert_eq!(authority, "example.com");
+    }
+
+    #[test]
     fn not_equal_with_a_str_of_a_different_authority() {
         let authority: Authority = "example.com".parse().unwrap();
         assert_ne!(&authority, "test.com");
