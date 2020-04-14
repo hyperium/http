@@ -23,15 +23,7 @@ impl Authority {
 
     // Not public while `bytes` is unstable.
     pub(super) fn from_shared(s: Bytes) -> Result<Self, InvalidUri> {
-        let authority_end = Authority::parse_non_empty(&s[..])?;
-
-        if authority_end != s.len() {
-            return Err(ErrorKind::InvalidUriChar.into());
-        }
-
-        Ok(Authority {
-            data: unsafe { ByteStr::from_utf8_unchecked(s) },
-        })
+        create_authority(s, |s| s)
     }
 
     /// Attempt to convert an `Authority` from a static string.
@@ -52,18 +44,8 @@ impl Authority {
     /// assert_eq!(authority.host(), "example.com");
     /// ```
     pub fn from_static(src: &'static str) -> Self {
-        let s = src.as_bytes();
-        let b = Bytes::from_static(s);
-        let authority_end =
-            Authority::parse_non_empty(&b[..]).expect("static str is not valid authority");
-
-        if authority_end != b.len() {
-            panic!("static str is not valid authority");
-        }
-
-        Authority {
-            data: unsafe { ByteStr::from_utf8_unchecked(b) },
-        }
+        Authority::from_shared(Bytes::from_static(src.as_bytes()))
+            .expect("static str is not valid authority")
     }
 
 
@@ -432,17 +414,7 @@ impl<'a> TryFrom<&'a [u8]> for Authority {
     #[inline]
     fn try_from(s: &'a [u8]) -> Result<Self, Self::Error> {
         // parse first, and only turn into Bytes if valid
-        let end = Authority::parse_non_empty(s)?;
-
-        if end != s.len() {
-            return Err(ErrorKind::InvalidAuthority.into());
-        }
-
-        Ok(Authority {
-            data: unsafe {
-                ByteStr::from_utf8_unchecked(Bytes::copy_from_slice(s))
-            },
-        })
+        create_authority(s, |s| Bytes::copy_from_slice(s))
     }
 }
 
@@ -492,6 +464,25 @@ fn host(auth: &str) -> &str {
             .next()
             .expect("split always has at least 1 item")
     }
+}
+
+fn create_authority<B, F>(b: B, f: F) -> Result<Authority, InvalidUri>
+where
+    B: AsRef<[u8]>,
+    F: FnOnce(B) -> Bytes,
+{
+    let s = b.as_ref();
+    let authority_end = Authority::parse_non_empty(s)?;
+
+    if authority_end != s.len() {
+        return Err(ErrorKind::InvalidUriChar.into());
+    }
+
+    let bytes = f(b);
+
+    Ok(Authority {
+        data: unsafe { ByteStr::from_utf8_unchecked(bytes) },
+    })
 }
 
 #[cfg(test)]
