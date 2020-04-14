@@ -23,6 +23,8 @@ impl Authority {
 
     // Not public while `bytes` is unstable.
     pub(super) fn from_shared(s: Bytes) -> Result<Self, InvalidUri> {
+        // Preconditon on create_authority: trivially satisfied by the
+        // identity clousre
         create_authority(s, |s| s)
     }
 
@@ -65,6 +67,8 @@ impl Authority {
     }
 
     // Note: this may return an *empty* Authority. You might want `parse_non_empty`.
+    // Postcondition: for all Ok() returns, s[..ret.unwrap()] is valid UTF-8 where
+    // ret is the return value.
     pub(super) fn parse(s: &[u8]) -> Result<usize, InvalidUri> {
         let mut colon_cnt = 0;
         let mut start_bracket = false;
@@ -73,6 +77,10 @@ impl Authority {
         let mut end = s.len();
         let mut at_sign_pos = None;
 
+        // Among other things, this loop checks that every byte in s up to the
+        // first '/', '?', or '#' is a valid URI character (or in some contexts,
+        // a '%'). This means that each such byte is a valid single-byte UTF-8
+        // code point.
         for (i, &b) in s.iter().enumerate() {
             match URI_CHARS[b as usize] {
                 b'/' | b'?' | b'#' => {
@@ -150,6 +158,9 @@ impl Authority {
     //
     // This should be used by functions that allow a user to parse
     // an `Authority` by itself.
+    //
+    // Postcondition: for all Ok() returns, s[..ret.unwrap()] is valid UTF-8 where
+    // ret is the return value.
     fn parse_non_empty(s: &[u8]) -> Result<usize, InvalidUri> {
         if s.is_empty() {
             return Err(ErrorKind::Empty.into());
@@ -414,6 +425,9 @@ impl<'a> TryFrom<&'a [u8]> for Authority {
     #[inline]
     fn try_from(s: &'a [u8]) -> Result<Self, Self::Error> {
         // parse first, and only turn into Bytes if valid
+
+        // Preconditon on create_authority: copy_from_slice() copies all of
+        // bytes from the [u8] parameter into a new Bytes
         create_authority(s, |s| Bytes::copy_from_slice(s))
     }
 }
@@ -466,6 +480,8 @@ fn host(auth: &str) -> &str {
     }
 }
 
+// Precondition: f converts all of the bytes in the passed in B into the
+// returned Bytes.
 fn create_authority<B, F>(b: B, f: F) -> Result<Authority, InvalidUri>
 where
     B: AsRef<[u8]>,
@@ -481,6 +497,9 @@ where
     let bytes = f(b);
 
     Ok(Authority {
+        // Safety: the postcondition on parse_non_empty() and the check against
+        // s.len() ensure that b is valid UTF-8. The precondition on f ensures
+        // that this is carried through to bytes.
         data: unsafe { ByteStr::from_utf8_unchecked(bytes) },
     })
 }
