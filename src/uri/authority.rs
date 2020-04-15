@@ -23,7 +23,7 @@ impl Authority {
 
     // Not public while `bytes` is unstable.
     pub(super) fn from_shared(s: Bytes) -> Result<Self, InvalidUri> {
-        // Preconditon on create_authority: trivially satisfied by the
+        // Precondition on create_authority: trivially satisfied by the
         // identity clousre
         create_authority(s, |s| s)
     }
