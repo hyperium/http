@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use std::convert::TryFrom;
 
 use super::{ErrorKind, InvalidUri, Port, Uri, URI_CHARS};
 
@@ -516,4 +517,41 @@ fn test_partial_eq_path_with_terminating_questionmark() {
     let uri = Uri::from_str("/path?").expect("first parse");
 
     assert_eq!(uri, a);
+}
+
+#[test]
+fn test_uri_from_u8_slice() {
+    let uri = Uri::try_from(b"http://example.com".as_ref()).expect("conversion");
+
+    assert_eq!(uri, "http://example.com");
+}
+
+#[test]
+fn test_uri_from_u8_slice_error() {
+    fn err(s: &[u8]) {
+        Uri::try_from(s).unwrap_err();
+    }
+
+    err(b"http://");
+    err(b"htt:p//host");
+    err(b"hyper.rs/");
+    err(b"hyper.rs?key=val");
+    err(b"?key=val");
+    err(b"localhost/");
+    err(b"localhost?key=val");
+    err(b"\0");
+    err(b"http://[::1");
+    err(b"http://::1]");
+    err(b"localhost:8080:3030");
+    err(b"@");
+    err(b"http://username:password@/wut");
+
+    // illegal queries
+    err(b"/?foo\rbar");
+    err(b"/?foo\nbar");
+    err(b"/?<");
+    err(b"/?>");
+
+    // invalid UTF-8
+    err(&[0xc0])
 }
