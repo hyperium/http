@@ -64,9 +64,9 @@ impl PathAndQuery {
         src.truncate(len as usize);
 
         Ok(PathAndQuery {
-            // Safety: The try_fold() checks that each byte in the now truncated
-            // src is a single byte UTF-8 code point so src as a whole is valid
-            // UTF-8.
+            // Safety: The try_fold() checks that each byte in the (now truncated)
+            // src is a single byte UTF-8 code point. This means that src as a
+            // whole is valid UTF-8.
             data: unsafe { ByteStr::from_utf8_unchecked(src) },
             query: query.unwrap_or(NONE),
         })
