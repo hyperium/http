@@ -553,5 +553,6 @@ fn test_uri_from_u8_slice_error() {
     err(b"/?>");
 
     // invalid UTF-8
-    err(&[0xc0])
+    err(&[0xc0]);
+    err(&[b'h', b't', b't', b'p', b':', b'/', b'/', 0xc0]);
 }
