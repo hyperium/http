@@ -555,4 +555,14 @@ fn test_uri_from_u8_slice_error() {
     // invalid UTF-8
     err(&[0xc0]);
     err(&[b'h', b't', b't', b'p', b':', b'/', b'/', 0xc0]);
+    err(b"http://example.com/\0xc0");
+    err(b"http://example.com/path?\0xc0");
+}
+
+#[test]
+fn test_uri_with_invalid_fragment_is_valid() {
+    let uri_bytes = b"http://example.com/path?query#\0xc0";
+    let uri = Uri::try_from(uri_bytes.as_ref()).expect("conversion error");
+
+    assert_eq!(uri, "http://example.com/path?query");
 }
