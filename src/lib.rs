@@ -160,6 +160,9 @@
 
 #![deny(warnings, missing_docs, missing_debug_implementations)]
 
+// Nightly Regression https://github.com/rust-lang/rust/issues/70814
+#![allow(unknown_lints, unused_braces)]
+
 #[cfg(test)]
 #[macro_use]
 extern crate doc_comment;
