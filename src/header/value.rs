@@ -344,23 +344,27 @@ impl fmt::Debug for HeaderValue {
             f.write_str("Sensitive")
         } else {
             f.write_str("\"")?;
-            let mut from = 0;
             let bytes = self.as_bytes();
-            for (i, &b) in bytes.iter().enumerate() {
-                if !is_visible_ascii(b) || b == b'"' {
-                    if from != i {
-                        f.write_str(unsafe { str::from_utf8_unchecked(&bytes[from..i]) })?;
-                    }
+
+            let range = bytes.iter().try_fold(0..0, |range, &b| {
+                if is_visible_ascii(b) && b != b'"' {
+                    Ok(range.start..range.end+1)
+                } else {
+                    let text_run = unsafe { str::from_utf8_unchecked(&bytes[range.clone()]) };
+                    f.write_str(text_run)?;
+
                     if b == b'"' {
                         f.write_str("\\\"")?;
                     } else {
                         write!(f, "\\x{:x}", b)?;
                     }
-                    from = i + 1;
-                }
-            }
 
-            f.write_str(unsafe { str::from_utf8_unchecked(&bytes[from..]) })?;
+                    Ok(range.end+1..range.end+1)
+                }
+            })?;
+
+            let text_run = unsafe { str::from_utf8_unchecked(&bytes[range]) };
+            f.write_str(text_run)?;
             f.write_str("\"")
         }
     }
@@ -767,17 +771,12 @@ mod tests {
 
         for &(value, expected) in cases {
             let val = HeaderValue::from_bytes(value.as_bytes()).unwrap();
-            let actual = format!("{:?}", val);
-            assert_eq!(expected, actual);
-        }
+            let actual = format!("{:?}", val); assert_eq!(expected, actual); }
 
         // test invalid UTF-8
-        let val = HeaderValue::from_bytes(b"\xC0").unwrap();
-        let actual = format!("{:?}", val);
+        let val = HeaderValue::from_bytes(b"\xC0").unwrap(); let actual = format!("{:?}", val);
         assert_eq!("\"\\xc0\"", actual);
 
-        let mut sensitive = HeaderValue::from_static("password");
-        sensitive.set_sensitive(true);
-        assert_eq!("Sensitive", format!("{:?}", sensitive));
-    }
+        let mut sensitive = HeaderValue::from_static("password"); sensitive.set_sensitive(true);
+        assert_eq!("Sensitive", format!("{:?}", sensitive)); }
 }
