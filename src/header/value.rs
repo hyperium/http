@@ -745,26 +745,39 @@ impl<'a> PartialOrd<HeaderValue> for &'a str {
     }
 }
 
-#[test]
-fn test_try_from() {
-    HeaderValue::try_from(vec![127]).unwrap_err();
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-#[test]
-fn test_debug() {
-    let cases = &[
-        ("hello", "\"hello\""),
-        ("hello \"world\"", "\"hello \\\"world\\\"\""),
-        ("\u{7FFF}hello", "\"\\xe7\\xbf\\xbfhello\""),
-    ];
-
-    for &(value, expected) in cases {
-        let val = HeaderValue::from_bytes(value.as_bytes()).unwrap();
-        let actual = format!("{:?}", val);
-        assert_eq!(expected, actual);
+    #[test]
+    fn test_try_from() {
+        HeaderValue::try_from(vec![127]).unwrap_err();
     }
 
-    let mut sensitive = HeaderValue::from_static("password");
-    sensitive.set_sensitive(true);
-    assert_eq!("Sensitive", format!("{:?}", sensitive));
+    #[test]
+    fn test_debug() {
+        let cases = &[
+            // Note: Unicode codepoint U+7FFF is encoded as e7, bf, bf in UTF-8
+            ("hello", "\"hello\""),
+            ("hello \"world\"", "\"hello \\\"world\\\"\""),
+            ("\u{7FFF}hello", "\"\\xe7\\xbf\\xbfhello\""),
+            ("hell\u{7FFF}o", "\"hell\\xe7\\xbf\\xbfo\""),
+            ("hello\u{7FFF}", "\"hello\\xe7\\xbf\\xbf\""),
+        ];
+
+        for &(value, expected) in cases {
+            let val = HeaderValue::from_bytes(value.as_bytes()).unwrap();
+            let actual = format!("{:?}", val);
+            assert_eq!(expected, actual);
+        }
+
+        // test invalid UTF-8
+        let val = HeaderValue::from_bytes(b"\xC0").unwrap();
+        let actual = format!("{:?}", val);
+        assert_eq!("\"\\xc0\"", actual);
+
+        let mut sensitive = HeaderValue::from_static("password");
+        sensitive.set_sensitive(true);
+        assert_eq!("Sensitive", format!("{:?}", sensitive));
+    }
 }
