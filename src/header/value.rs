@@ -232,6 +232,9 @@ impl HeaderValue {
             }
         }
 
+        // Safety: the loop above checks that each byte is_valid_ascii() and
+        // the postcondtion on is_valid_ascii() implies that each byte is
+        // valid single-byte UTF-8.
         unsafe { Ok(str::from_utf8_unchecked(bytes)) }
     }
 
@@ -550,6 +553,8 @@ mod try_from_header_name_tests {
     }
 }
 
+// Postcondition: if the return is true then b is a visible ascii byte
+// which implies that it is a valid single-byte UTF-8 codepoint.
 fn is_visible_ascii(b: u8) -> bool {
     b >= 32 && b < 127 || b == b'\t'
 }
