@@ -166,6 +166,7 @@ impl HeaderValue {
     ///
     /// This function does NOT validate that illegal bytes are not contained
     /// within the buffer.
+    // TODO: Consider removing the 'unsafe' from this function.
     pub unsafe fn from_maybe_shared_unchecked<T>(src: T) -> HeaderValue
     where
         T: AsRef<[u8]> + 'static,
