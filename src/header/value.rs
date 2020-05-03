@@ -346,10 +346,27 @@ impl fmt::Debug for HeaderValue {
             f.write_str("\"")?;
             let bytes = self.as_bytes();
 
+            // Invariant1: bytes[range] is valid UTF-8 (for both instanses of range).
+            // Invariant2: In the try_fold() closure bytes[range.end] == b.
+            //
+            // bytes[0..0] is empty so the starting value of range trivally satisfies
+            // the invariant 1. The first invocaton of the closure has range.end == 0
+            // and b == bytes[0], satisfying the second invariant.
+            //
+            // On the nth invocation of the closure b = bytes[range.end]. The end of
+            // range returned from the closure is range.end+1. On the n+1th invocation
+            // of the closure b will be the next byte of bytes which is bytes[range.end+1].
+            // The second invariant follows by induction.
             let range = bytes.iter().try_fold(0..0, |range, &b| {
                 if is_visible_ascii(b) && b != b'"' {
+                    // Invariant: By the invariant bytes[range] is valid UTF-8.
+                    // bytes[range.end] == b and the postcondition on
+                    // is_visible_ascii() means that b (and hence bytes[range.end])
+                    // is valid, single-byte UTF-8 so bytes[range.start..range.end+1]
+                    // is valid UTF-8 and invariant 1 is satified.
                     Ok(range.start..range.end+1)
                 } else {
+                    // Safety: By invariant 1 bytes[range] is valid UTF-8
                     let text_run = unsafe { str::from_utf8_unchecked(&bytes[range.clone()]) };
                     f.write_str(text_run)?;
 
@@ -359,10 +376,13 @@ impl fmt::Debug for HeaderValue {
                         write!(f, "\\x{:x}", b)?;
                     }
 
+                    // Invariant: The range is empty so invariant 1 is trivally
+                    // satified.
                     Ok(range.end+1..range.end+1)
                 }
             })?;
 
+            // Safety: By invariant 1 bytes[range] is valid UTF-8.
             let text_run = unsafe { str::from_utf8_unchecked(&bytes[range]) };
             f.write_str(text_run)?;
             f.write_str("\"")
