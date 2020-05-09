@@ -5,8 +5,9 @@ use std::borrow::Borrow;
 use std::error::Error;
 use std::convert::{TryFrom};
 use std::hash::{Hash, Hasher};
+use std::mem::MaybeUninit;
 use std::str::FromStr;
-use std::{fmt, mem};
+use std::fmt;
 
 /// Represents an HTTP header field name
 ///
@@ -1045,7 +1046,7 @@ macro_rules! eq {
         $($cmp) && *
     };
     (($($cmp:expr,)*) $v:ident[$n:expr] == $a:tt $($rest:tt)*) => {
-        eq!(($($cmp,)* $v[$n] == $a,) $v[$n+1] == $($rest)*)
+        eq!(($($cmp,)* unsafe {*($v[$n].as_ptr())} == $a,) $v[$n+1] == $($rest)*)
     };
     ($v:ident == $($rest:tt)+) => {
         eq!(() $v[0] == $($rest)+)
@@ -1061,15 +1062,15 @@ macro_rules! eq {
 /// See https://github.com/DenisKolodin/yew/issues/478
 fn parse_hdr<'a>(
     data: &'a [u8],
-    b: &'a mut [u8; 64],
+    b: &'a mut [MaybeUninit<u8>; SCRATCH_BUF_SIZE],
     table: &[u8; 256],
 ) -> Result<HdrName<'a>, InvalidHeaderName> {
     use self::StandardHeader::*;
 
     let len = data.len();
 
-    let validate = |buf: &'a [u8], len: usize| {
-        let buf = &buf[..len];
+    let validate = |buf: &'a [MaybeUninit<u8>]| {
+        let buf = unsafe {slice_assume_init(buf)};
         if buf.iter().any(|&b| b == 0) {
             Err(InvalidHeaderName::new())
         } else {
@@ -1079,41 +1080,41 @@ fn parse_hdr<'a>(
 
 
     macro_rules! to_lower {
-        ($d:ident, $src:ident, 1) => { $d[0] = table[$src[0] as usize]; };
-        ($d:ident, $src:ident, 2) => { to_lower!($d, $src, 1); $d[1] = table[$src[1] as usize]; };
-        ($d:ident, $src:ident, 3) => { to_lower!($d, $src, 2); $d[2] = table[$src[2] as usize]; };
-        ($d:ident, $src:ident, 4) => { to_lower!($d, $src, 3); $d[3] = table[$src[3] as usize]; };
-        ($d:ident, $src:ident, 5) => { to_lower!($d, $src, 4); $d[4] = table[$src[4] as usize]; };
-        ($d:ident, $src:ident, 6) => { to_lower!($d, $src, 5); $d[5] = table[$src[5] as usize]; };
-        ($d:ident, $src:ident, 7) => { to_lower!($d, $src, 6); $d[6] = table[$src[6] as usize]; };
-        ($d:ident, $src:ident, 8) => { to_lower!($d, $src, 7); $d[7] = table[$src[7] as usize]; };
-        ($d:ident, $src:ident, 9) => { to_lower!($d, $src, 8); $d[8] = table[$src[8] as usize]; };
-        ($d:ident, $src:ident, 10) => { to_lower!($d, $src, 9); $d[9] = table[$src[9] as usize]; };
-        ($d:ident, $src:ident, 11) => { to_lower!($d, $src, 10); $d[10] = table[$src[10] as usize]; };
-        ($d:ident, $src:ident, 12) => { to_lower!($d, $src, 11); $d[11] = table[$src[11] as usize]; };
-        ($d:ident, $src:ident, 13) => { to_lower!($d, $src, 12); $d[12] = table[$src[12] as usize]; };
-        ($d:ident, $src:ident, 14) => { to_lower!($d, $src, 13); $d[13] = table[$src[13] as usize]; };
-        ($d:ident, $src:ident, 15) => { to_lower!($d, $src, 14); $d[14] = table[$src[14] as usize]; };
-        ($d:ident, $src:ident, 16) => { to_lower!($d, $src, 15); $d[15] = table[$src[15] as usize]; };
-        ($d:ident, $src:ident, 17) => { to_lower!($d, $src, 16); $d[16] = table[$src[16] as usize]; };
-        ($d:ident, $src:ident, 18) => { to_lower!($d, $src, 17); $d[17] = table[$src[17] as usize]; };
-        ($d:ident, $src:ident, 19) => { to_lower!($d, $src, 18); $d[18] = table[$src[18] as usize]; };
-        ($d:ident, $src:ident, 20) => { to_lower!($d, $src, 19); $d[19] = table[$src[19] as usize]; };
-        ($d:ident, $src:ident, 21) => { to_lower!($d, $src, 20); $d[20] = table[$src[20] as usize]; };
-        ($d:ident, $src:ident, 22) => { to_lower!($d, $src, 21); $d[21] = table[$src[21] as usize]; };
-        ($d:ident, $src:ident, 23) => { to_lower!($d, $src, 22); $d[22] = table[$src[22] as usize]; };
-        ($d:ident, $src:ident, 24) => { to_lower!($d, $src, 23); $d[23] = table[$src[23] as usize]; };
-        ($d:ident, $src:ident, 25) => { to_lower!($d, $src, 24); $d[24] = table[$src[24] as usize]; };
-        ($d:ident, $src:ident, 26) => { to_lower!($d, $src, 25); $d[25] = table[$src[25] as usize]; };
-        ($d:ident, $src:ident, 27) => { to_lower!($d, $src, 26); $d[26] = table[$src[26] as usize]; };
-        ($d:ident, $src:ident, 28) => { to_lower!($d, $src, 27); $d[27] = table[$src[27] as usize]; };
-        ($d:ident, $src:ident, 29) => { to_lower!($d, $src, 28); $d[28] = table[$src[28] as usize]; };
-        ($d:ident, $src:ident, 30) => { to_lower!($d, $src, 29); $d[29] = table[$src[29] as usize]; };
-        ($d:ident, $src:ident, 31) => { to_lower!($d, $src, 30); $d[30] = table[$src[30] as usize]; };
-        ($d:ident, $src:ident, 32) => { to_lower!($d, $src, 31); $d[31] = table[$src[31] as usize]; };
-        ($d:ident, $src:ident, 33) => { to_lower!($d, $src, 32); $d[32] = table[$src[32] as usize]; };
-        ($d:ident, $src:ident, 34) => { to_lower!($d, $src, 33); $d[33] = table[$src[33] as usize]; };
-        ($d:ident, $src:ident, 35) => { to_lower!($d, $src, 34); $d[34] = table[$src[34] as usize]; };
+        ($d:ident, $src:ident, 1) => { unsafe {*($d[0].as_mut_ptr()) = table[$src[0] as usize];} };
+        ($d:ident, $src:ident, 2) => { to_lower!($d, $src, 1); unsafe {*($d[1].as_mut_ptr())  = table[$src[1] as usize];} };
+        ($d:ident, $src:ident, 3) => { to_lower!($d, $src, 2); unsafe {*($d[2].as_mut_ptr())  = table[$src[2] as usize];} };
+        ($d:ident, $src:ident, 4) => { to_lower!($d, $src, 3); unsafe {*($d[3].as_mut_ptr())  = table[$src[3] as usize];} };
+        ($d:ident, $src:ident, 5) => { to_lower!($d, $src, 4); unsafe {*($d[4].as_mut_ptr())  = table[$src[4] as usize];} };
+        ($d:ident, $src:ident, 6) => { to_lower!($d, $src, 5); unsafe {*($d[5].as_mut_ptr())  = table[$src[5] as usize];} };
+        ($d:ident, $src:ident, 7) => { to_lower!($d, $src, 6); unsafe {*($d[6].as_mut_ptr())  = table[$src[6] as usize];} };
+        ($d:ident, $src:ident, 8) => { to_lower!($d, $src, 7); unsafe {*($d[7].as_mut_ptr())  = table[$src[7] as usize];} };
+        ($d:ident, $src:ident, 9) => { to_lower!($d, $src, 8); unsafe {*($d[8].as_mut_ptr())  = table[$src[8] as usize];} };
+        ($d:ident, $src:ident, 10) => { to_lower!($d, $src, 9); unsafe {*($d[9].as_mut_ptr())  = table[$src[9] as usize];} };
+        ($d:ident, $src:ident, 11) => { to_lower!($d, $src, 10); unsafe {*($d[10].as_mut_ptr())  = table[$src[10] as usize];} };
+        ($d:ident, $src:ident, 12) => { to_lower!($d, $src, 11); unsafe {*($d[11].as_mut_ptr())  = table[$src[11] as usize];} };
+        ($d:ident, $src:ident, 13) => { to_lower!($d, $src, 12); unsafe {*($d[12].as_mut_ptr())  = table[$src[12] as usize];} };
+        ($d:ident, $src:ident, 14) => { to_lower!($d, $src, 13); unsafe {*($d[13].as_mut_ptr())  = table[$src[13] as usize];} };
+        ($d:ident, $src:ident, 15) => { to_lower!($d, $src, 14); unsafe {*($d[14].as_mut_ptr())  = table[$src[14] as usize];} };
+        ($d:ident, $src:ident, 16) => { to_lower!($d, $src, 15); unsafe {*($d[15].as_mut_ptr())  = table[$src[15] as usize];} };
+        ($d:ident, $src:ident, 17) => { to_lower!($d, $src, 16); unsafe {*($d[16].as_mut_ptr())  = table[$src[16] as usize];} };
+        ($d:ident, $src:ident, 18) => { to_lower!($d, $src, 17); unsafe {*($d[17].as_mut_ptr())  = table[$src[17] as usize];} };
+        ($d:ident, $src:ident, 19) => { to_lower!($d, $src, 18); unsafe {*($d[18].as_mut_ptr())  = table[$src[18] as usize];} };
+        ($d:ident, $src:ident, 20) => { to_lower!($d, $src, 19); unsafe {*($d[19].as_mut_ptr())  = table[$src[19] as usize];} };
+        ($d:ident, $src:ident, 21) => { to_lower!($d, $src, 20); unsafe {*($d[20].as_mut_ptr())  = table[$src[20] as usize];} };
+        ($d:ident, $src:ident, 22) => { to_lower!($d, $src, 21); unsafe {*($d[21].as_mut_ptr())  = table[$src[21] as usize];} };
+        ($d:ident, $src:ident, 23) => { to_lower!($d, $src, 22); unsafe {*($d[22].as_mut_ptr())  = table[$src[22] as usize];} };
+        ($d:ident, $src:ident, 24) => { to_lower!($d, $src, 23); unsafe {*($d[23].as_mut_ptr())  = table[$src[23] as usize];} };
+        ($d:ident, $src:ident, 25) => { to_lower!($d, $src, 24); unsafe {*($d[24].as_mut_ptr())  = table[$src[24] as usize];} };
+        ($d:ident, $src:ident, 26) => { to_lower!($d, $src, 25); unsafe {*($d[25].as_mut_ptr())  = table[$src[25] as usize];} };
+        ($d:ident, $src:ident, 27) => { to_lower!($d, $src, 26); unsafe {*($d[26].as_mut_ptr())  = table[$src[26] as usize];} };
+        ($d:ident, $src:ident, 28) => { to_lower!($d, $src, 27); unsafe {*($d[27].as_mut_ptr())  = table[$src[27] as usize];} };
+        ($d:ident, $src:ident, 29) => { to_lower!($d, $src, 28); unsafe {*($d[28].as_mut_ptr())  = table[$src[28] as usize];} };
+        ($d:ident, $src:ident, 30) => { to_lower!($d, $src, 29); unsafe {*($d[29].as_mut_ptr())  = table[$src[29] as usize];} };
+        ($d:ident, $src:ident, 31) => { to_lower!($d, $src, 30); unsafe {*($d[30].as_mut_ptr())  = table[$src[30] as usize];} };
+        ($d:ident, $src:ident, 32) => { to_lower!($d, $src, 31); unsafe {*($d[31].as_mut_ptr())  = table[$src[31] as usize];} };
+        ($d:ident, $src:ident, 33) => { to_lower!($d, $src, 32); unsafe {*($d[32].as_mut_ptr())  = table[$src[32] as usize];} };
+        ($d:ident, $src:ident, 34) => { to_lower!($d, $src, 33); unsafe {*($d[33].as_mut_ptr())  = table[$src[33] as usize];} };
+        ($d:ident, $src:ident, 35) => { to_lower!($d, $src, 34); unsafe {*($d[34].as_mut_ptr())  = table[$src[34] as usize];} };
     }
 
     assert!(len < super::MAX_HEADER_NAME_LEN,
@@ -1128,7 +1129,7 @@ fn parse_hdr<'a>(
             if eq!(b == b't' b'e') {
                 Ok(Te.into())
             } else {
-                validate(b, len)
+                validate(&b[..len])
             }
         }
         3 => {
@@ -1141,7 +1142,7 @@ fn parse_hdr<'a>(
             } else if eq!(b == b'd' b'n' b't') {
                 Ok(Dnt.into())
             } else {
-                validate(b, len)
+                validate(&b[..len])
             }
         }
         4 => {
@@ -1160,7 +1161,7 @@ fn parse_hdr<'a>(
             } else if eq!(b == b'v' b'a' b'r' b'y') {
                 Ok(Vary.into())
             } else {
-                validate(b, len)
+                validate(&b[..len])
             }
         }
         5 => {
@@ -1171,7 +1172,7 @@ fn parse_hdr<'a>(
             } else if eq!(b == b'r' b'a' b'n' b'g' b'e') {
                 Ok(Range.into())
             } else {
-                validate(b, len)
+                validate(&b[..len])
             }
         }
         6 => {
@@ -1187,13 +1188,13 @@ fn parse_hdr<'a>(
                 return Ok(Origin.into());
             } else if eq!(b == b'p' b'r' b'a' b'g' b'm' b'a') {
                 return Ok(Pragma.into());
-            } else if b[0] == b's' {
+            } else if unsafe {*(b[0].as_ptr())} == b's' {
                 if eq!(b[1] == b'e' b'r' b'v' b'e' b'r') {
                     return Ok(Server.into());
                 }
             }
 
-            validate(b, len)
+            validate(&b[..len])
         }
         7 => {
             to_lower!(b, data, 7);
@@ -1213,7 +1214,7 @@ fn parse_hdr<'a>(
             } else if eq!(b == b'w' b'a' b'r' b'n' b'i' b'n' b'g') {
                 Ok(Warning.into())
             } else {
-                validate(b, len)
+                validate(&b[..len])
             }
         }
         8 => {
@@ -1229,7 +1230,7 @@ fn parse_hdr<'a>(
                 return Ok(Location.into());
             }
 
-            validate(b, len)
+            validate(&b[..len])
         }
         9 => {
             to_lower!(b, data, 9);
@@ -1237,7 +1238,7 @@ fn parse_hdr<'a>(
             if eq!(b == b'f' b'o' b'r' b'w' b'a' b'r' b'd' b'e' b'd') {
                 Ok(Forwarded.into())
             } else {
-                validate(b, len)
+                validate(&b[..len])
             }
         }
         10 => {
@@ -1250,7 +1251,7 @@ fn parse_hdr<'a>(
             } else if eq!(b == b'u' b's' b'e' b'r' b'-' b'a' b'g' b'e' b'n' b't') {
                 Ok(UserAgent.into())
             } else {
-                validate(b, len)
+                validate(&b[..len])
             }
         }
         11 => {
@@ -1259,7 +1260,7 @@ fn parse_hdr<'a>(
             if eq!(b == b'r' b'e' b't' b'r' b'y' b'-' b'a' b'f' b't' b'e' b'r') {
                 Ok(RetryAfter.into())
             } else {
-                validate(b, len)
+                validate(&b[..len])
             }
         }
         12 => {
@@ -1270,19 +1271,19 @@ fn parse_hdr<'a>(
             } else if eq!(b == b'm' b'a' b'x' b'-' b'f' b'o' b'r' b'w' b'a' b'r' b'd' b's') {
                 Ok(MaxForwards.into())
             } else {
-                validate(b, len)
+                validate(&b[..len])
             }
         }
         13 => {
             to_lower!(b, data, 13);
 
-            if b[0] == b'a' {
+            if unsafe {*(b[0].as_ptr())} == b'a' {
                 if eq!(b[1] == b'c' b'c' b'e' b'p' b't' b'-' b'r' b'a' b'n' b'g' b'e' b's') {
                     return Ok(AcceptRanges.into());
                 } else if eq!(b[1] == b'u' b't' b'h' b'o' b'r' b'i' b'z' b'a' b't' b'i' b'o' b'n') {
                     return Ok(Authorization.into());
                 }
-            } else if b[0] == b'c' {
+            } else if unsafe {*(b[0].as_ptr())} == b'c' {
                 if eq!(b[1] == b'a' b'c' b'h' b'e' b'-' b'c' b'o' b'n' b't' b'r' b'o' b'l') {
                     return Ok(CacheControl.into());
                 } else if eq!(b[1] == b'o' b'n' b't' b'e' b'n' b't' b'-' b'r' b'a' b'n' b'g' b'e' )
@@ -1295,7 +1296,7 @@ fn parse_hdr<'a>(
                 return Ok(LastModified.into());
             }
 
-            validate(b, len)
+            validate(&b[..len])
         }
         14 => {
             to_lower!(b, data, 14);
@@ -1306,7 +1307,7 @@ fn parse_hdr<'a>(
             {
                 Ok(ContentLength.into())
             } else {
-                validate(b, len)
+                validate(&b[..len])
             }
         }
         15 => {
@@ -1327,7 +1328,7 @@ fn parse_hdr<'a>(
                 return Ok(ReferrerPolicy.into())
             }
 
-            validate(b, len)
+            validate(&b[..len])
         }
         16 => {
             to_lower!(b, data, 16);
@@ -1346,7 +1347,7 @@ fn parse_hdr<'a>(
                 return Ok(XXssProtection.into())
             }
 
-            validate(b, len)
+            validate(&b[..len])
         }
         17 => {
             to_lower!(b, data, 17);
@@ -1358,7 +1359,7 @@ fn parse_hdr<'a>(
             } else if eq!(b == b's' b'e' b'c' b'-' b'w' b'e' b'b' b's' b'o' b'c' b'k' b'e' b't' b'-' b'k' b'e' b'y') {
                 Ok(SecWebSocketKey.into())
             } else {
-                validate(b, len)
+                validate(&b[..len])
             }
         }
         18 => {
@@ -1367,7 +1368,7 @@ fn parse_hdr<'a>(
             if eq!(b == b'p' b'r' b'o' b'x' b'y' b'-' b'a' b'u' b't' b'h' b'e' b'n' b't' b'i' b'c' b'a' b't' b'e') {
                 Ok(ProxyAuthenticate.into())
             } else {
-                validate(b, len)
+                validate(&b[..len])
             }
         }
         19 => {
@@ -1380,7 +1381,7 @@ fn parse_hdr<'a>(
             } else if eq!(b == b'p' b'r' b'o' b'x' b'y' b'-' b'a' b'u' b't' b'h' b'o' b'r' b'i' b'z' b'a' b't' b'i' b'o' b'n') {
                 Ok(ProxyAuthorization.into())
             } else {
-                validate(b, len)
+                validate(&b[..len])
             }
         }
         20 => {
@@ -1389,7 +1390,7 @@ fn parse_hdr<'a>(
             if eq!(b == b's' b'e' b'c' b'-' b'w' b'e' b'b' b's' b'o' b'c' b'k' b'e' b't' b'-' b'a' b'c' b'c' b'e' b'p' b't') {
                 Ok(SecWebSocketAccept.into())
             } else {
-                validate(b, len)
+                validate(&b[..len])
             }
         }
         21 => {
@@ -1398,7 +1399,7 @@ fn parse_hdr<'a>(
             if eq!(b == b's' b'e' b'c' b'-' b'w' b'e' b'b' b's' b'o' b'c' b'k' b'e' b't' b'-' b'v' b'e' b'r' b's' b'i' b'o' b'n') {
                 Ok(SecWebSocketVersion.into())
             } else {
-                validate(b, len)
+                validate(&b[..len])
             }
         }
         22 => {
@@ -1413,7 +1414,7 @@ fn parse_hdr<'a>(
             } else if eq!(b == b's' b'e' b'c' b'-' b'w' b'e' b'b' b's' b'o' b'c' b'k' b'e' b't' b'-' b'p' b'r' b'o' b't' b'o' b'c' b'o' b'l') {
                 Ok(SecWebSocketProtocol.into())
             } else {
-                validate(b, len)
+                validate(&b[..len])
             }
         }
         23 => {
@@ -1422,7 +1423,7 @@ fn parse_hdr<'a>(
             if eq!(b == b'c' b'o' b'n' b't' b'e' b'n' b't' b'-' b's' b'e' b'c' b'u' b'r' b'i' b't' b'y' b'-' b'p' b'o' b'l' b'i' b'c' b'y') {
                 Ok(ContentSecurityPolicy.into())
             } else {
-                validate(b, len)
+                validate(&b[..len])
             }
         }
         24 => {
@@ -1431,7 +1432,7 @@ fn parse_hdr<'a>(
             if eq!(b == b's' b'e' b'c' b'-' b'w' b'e' b'b' b's' b'o' b'c' b'k' b'e' b't' b'-' b'e' b'x' b't' b'e' b'n' b's' b'i' b'o' b'n' b's') {
                 Ok(SecWebSocketExtensions.into())
             } else {
-                validate(b, len)
+                validate(&b[..len])
             }
         }
         25 => {
@@ -1442,7 +1443,7 @@ fn parse_hdr<'a>(
             } else if eq!(b == b'u' b'p' b'g' b'r' b'a' b'd' b'e' b'-' b'i' b'n' b's' b'e' b'c' b'u' b'r' b'e' b'-' b'r' b'e' b'q' b'u' b'e' b's' b't' b's') {
                 Ok(UpgradeInsecureRequests.into())
             } else {
-                validate(b, len)
+                validate(&b[..len])
             }
         }
         27 => {
@@ -1453,7 +1454,7 @@ fn parse_hdr<'a>(
             } else if eq!(b == b'p' b'u' b'b' b'l' b'i' b'c' b'-' b'k' b'e' b'y' b'-' b'p' b'i' b'n' b's' b'-' b'r' b'e' b'p' b'o' b'r' b't' b'-' b'o' b'n' b'l' b'y') {
                 Ok(PublicKeyPinsReportOnly.into())
             } else {
-                validate(b, len)
+                validate(&b[..len])
             }
         }
         28 => {
@@ -1467,7 +1468,7 @@ fn parse_hdr<'a>(
                 }
             }
 
-            validate(b, len)
+            validate(&b[..len])
         }
         29 => {
             to_lower!(b, data, 29);
@@ -1480,7 +1481,7 @@ fn parse_hdr<'a>(
                 }
             }
 
-            validate(b, len)
+            validate(&b[..len])
         }
         30 => {
             to_lower!(b, data, 30);
@@ -1488,7 +1489,7 @@ fn parse_hdr<'a>(
             if eq!(b == b'a' b'c' b'c' b'e' b's' b's' b'-' b'c' b'o' b'n' b't' b'r' b'o' b'l' b'-' b'r' b'e' b'q' b'u' b'e' b's' b't' b'-' b'h' b'e' b'a' b'd' b'e' b'r' b's') {
                 Ok(AccessControlRequestHeaders.into())
             } else {
-                validate(b, len)
+                validate(&b[..len])
             }
         }
         32 => {
@@ -1497,7 +1498,7 @@ fn parse_hdr<'a>(
             if eq!(b == b'a' b'c' b'c' b'e' b's' b's' b'-' b'c' b'o' b'n' b't' b'r' b'o' b'l' b'-' b'a' b'l' b'l' b'o' b'w' b'-' b'c' b'r' b'e' b'd' b'e' b'n' b't' b'i' b'a' b'l' b's') {
                 Ok(AccessControlAllowCredentials.into())
             } else {
-                validate(b, len)
+                validate(&b[..len])
             }
         }
         35 => {
@@ -1506,16 +1507,16 @@ fn parse_hdr<'a>(
             if eq!(b == b'c' b'o' b'n' b't' b'e' b'n' b't' b'-' b's' b'e' b'c' b'u' b'r' b'i' b't' b'y' b'-' b'p' b'o' b'l' b'i' b'c' b'y' b'-' b'r' b'e' b'p' b'o' b'r' b't' b'-' b'o' b'n' b'l' b'y') {
                 Ok(ContentSecurityPolicyReportOnly.into())
             } else {
-                validate(b, len)
+                validate(&b[..len])
             }
         }
         _ => {
             if len < 64 {
                 for i in 0..len {
-                    b[i] = table[data[i] as usize];
+                    unsafe {*(b[i].as_mut_ptr()) = table[data[i] as usize]; }
                 }
 
-                validate(b, len)
+                validate(&b[..len])
             } else {
                 Ok(HdrName::custom(data, false))
             }
@@ -1527,7 +1528,7 @@ fn parse_hdr<'a>(
 /// This version works best in debug mode in wasm
 fn parse_hdr<'a>(
     data: &'a [u8],
-    b: &'a mut [u8; 64],
+    b: &'a mut [MaybeUninit<u8>; SCRATCH_BUF_SIZE],
     table: &[u8; 256],
 ) -> Result<HdrName<'a>, InvalidHeaderName> {
     use self::StandardHeader::*;
@@ -1554,7 +1555,8 @@ fn parse_hdr<'a>(
         len if len > 64 => Ok(HdrName::custom(data, false)),
         len => {
             // Read from data into the buffer - transforming using `table` as we go
-            data.iter().zip(b.iter_mut()).for_each(|(index, out)| *out = table[*index as usize]);
+            data.iter().zip(b.iter_mut()).for_each(|(index, out)| unsafe {*(out.as_mut_ptr()) = table[*index as usize]});
+            let b = unsafe {slice_assume_init(&b[..len])};
             match &b[0..len] {
                 b"te" => Ok(Te.into()),
                 b"age" => Ok(Age.into()),
@@ -1655,10 +1657,8 @@ impl HeaderName {
     /// Converts a slice of bytes to an HTTP header name.
     ///
     /// This function normalizes the input.
-    #[allow(deprecated)]
     pub fn from_bytes(src: &[u8]) -> Result<HeaderName, InvalidHeaderName> {
-        #[allow(deprecated)]
-        let mut buf = unsafe { mem::uninitialized() };
+        let mut buf = uninit_u8_array();
         match parse_hdr(src, &mut buf, &HEADER_CHARS)?.inner {
             Repr::Standard(std) => Ok(std.into()),
             Repr::Custom(MaybeLower { buf, lower: true }) => {
@@ -1705,10 +1705,8 @@ impl HeaderName {
     /// // Parsing a header that contains uppercase characters
     /// assert!(HeaderName::from_lowercase(b"Content-Length").is_err());
     /// ```
-    #[allow(deprecated)]
     pub fn from_lowercase(src: &[u8]) -> Result<HeaderName, InvalidHeaderName> {
-        #[allow(deprecated)]
-        let mut buf = unsafe { mem::uninitialized() };
+        let mut buf = uninit_u8_array();
         match parse_hdr(src, &mut buf, &HEADER_CHARS_H2)?.inner {
             Repr::Standard(std) => Ok(std.into()),
             Repr::Custom(MaybeLower { buf, lower: true }) => {
@@ -1765,11 +1763,9 @@ impl HeaderName {
     /// let a = HeaderName::from_static("foobar");
     /// let b = HeaderName::from_static("FOOBAR"); // This line panics!
     /// ```
-    #[allow(deprecated)]
     pub fn from_static(src: &'static str) -> HeaderName {
         let bytes = src.as_bytes();
-        #[allow(deprecated)]
-        let mut buf = unsafe { mem::uninitialized() };
+        let mut buf = uninit_u8_array();
         match parse_hdr(bytes, &mut buf, &HEADER_CHARS_H2) {
             Ok(hdr_name) => match hdr_name.inner {
                 Repr::Standard(std) => std.into(),
@@ -2021,23 +2017,19 @@ impl<'a> HdrName<'a> {
         }
     }
 
-    #[allow(deprecated)]
     pub fn from_bytes<F, U>(hdr: &[u8], f: F) -> Result<U, InvalidHeaderName>
         where F: FnOnce(HdrName<'_>) -> U,
     {
-        #[allow(deprecated)]
-        let mut buf = unsafe { mem::uninitialized() };
+        let mut buf = uninit_u8_array();
         let hdr = parse_hdr(hdr, &mut buf, &HEADER_CHARS)?;
         Ok(f(hdr))
     }
 
-    #[allow(deprecated)]
     pub fn from_static<F, U>(hdr: &'static str, f: F) -> U
     where
         F: FnOnce(HdrName<'_>) -> U,
     {
-        #[allow(deprecated)]
-        let mut buf = unsafe { mem::uninitialized() };
+        let mut buf = uninit_u8_array();
         let hdr =
             parse_hdr(hdr.as_bytes(), &mut buf, &HEADER_CHARS).expect("static str is invalid name");
         f(hdr)
@@ -2136,6 +2128,16 @@ fn eq_ignore_ascii_case(lower: &[u8], s: &[u8]) -> bool {
         *a == HEADER_CHARS[*b as usize]
     })
 }
+
+const SCRATCH_BUF_SIZE: usize = 64;
+
+fn uninit_u8_array() -> [MaybeUninit<u8>; SCRATCH_BUF_SIZE] {
+        unsafe { MaybeUninit::<[MaybeUninit<u8>; SCRATCH_BUF_SIZE]>::uninit().assume_init() }
+}
+
+unsafe fn slice_assume_init<T>(slice: &[MaybeUninit<T>]) -> &[T] {
+        &*(slice as *const [MaybeUninit<T>] as *const [T])
+    }
 
 #[cfg(test)]
 mod tests {
