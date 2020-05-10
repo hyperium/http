@@ -34,6 +34,7 @@ seahash = "3.0.5"
 serde = "1.0"
 serde_json = "1.0"
 doc-comment = "0.3"
+criterion = "0.3.2"
 
 [[bench]]
 name = "header_map"
@@ -42,6 +43,11 @@ path = "benches/header_map/mod.rs"
 [[bench]]
 name = "header_name"
 path = "benches/header_name.rs"
+
+[[bench]]
+name = "header_name2"
+path = "benches/header_name2.rs"
+harness = false
 
 [[bench]]
 name = "header_value"
