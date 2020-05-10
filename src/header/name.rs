@@ -1046,7 +1046,7 @@ macro_rules! eq {
         $($cmp) && *
     };
     (($($cmp:expr,)*) $v:ident[$n:expr] == $a:tt $($rest:tt)*) => {
-        eq!(($($cmp,)* unsafe {*($v[$n].as_ptr())} == $a,) $v[$n+1] == $($rest)*)
+        eq!(($($cmp,)* unsafe {assume_init_eq($v[$n], $a)} ,) $v[$n+1] == $($rest)*)
     };
     ($v:ident == $($rest:tt)+) => {
         eq!(() $v[0] == $($rest)+)
@@ -1080,41 +1080,41 @@ fn parse_hdr<'a>(
 
 
     macro_rules! to_lower {
-        ($d:ident, $src:ident, 1) => { unsafe {*($d[0].as_mut_ptr()) = table[$src[0] as usize];} };
-        ($d:ident, $src:ident, 2) => { to_lower!($d, $src, 1); unsafe {*($d[1].as_mut_ptr())  = table[$src[1] as usize];} };
-        ($d:ident, $src:ident, 3) => { to_lower!($d, $src, 2); unsafe {*($d[2].as_mut_ptr())  = table[$src[2] as usize];} };
-        ($d:ident, $src:ident, 4) => { to_lower!($d, $src, 3); unsafe {*($d[3].as_mut_ptr())  = table[$src[3] as usize];} };
-        ($d:ident, $src:ident, 5) => { to_lower!($d, $src, 4); unsafe {*($d[4].as_mut_ptr())  = table[$src[4] as usize];} };
-        ($d:ident, $src:ident, 6) => { to_lower!($d, $src, 5); unsafe {*($d[5].as_mut_ptr())  = table[$src[5] as usize];} };
-        ($d:ident, $src:ident, 7) => { to_lower!($d, $src, 6); unsafe {*($d[6].as_mut_ptr())  = table[$src[6] as usize];} };
-        ($d:ident, $src:ident, 8) => { to_lower!($d, $src, 7); unsafe {*($d[7].as_mut_ptr())  = table[$src[7] as usize];} };
-        ($d:ident, $src:ident, 9) => { to_lower!($d, $src, 8); unsafe {*($d[8].as_mut_ptr())  = table[$src[8] as usize];} };
-        ($d:ident, $src:ident, 10) => { to_lower!($d, $src, 9); unsafe {*($d[9].as_mut_ptr())  = table[$src[9] as usize];} };
-        ($d:ident, $src:ident, 11) => { to_lower!($d, $src, 10); unsafe {*($d[10].as_mut_ptr())  = table[$src[10] as usize];} };
-        ($d:ident, $src:ident, 12) => { to_lower!($d, $src, 11); unsafe {*($d[11].as_mut_ptr())  = table[$src[11] as usize];} };
-        ($d:ident, $src:ident, 13) => { to_lower!($d, $src, 12); unsafe {*($d[12].as_mut_ptr())  = table[$src[12] as usize];} };
-        ($d:ident, $src:ident, 14) => { to_lower!($d, $src, 13); unsafe {*($d[13].as_mut_ptr())  = table[$src[13] as usize];} };
-        ($d:ident, $src:ident, 15) => { to_lower!($d, $src, 14); unsafe {*($d[14].as_mut_ptr())  = table[$src[14] as usize];} };
-        ($d:ident, $src:ident, 16) => { to_lower!($d, $src, 15); unsafe {*($d[15].as_mut_ptr())  = table[$src[15] as usize];} };
-        ($d:ident, $src:ident, 17) => { to_lower!($d, $src, 16); unsafe {*($d[16].as_mut_ptr())  = table[$src[16] as usize];} };
-        ($d:ident, $src:ident, 18) => { to_lower!($d, $src, 17); unsafe {*($d[17].as_mut_ptr())  = table[$src[17] as usize];} };
-        ($d:ident, $src:ident, 19) => { to_lower!($d, $src, 18); unsafe {*($d[18].as_mut_ptr())  = table[$src[18] as usize];} };
-        ($d:ident, $src:ident, 20) => { to_lower!($d, $src, 19); unsafe {*($d[19].as_mut_ptr())  = table[$src[19] as usize];} };
-        ($d:ident, $src:ident, 21) => { to_lower!($d, $src, 20); unsafe {*($d[20].as_mut_ptr())  = table[$src[20] as usize];} };
-        ($d:ident, $src:ident, 22) => { to_lower!($d, $src, 21); unsafe {*($d[21].as_mut_ptr())  = table[$src[21] as usize];} };
-        ($d:ident, $src:ident, 23) => { to_lower!($d, $src, 22); unsafe {*($d[22].as_mut_ptr())  = table[$src[22] as usize];} };
-        ($d:ident, $src:ident, 24) => { to_lower!($d, $src, 23); unsafe {*($d[23].as_mut_ptr())  = table[$src[23] as usize];} };
-        ($d:ident, $src:ident, 25) => { to_lower!($d, $src, 24); unsafe {*($d[24].as_mut_ptr())  = table[$src[24] as usize];} };
-        ($d:ident, $src:ident, 26) => { to_lower!($d, $src, 25); unsafe {*($d[25].as_mut_ptr())  = table[$src[25] as usize];} };
-        ($d:ident, $src:ident, 27) => { to_lower!($d, $src, 26); unsafe {*($d[26].as_mut_ptr())  = table[$src[26] as usize];} };
-        ($d:ident, $src:ident, 28) => { to_lower!($d, $src, 27); unsafe {*($d[27].as_mut_ptr())  = table[$src[27] as usize];} };
-        ($d:ident, $src:ident, 29) => { to_lower!($d, $src, 28); unsafe {*($d[28].as_mut_ptr())  = table[$src[28] as usize];} };
-        ($d:ident, $src:ident, 30) => { to_lower!($d, $src, 29); unsafe {*($d[29].as_mut_ptr())  = table[$src[29] as usize];} };
-        ($d:ident, $src:ident, 31) => { to_lower!($d, $src, 30); unsafe {*($d[30].as_mut_ptr())  = table[$src[30] as usize];} };
-        ($d:ident, $src:ident, 32) => { to_lower!($d, $src, 31); unsafe {*($d[31].as_mut_ptr())  = table[$src[31] as usize];} };
-        ($d:ident, $src:ident, 33) => { to_lower!($d, $src, 32); unsafe {*($d[32].as_mut_ptr())  = table[$src[32] as usize];} };
-        ($d:ident, $src:ident, 34) => { to_lower!($d, $src, 33); unsafe {*($d[33].as_mut_ptr())  = table[$src[33] as usize];} };
-        ($d:ident, $src:ident, 35) => { to_lower!($d, $src, 34); unsafe {*($d[34].as_mut_ptr())  = table[$src[34] as usize];} };
+        ($d:ident, $src:ident, 1) => { $d[0] = MaybeUninit::new(table[$src[0] as usize]); };
+        ($d:ident, $src:ident, 2) => { to_lower!($d, $src, 1); $d[1] = MaybeUninit::new(table[$src[1] as usize]); };
+        ($d:ident, $src:ident, 3) => { to_lower!($d, $src, 2); $d[2] = MaybeUninit::new(table[$src[2] as usize]); };
+        ($d:ident, $src:ident, 4) => { to_lower!($d, $src, 3); $d[3] = MaybeUninit::new(table[$src[3] as usize]); };
+        ($d:ident, $src:ident, 5) => { to_lower!($d, $src, 4); $d[4] = MaybeUninit::new(table[$src[4] as usize]); };
+        ($d:ident, $src:ident, 6) => { to_lower!($d, $src, 5); $d[5] = MaybeUninit::new(table[$src[5] as usize]); };
+        ($d:ident, $src:ident, 7) => { to_lower!($d, $src, 6); $d[6] = MaybeUninit::new(table[$src[6] as usize]); };
+        ($d:ident, $src:ident, 8) => { to_lower!($d, $src, 7); $d[7] = MaybeUninit::new(table[$src[7] as usize]); };
+        ($d:ident, $src:ident, 9) => { to_lower!($d, $src, 8); $d[8] = MaybeUninit::new(table[$src[8] as usize]); };
+        ($d:ident, $src:ident, 10) => { to_lower!($d, $src, 9); $d[9] = MaybeUninit::new(table[$src[9] as usize]); };
+        ($d:ident, $src:ident, 11) => { to_lower!($d, $src, 10); $d[10] = MaybeUninit::new(table[$src[10] as usize]); };
+        ($d:ident, $src:ident, 12) => { to_lower!($d, $src, 11); $d[11] = MaybeUninit::new(table[$src[11] as usize]); };
+        ($d:ident, $src:ident, 13) => { to_lower!($d, $src, 12); $d[12] = MaybeUninit::new(table[$src[12] as usize]); };
+        ($d:ident, $src:ident, 14) => { to_lower!($d, $src, 13); $d[13] = MaybeUninit::new(table[$src[13] as usize]); };
+        ($d:ident, $src:ident, 15) => { to_lower!($d, $src, 14); $d[14] = MaybeUninit::new(table[$src[14] as usize]); };
+        ($d:ident, $src:ident, 16) => { to_lower!($d, $src, 15); $d[15] = MaybeUninit::new(table[$src[15] as usize]); };
+        ($d:ident, $src:ident, 17) => { to_lower!($d, $src, 16); $d[16] = MaybeUninit::new(table[$src[16] as usize]); };
+        ($d:ident, $src:ident, 18) => { to_lower!($d, $src, 17); $d[17] = MaybeUninit::new(table[$src[17] as usize]); };
+        ($d:ident, $src:ident, 19) => { to_lower!($d, $src, 18); $d[18] = MaybeUninit::new(table[$src[18] as usize]); };
+        ($d:ident, $src:ident, 20) => { to_lower!($d, $src, 19); $d[19] = MaybeUninit::new(table[$src[19] as usize]); };
+        ($d:ident, $src:ident, 21) => { to_lower!($d, $src, 20); $d[20] = MaybeUninit::new(table[$src[20] as usize]); };
+        ($d:ident, $src:ident, 22) => { to_lower!($d, $src, 21); $d[21] = MaybeUninit::new(table[$src[21] as usize]); };
+        ($d:ident, $src:ident, 23) => { to_lower!($d, $src, 22); $d[22] = MaybeUninit::new(table[$src[22] as usize]); };
+        ($d:ident, $src:ident, 24) => { to_lower!($d, $src, 23); $d[23] = MaybeUninit::new(table[$src[23] as usize]); };
+        ($d:ident, $src:ident, 25) => { to_lower!($d, $src, 24); $d[24] = MaybeUninit::new(table[$src[24] as usize]); };
+        ($d:ident, $src:ident, 26) => { to_lower!($d, $src, 25); $d[25] = MaybeUninit::new(table[$src[25] as usize]); };
+        ($d:ident, $src:ident, 27) => { to_lower!($d, $src, 26); $d[26] = MaybeUninit::new(table[$src[26] as usize]); };
+        ($d:ident, $src:ident, 28) => { to_lower!($d, $src, 27); $d[27] = MaybeUninit::new(table[$src[27] as usize]); };
+        ($d:ident, $src:ident, 29) => { to_lower!($d, $src, 28); $d[28] = MaybeUninit::new(table[$src[28] as usize]); };
+        ($d:ident, $src:ident, 30) => { to_lower!($d, $src, 29); $d[29] = MaybeUninit::new(table[$src[29] as usize]); };
+        ($d:ident, $src:ident, 31) => { to_lower!($d, $src, 30); $d[30] = MaybeUninit::new(table[$src[30] as usize]); };
+        ($d:ident, $src:ident, 32) => { to_lower!($d, $src, 31); $d[31] = MaybeUninit::new(table[$src[31] as usize]); };
+        ($d:ident, $src:ident, 33) => { to_lower!($d, $src, 32); $d[32] = MaybeUninit::new(table[$src[32] as usize]); };
+        ($d:ident, $src:ident, 34) => { to_lower!($d, $src, 33); $d[33] = MaybeUninit::new(table[$src[33] as usize]); };
+        ($d:ident, $src:ident, 35) => { to_lower!($d, $src, 34); $d[34] = MaybeUninit::new(table[$src[34] as usize]); };
     }
 
     assert!(len < super::MAX_HEADER_NAME_LEN,
@@ -1188,7 +1188,7 @@ fn parse_hdr<'a>(
                 return Ok(Origin.into());
             } else if eq!(b == b'p' b'r' b'a' b'g' b'm' b'a') {
                 return Ok(Pragma.into());
-            } else if unsafe {*(b[0].as_ptr())} == b's' {
+            } else if unsafe {assume_init_eq(b[0], b's')} {
                 if eq!(b[1] == b'e' b'r' b'v' b'e' b'r') {
                     return Ok(Server.into());
                 }
@@ -1277,13 +1277,13 @@ fn parse_hdr<'a>(
         13 => {
             to_lower!(b, data, 13);
 
-            if unsafe {*(b[0].as_ptr())} == b'a' {
+            if unsafe {assume_init_eq(b[0], b'a')} {
                 if eq!(b[1] == b'c' b'c' b'e' b'p' b't' b'-' b'r' b'a' b'n' b'g' b'e' b's') {
                     return Ok(AcceptRanges.into());
                 } else if eq!(b[1] == b'u' b't' b'h' b'o' b'r' b'i' b'z' b'a' b't' b'i' b'o' b'n') {
                     return Ok(Authorization.into());
                 }
-            } else if unsafe {*(b[0].as_ptr())} == b'c' {
+            } else if unsafe {assume_init_eq(b[0], b'c')} {
                 if eq!(b[1] == b'a' b'c' b'h' b'e' b'-' b'c' b'o' b'n' b't' b'r' b'o' b'l') {
                     return Ok(CacheControl.into());
                 } else if eq!(b[1] == b'o' b'n' b't' b'e' b'n' b't' b'-' b'r' b'a' b'n' b'g' b'e' )
@@ -1513,7 +1513,7 @@ fn parse_hdr<'a>(
         _ => {
             if len < 64 {
                 for i in 0..len {
-                    unsafe {*(b[i].as_mut_ptr()) = table[data[i] as usize]; }
+                    b[i] = MaybeUninit::new(table[data[i] as usize]);
                 }
 
                 validate(&b[..len])
@@ -1555,7 +1555,7 @@ fn parse_hdr<'a>(
         len if len > 64 => Ok(HdrName::custom(data, false)),
         len => {
             // Read from data into the buffer - transforming using `table` as we go
-            data.iter().zip(b.iter_mut()).for_each(|(index, out)| unsafe {*(out.as_mut_ptr()) = table[*index as usize]});
+            data.iter().zip(b.iter_mut()).for_each(|(index, out)| *out = MaybeUninit::new(table[*index as usize]));
             let b = unsafe {slice_assume_init(&b[..len])};
             match &b[0..len] {
                 b"te" => Ok(Te.into()),
@@ -2129,15 +2129,32 @@ fn eq_ignore_ascii_case(lower: &[u8], s: &[u8]) -> bool {
     })
 }
 
+// Utility functions for MaybeUninit<>. These are drawn from unstable API's on 
+// MaybeUninit<> itself.
 const SCRATCH_BUF_SIZE: usize = 64;
 
 fn uninit_u8_array() -> [MaybeUninit<u8>; SCRATCH_BUF_SIZE] {
-        unsafe { MaybeUninit::<[MaybeUninit<u8>; SCRATCH_BUF_SIZE]>::uninit().assume_init() }
+    let arr = MaybeUninit::<[MaybeUninit<u8>; SCRATCH_BUF_SIZE]>::uninit();
+    // Safety: assume_init() is claiming that an array of MaybeUninit<> 
+    // has been initilized, but MaybeUninit<>'s do not require initilizaton.
+    unsafe { arr.assume_init() }
 }
 
+// Assuming all the elements are initilized, get a slice of them.
+//
+// Safety: All elements of `slice` must be initilized to prevent
+// undefined behavior.
 unsafe fn slice_assume_init<T>(slice: &[MaybeUninit<T>]) -> &[T] {
         &*(slice as *const [MaybeUninit<T>] as *const [T])
-    }
+}
+
+// Compare `rhs` to `lhs` assuming the latter is initilized.
+//
+// Safety: `lhs` must be initilized to avoid undefined behavior.
+#[cfg(any(not(debug_assertions), not(target_arch = "wasm32")))]
+unsafe fn assume_init_eq<T: PartialEq>(lhs: MaybeUninit<T>, rhs: T) -> bool {
+    *(lhs.as_ptr()) == rhs
+}
 
 #[cfg(test)]
 mod tests {
