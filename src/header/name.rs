@@ -1046,7 +1046,7 @@ macro_rules! eq {
         $($cmp) && *
     };
     (($($cmp:expr,)*) $v:ident[$n:expr] == $a:tt $($rest:tt)*) => {
-        eq!(($($cmp,)* unsafe {assume_init_eq($v[$n], $a)} ,) $v[$n+1] == $($rest)*)
+        eq!(($($cmp,)* unsafe {*($v[$n].as_ptr())} == $a ,) $v[$n+1] == $($rest)*)
     };
     ($v:ident == $($rest:tt)+) => {
         eq!(() $v[0] == $($rest)+)
@@ -1188,7 +1188,7 @@ fn parse_hdr<'a>(
                 return Ok(Origin.into());
             } else if eq!(b == b'p' b'r' b'a' b'g' b'm' b'a') {
                 return Ok(Pragma.into());
-            } else if unsafe {assume_init_eq(b[0], b's')} {
+            } else if unsafe {*(b[0].as_ptr())} == b's' {
                 if eq!(b[1] == b'e' b'r' b'v' b'e' b'r') {
                     return Ok(Server.into());
                 }
@@ -1277,13 +1277,13 @@ fn parse_hdr<'a>(
         13 => {
             to_lower!(b, data, 13);
 
-            if unsafe {assume_init_eq(b[0], b'a')} {
+            if unsafe {*(b[0].as_ptr())} == b'a' {
                 if eq!(b[1] == b'c' b'c' b'e' b'p' b't' b'-' b'r' b'a' b'n' b'g' b'e' b's') {
                     return Ok(AcceptRanges.into());
                 } else if eq!(b[1] == b'u' b't' b'h' b'o' b'r' b'i' b'z' b'a' b't' b'i' b'o' b'n') {
                     return Ok(Authorization.into());
                 }
-            } else if unsafe {assume_init_eq(b[0], b'c')} {
+            } else if unsafe {*(b[0].as_ptr())} == b'c' {
                 if eq!(b[1] == b'a' b'c' b'h' b'e' b'-' b'c' b'o' b'n' b't' b'r' b'o' b'l') {
                     return Ok(CacheControl.into());
                 } else if eq!(b[1] == b'o' b'n' b't' b'e' b'n' b't' b'-' b'r' b'a' b'n' b'g' b'e' )
@@ -2146,14 +2146,6 @@ fn uninit_u8_array() -> [MaybeUninit<u8>; SCRATCH_BUF_SIZE] {
 // undefined behavior.
 unsafe fn slice_assume_init<T>(slice: &[MaybeUninit<T>]) -> &[T] {
         &*(slice as *const [MaybeUninit<T>] as *const [T])
-}
-
-// Compare `rhs` to `lhs` assuming the latter is initilized.
-//
-// Safety: `lhs` must be initilized to avoid undefined behavior.
-#[cfg(any(not(debug_assertions), not(target_arch = "wasm32")))]
-unsafe fn assume_init_eq<T: PartialEq>(lhs: MaybeUninit<T>, rhs: T) -> bool {
-    *(lhs.as_ptr()) == rhs
 }
 
 #[cfg(test)]
