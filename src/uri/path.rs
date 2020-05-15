@@ -19,52 +19,58 @@ const NONE: u16 = ::std::u16::MAX;
 impl PathAndQuery {
     // Not public while `bytes` is unstable.
     pub(super) fn from_shared(mut src: Bytes) -> Result<Self, InvalidUri> {
-        let (query, len) = src.as_ref().iter()
-            // stop at the fragment specifier
-            .take_while(|&&c| c != b'#')
-            .try_fold((None, 0u16), |(query, i), &c| {
-                match c {
-                    // match the query specifier if this is the first occurance
-                    b'?' if query.is_none() => Ok((Some(i), i+1)),
+        let mut query = None;
+        let mut len = 0;
 
-                    // This is the range of bytes that don't need to be
-                    // percent-encoded in the path. If it should have been
-                    // percent-encoded, then error.
-                    //
-                    // See https://url.spec.whatwg.org/#path-state
-                    0x21 |
-                    0x24..=0x3B |
-                    0x3D |
-                    0x40..=0x5F |
-                    0x61..=0x7A |
-                    0x7C |
-                    0x7E => Ok((query, i+1)),
-
-                    // While queries *should* be percent-encoded, most
-                    // bytes are actually allowed...
-                    // See https://url.spec.whatwg.org/#query-state
-                    //
-                    // Allowed: 0x21 / 0x24 - 0x3B / 0x3D / 0x3F - 0x7E
-                    //
-                    // The list below is the bytes that are allowed in the
-                    // query but not in the path. The bytes allowed in both
-                    // are matched in the previous arm.
-                    0x3F |
-                    0x60 |
-                    0x7B |
-                    0x7D if query.is_some() => Ok((query, i+1)),
-
-                    // all bytes 0x80 and above match here (among others)
-                    // so all Ok() returns in the other match arms identify
-                    // a single byte UTF-8 code point
-                    _ => Err(InvalidUri(ErrorKind::InvalidUriChar)),
+        // take_while() stops at the fragment specifier
+        for c in src.as_ref().iter().take_while(|&&c| c!= b'#') {
+            match c {
+                // match the query specifier if this is the first occurance
+                b'?' if query.is_none() => {
+                    // record the location of the query specifier
+                    query = Some(len);
+                    len += 1;
                 }
-            })?;
 
+                // This is the range of bytes that don't need to be
+                // percent-encoded in the path. If it should have been
+                // percent-encoded, then error.
+                //
+                // See https://url.spec.whatwg.org/#path-state
+                0x21 |
+                0x24..=0x3B |
+                0x3D |
+                0x40..=0x5F |
+                0x61..=0x7A |
+                0x7C |
+                0x7E => len += 1,
+
+                // While queries *should* be percent-encoded, most
+                // bytes are actually allowed...
+                // See https://url.spec.whatwg.org/#query-state
+                //
+                // Allowed: 0x21 / 0x24 - 0x3B / 0x3D / 0x3F - 0x7E
+                //
+                // The list below is the bytes that are allowed in the
+                // query but not in the path. The bytes allowed in both
+                // are matched in the previous arm.
+                0x3F |
+                0x60 |
+                0x7B |
+                0x7D if query.is_some() => len += 1,
+
+                // all bytes 0x80 and above match here (among others)
+                // so all Ok() returns in the other match arms identify
+                // a single byte UTF-8 code point
+                _ => return Err(InvalidUri(ErrorKind::InvalidUriChar)),
+            }
+        }
+
+        // truncate src at the fragment specifier, if any
         src.truncate(len as usize);
 
         Ok(PathAndQuery {
-            // Safety: The try_fold() checks that each byte in the (now truncated)
+            // Safety: The loop checks that each byte in the (now truncated)
             // src is a single byte UTF-8 code point. This means that src as a
             // whole is valid UTF-8.
             data: unsafe { ByteStr::from_utf8_unchecked(src) },
