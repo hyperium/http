@@ -802,10 +802,16 @@ fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUri> {
         }
         Scheme2::Other(n) => {
             // Grab the protocol
-            let mut scheme = s.split_to(n + 3);
+            let scheme = s.split_to(n);
 
-            // Strip ://, TODO: truncate
-            let _ = scheme.split_off(n);
+            // Remove ":" or "://" but not ":/"
+            if s[1] == b'/' && s[2] == b'/' {
+                // Remove "://"
+                let _ = s.split_to(3);
+            } else {
+                // Remove ":"
+                let _ = s.split_to(1);
+            }
 
             // Allocate the ByteStr
             let val = unsafe { ByteStr::from_utf8_unchecked(scheme) };
@@ -832,11 +838,6 @@ fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUri> {
             authority: authority,
             path_and_query: PathAndQuery::empty(),
         });
-    }
-
-    // Authority is required when absolute
-    if authority_end == 0 {
-        return Err(ErrorKind::InvalidFormat.into());
     }
 
     let authority = s.split_to(authority_end);
@@ -901,11 +902,13 @@ impl PartialEq<str> for Uri {
 
             other = &other[scheme.len()..];
 
-            if &other[..3] != b"://" {
+            if &other[..3] == b"://" {
+                other = &other[3..];
+            } else if &other[..1] == b":" {
+                other = &other[1..];
+            } else {
                 return false;
             }
-
-            other = &other[3..];
         }
 
         if let Some(auth) = self.authority() {
