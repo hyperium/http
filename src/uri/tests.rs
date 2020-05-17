@@ -447,6 +447,7 @@ fn test_uri_parse_error() {
         Uri::from_str(s).unwrap_err();
     }
 
+    err("http://");
     err("htt:p//host");
     err("hyper.rs/");
     err("hyper.rs?key=val");

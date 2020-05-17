@@ -845,6 +845,11 @@ fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUri> {
         data: unsafe { ByteStr::from_utf8_unchecked(authority) },
     };
 
+    if authority.as_str().len() == 0 && s.len() == 0 {
+        // Neither path nor authority present.
+        return Err(ErrorKind::InvalidFormat.into());
+    }
+
     Ok(Uri {
         scheme: scheme.into(),
         authority: authority,
