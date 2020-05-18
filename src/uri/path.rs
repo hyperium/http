@@ -23,13 +23,16 @@ impl PathAndQuery {
         let mut len = 0;
 
         // take_while() stops at the fragment specifier
-        for c in src.as_ref().iter().take_while(|&&c| c!= b'#') {
+        let mut iter = src.as_ref().iter().take_while(|&&c| c!= b'#');
+
+        // path
+        for c in &mut iter {
             match c {
-                // match the query specifier if this is the first occurance
-                b'?' if query.is_none() => {
+                b'?' => {
                     // record the location of the query specifier
                     query = Some(len);
                     len += 1;
+                    break;
                 }
 
                 // This is the range of bytes that don't need to be
@@ -45,32 +48,38 @@ impl PathAndQuery {
                 0x7C |
                 0x7E => len += 1,
 
-                // While queries *should* be percent-encoded, most
-                // bytes are actually allowed...
-                // See https://url.spec.whatwg.org/#query-state
-                //
-                // Allowed: 0x21 / 0x24 - 0x3B / 0x3D / 0x3F - 0x7E
-                //
-                // The list below is the bytes that are allowed in the
-                // query but not in the path. The bytes allowed in both
-                // are matched in the previous arm.
-                0x3F |
-                0x60 |
-                0x7B |
-                0x7D if query.is_some() => len += 1,
-
                 // all bytes 0x80 and above match here (among others)
-                // so all Ok() returns in the other match arms identify
-                // a single byte UTF-8 code point
+                // so all other match arms identify a single byte UTF-8 code point
                 _ => return Err(InvalidUri(ErrorKind::InvalidUriChar)),
             }
         }
 
-        // truncate src at the fragment specifier, if any
+        // query
+        if query.is_some() {
+            for c in iter {
+                match c {
+                    // While queries *should* be percent-encoded, most
+                    // bytes are actually allowed...
+                    // See https://url.spec.whatwg.org/#query-state
+                    //
+                    // Allowed: 0x21 / 0x24 - 0x3B / 0x3D / 0x3F - 0x7E
+                    0x21 |
+                    0x24..=0x3B |
+                    0x3D |
+                    0x3F..= 0x7E => len += 1,
+
+                    // all bytes 0x80 and above match here (among others)
+                    // so all the other match arms identify a single byte UTF-8 code point
+                    _ => return Err(InvalidUri(ErrorKind::InvalidUriChar)),
+                }
+            }
+        }
+
+        // truncate src at the end of the bytes that have been checked
         src.truncate(len as usize);
 
         Ok(PathAndQuery {
-            // Safety: The loop checks that each byte in the (now truncated)
+            // Safety: The 2 loops checks that each byte in the (now truncated)
             // src is a single byte UTF-8 code point. This means that src as a
             // whole is valid UTF-8.
             data: unsafe { ByteStr::from_utf8_unchecked(src) },
