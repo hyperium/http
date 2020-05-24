@@ -2,7 +2,7 @@
 
 A general purpose library of common HTTP types
 
-[![Build Status](https://travis-ci.org/hyperium/http.svg?branch=master)](https://travis-ci.org/hyperium/http)
+![Build Status](https://github.com/hyperium/http/workflows/CI/badge.svg)
 [![Crates.io](https://img.shields.io/crates/v/http.svg)](https://crates.io/crates/http)
 [![Documentation](https://docs.rs/http/badge.svg)][dox]
 
