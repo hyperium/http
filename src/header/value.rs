@@ -362,7 +362,7 @@ impl fmt::Debug for HeaderValue {
                     // invariant is satified.
                     Ok(range.start..range.end+1)
                 } else {
-                    // Safety: By invariant 1 bytes[range] is valid UTF-8
+                    // Safety: By the invariant bytes[range] is valid UTF-8
                     let text_run = unsafe { str::from_utf8_unchecked(&bytes[range.clone()]) };
                     f.write_str(text_run)?;
 
@@ -372,13 +372,13 @@ impl fmt::Debug for HeaderValue {
                         write!(f, "\\x{:x}", b)?;
                     }
 
-                    // Invariant: The range is empty so invariant 1 is trivally
+                    // Invariant: The range is empty so the invariant is trivally
                     // satified.
                     Ok(range.end+1..range.end+1)
                 }
             })?;
 
-            // Safety: By invariant 1 bytes[range] is valid UTF-8.
+            // Safety: By the invariant bytes[range] is valid UTF-8.
             let text_run = unsafe { str::from_utf8_unchecked(&bytes[range]) };
             f.write_str(text_run)?;
             f.write_str("\"")
