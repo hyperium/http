@@ -165,9 +165,10 @@ impl HeaderValue {
     /// Convert a `Bytes` directly into a `HeaderValue` without validating.
     ///
     /// This function does NOT validate that illegal bytes are not contained
-    /// within the buffer.
-    // TODO: Consider removing the 'unsafe' from this function.
-    pub unsafe fn from_maybe_shared_unchecked<T>(src: T) -> HeaderValue
+    /// within the buffer. It is the caller's responsibility to ensure that 
+    /// the bytes in `src` are all between 32 and 255 (inclusive), excluding
+    /// byte 127 (DEL).
+    pub fn from_maybe_shared_unchecked<T>(src: T) -> HeaderValue
     where
         T: AsRef<[u8]> + 'static,
     {
