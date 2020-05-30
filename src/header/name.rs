@@ -1359,7 +1359,7 @@ fn parse_hdr<'a>(
             // Precondition: The post-condition on to_lower!() ensures the first 15 
             // bytes of b are intitialized so, in particular the first 7 are.
             if eq!(b == b'a' b'c' b'c' b'e' b'p' b't' b'-') { // accept-
-                // Precondition: The first 15 bytes of 5 are intitialized so the
+                // Precondition: The first 15 bytes of b are intitialized so the
                 // first 8 starting at b[7] are.
                 if eq!(b[7] == b'e' b'n' b'c' b'o' b'd' b'i' b'n' b'g') {
                     return Ok(AcceptEncoding.into())
