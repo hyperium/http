@@ -1041,22 +1041,6 @@ const HEADER_CHARS_H2: [u8; 256] = [
 ];
 
 #[cfg(any(not(debug_assertions), not(target_arch = "wasm32")))]
-macro_rules! eq {
-    (($($cmp:expr,)*) $v:ident[$n:expr] ==) => {
-        $($cmp) && *
-    };
-    (($($cmp:expr,)*) $v:ident[$n:expr] == $a:tt $($rest:tt)*) => {
-        eq!(($($cmp,)* unsafe {*($v[$n].as_ptr())} == $a ,) $v[$n+1] == $($rest)*)
-    };
-    ($v:ident == $($rest:tt)+) => {
-        eq!(() $v[0] == $($rest)+)
-    };
-    ($v:ident[$n:expr] == $($rest:tt)+) => {
-        eq!(() $v[$n] == $($rest)+)
-    };
-}
-
-#[cfg(any(not(debug_assertions), not(target_arch = "wasm32")))]
 /// This version is best under optimized mode, however in a wasm debug compile,
 /// the `eq` macro expands to 1 + 1 + 1 + 1... and wasm explodes when this chain gets too long
 /// See https://github.com/DenisKolodin/yew/issues/478
@@ -1077,6 +1061,21 @@ fn parse_hdr<'a>(
             Ok(HdrName::custom(buf, true))
         }
     };
+
+    macro_rules! eq {
+        (($($cmp:expr,)*) $v:ident[$n:expr] ==) => {
+            $($cmp) && *
+        };
+        (($($cmp:expr,)*) $v:ident[$n:expr] == $a:tt $($rest:tt)*) => {
+            eq!(($($cmp,)* unsafe {*($v[$n].as_ptr())} == $a ,) $v[$n+1] == $($rest)*)
+        };
+        ($v:ident == $($rest:tt)+) => {
+            eq!(() $v[0] == $($rest)+)
+        };
+        ($v:ident[$n:expr] == $($rest:tt)+) => {
+            eq!(() $v[$n] == $($rest)+)
+        };
+    }
 
 
     macro_rules! to_lower {
