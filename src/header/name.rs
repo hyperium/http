@@ -1053,7 +1053,9 @@ fn parse_hdr<'a>(
 
     let len = data.len();
 
+    // Precondition: each element of buf must be intitialized
     let validate = |buf: &'a [MaybeUninit<u8>]| {
+        // Safety: follows from the precondtion
         let buf = unsafe {slice_assume_init(buf)};
         if buf.iter().any(|&b| b == 0) {
             Err(InvalidHeaderName::new())
@@ -1062,11 +1064,18 @@ fn parse_hdr<'a>(
         }
     };
 
+    // Called as either eq!(b == b'a' b'b' b'c') or eq!(b[i] == b'a' b'b' b'c')
+    // Precondition: the first n elements of b (or the first n starting at i)
+    // must be intitialized, where n is the number of bytes listed after the '=='
+    // in the invocation.
     macro_rules! eq {
         (($($cmp:expr,)*) $v:ident[$n:expr] ==) => {
             $($cmp) && *
         };
         (($($cmp:expr,)*) $v:ident[$n:expr] == $a:tt $($rest:tt)*) => {
+            // Safety: this arm is matched once for each byte after the '==' in
+            // the invocation (starting at 0 or i depending on the form of the call).
+            // By the precondtion $v[$n] is intitialized for each such match.
             eq!(($($cmp,)* unsafe {*($v[$n].as_ptr())} == $a ,) $v[$n+1] == $($rest)*)
         };
         ($v:ident == $($rest:tt)+) => {
@@ -1078,6 +1087,10 @@ fn parse_hdr<'a>(
     }
 
 
+    // Post-condition: the first n elements of $d are intitialized where n is the 
+    // third paramter to the macro. Note that this macro overwrite the first n elements
+    // of $d without dropping the existing contents (if any) but the elements of $d
+    // are u8's so no drop is necessary.
     macro_rules! to_lower {
         ($d:ident, $src:ident, 1) => { $d[0] = MaybeUninit::new(table[$src[0] as usize]); };
         ($d:ident, $src:ident, 2) => { to_lower!($d, $src, 1); $d[1] = MaybeUninit::new(table[$src[1] as usize]); };
@@ -1120,14 +1133,30 @@ fn parse_hdr<'a>(
             "header name too long -- max length is {}",
             super::MAX_HEADER_NAME_LEN);
 
+    // Most of the arms of the match below have a variation of the following pattern:
+    //      to_lower!(b, data, n);
+    //      if eq!(b == b'1' b'2' ... b'n') {
+    //          Ok(StandardHeaderElement.into())
+    //      } else {
+    //          validate(&b[..n])
+    //      }
+    // The soundness of the arms following this pattern is described once in the
+    // match arm for 2. The soundness of exception to this pattern are described in
+    // each such match arm.
     match len {
         0 => Err(InvalidHeaderName::new()),
         2 => {
             to_lower!(b, data, 2);
 
+            // Precondition: the post-condition on to_lower!() ensures the first 2
+            // elements of b are intitialized and the eq!() call lists 2 bytes
+            // after the ==.
             if eq!(b == b't' b'e') {
                 Ok(Te.into())
             } else {
+                // Precondition: the post-condition on to_lower!() ensures that the
+                // first 2 elements of b are intitialized. len == 2 so all of 
+                // b[..len] is intitialized.
                 validate(&b[..len])
             }
         }
@@ -1175,6 +1204,7 @@ fn parse_hdr<'a>(
             }
         }
         6 => {
+            // this arm mostly follows the pattern except as indicated
             to_lower!(b, data, 6);
 
             if eq!(b == b'a' b'c' b'c' b'e' b'p' b't') {
@@ -1187,7 +1217,12 @@ fn parse_hdr<'a>(
                 return Ok(Origin.into());
             } else if eq!(b == b'p' b'r' b'a' b'g' b'm' b'a') {
                 return Ok(Pragma.into());
+            // Safety: the post-condtion on to_lower!() means the first 6
+            // elements of b are intitialized so, in particular, b[0] is.
             } else if unsafe {*(b[0].as_ptr())} == b's' {
+                // Precondition: the post-condtion on to_lower!() means the
+                // first 6 elements of b (and hence the first 5 elements starting
+                // at b[1]) are intitialized.
                 if eq!(b[1] == b'e' b'r' b'v' b'e' b'r') {
                     return Ok(Server.into());
                 }
@@ -1219,7 +1254,11 @@ fn parse_hdr<'a>(
         8 => {
             to_lower!(b, data, 8);
 
+            // Precondition: the post-condition on to_lower!() means the first
+            // 8 elements of b are intitialized so, in particular, the first 3 are.
             if eq!(b == b'i' b'f' b'-') {
+                // Precondition: (here and next eq!()) the first 5 elements of b
+                // starting at b[3] are intitialized because the first 8 are.
                 if eq!(b[3] == b'm' b'a' b't' b'c' b'h') {
                     return Ok(IfMatch.into());
                 } else if eq!(b[3] == b'r' b'a' b'n' b'g' b'e') {
@@ -1276,7 +1315,12 @@ fn parse_hdr<'a>(
         13 => {
             to_lower!(b, data, 13);
 
+            // Safety: (here and next else if) The post-condition on to_lower!() 
+            // means the first 13 bytes of b are intitialized so b[0] is.
             if unsafe {*(b[0].as_ptr())} == b'a' {
+                // Precondition: (here and next calls of eq!() with b[1]) the 
+                // first 13 bytes of b are intitialized so the first 12 starting
+                // at b[1] are.
                 if eq!(b[1] == b'c' b'c' b'e' b'p' b't' b'-' b'r' b'a' b'n' b'g' b'e' b's') {
                     return Ok(AcceptRanges.into());
                 } else if eq!(b[1] == b'u' b't' b'h' b'o' b'r' b'i' b'z' b'a' b't' b'i' b'o' b'n') {
@@ -1312,7 +1356,11 @@ fn parse_hdr<'a>(
         15 => {
             to_lower!(b, data, 15);
 
+            // Precondition: The post-condition on to_lower!() ensures the first 15 
+            // bytes of b are intitialized so, in particular the first 7 are.
             if eq!(b == b'a' b'c' b'c' b'e' b'p' b't' b'-') { // accept-
+                // Precondition: The first 15 bytes of 5 are intitialized so the
+                // first 8 starting at b[7] are.
                 if eq!(b[7] == b'e' b'n' b'c' b'o' b'd' b'i' b'n' b'g') {
                     return Ok(AcceptEncoding.into())
                 } else if eq!(b[7] == b'l' b'a' b'n' b'g' b'u' b'a' b'g' b'e') {
@@ -1332,7 +1380,12 @@ fn parse_hdr<'a>(
         16 => {
             to_lower!(b, data, 16);
 
+            // Precondition: The post-condition on to_lower!() means that the first 
+            // 16 bytes of b are intitialized so, in particular, the first 8 bytes
+            // are.
             if eq!(b == b'c' b'o' b'n' b't' b'e' b'n' b't' b'-') {
+                // Precondition: The first 16 bytes of b are intitialized so the
+                // first 8 bytes starting at b[8] are.
                 if eq!(b[8] == b'l' b'a' b'n' b'g' b'u' b'a' b'g' b'e') {
                     return Ok(ContentLanguage.into())
                 } else if eq!(b[8] == b'l' b'o' b'c' b'a' b't' b'i' b'o' b'n') {
@@ -1459,7 +1512,11 @@ fn parse_hdr<'a>(
         28 => {
             to_lower!(b, data, 28);
 
+            // Precondition: The post-condition of to_lower!() ensures that the first 28 bytes of b
+            // are intitialized so, in particular, the first 21 are.
             if eq!(b == b'a' b'c' b'c' b'e' b's' b's' b'-' b'c' b'o' b'n' b't' b'r' b'o' b'l' b'-' b'a' b'l' b'l' b'o' b'w' b'-') {
+                // Precondition: The first 28 bytes of b are intitialized so the first 7 bytes
+                // starting at b[21] are.
                 if eq!(b[21] == b'h' b'e' b'a' b'd' b'e' b'r' b's') {
                     return Ok(AccessControlAllowHeaders.into())
                 } else if eq!(b[21] == b'm' b'e' b't' b'h' b'o' b'd' b's') {
@@ -1472,7 +1529,11 @@ fn parse_hdr<'a>(
         29 => {
             to_lower!(b, data, 29);
 
+            // Precondition: The post-condition of to_lower!() ensures the fist 29 bytes of b are
+            // intitialized so, in particular, the first 15 bytes are.
             if eq!(b == b'a' b'c' b'c' b'e' b's' b's' b'-' b'c' b'o' b'n' b't' b'r' b'o' b'l' b'-') {
+                // Precondition: The fisr 29 bytes of b are intitialized so the first 14 bytes
+                // starting at b[15] are.
                 if eq!(b[15] == b'e' b'x' b'p' b'o' b's' b'e' b'-' b'h' b'e' b'a' b'd' b'e' b'r' b's') {
                     return Ok(AccessControlExposeHeaders.into())
                 } else if eq!(b[15] == b'r' b'e' b'q' b'u' b'e' b's' b't' b'-' b'm' b'e' b't' b'h' b'o' b'd') {
@@ -1515,6 +1576,8 @@ fn parse_hdr<'a>(
                     b[i] = MaybeUninit::new(table[data[i] as usize]);
                 }
 
+                // Precondition: the first len bytes of b are intitialized in the loop above so
+                // b[..len] is intitialized.
                 validate(&b[..len])
             } else {
                 Ok(HdrName::custom(data, false))
@@ -1553,8 +1616,11 @@ fn parse_hdr<'a>(
         0 => Err(InvalidHeaderName::new()),
         len if len > 64 => Ok(HdrName::custom(data, false)),
         len => {
-            // Read from data into the buffer - transforming using `table` as we go
+            // Read from data into the buffer - transforming using `table` as we go.
+            // The assignment to *out ensures that each byte is intitialized. Since 
+            // *out is a u8 it doesn't matter that we are not dropping *out before accessing it.
             data.iter().zip(b.iter_mut()).for_each(|(index, out)| *out = MaybeUninit::new(table[*index as usize]));
+            // Safety: We just intitialized the first len bytes of b in the previous line.
             let b = unsafe {slice_assume_init(&b[..len])};
             match &b[0..len] {
                 b"te" => Ok(Te.into()),
