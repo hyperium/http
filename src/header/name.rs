@@ -51,6 +51,7 @@ enum Repr<T> {
 struct Custom(ByteStr);
 
 #[derive(Debug, Clone)]
+// Invariant: If lower then buf is valid UTF-8.
 struct MaybeLower<'a> {
     buf: &'a [u8],
     lower: bool,
@@ -979,6 +980,8 @@ standard_headers! {
 ///                      / DIGIT / ALPHA
 ///                      ; any VCHAR, except delimiters
 /// ```
+// HEADER_CHARS maps every byte that is 128 or larger to 0 so everything that is
+// mapped by HEADER_CHARS, maps to a valid single-byte UTF-8 codepoint.
 const HEADER_CHARS: [u8; 256] = [
     //  0      1      2      3      4      5      6      7      8      9
         0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //   x
@@ -1010,6 +1013,8 @@ const HEADER_CHARS: [u8; 256] = [
 ];
 
 /// Valid header name characters for HTTP/2.0 and HTTP/3.0
+// HEADER_CHARS_H2 maps every byte that is 128 or larger to 0 so everything that is
+// mapped by HEADER_CHARS_H2, maps to a valid single-byte UTF-8 codepoint.
 const HEADER_CHARS_H2: [u8; 256] = [
     //  0      1      2      3      4      5      6      7      8      9
         0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //   x
@@ -1044,6 +1049,7 @@ const HEADER_CHARS_H2: [u8; 256] = [
 /// This version is best under optimized mode, however in a wasm debug compile,
 /// the `eq` macro expands to 1 + 1 + 1 + 1... and wasm explodes when this chain gets too long
 /// See https://github.com/DenisKolodin/yew/issues/478
+// Precondition: table maps all bytes that are not valid single-byte UTF-8 to something that is.
 fn parse_hdr<'a>(
     data: &'a [u8],
     b: &'a mut [MaybeUninit<u8>; SCRATCH_BUF_SIZE],
@@ -1053,30 +1059,33 @@ fn parse_hdr<'a>(
 
     let len = data.len();
 
-    // Precondition: each element of buf must be intitialized
+    // Precondition: each element of buf must be intitialized and must be 
+    // a valid single-byte UTF-8 codepoint.
     let validate = |buf: &'a [MaybeUninit<u8>]| {
         // Safety: follows from the precondtion
         let buf = unsafe {slice_assume_init(buf)};
         if buf.iter().any(|&b| b == 0) {
             Err(InvalidHeaderName::new())
         } else {
+            // Precondition: satified by the precondition of validate.
             Ok(HdrName::custom(buf, true))
         }
     };
 
     // Called as either eq!(b == b'a' b'b' b'c') or eq!(b[i] == b'a' b'b' b'c')
-    // Precondition: the first n elements of b (or the first n starting at i)
-    // must be intitialized, where n is the number of bytes listed after the '=='
-    // in the invocation.
+    // Precondition: the first n elements of b (or the first n starting at i) must be
+    // intitialized, where n is the number of bytes listed after the '==' in the
+    // invocation.
     macro_rules! eq {
         (($($cmp:expr,)*) $v:ident[$n:expr] ==) => {
             $($cmp) && *
         };
         (($($cmp:expr,)*) $v:ident[$n:expr] == $a:tt $($rest:tt)*) => {
-            // Safety: this arm is matched once for each byte after the '==' in
-            // the invocation (starting at 0 or i depending on the form of the call).
-            // By the precondtion $v[$n] is intitialized for each such match.
-            eq!(($($cmp,)* unsafe {*($v[$n].as_ptr())} == $a ,) $v[$n+1] == $($rest)*)
+            // Safety: this arm is matched once for each byte after the '==' in the
+            // invocation (starting at 0 or i depending on the form of the call).  By
+            // the precondtion $v[$n] is intitialized for each such match.
+            eq!(($($cmp,)* unsafe {*($v[$n].as_ptr())} == $a ,) $v[$n+1] ==
+                $($rest)*)
         };
         ($v:ident == $($rest:tt)+) => {
             eq!(() $v[0] == $($rest)+)
@@ -1086,11 +1095,12 @@ fn parse_hdr<'a>(
         };
     }
 
-
-    // Post-condition: the first n elements of $d are intitialized where n is the 
-    // third paramter to the macro. Note that this macro overwrite the first n elements
-    // of $d without dropping the existing contents (if any) but the elements of $d
-    // are u8's so no drop is necessary.
+    // Post-condition: the first n elements of $d are intitialized to a valid
+    // single-byte UTF-8 codepoint where n is the third paramter to the macro. Note
+    // that this macro overwrite the first n elements of $d without dropping the
+    // existing contents (if any) but the elements of $d are u8's so no drop is
+    // necessary. The UTF-8 part of the post-condition follows from the precondition
+    // on table that is a part of parse_hdr().
     macro_rules! to_lower {
         ($d:ident, $src:ident, 1) => { $d[0] = MaybeUninit::new(table[$src[0] as usize]); };
         ($d:ident, $src:ident, 2) => { to_lower!($d, $src, 1); $d[1] = MaybeUninit::new(table[$src[1] as usize]); };
@@ -1155,8 +1165,9 @@ fn parse_hdr<'a>(
                 Ok(Te.into())
             } else {
                 // Precondition: the post-condition on to_lower!() ensures that the
-                // first 2 elements of b are intitialized. len == 2 so all of 
-                // b[..len] is intitialized.
+                // first 2 elements of b are intitialized and are valid single-byte
+                // UTF-8. len == 2 so all of b[..len] is intitialized and is valid
+                // UTF-8.
                 validate(&b[..len])
             }
         }
@@ -1573,11 +1584,13 @@ fn parse_hdr<'a>(
         _ => {
             if len < 64 {
                 for i in 0..len {
+                    // The precondition on table for parse_hdr() means that b[i] is
+                    // intitialized to a valid single-byte UTF-8 codepoint.
                     b[i] = MaybeUninit::new(table[data[i] as usize]);
                 }
 
                 // Precondition: the first len bytes of b are intitialized in the loop above so
-                // b[..len] is intitialized.
+                // b[..len] is intitialized and is valid UTF-8.
                 validate(&b[..len])
             } else {
                 Ok(HdrName::custom(data, false))
@@ -1588,6 +1601,7 @@ fn parse_hdr<'a>(
 
 #[cfg(all(debug_assertions, target_arch = "wasm32"))]
 /// This version works best in debug mode in wasm
+// Precondition: table maps all bytes that are not valid single-byte UTF-8 to something that is.
 fn parse_hdr<'a>(
     data: &'a [u8],
     b: &'a mut [MaybeUninit<u8>; SCRATCH_BUF_SIZE],
@@ -1597,11 +1611,13 @@ fn parse_hdr<'a>(
 
     let len = data.len();
 
+    // Precondition: the first len bytes of buf are valid UTF-8.
     let validate = |buf: &'a [u8], len: usize| {
         let buf = &buf[..len];
         if buf.iter().any(|&b| b == 0) {
             Err(InvalidHeaderName::new())
         } else {
+            // Precondition: follows from the precondtion on validate.
             Ok(HdrName::custom(buf, true))
         }
     };
@@ -1617,9 +1633,13 @@ fn parse_hdr<'a>(
         len if len > 64 => Ok(HdrName::custom(data, false)),
         len => {
             // Read from data into the buffer - transforming using `table` as we go.
-            // The assignment to *out ensures that each byte is intitialized. Since 
-            // *out is a u8 it doesn't matter that we are not dropping *out before accessing it.
-            data.iter().zip(b.iter_mut()).for_each(|(index, out)| *out = MaybeUninit::new(table[*index as usize]));
+            // The assignment to *out ensures that each byte is intitialized. Since
+            // *out is a u8 it doesn't matter that we are not dropping *out before
+            // accessing it. The precondition on table for parse_hdr() means that
+            // each intitialized byte of b is valid UTF-8.
+            data.iter().zip(b.iter_mut()).for_each(|(index, out)| *out =
+                                                   MaybeUninit::new(table[*index as
+                                                                    usize]));
             // Safety: We just intitialized the first len bytes of b in the previous line.
             let b = unsafe {slice_assume_init(&b[..len])};
             match &b[0..len] {
@@ -1704,6 +1724,8 @@ fn parse_hdr<'a>(
                 b"content-security-policy-report-only" => {
                     Ok(ContentSecurityPolicyReportOnly.into())
                 }
+                // Precondition: other is the first len bytes of b which was
+                // initialized to valid UTF-8 above.
                 other => validate(other, len),
             }
         }
@@ -1724,10 +1746,12 @@ impl HeaderName {
     /// This function normalizes the input.
     pub fn from_bytes(src: &[u8]) -> Result<HeaderName, InvalidHeaderName> {
         let mut buf = uninit_u8_array();
+        // Precondition: HEADER_CHARS is a valid table for parse_hdr().
         match parse_hdr(src, &mut buf, &HEADER_CHARS)?.inner {
             Repr::Standard(std) => Ok(std.into()),
             Repr::Custom(MaybeLower { buf, lower: true }) => {
                 let buf = Bytes::copy_from_slice(buf);
+                // Safety: the invariant on MaybeLower ensures buf is valid UTF-8.
                 let val = unsafe { ByteStr::from_utf8_unchecked(buf) };
                 Ok(Custom(val).into())
             }
@@ -1736,6 +1760,7 @@ impl HeaderName {
                 let mut dst = BytesMut::with_capacity(buf.len());
 
                 for b in buf.iter() {
+                    // HEADER_CHARS maps all bytes to valid single-byte UTF-8
                     let b = HEADER_CHARS[*b as usize];
 
                     if b == 0 {
@@ -1745,6 +1770,9 @@ impl HeaderName {
                     dst.put_u8(b);
                 }
 
+                // Safety: the loop above maps all bytes in buf to valid single byte
+                // UTF-8 before copying them into dst. This means that dst (and hence
+                // dst.freeze()) is valid UTF-8.
                 let val = unsafe { ByteStr::from_utf8_unchecked(dst.freeze()) };
 
                 Ok(Custom(val).into())
@@ -1772,21 +1800,27 @@ impl HeaderName {
     /// ```
     pub fn from_lowercase(src: &[u8]) -> Result<HeaderName, InvalidHeaderName> {
         let mut buf = uninit_u8_array();
+        // Precondition: HEADER_CHARS_H2 is a valid table for parse_hdr()
         match parse_hdr(src, &mut buf, &HEADER_CHARS_H2)?.inner {
             Repr::Standard(std) => Ok(std.into()),
             Repr::Custom(MaybeLower { buf, lower: true }) => {
                 let buf = Bytes::copy_from_slice(buf);
+                // Safety: the invariant on MaybeLower ensures buf is valid UTF-8.
                 let val = unsafe { ByteStr::from_utf8_unchecked(buf) };
                 Ok(Custom(val).into())
             }
             Repr::Custom(MaybeLower { buf, lower: false }) => {
                 for &b in buf.iter() {
+                    // HEADER_CHARS maps all bytes that are not valid single-byte
+                    // UTF-8 to 0 so this check returns an error for invalid UTF-8.
                     if b != HEADER_CHARS[b as usize] {
                         return Err(InvalidHeaderName::new());
                     }
                 }
 
                 let buf = Bytes::copy_from_slice(buf);
+                // Safety: the loop above checks that each byte of buf (either
+                // version) is valid UTF-8.
                 let val = unsafe { ByteStr::from_utf8_unchecked(buf) };
                 Ok(Custom(val).into())
             }
@@ -1831,6 +1865,7 @@ impl HeaderName {
     pub fn from_static(src: &'static str) -> HeaderName {
         let bytes = src.as_bytes();
         let mut buf = uninit_u8_array();
+        // Precondition: HEADER_CHARS_H2 is a valid table for parse_hdr()
         match parse_hdr(bytes, &mut buf, &HEADER_CHARS_H2) {
             Ok(hdr_name) => match hdr_name.inner {
                 Repr::Standard(std) => std.into(),
@@ -2073,8 +2108,10 @@ impl Error for InvalidHeaderName {}
 // ===== HdrName =====
 
 impl<'a> HdrName<'a> {
+    // Precondition: if lower then buf is valid UTF-8
     fn custom(buf: &'a [u8], lower: bool) -> HdrName<'a> {
         HdrName {
+            // Invariant (on MaybeLower): follows from the precondition
             inner: Repr::Custom(MaybeLower {
                 buf: buf,
                 lower: lower,
@@ -2086,6 +2123,7 @@ impl<'a> HdrName<'a> {
         where F: FnOnce(HdrName<'_>) -> U,
     {
         let mut buf = uninit_u8_array();
+        // Precondition: HEADER_CHARS is a valid table for parse_hdr().
         let hdr = parse_hdr(hdr, &mut buf, &HEADER_CHARS)?;
         Ok(f(hdr))
     }
@@ -2096,6 +2134,7 @@ impl<'a> HdrName<'a> {
     {
         let mut buf = uninit_u8_array();
         let hdr =
+            // Precondition: HEADER_CHARS is a valid table for parse_hdr().
             parse_hdr(hdr.as_bytes(), &mut buf, &HEADER_CHARS).expect("static str is invalid name");
         f(hdr)
     }
@@ -2111,6 +2150,7 @@ impl<'a> From<HdrName<'a>> for HeaderName {
             Repr::Custom(maybe_lower) => {
                 if maybe_lower.lower {
                     let buf = Bytes::copy_from_slice(&maybe_lower.buf[..]);
+                    // Safety: the invariant on MaybeLower ensures buf is valid UTF-8.
                     let byte_str = unsafe { ByteStr::from_utf8_unchecked(buf) };
 
                     HeaderName {
@@ -2121,9 +2161,14 @@ impl<'a> From<HdrName<'a>> for HeaderName {
                     let mut dst = BytesMut::with_capacity(maybe_lower.buf.len());
 
                     for b in maybe_lower.buf.iter() {
+                        // HEADER_CHARS maps each byte to a valid single-byte UTF-8
+                        // codepoint.
                         dst.put_u8(HEADER_CHARS[*b as usize]);
                     }
 
+                    // Safety: the loop above maps each byte of maybe_lower.buf to a
+                    // valid single-byte UTF-8 codepoint before copying it into dst.
+                    // dst (and hence dst.freeze()) is thus valid UTF-8.
                     let buf = unsafe { ByteStr::from_utf8_unchecked(dst.freeze()) };
 
                     HeaderName {
