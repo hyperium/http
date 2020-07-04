@@ -314,7 +314,7 @@ impl<T> Response<T> {
     /// ```
     /// # use http::*;
     /// let response: Response<()> = Response::default();
-    /// assert_eq!(response.version(), Version::HTTP_11);
+    /// assert_eq!(response.version(), Version::RTSP_10);
     /// ```
     #[inline]
     pub fn version(&self) -> Version {
@@ -328,8 +328,8 @@ impl<T> Response<T> {
     /// ```
     /// # use http::*;
     /// let mut response: Response<()> = Response::default();
-    /// *response.version_mut() = Version::HTTP_2;
-    /// assert_eq!(response.version(), Version::HTTP_2);
+    /// *response.version_mut() = Version::RTSP_20;
+    /// assert_eq!(response.version(), Version::RTSP_20);
     /// ```
     #[inline]
     pub fn version_mut(&mut self) -> &mut Version {
@@ -585,7 +585,7 @@ impl Builder {
     /// # use http::*;
     ///
     /// let response = Response::builder()
-    ///     .version(Version::HTTP_2)
+    ///     .version(Version::RTSP_20)
     ///     .body(())
     ///     .unwrap();
     /// ```

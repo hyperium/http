@@ -10,9 +10,9 @@
 //! ```
 //! use http::Method;
 //!
-//! assert_eq!(Method::GET, Method::from_bytes(b"GET").unwrap());
-//! assert!(Method::GET.is_idempotent());
-//! assert_eq!(Method::POST.as_str(), "POST");
+//! assert_eq!(Method::DESCRIBE, Method::from_bytes(b"DESCRIBE").unwrap());
+//! assert!(Method::DESCRIBE.is_idempotent());
+//! assert_eq!(Method::PLAY.as_str(), "PLAY");
 //! ```
 
 use self::Inner::*;
@@ -38,9 +38,9 @@ use std::{fmt, str};
 /// ```
 /// use http::Method;
 ///
-/// assert_eq!(Method::GET, Method::from_bytes(b"GET").unwrap());
-/// assert!(Method::GET.is_idempotent());
-/// assert_eq!(Method::POST.as_str(), "POST");
+/// assert_eq!(Method::DESCRIBE, Method::from_bytes(b"DESCRIBE").unwrap());
+/// assert!(Method::DESCRIBE.is_idempotent());
+/// assert_eq!(Method::ANNOUNCE.as_str(), "ANNOUNCE");
 /// ```
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Method(Inner);

@@ -12,11 +12,11 @@
 //! ```
 //! use http::Version;
 //!
-//! let http11 = Version::HTTP_11;
-//! let http2 = Version::HTTP_2;
-//! assert!(http11 != http2);
+//! let rtsp1 = Version::RTSP_10;
+//! let rtsp2 = Version::RTSP_20;
+//! assert!(rtsp1 != rtsp2);
 //!
-//! println!("{:?}", http2);
+//! println!("{:?}", rtsp2);
 //! ```
 
 use std::fmt;

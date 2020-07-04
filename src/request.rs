@@ -1,8 +1,8 @@
-//! HTTP request types.
+//! RTSP request types.
 //!
-//! This module contains structs related to HTTP requests, notably the
+//! This module contains structs related to RTSP requests, notably the
 //! `Request` type itself as well as a builder to create requests. Typically
-//! you'll import the `http::Request` type rather than reaching into this
+//! you'll import the `RTSP::Request` type rather than reaching into this
 //! module itself.
 //!
 //! # Examples
@@ -13,7 +13,7 @@
 //! use http::{Request, Response};
 //!
 //! let mut request = Request::builder()
-//!     .uri("https://www.rust-lang.org/")
+//!     .uri("RTSPs://www.rust-lang.org/")
 //!     .header("User-Agent", "my-awesome-agent/1.0");
 //!
 //! if needs_awesome_header() {
@@ -61,10 +61,10 @@ use crate::method::Method;
 use crate::version::Version;
 use crate::{Extensions, Result, Uri};
 
-/// Represents an HTTP request.
+/// Represents an RTSP request.
 ///
-/// An HTTP request consists of a head and a potentially optional body. The body
-/// component is generic, enabling arbitrary types to represent the HTTP body.
+/// An RTSP request consists of a head and a potentially optional body. The body
+/// component is generic, enabling arbitrary types to represent the RTSP body.
 /// For example, the body could be `Vec<u8>`, a `Stream` of byte chunks, or a
 /// value that has been deserialized.
 ///
@@ -76,7 +76,7 @@ use crate::{Extensions, Result, Uri};
 /// use http::{Request, Response};
 ///
 /// let mut request = Request::builder()
-///     .uri("https://www.rust-lang.org/")
+///     .uri("RTSPs://www.rust-lang.org/")
 ///     .header("User-Agent", "my-awesome-agent/1.0");
 ///
 /// if needs_awesome_header() {
@@ -159,9 +159,9 @@ pub struct Request<T> {
     body: T,
 }
 
-/// Component parts of an HTTP `Request`
+/// Component parts of an RTSP `Request`
 ///
-/// The HTTP request head consists of a method, uri, version, and a set of
+/// The RTSP request head consists of a method, uri, version, and a set of
 /// header fields.
 pub struct Parts {
     /// The request's method
@@ -182,7 +182,7 @@ pub struct Parts {
     _priv: (),
 }
 
-/// An HTTP request builder
+/// An RTSP request builder
 ///
 /// This type can be used to construct an instance or `Request`
 /// through a builder-like pattern.
@@ -203,7 +203,7 @@ impl Request<()> {
     /// # use http::*;
     /// let request = Request::builder()
     ///     .method("GET")
-    ///     .uri("https://www.rust-lang.org/")
+    ///     .uri("RTSPs://www.rust-lang.org/")
     ///     .header("X-Custom-Foo", "Bar")
     ///     .body(())
     ///     .unwrap();
@@ -223,7 +223,7 @@ impl Request<()> {
     /// ```
     /// # use http::*;
     ///
-    /// let request = Request::describe("https://www.rust-lang.org/")
+    /// let request = Request::describe("RTSPs://www.rust-lang.org/")
     ///     .body(())
     ///     .unwrap();
     /// ```
@@ -246,7 +246,7 @@ impl Request<()> {
     /// ```
     /// # use http::*;
     ///
-    /// let request = Request::announce("https://www.rust-lang.org/")
+    /// let request = Request::announce("RTSPs://www.rust-lang.org/")
     ///     .body(())
     ///     .unwrap();
     /// ```
@@ -269,7 +269,7 @@ impl Request<()> {
     /// ```
     /// # use http::*;
     ///
-    /// let request = Request::get_parameter("https://www.rust-lang.org/")
+    /// let request = Request::get_parameter("RTSPs://www.rust-lang.org/")
     ///     .body(())
     ///     .unwrap();
     /// ```
@@ -292,7 +292,7 @@ impl Request<()> {
     /// ```
     /// # use http::*;
     ///
-    /// let request = Request::options("https://www.rust-lang.org/")
+    /// let request = Request::options("RTSPs://www.rust-lang.org/")
     ///     .body(())
     ///     .unwrap();
     /// # assert_eq!(*request.method(), Method::OPTIONS);
@@ -316,7 +316,7 @@ impl Request<()> {
     /// ```
     /// # use http::*;
     ///
-    /// let request = Request::pause("https://www.rust-lang.org/")
+    /// let request = Request::pause("RTSPs://www.rust-lang.org/")
     ///     .body(())
     ///     .unwrap();
     /// ```
@@ -339,7 +339,7 @@ impl Request<()> {
     /// ```
     /// # use http::*;
     ///
-    /// let request = Request::play("https://www.rust-lang.org/")
+    /// let request = Request::play("RTSPs://www.rust-lang.org/")
     ///     .body(())
     ///     .unwrap();
     /// ```
@@ -362,7 +362,7 @@ impl Request<()> {
     /// ```
     /// # use http::*;
     ///
-    /// let request = Request::record("https://www.rust-lang.org/")
+    /// let request = Request::record("RTSPs://www.rust-lang.org/")
     ///     .body(())
     ///     .unwrap();
     /// ```
@@ -385,7 +385,7 @@ impl Request<()> {
     /// ```
     /// # use http::*;
     ///
-    /// let request = Request::redirect("https://www.rust-lang.org/")
+    /// let request = Request::redirect("RTSPs://www.rust-lang.org/")
     ///     .body(())
     ///     .unwrap();
     /// ```
@@ -407,7 +407,7 @@ impl Request<()> {
     /// ```
     /// # use http::*;
     ///
-    /// let request = Request::setup("https://www.rust-lang.org/")
+    /// let request = Request::setup("RTSPs://www.rust-lang.org/")
     ///     .body(())
     ///     .unwrap();
     /// ```
@@ -429,7 +429,7 @@ impl Request<()> {
     /// ```
     /// # use http::*;
     ///
-    /// let request = Request::set_parameter("https://www.rust-lang.org/")
+    /// let request = Request::set_parameter("RTSPs://www.rust-lang.org/")
     ///     .body(())
     ///     .unwrap();
     /// ```
@@ -451,7 +451,7 @@ impl Request<()> {
     /// ```
     /// # use http::*;
     ///
-    /// let request = Request::teardown("https://www.rust-lang.org/")
+    /// let request = Request::teardown("RTSPs://www.rust-lang.org/")
     ///     .body(())
     ///     .unwrap();
     /// ```
@@ -476,7 +476,7 @@ impl<T> Request<T> {
     /// # use http::*;
     /// let request = Request::new("hello world");
     ///
-    /// assert_eq!(*request.method(), Method::GET);
+    /// assert_eq!(*request.method(), Method::DESCRIBE);
     /// assert_eq!(*request.body(), "hello world");
     /// ```
     #[inline]
@@ -495,7 +495,7 @@ impl<T> Request<T> {
     /// # use http::*;
     /// let request = Request::new("hello world");
     /// let (mut parts, body) = request.into_parts();
-    /// parts.method = Method::POST;
+    /// parts.method = Method::TEARDOWN;
     ///
     /// let request = Request::from_parts(parts, body);
     /// ```
@@ -507,29 +507,29 @@ impl<T> Request<T> {
         }
     }
 
-    /// Returns a reference to the associated HTTP method.
+    /// Returns a reference to the associated RTSP method.
     ///
     /// # Examples
     ///
     /// ```
     /// # use http::*;
     /// let request: Request<()> = Request::default();
-    /// assert_eq!(*request.method(), Method::GET);
+    /// assert_eq!(*request.method(), Method::DESCRIBE);
     /// ```
     #[inline]
     pub fn method(&self) -> &Method {
         &self.head.method
     }
 
-    /// Returns a mutable reference to the associated HTTP method.
+    /// Returns a mutable reference to the associated RTSP method.
     ///
     /// # Examples
     ///
     /// ```
     /// # use http::*;
     /// let mut request: Request<()> = Request::default();
-    /// *request.method_mut() = Method::PUT;
-    /// assert_eq!(*request.method(), Method::PUT);
+    /// *request.method_mut() = Method::SET_PARAMETER;
+    /// assert_eq!(*request.method(), Method::SET_PARAMETER);
     /// ```
     #[inline]
     pub fn method_mut(&mut self) -> &mut Method {
@@ -572,7 +572,7 @@ impl<T> Request<T> {
     /// ```
     /// # use http::*;
     /// let request: Request<()> = Request::default();
-    /// assert_eq!(request.version(), Version::HTTP_11);
+    /// assert_eq!(request.version(), Version::RTSP_10);
     /// ```
     #[inline]
     pub fn version(&self) -> Version {
@@ -586,8 +586,8 @@ impl<T> Request<T> {
     /// ```
     /// # use http::*;
     /// let mut request: Request<()> = Request::default();
-    /// *request.version_mut() = Version::HTTP_2;
-    /// assert_eq!(request.version(), Version::HTTP_2);
+    /// *request.version_mut() = Version::RTSP_20;
+    /// assert_eq!(request.version(), Version::RTSP_20);
     /// ```
     #[inline]
     pub fn version_mut(&mut self) -> &mut Version {
@@ -654,7 +654,7 @@ impl<T> Request<T> {
         &mut self.head.extensions
     }
 
-    /// Returns a reference to the associated HTTP body.
+    /// Returns a reference to the associated RTSP body.
     ///
     /// # Examples
     ///
@@ -668,7 +668,7 @@ impl<T> Request<T> {
         &self.body
     }
 
-    /// Returns a mutable reference to the associated HTTP body.
+    /// Returns a mutable reference to the associated RTSP body.
     ///
     /// # Examples
     ///
@@ -706,7 +706,7 @@ impl<T> Request<T> {
     /// # use http::*;
     /// let request = Request::new(());
     /// let (parts, body) = request.into_parts();
-    /// assert_eq!(parts.method, Method::GET);
+    /// assert_eq!(parts.method, Method::DESCRIBE);
     /// ```
     #[inline]
     pub fn into_parts(self) -> (Parts, T) {
@@ -803,9 +803,9 @@ impl Builder {
         Builder::default()
     }
 
-    /// Set the HTTP method for this request.
+    /// Set the RTSP method for this request.
     ///
-    /// This function will configure the HTTP method of the `Request` that will
+    /// This function will configure the RTSP method of the `Request` that will
     /// be returned from `Builder::build`.
     ///
     /// By default this is `GET`.
@@ -832,7 +832,7 @@ impl Builder {
         })
     }
 
-    /// Get the HTTP Method for this request.
+    /// Get the RTSP Method for this request.
     ///
     /// By default this is `GET`. If builder has error, returns None.
     ///
@@ -842,10 +842,10 @@ impl Builder {
     /// # use http::*;
     ///
     /// let mut req = Request::builder();
-    /// assert_eq!(req.method_ref(),Some(&Method::GET));
+    /// assert_eq!(req.method_ref(),Some(&Method::DESCRIBE));
     ///
-    /// req = req.method("POST");
-    /// assert_eq!(req.method_ref(),Some(&Method::POST));
+    /// req = req.method("OPTIONS");
+    /// assert_eq!(req.method_ref(),Some(&Method::OPTIONS));
     /// ```
     pub fn method_ref(&self) -> Option<&Method> {
         self.inner.as_ref().ok().map(|h| &h.method)
@@ -864,7 +864,7 @@ impl Builder {
     /// # use http::*;
     ///
     /// let req = Request::builder()
-    ///     .uri("https://www.rust-lang.org/")
+    ///     .uri("RTSPs://www.rust-lang.org/")
     ///     .body(())
     ///     .unwrap();
     /// ```
@@ -891,19 +891,19 @@ impl Builder {
     /// let mut req = Request::builder();
     /// assert_eq!(req.uri_ref().unwrap(), "/" );
     ///
-    /// req = req.uri("https://www.rust-lang.org/");
-    /// assert_eq!(req.uri_ref().unwrap(), "https://www.rust-lang.org/" );
+    /// req = req.uri("RTSPs://www.rust-lang.org/");
+    /// assert_eq!(req.uri_ref().unwrap(), "RTSPs://www.rust-lang.org/" );
     /// ```
     pub fn uri_ref(&self) -> Option<&Uri> {
         self.inner.as_ref().ok().map(|h| &h.uri)
     }
 
-    /// Set the HTTP version for this request.
+    /// Set the RTSP version for this request.
     ///
-    /// This function will configure the HTTP version of the `Request` that
+    /// This function will configure the RTSP version of the `Request` that
     /// will be returned from `Builder::build`.
     ///
-    /// By default this is HTTP/1.1
+    /// By default this is RTSP/1.1
     ///
     /// # Examples
     ///
@@ -911,7 +911,7 @@ impl Builder {
     /// # use http::*;
     ///
     /// let req = Request::builder()
-    ///     .version(Version::HTTP_2)
+    ///     .version(Version::RTSP_20)
     ///     .body(())
     ///     .unwrap();
     /// ```
