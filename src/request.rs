@@ -213,7 +213,7 @@ impl Request<()> {
         Builder::new()
     }
 
-    /// Creates a new `Builder` initialized with a GET method and the given URI.
+    /// Creates a new `Builder` initialized with a DESCRIBE method and the given URI.
     ///
     /// This method returns an instance of `Builder` which can be used to
     /// create a `Request`.
@@ -223,20 +223,20 @@ impl Request<()> {
     /// ```
     /// # use http::*;
     ///
-    /// let request = Request::get("https://www.rust-lang.org/")
+    /// let request = Request::describe("https://www.rust-lang.org/")
     ///     .body(())
     ///     .unwrap();
     /// ```
-    pub fn get<T>(uri: T) -> Builder
+    pub fn describe<T>(uri: T) -> Builder
     where
         Uri: TryFrom<T>,
         <Uri as TryFrom<T>>::Error: Into<crate::Error>,
 
     {
-        Builder::new().method(Method::GET).uri(uri)
+        Builder::new().method(Method::DESCRIBE).uri(uri)
     }
 
-    /// Creates a new `Builder` initialized with a PUT method and the given URI.
+    /// Creates a new `Builder` initialized with a ANNOUNCE method and the given URI.
     ///
     /// This method returns an instance of `Builder` which can be used to
     /// create a `Request`.
@@ -246,20 +246,20 @@ impl Request<()> {
     /// ```
     /// # use http::*;
     ///
-    /// let request = Request::put("https://www.rust-lang.org/")
+    /// let request = Request::announce("https://www.rust-lang.org/")
     ///     .body(())
     ///     .unwrap();
     /// ```
-    pub fn put<T>(uri: T) -> Builder
+    pub fn announce<T>(uri: T) -> Builder
     where
         Uri: TryFrom<T>,
         <Uri as TryFrom<T>>::Error: Into<crate::Error>,
 
     {
-        Builder::new().method(Method::PUT).uri(uri)
+        Builder::new().method(Method::ANNOUNCE).uri(uri)
     }
 
-    /// Creates a new `Builder` initialized with a POST method and the given URI.
+    /// Creates a new `Builder` initialized with a GET_PARAMETER method and the given URI.
     ///
     /// This method returns an instance of `Builder` which can be used to
     /// create a `Request`.
@@ -269,40 +269,17 @@ impl Request<()> {
     /// ```
     /// # use http::*;
     ///
-    /// let request = Request::post("https://www.rust-lang.org/")
+    /// let request = Request::get_parameter("https://www.rust-lang.org/")
     ///     .body(())
     ///     .unwrap();
     /// ```
-    pub fn post<T>(uri: T) -> Builder
+    pub fn get_parameter<T>(uri: T) -> Builder
     where
         Uri: TryFrom<T>,
         <Uri as TryFrom<T>>::Error: Into<crate::Error>,
 
     {
-        Builder::new().method(Method::POST).uri(uri)
-    }
-
-    /// Creates a new `Builder` initialized with a DELETE method and the given URI.
-    ///
-    /// This method returns an instance of `Builder` which can be used to
-    /// create a `Request`.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use http::*;
-    ///
-    /// let request = Request::delete("https://www.rust-lang.org/")
-    ///     .body(())
-    ///     .unwrap();
-    /// ```
-    pub fn delete<T>(uri: T) -> Builder
-    where
-        Uri: TryFrom<T>,
-        <Uri as TryFrom<T>>::Error: Into<crate::Error>,
-
-    {
-        Builder::new().method(Method::DELETE).uri(uri)
+        Builder::new().method(Method::GET_PARAMETER).uri(uri)
     }
 
     /// Creates a new `Builder` initialized with an OPTIONS method and the given URI.
@@ -329,7 +306,7 @@ impl Request<()> {
         Builder::new().method(Method::OPTIONS).uri(uri)
     }
 
-    /// Creates a new `Builder` initialized with a HEAD method and the given URI.
+    /// Creates a new `Builder` initialized with a PAUSE method and the given URI.
     ///
     /// This method returns an instance of `Builder` which can be used to
     /// create a `Request`.
@@ -339,20 +316,20 @@ impl Request<()> {
     /// ```
     /// # use http::*;
     ///
-    /// let request = Request::head("https://www.rust-lang.org/")
+    /// let request = Request::pause("https://www.rust-lang.org/")
     ///     .body(())
     ///     .unwrap();
     /// ```
-    pub fn head<T>(uri: T) -> Builder
+    pub fn pause<T>(uri: T) -> Builder
     where
         Uri: TryFrom<T>,
         <Uri as TryFrom<T>>::Error: Into<crate::Error>,
 
     {
-        Builder::new().method(Method::HEAD).uri(uri)
+        Builder::new().method(Method::PAUSE).uri(uri)
     }
 
-    /// Creates a new `Builder` initialized with a CONNECT method and the given URI.
+    /// Creates a new `Builder` initialized with a PLAY method and the given URI.
     ///
     /// This method returns an instance of `Builder` which can be used to
     /// create a `Request`.
@@ -362,20 +339,20 @@ impl Request<()> {
     /// ```
     /// # use http::*;
     ///
-    /// let request = Request::connect("https://www.rust-lang.org/")
+    /// let request = Request::play("https://www.rust-lang.org/")
     ///     .body(())
     ///     .unwrap();
     /// ```
-    pub fn connect<T>(uri: T) -> Builder
+    pub fn play<T>(uri: T) -> Builder
     where
         Uri: TryFrom<T>,
         <Uri as TryFrom<T>>::Error: Into<crate::Error>,
 
     {
-        Builder::new().method(Method::CONNECT).uri(uri)
+        Builder::new().method(Method::PLAY).uri(uri)
     }
 
-    /// Creates a new `Builder` initialized with a PATCH method and the given URI.
+    /// Creates a new `Builder` initialized with a RECORD method and the given URI.
     ///
     /// This method returns an instance of `Builder` which can be used to
     /// create a `Request`.
@@ -385,19 +362,20 @@ impl Request<()> {
     /// ```
     /// # use http::*;
     ///
-    /// let request = Request::patch("https://www.rust-lang.org/")
+    /// let request = Request::record("https://www.rust-lang.org/")
     ///     .body(())
     ///     .unwrap();
     /// ```
-    pub fn patch<T>(uri: T) -> Builder
+    pub fn record<T>(uri: T) -> Builder
     where
         Uri: TryFrom<T>,
         <Uri as TryFrom<T>>::Error: Into<crate::Error>,
+
     {
-        Builder::new().method(Method::PATCH).uri(uri)
+        Builder::new().method(Method::RECORD).uri(uri)
     }
 
-    /// Creates a new `Builder` initialized with a TRACE method and the given URI.
+    /// Creates a new `Builder` initialized with a REDIRECT method and the given URI.
     ///
     /// This method returns an instance of `Builder` which can be used to
     /// create a `Request`.
@@ -407,16 +385,82 @@ impl Request<()> {
     /// ```
     /// # use http::*;
     ///
-    /// let request = Request::trace("https://www.rust-lang.org/")
+    /// let request = Request::redirect("https://www.rust-lang.org/")
     ///     .body(())
     ///     .unwrap();
     /// ```
-    pub fn trace<T>(uri: T) -> Builder
+    pub fn redirect<T>(uri: T) -> Builder
     where
         Uri: TryFrom<T>,
         <Uri as TryFrom<T>>::Error: Into<crate::Error>,
     {
-        Builder::new().method(Method::TRACE).uri(uri)
+        Builder::new().method(Method::REDIRECT).uri(uri)
+    }
+
+    /// Creates a new `Builder` initialized with a SETUP method and the given URI.
+    ///
+    /// This method returns an instance of `Builder` which can be used to
+    /// create a `Request`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http::*;
+    ///
+    /// let request = Request::setup("https://www.rust-lang.org/")
+    ///     .body(())
+    ///     .unwrap();
+    /// ```
+    pub fn setup<T>(uri: T) -> Builder
+    where
+        Uri: TryFrom<T>,
+        <Uri as TryFrom<T>>::Error: Into<crate::Error>,
+    {
+        Builder::new().method(Method::SETUP).uri(uri)
+    }
+
+        /// Creates a new `Builder` initialized with a SET_PARAMETER method and the given URI.
+    ///
+    /// This method returns an instance of `Builder` which can be used to
+    /// create a `Request`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http::*;
+    ///
+    /// let request = Request::set_parameter("https://www.rust-lang.org/")
+    ///     .body(())
+    ///     .unwrap();
+    /// ```
+    pub fn set_parameter<T>(uri: T) -> Builder
+    where
+        Uri: TryFrom<T>,
+        <Uri as TryFrom<T>>::Error: Into<crate::Error>,
+    {
+        Builder::new().method(Method::SET_PARAMETER).uri(uri)
+    }
+
+        /// Creates a new `Builder` initialized with a TEARDOWN method and the given URI.
+    ///
+    /// This method returns an instance of `Builder` which can be used to
+    /// create a `Request`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http::*;
+    ///
+    /// let request = Request::teardown("https://www.rust-lang.org/")
+    ///     .body(())
+    ///     .unwrap();
+    /// ```
+    pub fn teardown<T>(uri: T) -> Builder
+    where
+        Uri: TryFrom<T>,
+        <Uri as TryFrom<T>>::Error: Into<crate::Error>,
+    {
+        Builder::new().method(Method::TEARDOWN).uri(uri)
     }
 }
 

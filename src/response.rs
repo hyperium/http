@@ -181,7 +181,7 @@ pub struct Response<T> {
     body: T,
 }
 
-/// Component parts of an HTTP `Response`
+/// Component parts of an RTSP `Response`
 ///
 /// The HTTP response head consists of a status, version, and a set of
 /// header fields.

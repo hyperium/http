@@ -52,15 +52,17 @@ pub struct InvalidMethod {
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 enum Inner {
+    Describe,
+    Announce,
+    GetParameter,
     Options,
-    Get,
-    Post,
-    Put,
-    Delete,
-    Head,
-    Trace,
-    Connect,
-    Patch,
+    Pause,
+    Play,
+    Record,
+    Redirect,
+    Setup,
+    SetParameter,
+    Teardown,
     // If the extension is short enough, store it inline
     ExtensionInline(InlineExtension),
     // Otherwise, allocate it
@@ -69,61 +71,72 @@ enum Inner {
 
 
 impl Method {
-    /// GET
-    pub const GET: Method = Method(Get);
+    /// DESCRIBE
+    pub const DESCRIBE: Method = Method(Describe);
 
-    /// POST
-    pub const POST: Method = Method(Post);
+    /// ANNOUNCE
+    pub const ANNOUNCE: Method = Method(Announce);
 
-    /// PUT
-    pub const PUT: Method = Method(Put);
-
-    /// DELETE
-    pub const DELETE: Method = Method(Delete);
-
-    /// HEAD
-    pub const HEAD: Method = Method(Head);
+    /// GET_PARAMETER
+    pub const GET_PARAMETER: Method = Method(GetParameter);
 
     /// OPTIONS
     pub const OPTIONS: Method = Method(Options);
 
-    /// CONNECT
-    pub const CONNECT: Method = Method(Connect);
+    /// PAUSE
+    pub const PAUSE: Method = Method(Pause);
 
-    /// PATCH
-    pub const PATCH: Method = Method(Patch);
+    /// PLAY
+    pub const PLAY: Method = Method(Play);
 
-    /// TRACE
-    pub const TRACE: Method = Method(Trace);
+    /// RECORD
+    pub const RECORD: Method = Method(Record);
+
+    /// REDIRECT
+    pub const REDIRECT: Method = Method(Redirect);
+
+    /// SETUP
+    pub const SETUP: Method = Method(Setup);
+
+    /// SET_PARAMETER
+    pub const SET_PARAMETER: Method = Method(SetParameter);
+
+    /// TEARDOWN
+    pub const TEARDOWN: Method = Method(Teardown);
 
     /// Converts a slice of bytes to an HTTP method.
     pub fn from_bytes(src: &[u8]) -> Result<Method, InvalidMethod> {
         match src.len() {
             0 => Err(InvalidMethod::new()),
-            3 => match src {
-                b"GET" => Ok(Method(Get)),
-                b"PUT" => Ok(Method(Put)),
-                _ => Method::extension_inline(src),
-            },
             4 => match src {
-                b"POST" => Ok(Method(Post)),
-                b"HEAD" => Ok(Method(Head)),
+                b"PLAY" => Ok(Method(Play)),
                 _ => Method::extension_inline(src),
             },
             5 => match src {
-                b"PATCH" => Ok(Method(Patch)),
-                b"TRACE" => Ok(Method(Trace)),
+                b"PAUSE" => Ok(Method(Pause)),
+                b"SETUP" => Ok(Method(Setup)),
                 _ => Method::extension_inline(src),
             },
             6 => match src {
-                b"DELETE" => Ok(Method(Delete)),
+                b"RECORD" => Ok(Method(Record)),
                 _ => Method::extension_inline(src),
             },
             7 => match src {
                 b"OPTIONS" => Ok(Method(Options)),
-                b"CONNECT" => Ok(Method(Connect)),
                 _ => Method::extension_inline(src),
             },
+            8 => match src {
+                b"DESCRIBE" => Ok(Method(Describe)),
+                b"ANNOUNCE" => Ok(Method(Announce)),
+                b"REDIRECT" => Ok(Method(Redirect)),
+                b"TEARDOWN" => Ok(Method(Teardown)),
+                _ => Method::extension_inline(src),
+            },
+            13 => match src {
+                b"GET_PARAMETER" => Ok(Method(GetParameter)),
+                b"SET_PARAMETER" => Ok(Method(SetParameter)),
+                _ => Method::extension_inline(src),
+            }
             _ => {
                 if src.len() < InlineExtension::MAX {
                     Method::extension_inline(src)
@@ -149,8 +162,8 @@ impl Method {
     /// for more words.
     pub fn is_safe(&self) -> bool {
         match self.0 {
-            Get | Head | Options | Trace => true,
-            _ => false,
+            SetParameter => false,
+            _ => true,
         }
     }
 
@@ -160,25 +173,24 @@ impl Method {
     /// See [the spec](https://tools.ietf.org/html/rfc7231#section-4.2.2) for
     /// more words.
     pub fn is_idempotent(&self) -> bool {
-        match self.0 {
-            Put | Delete => true,
-            _ => self.is_safe(),
-        }
+        true
     }
 
     /// Return a &str representation of the HTTP method
     #[inline]
     pub fn as_str(&self) -> &str {
         match self.0 {
+            Describe => "DESCRIBE",
+            Announce => "ANNOUNCE",
+            GetParameter => "GET_PARAMETER",
             Options => "OPTIONS",
-            Get => "GET",
-            Post => "POST",
-            Put => "PUT",
-            Delete => "DELETE",
-            Head => "HEAD",
-            Trace => "TRACE",
-            Connect => "CONNECT",
-            Patch => "PATCH",
+            Pause => "PAUSE",
+            Play => "PLAY",
+            Record => "RECORD",
+            Redirect => "REDIRECT",
+            Setup => "SETUP",
+            SetParameter => "SET_PARAMETER",
+            Teardown => "TEARDOWN",
             ExtensionInline(ref inline) => inline.as_str(),
             ExtensionAllocated(ref allocated) => allocated.as_str(),
         }
@@ -249,7 +261,7 @@ impl fmt::Display for Method {
 impl Default for Method {
     #[inline]
     fn default() -> Method {
-        Method::GET
+        Method::DESCRIBE
     }
 }
 
@@ -429,15 +441,15 @@ mod test {
 
     #[test]
     fn test_method_eq() {
-        assert_eq!(Method::GET, Method::GET);
-        assert_eq!(Method::GET, "GET");
-        assert_eq!(&Method::GET, "GET");
+        assert_eq!(Method::DESCRIBE, Method::DESCRIBE);
+        assert_eq!(Method::DESCRIBE, "DESCRIBE");
+        assert_eq!(&Method::DESCRIBE, "DESCRIBE");
 
-        assert_eq!("GET", Method::GET);
-        assert_eq!("GET", &Method::GET);
+        assert_eq!("DESCRIBE", Method::DESCRIBE);
+        assert_eq!("DESCRIBE", &Method::DESCRIBE);
 
-        assert_eq!(&Method::GET, Method::GET);
-        assert_eq!(Method::GET, &Method::GET);
+        assert_eq!(&Method::DESCRIBE, Method::DESCRIBE);
+        assert_eq!(Method::DESCRIBE, &Method::DESCRIBE);
     }
 
     #[test]
@@ -446,20 +458,6 @@ mod test {
         assert!(Method::from_bytes(b"").is_err());
         assert!(Method::from_bytes(&[0xC0]).is_err()); // invalid utf-8
         assert!(Method::from_bytes(&[0x10]).is_err()); // invalid method characters
-    }
-
-    #[test]
-    fn test_is_idempotent() {
-        assert!(Method::OPTIONS.is_idempotent());
-        assert!(Method::GET.is_idempotent());
-        assert!(Method::PUT.is_idempotent());
-        assert!(Method::DELETE.is_idempotent());
-        assert!(Method::HEAD.is_idempotent());
-        assert!(Method::TRACE.is_idempotent());
-
-        assert!(!Method::POST.is_idempotent());
-        assert!(!Method::CONNECT.is_idempotent());
-        assert!(!Method::PATCH.is_idempotent());
     }
 
     #[test]

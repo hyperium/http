@@ -23,52 +23,38 @@ use std::fmt;
 
 /// Represents a version of the HTTP spec.
 #[derive(PartialEq, PartialOrd, Copy, Clone, Eq, Ord, Hash)]
-pub struct Version(Http);
+pub struct Version(Rtsp);
 
 impl Version {
-    /// `HTTP/0.9`
-    pub const HTTP_09: Version = Version(Http::Http09);
-
     /// `HTTP/1.0`
-    pub const HTTP_10: Version = Version(Http::Http10);
+    pub const RTSP_10: Version = Version(Rtsp::Rtsp10);
 
     /// `HTTP/1.1`
-    pub const HTTP_11: Version = Version(Http::Http11);
+    pub const RTSP_20: Version = Version(Rtsp::Rtsp20);
 
-    /// `HTTP/2.0`
-    pub const HTTP_2: Version = Version(Http::H2);
-
-    /// `HTTP/3.0`
-    pub const HTTP_3: Version = Version(Http::H3);
 }
 
 #[derive(PartialEq, PartialOrd, Copy, Clone, Eq, Ord, Hash)]
-enum Http {
-    Http09,
-    Http10,
-    Http11,
-    H2,
-    H3,
+enum Rtsp {
+    Rtsp10,
+    Rtsp20,
     __NonExhaustive,
 }
 
 impl Default for Version {
     #[inline]
     fn default() -> Version {
-        Version::HTTP_11
+        Version::RTSP_10
     }
 }
 
 impl fmt::Debug for Version {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use self::Http::*;
+        use self::Rtsp::*;
 
         f.write_str(match self.0 {
-            Http09 => "HTTP/0.9",
-            Http10 => "HTTP/1.0",
-            Http11 => "HTTP/1.1",
-            H2 => "HTTP/2.0",
-            H3 => "HTTP/3.0",
+            Rtsp10 => "RTSP/1.0",
+            Rtsp20 => "RTSP/2.0",
             __NonExhaustive => unreachable!(),
         })
     }
