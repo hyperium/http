@@ -125,7 +125,7 @@ impl StatusCode {
     /// assert_eq!(status.as_str(), "200");
     /// ```
     #[inline]
-    pub fn as_str(&self) -> &str {
+    pub fn as_str(&self) -> &'static str {
         CODES_AS_STR[(self.0 - 100) as usize]
     }
 
