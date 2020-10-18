@@ -15,6 +15,7 @@
 //! ```
 
 use std::convert::TryFrom;
+use std::num::NonZeroU16;
 use std::error::Error;
 use std::fmt;
 use std::str::FromStr;
@@ -39,7 +40,7 @@ use std::str::FromStr;
 /// assert!(StatusCode::OK.is_success());
 /// ```
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct StatusCode(u16);
+pub struct StatusCode(NonZeroU16);
 
 /// A possible error value when converting a `StatusCode` from a `u16` or `&str`
 ///
@@ -53,7 +54,7 @@ impl StatusCode {
     /// Converts a u16 to a status code.
     ///
     /// The function validates the correctness of the supplied u16. It must be
-    /// greater or equal to 100 but less than 600.
+    /// greater or equal to 100 but less than 1000.
     ///
     /// # Example
     ///
@@ -68,11 +69,13 @@ impl StatusCode {
     /// ```
     #[inline]
     pub fn from_u16(src: u16) -> Result<StatusCode, InvalidStatusCode> {
-        if src < 100 || src >= 600 {
+        if src < 100 || src >= 1000 {
             return Err(InvalidStatusCode::new());
         }
 
-        Ok(StatusCode(src))
+        NonZeroU16::new(src)
+            .map(StatusCode)
+            .ok_or_else(InvalidStatusCode::new)
     }
 
     /// Converts a &[u8] to a status code
@@ -85,12 +88,14 @@ impl StatusCode {
         let b = src[1].wrapping_sub(b'0') as u16;
         let c = src[2].wrapping_sub(b'0') as u16;
 
-        if a == 0 || a > 5 || b > 9 || c > 9 {
+        if a == 0 || a > 9 || b > 9 || c > 9 {
             return Err(InvalidStatusCode::new());
         }
 
         let status = (a * 100) + (b * 10) + c;
-        Ok(StatusCode(status))
+        NonZeroU16::new(status)
+            .map(StatusCode)
+            .ok_or_else(InvalidStatusCode::new)
     }
 
     /// Returns the `u16` corresponding to this `StatusCode`.
@@ -126,7 +131,7 @@ impl StatusCode {
     /// ```
     #[inline]
     pub fn as_str(&self) -> &str {
-        CODES_AS_STR[(self.0 - 100) as usize]
+        CODES_AS_STR[(self.0.get() - 100) as usize]
     }
 
     /// Get the standardised `reason-phrase` for this status code.
@@ -148,37 +153,37 @@ impl StatusCode {
     /// assert_eq!(status.canonical_reason(), Some("OK"));
     /// ```
     pub fn canonical_reason(&self) -> Option<&'static str> {
-        canonical_reason(self.0)
+        canonical_reason(self.0.get())
     }
 
     /// Check if status is within 100-199.
     #[inline]
     pub fn is_informational(&self) -> bool {
-        200 > self.0 && self.0 >= 100
+        200 > self.0.get() && self.0.get() >= 100
     }
 
     /// Check if status is within 200-299.
     #[inline]
     pub fn is_success(&self) -> bool {
-        300 > self.0 && self.0 >= 200
+        300 > self.0.get() && self.0.get() >= 200
     }
 
     /// Check if status is within 300-399.
     #[inline]
     pub fn is_redirection(&self) -> bool {
-        400 > self.0 && self.0 >= 300
+        400 > self.0.get() && self.0.get() >= 300
     }
 
     /// Check if status is within 400-499.
     #[inline]
     pub fn is_client_error(&self) -> bool {
-        500 > self.0 && self.0 >= 400
+        500 > self.0.get() && self.0.get() >= 400
     }
 
     /// Check if status is within 500-599.
     #[inline]
     pub fn is_server_error(&self) -> bool {
-        600 > self.0 && self.0 >= 500
+        600 > self.0.get() && self.0.get() >= 500
     }
 }
 
@@ -231,7 +236,7 @@ impl PartialEq<StatusCode> for u16 {
 impl From<StatusCode> for u16 {
     #[inline]
     fn from(status: StatusCode) -> u16 {
-        status.0
+        status.0.get()
     }
 }
 
@@ -287,7 +292,7 @@ macro_rules! status_codes {
         impl StatusCode {
         $(
             $(#[$docs])*
-            pub const $konst: StatusCode = StatusCode($num);
+            pub const $konst: StatusCode = StatusCode(unsafe { NonZeroU16::new_unchecked($num) });
         )+
 
         }
