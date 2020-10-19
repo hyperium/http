@@ -131,7 +131,14 @@ impl StatusCode {
     /// ```
     #[inline]
     pub fn as_str(&self) -> &str {
-        CODES_AS_STR[(self.0.get() - 100) as usize]
+        let offset = (self.0.get() - 100) as usize;
+        let offset = offset * 3;
+
+        unsafe {
+            CODES_AS_STR
+                .get_unchecked(offset..)
+                .get_unchecked(..3)
+        }
     }
 
     /// Get the standardised `reason-phrase` for this status code.
@@ -528,7 +535,11 @@ impl Error for InvalidStatusCode {}
 
 macro_rules! status_code_strs {
     ($($num:expr,)+) => {
-        const CODES_AS_STR: [&'static str; 900] = [ $( stringify!($num), )+ ];
+        const CODES_AS_STR: &'static str = concat!(
+            $(
+                stringify!($num) ,
+            )+
+        );
     }
 }
 
