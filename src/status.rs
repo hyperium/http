@@ -23,7 +23,7 @@ use std::str::FromStr;
 /// An HTTP status code (`status-code` in RFC 7230 et al.).
 ///
 /// This type contains constants for all common status codes.
-/// It allows status codes in the range [100, 599].
+/// It allows status codes in the range [100, 999].
 ///
 /// IANA maintain the [Hypertext Transfer Protocol (HTTP) Status Code
 /// Registry](http://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml) which is
@@ -45,7 +45,7 @@ pub struct StatusCode(NonZeroU16);
 /// A possible error value when converting a `StatusCode` from a `u16` or `&str`
 ///
 /// This error indicates that the supplied input was not a valid number, was less
-/// than 100, or was greater than 599.
+/// than 100, or was greater than 999.
 pub struct InvalidStatusCode {
     _priv: (),
 }
