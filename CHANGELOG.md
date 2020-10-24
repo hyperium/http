@@ -1,3 +1,7 @@
+# 0.2.2 UNRELEASED
+
+- Update `bytes` to v0.6.
+
 # 0.2.1 (March 25, 2020)
 
 * Add `extensions_ref` and `extensions_mut` to `request::Builder` and `response::Builder`.
