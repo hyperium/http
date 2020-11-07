@@ -210,6 +210,17 @@ pub struct Builder {
     inner: Result<Parts>,
 }
 
+/// An HTTP response builder
+///
+/// This type can be used to construct an instance of `Response` through a
+/// builder-like pattern.
+///
+/// This variant avoids error states.
+#[derive(Debug)]
+pub struct Builder2 {
+    inner: Parts,
+}
+
 impl Response<()> {
     /// Creates a new builder-style object to manufacture a `Response`
     ///
@@ -229,6 +240,26 @@ impl Response<()> {
     #[inline]
     pub fn builder() -> Builder {
         Builder::new()
+    }
+
+    /// Creates a new builder-style object to manufacture a `Response`
+    ///
+    /// This method returns an instance of `Builder` which can be used to
+    /// create a `Response`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    /// # use http::header::CONTENT_TYPE;
+    /// let response = Response::builder2()
+    ///     .status(StatusCode::OK)
+    ///     .header(CONTENT_TYPE, HeaderValue::from_static("text/html"))
+    ///     .body(());
+    /// ```
+    #[inline]
+    pub fn builder2() -> Builder2 {
+        Builder2::new()
     }
 }
 
@@ -782,6 +813,266 @@ impl Default for Builder {
         }
     }
 }
+
+impl Builder2 {
+    /// Creates a new default instance of `Builder` to construct either a
+    /// `Head` or a `Response`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    ///
+    /// let response = response::Builder2::new()
+    ///     .body(());
+    /// ```
+    #[inline]
+    pub fn new() -> Builder2 {
+        Builder2::default()
+    }
+
+    /// Set the HTTP status for this response.
+    ///
+    /// This function will configure the HTTP status code of the `Response` that
+    /// will be returned from `Builder::build`.
+    ///
+    /// By default this is `200`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    ///
+    /// let response = Response::builder2()
+    ///     .status(StatusCode::NOT_FOUND)
+    ///     .body(());
+    /// ```
+    pub fn status(mut self, status: StatusCode) -> Builder2 {
+        self.inner.status = status.into();
+        self
+    }
+
+    /// Set the HTTP version for this response.
+    ///
+    /// This function will configure the HTTP version of the `Response` that
+    /// will be returned from `Builder::build`.
+    ///
+    /// By default this is HTTP/1.1
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    ///
+    /// let response = Response::builder2()
+    ///     .version(Version::HTTP_2)
+    ///     .body(());
+    /// ```
+    pub fn version(mut self, version: Version) -> Builder2 {
+        self.inner.version = version;
+        self
+    }
+
+    /// Appends a header to this response builder.
+    ///
+    /// This function will append the provided key/value as a header to the
+    /// internal `HeaderMap` being constructed. Essentially this is equivalent
+    /// to calling `HeaderMap::append`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    /// # use http::header::HeaderValue;
+    /// # fn main() -> Result<()> {
+    /// let response = Response::builder2()
+    ///     .try_header("Content-Type", "text/html")?
+    ///     .try_header("X-Custom-Foo", "bar")?
+    ///     .try_header("content-length", 0)?
+    ///     .body(());
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn try_header<K, V>(self, key: K, value: V) -> Result<Builder2>
+    where
+        HeaderName: TryFrom<K>,
+        <HeaderName as TryFrom<K>>::Error: Into<crate::Error>,
+        HeaderValue: TryFrom<V>,
+        <HeaderValue as TryFrom<V>>::Error: Into<crate::Error>,
+    {
+        let name = <HeaderName as TryFrom<K>>::try_from(key).map_err(Into::into)?;
+        let value = <HeaderValue as TryFrom<V>>::try_from(value).map_err(Into::into)?;
+        Ok(self.header(name, value))
+    }
+
+    /// Appends a header to this response builder.
+    ///
+    /// This function will append the provided key/value as a header to the
+    /// internal `HeaderMap` being constructed. Essentially this is equivalent
+    /// to calling `HeaderMap::append`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    /// # use http::header::{HeaderName, HeaderValue};
+    /// # use http::header::{CONTENT_TYPE, CONTENT_LENGTH};
+    ///
+    /// let response = Response::builder2()
+    ///     .header(CONTENT_TYPE, HeaderValue::from_static("text/html"))
+    ///     .header(HeaderName::from_static("x-custom-foo"), 17)
+    ///     .header(CONTENT_LENGTH, 0)
+    ///     .body(());
+    /// ```
+    pub fn header<K, V>(mut self, key: K, value: V) -> Builder2
+    where
+        HeaderName: From<K>,
+        HeaderValue: From<V>,
+    {
+        self.inner
+            .headers
+            .append(HeaderName::from(key), HeaderValue::from(value));
+        self
+    }
+
+    /// Get header on this response builder.
+    ///
+    /// When builder has error returns None.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http::Response;
+    /// # use http::header::{ACCEPT, HeaderName, HeaderValue};
+    /// let res = Response::builder2()
+    ///     .header(ACCEPT, HeaderValue::from_static("text/html"))
+    ///     .header(HeaderName::from_static("x-custom-foo"), 17);
+    /// let headers = res.headers_ref();
+    /// assert_eq!( headers["Accept"], "text/html" );
+    /// assert_eq!( headers["X-Custom-Foo"], "17" );
+    /// ```
+    pub fn headers_ref(&self) -> &HeaderMap<HeaderValue> {
+        &self.inner.headers
+    }
+
+    /// Get header on this response builder.
+    /// when builder has error returns None
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http::*;
+    /// # use http::header::HeaderValue;
+    /// //# use http::response::Builder;
+    /// let mut res = Response::builder2();
+    /// {
+    ///   let headers = res.headers_mut();
+    ///   headers.insert("Accept", HeaderValue::from_static("text/html"));
+    ///   headers.insert("X-Custom-Foo", HeaderValue::from_static("bar"));
+    /// }
+    /// let headers = res.headers_ref();
+    /// assert_eq!( headers["Accept"], "text/html" );
+    /// assert_eq!( headers["X-Custom-Foo"], "bar" );
+    /// ```
+    pub fn headers_mut(&mut self) -> &mut HeaderMap<HeaderValue> {
+        &mut self.inner.headers
+    }
+
+    /// Adds an extension to this builder
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    ///
+    /// let response = Response::builder()
+    ///     .extension("My Extension")
+    ///     .body(())
+    ///     .unwrap();
+    ///
+    /// assert_eq!(response.extensions().get::<&'static str>(),
+    ///            Some(&"My Extension"));
+    /// ```
+    pub fn extension<T>(mut self, extension: T) -> Builder2
+    where
+        T: Any + Send + Sync + 'static,
+    {
+        self.inner.extensions.insert(extension);
+        self
+    }
+
+    /// Get a reference to the extensions for this response builder.
+    ///
+    /// If the builder has an error, this returns `None`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http::Response;
+    /// let req = Response::builder().extension("My Extension").extension(5u32);
+    /// let extensions = req.extensions_ref().unwrap();
+    /// assert_eq!(extensions.get::<&'static str>(), Some(&"My Extension"));
+    /// assert_eq!(extensions.get::<u32>(), Some(&5u32));
+    /// ```
+    pub fn extensions_ref(&self) -> &Extensions {
+        &self.inner.extensions
+    }
+
+    /// Get a mutable reference to the extensions for this response builder.
+    ///
+    /// If the builder has an error, this returns `None`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http::Response;
+    /// let mut req = Response::builder().extension("My Extension");
+    /// let mut extensions = req.extensions_mut().unwrap();
+    /// assert_eq!(extensions.get::<&'static str>(), Some(&"My Extension"));
+    /// extensions.insert(5u32);
+    /// assert_eq!(extensions.get::<u32>(), Some(&5u32));
+    /// ```
+    pub fn extensions_mut(&mut self) -> &mut Extensions {
+        &mut self.inner.extensions
+    }
+
+    /// "Consumes" this builder, using the provided `body` to return a
+    /// constructed `Response`.
+    ///
+    /// # Errors
+    ///
+    /// This function may return an error if any previously configured argument
+    /// failed to parse or get converted to the internal representation. For
+    /// example if an invalid `head` was specified via `header("Foo",
+    /// "Bar\r\n")` the error will be returned when this function is called
+    /// rather than when `header` was called.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    ///
+    /// let response = Response::builder()
+    ///     .body(())
+    ///     .unwrap();
+    /// ```
+    pub fn body<T>(self, body: T) -> Response<T> {
+        Response {
+            head: self.inner,
+            body,
+        }
+    }
+}
+
+impl Default for Builder2 {
+    #[inline]
+    fn default() -> Builder2 {
+        Builder2 {
+            inner: Parts::new(),
+        }
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
