@@ -205,6 +205,10 @@ pub struct Parts {
 ///
 /// This type can be used to construct an instance of `Response` through a
 /// builder-like pattern.
+/// This builder can represent an erroneous state, so finalizing
+/// it (with the `.body` method) may return an error.
+///
+/// See also [`Builder2`](struct.Builder2.html).
 #[derive(Debug)]
 pub struct Builder {
     inner: Result<Parts>,
@@ -215,7 +219,13 @@ pub struct Builder {
 /// This type can be used to construct an instance of `Response` through a
 /// builder-like pattern.
 ///
-/// This variant avoids error states.
+/// This builder can not represent an erroneous state, so as long
+/// as you have a `Builder2` you can get a `Response`.
+/// Most methods on this builder is guaranteed to return a builder.
+/// The exception, `try_header()`, is explicit by returning a
+/// `Result<Builder2>`.
+///
+/// See also [`Builder`](struct.Builder.html).
 #[derive(Debug)]
 pub struct Builder2 {
     inner: Parts,
@@ -225,7 +235,11 @@ impl Response<()> {
     /// Creates a new builder-style object to manufacture a `Response`
     ///
     /// This method returns an instance of `Builder` which can be used to
-    /// create a `Response`.
+    /// create a `Result<Response>`.
+    /// This builder can represent an erroneous state, so finalizing
+    /// it (with the `.body` method) may return an error.
+    ///
+    /// See also [`builder2`](#method.builder2).
     ///
     /// # Examples
     ///
@@ -246,6 +260,10 @@ impl Response<()> {
     ///
     /// This method returns an instance of `Builder` which can be used to
     /// create a `Response`.
+    /// This builder can not represent an erroneous state, so as long
+    /// as you have a `Builder2` you can get a `Response`.
+    ///
+    /// See also [`builder`](#method.builder).
     ///
     /// # Examples
     ///
