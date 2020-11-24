@@ -421,3 +421,24 @@ fn value_htab() {
     HeaderValue::from_static("hello\tworld");
     HeaderValue::from_str("hello\tworld").unwrap();
 }
+
+// For issue hyperimum/http#446
+#[test]
+fn remove_entry_multi() {
+    let mut headers = http::HeaderMap::new();
+    for h in &[
+        "cookie_1=value 1; path=/path; Domain=example.com; \
+         Expires=Wed, 30 Nov 2020 13:28:00 GMT",
+        "cookie_2=valu%C3%A9 2; path=/; Domain=par.example.com; \
+         Expires=Wed, 29 Nov 2020 18:00:00 GMT" ]
+    {
+        headers.append(SET_COOKIE, h.parse().unwrap());
+    }
+
+    let cookies: Vec<HeaderValue> = match headers.entry(SET_COOKIE) {
+        Entry::Occupied(e) => e.remove_entry_mult().1.collect(),
+        Entry::Vacant(_) => vec![],
+    };
+
+    assert_eq!(cookies.len(), 2);
+}
