@@ -675,16 +675,17 @@ impl Uri {
     }
 
     /// make a Uri::Builder from the Uri to modify part of it
-    pub fn to_builder(&self) -> Builder {
+    pub fn to_builder(self) -> Builder {
+        let parts = self.into_parts();
         let mut builder = Self::builder();
-        if let Some(scheme) = self.scheme() {
-            builder = builder.scheme(scheme.clone());
+        if let Some(scheme) = parts.scheme {
+            builder = builder.scheme(scheme);
         }
-        if let Some(authority) = self.authority() {
-            builder = builder.authority(authority.clone());
+        if let Some(authority) = parts.authority {
+            builder = builder.authority(authority);
         }
-        if let Some(path_and_query) = self.path_and_query() {
-            builder = builder.path_and_query(path_and_query.clone());
+        if let Some(path_and_query) = parts.path_and_query {
+            builder = builder.path_and_query(path_and_query);
         }
         builder
     }
