@@ -448,6 +448,12 @@ impl FromStr for Authority {
     }
 }
 
+impl From<&Authority> for Authority {
+    fn from(s: &Authority) -> Authority {
+        s.clone()
+    }
+}
+
 impl fmt::Debug for Authority {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())

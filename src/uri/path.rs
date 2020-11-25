@@ -287,6 +287,12 @@ impl FromStr for PathAndQuery {
     }
 }
 
+impl From<&PathAndQuery> for PathAndQuery {
+    fn from(s: &PathAndQuery) -> PathAndQuery {
+        s.clone()
+    }
+}
+
 impl fmt::Debug for PathAndQuery {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(self, f)

@@ -673,6 +673,21 @@ impl Uri {
     fn has_path(&self) -> bool {
         !self.path_and_query.data.is_empty() || !self.scheme.inner.is_none()
     }
+
+    /// make a Uri::Builder from the Uri to modify part of it
+    pub fn to_builder(&self) -> Builder {
+        let mut builder = Self::builder();
+        if let Some(scheme) = self.scheme() {
+            builder = builder.scheme(scheme);
+        }
+        if let Some(authority) = self.authority() {
+            builder = builder.authority(authority);
+        }
+        if let Some(path_and_query) = self.path_and_query() {
+            builder = builder.path_and_query(path_and_query);
+        }
+        builder
+    }
 }
 
 impl<'a> TryFrom<&'a [u8]> for Uri {
