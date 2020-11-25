@@ -105,12 +105,6 @@ impl FromStr for Scheme {
     }
 }
 
-impl From<&Scheme> for Scheme {
-    fn from(s: &Scheme) -> Scheme {
-        s.clone()
-    }
-}
-
 impl fmt::Debug for Scheme {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(self.as_str(), f)

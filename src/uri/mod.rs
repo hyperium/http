@@ -678,13 +678,13 @@ impl Uri {
     pub fn to_builder(&self) -> Builder {
         let mut builder = Self::builder();
         if let Some(scheme) = self.scheme() {
-            builder = builder.scheme(scheme);
+            builder = builder.scheme(scheme.clone());
         }
         if let Some(authority) = self.authority() {
-            builder = builder.authority(authority);
+            builder = builder.authority(authority.clone());
         }
         if let Some(path_and_query) = self.path_and_query() {
-            builder = builder.path_and_query(path_and_query);
+            builder = builder.path_and_query(path_and_query.clone());
         }
         builder
     }
