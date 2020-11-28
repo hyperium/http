@@ -210,6 +210,7 @@ pub struct Parts {
 ///
 /// See also [`Builder2`](struct.Builder2.html).
 #[derive(Debug)]
+#[deprecated(note = "Please use Self::builder2, it will replace Builder")]
 pub struct Builder {
     inner: Result<Parts>,
 }
@@ -252,6 +253,8 @@ impl Response<()> {
     ///     .unwrap();
     /// ```
     #[inline]
+    #[deprecated(note = "Please use Self::builder2, it will replace Builder")]
+    #[allow(deprecated)]
     pub fn builder() -> Builder {
         Builder::new()
     }
@@ -574,6 +577,7 @@ impl fmt::Debug for Parts {
     }
 }
 
+#[allow(deprecated)]
 impl Builder {
     /// Creates a new default instance of `Builder` to construct either a
     /// `Head` or a `Response`.
@@ -589,6 +593,7 @@ impl Builder {
     ///     .unwrap();
     /// ```
     #[inline]
+    #[deprecated(note = "Please use Builder2, it will replace Builder")]
     pub fn new() -> Builder {
         Builder::default()
     }
@@ -823,6 +828,7 @@ impl Builder {
     }
 }
 
+#[allow(deprecated)]
 impl Default for Builder {
     #[inline]
     fn default() -> Builder {
@@ -1097,8 +1103,19 @@ mod tests {
     use super::*;
 
     #[test]
+    #[allow(deprecated)]
     fn it_can_map_a_body_from_one_type_to_another() {
         let response = Response::builder().body("some string").unwrap();
+        let mapped_response = response.map(|s| {
+            assert_eq!(s, "some string");
+            123u32
+        });
+        assert_eq!(mapped_response.body(), &123u32);
+    }
+
+    #[test]
+    fn it_can_map_a_body_from_one_type_to_another_2() {
+        let response = Response::builder2().body("some string");
         let mapped_response = response.map(|s| {
             assert_eq!(s, "some string");
             123u32
