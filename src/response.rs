@@ -208,9 +208,12 @@ pub struct Parts {
 /// This builder can represent an erroneous state, so finalizing
 /// it (with the `.body` method) may return an error.
 ///
-/// See also [`Builder2`](struct.Builder2.html).
+/// See also [`Builder2`].
 #[derive(Debug)]
-#[deprecated(note = "Please use Self::builder2, it will replace Builder")]
+// Note: rustc 1.39.0 does some use I can't find, so I can't deprecate
+// the type.  Instead, I have just deprecated every function that
+// returns or consumes a Builder.
+//#[deprecated(note = "Please use Builder2, it will replace Builder")]
 pub struct Builder {
     inner: Result<Parts>,
 }
@@ -226,7 +229,7 @@ pub struct Builder {
 /// The exception, `try_header()`, is explicit by returning a
 /// `Result<Builder2>`.
 ///
-/// See also [`Builder`](struct.Builder.html).
+/// See also [`Builder`]
 #[derive(Debug)]
 pub struct Builder2 {
     inner: Parts,
@@ -254,14 +257,14 @@ impl Response<()> {
     /// ```
     #[inline]
     #[deprecated(note = "Please use Self::builder2, it will replace Builder")]
-    #[allow(deprecated)]
     pub fn builder() -> Builder {
+        #[allow(deprecated)]
         Builder::new()
     }
 
     /// Creates a new builder-style object to manufacture a `Response`
     ///
-    /// This method returns an instance of `Builder` which can be used to
+    /// This method returns an instance of `Builder2` which can be used to
     /// create a `Response`.
     /// This builder can not represent an erroneous state, so as long
     /// as you have a `Builder2` you can get a `Response`.
@@ -577,7 +580,6 @@ impl fmt::Debug for Parts {
     }
 }
 
-#[allow(deprecated)]
 impl Builder {
     /// Creates a new default instance of `Builder` to construct either a
     /// `Head` or a `Response`.
@@ -615,6 +617,7 @@ impl Builder {
     ///     .body(())
     ///     .unwrap();
     /// ```
+    #[deprecated(note = "Please use Builder2, it will replace Builder")]
     pub fn status<T>(self, status: T) -> Builder
     where
         StatusCode: TryFrom<T>,
@@ -643,6 +646,7 @@ impl Builder {
     ///     .body(())
     ///     .unwrap();
     /// ```
+    #[deprecated(note = "Please use Builder2, it will replace Builder")]
     pub fn version(self, version: Version) -> Builder {
         self.and_then(move |mut head| {
             head.version = version;
@@ -669,6 +673,7 @@ impl Builder {
     ///     .body(())
     ///     .unwrap();
     /// ```
+    #[deprecated(note = "Please use Builder2, it will replace Builder")]
     pub fn header<K, V>(self, key: K, value: V) -> Builder
     where
         HeaderName: TryFrom<K>,
@@ -700,6 +705,7 @@ impl Builder {
     /// assert_eq!( headers["Accept"], "text/html" );
     /// assert_eq!( headers["X-Custom-Foo"], "bar" );
     /// ```
+    #[deprecated(note = "Please use Builder2, it will replace Builder")]
     pub fn headers_ref(&self) -> Option<&HeaderMap<HeaderValue>> {
         self.inner.as_ref().ok().map(|h| &h.headers)
     }
@@ -723,6 +729,7 @@ impl Builder {
     /// assert_eq!( headers["Accept"], "text/html" );
     /// assert_eq!( headers["X-Custom-Foo"], "bar" );
     /// ```
+    #[deprecated(note = "Please use Builder2, it will replace Builder")]
     pub fn headers_mut(&mut self) -> Option<&mut HeaderMap<HeaderValue>> {
         self.inner.as_mut().ok().map(|h| &mut h.headers)
     }
@@ -742,6 +749,7 @@ impl Builder {
     /// assert_eq!(response.extensions().get::<&'static str>(),
     ///            Some(&"My Extension"));
     /// ```
+    #[deprecated(note = "Please use Builder2, it will replace Builder")]
     pub fn extension<T>(self, extension: T) -> Builder
     where
         T: Any + Send + Sync + 'static,
@@ -765,6 +773,7 @@ impl Builder {
     /// assert_eq!(extensions.get::<&'static str>(), Some(&"My Extension"));
     /// assert_eq!(extensions.get::<u32>(), Some(&5u32));
     /// ```
+    #[deprecated(note = "Please use Builder2, it will replace Builder")]
     pub fn extensions_ref(&self) -> Option<&Extensions> {
         self.inner.as_ref().ok().map(|h| &h.extensions)
     }
@@ -783,6 +792,7 @@ impl Builder {
     /// extensions.insert(5u32);
     /// assert_eq!(extensions.get::<u32>(), Some(&5u32));
     /// ```
+    #[deprecated(note = "Please use Builder2, it will replace Builder")]
     pub fn extensions_mut(&mut self) -> Option<&mut Extensions> {
         self.inner.as_mut().ok().map(|h| &mut h.extensions)
     }
@@ -807,6 +817,7 @@ impl Builder {
     ///     .body(())
     ///     .unwrap();
     /// ```
+    #[deprecated(note = "Please use Builder2, it will replace Builder")]
     pub fn body<T>(self, body: T) -> Result<Response<T>> {
         self.inner.map(move |head| {
             Response {
@@ -828,7 +839,6 @@ impl Builder {
     }
 }
 
-#[allow(deprecated)]
 impl Default for Builder {
     #[inline]
     fn default() -> Builder {
@@ -858,7 +868,7 @@ impl Builder2 {
     /// Set the HTTP status for this response.
     ///
     /// This function will configure the HTTP status code of the `Response` that
-    /// will be returned from `Builder::build`.
+    /// will be returned from `Builder2::build`.
     ///
     /// By default this is `200`.
     ///
@@ -987,7 +997,6 @@ impl Builder2 {
     /// ```
     /// # use http::*;
     /// # use http::header::HeaderValue;
-    /// //# use http::response::Builder;
     /// let mut res = Response::builder2();
     /// {
     ///   let headers = res.headers_mut();
@@ -1100,11 +1109,11 @@ impl Default for Builder2 {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::Response;
 
     #[test]
-    #[allow(deprecated)]
     fn it_can_map_a_body_from_one_type_to_another() {
+        #[allow(deprecated)]
         let response = Response::builder().body("some string").unwrap();
         let mapped_response = response.map(|s| {
             assert_eq!(s, "some string");
