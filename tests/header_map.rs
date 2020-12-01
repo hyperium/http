@@ -175,8 +175,9 @@ fn drain_entry() {
         "more".parse::<HeaderName>().unwrap(),
         "insertions".parse().unwrap(),
     );
+    assert_eq!(5, headers.len());
 
-    // Using insert
+    // Using insert_mult
     {
         let mut e = match headers.entry("hello") {
             Entry::Occupied(e) => e,
@@ -188,6 +189,8 @@ fn drain_entry() {
         assert_eq!(vals[0], "world");
         assert_eq!(vals[1], "world2");
     }
+
+    assert_eq!(5-2+1, headers.len());
 }
 
 #[test]
@@ -422,23 +425,88 @@ fn value_htab() {
     HeaderValue::from_str("hello\tworld").unwrap();
 }
 
+#[test]
+fn remove_entry_multi_0() {
+    let mut headers = HeaderMap::new();
+    let cookies = remove_all_set_cookies(&mut headers);
+    assert_eq!(cookies.len(), 0);
+    assert_eq!(headers.len(), 0);
+}
+
+#[test]
+fn remove_entry_multi_0_others() {
+    let mut headers = HeaderMap::new();
+    headers.insert(VIA, "1.1 example.com".parse().unwrap());
+    headers.append(VIA, "1.1 other.com".parse().unwrap());
+
+    let cookies = remove_all_set_cookies(&mut headers);
+    assert_eq!(cookies.len(), 0);
+    assert_eq!(headers.len(), 2);
+}
+
+#[test]
+fn remove_entry_multi_1() {
+    let mut headers = HeaderMap::new();
+    headers.insert(SET_COOKIE, "cookie_1=value 1".parse().unwrap());
+
+    let cookies = remove_all_set_cookies(&mut headers);
+    assert_eq!(cookies.len(), 1);
+    assert_eq!(headers.len(), 0);
+}
+
+#[test]
+fn remove_entry_multi_1_other() {
+    let mut headers = HeaderMap::new();
+    headers.insert(SET_COOKIE, "cookie_1=value 1".parse().unwrap());
+    headers.insert(VIA, "1.1 example.com".parse().unwrap());
+
+    let cookies = remove_all_set_cookies(&mut headers);
+    assert_eq!(cookies.len(), 1);
+    assert_eq!(headers.len(), 1);
+}
+
 // For issue hyperimum/http#446
 #[test]
-fn remove_entry_multi() {
-    let mut headers = http::HeaderMap::new();
-    for h in &[
-        "cookie_1=value 1; path=/path; Domain=example.com; \
-         Expires=Wed, 30 Nov 2020 13:28:00 GMT",
-        "cookie_2=valu%C3%A9 2; path=/; Domain=par.example.com; \
-         Expires=Wed, 29 Nov 2020 18:00:00 GMT" ]
-    {
-        headers.append(SET_COOKIE, h.parse().unwrap());
-    }
+fn remove_entry_multi_2() {
+    let mut headers = HeaderMap::new();
+    headers.insert(SET_COOKIE, "cookie_1=value 1".parse().unwrap());
+    headers.append(SET_COOKIE, "cookie_2=value 2".parse().unwrap());
 
-    let cookies: Vec<HeaderValue> = match headers.entry(SET_COOKIE) {
+    let cookies = remove_all_set_cookies(&mut headers);
+    assert_eq!(cookies.len(), 2);
+    assert_eq!(headers.len(), 0);
+}
+
+#[test]
+fn remove_entry_multi_3() {
+    let mut headers = HeaderMap::new();
+    headers.insert(SET_COOKIE, "cookie_1=value 1".parse().unwrap());
+    headers.append(SET_COOKIE, "cookie_2=value 2".parse().unwrap());
+    headers.append(SET_COOKIE, "cookie_3=value 3".parse().unwrap());
+
+    let cookies = remove_all_set_cookies(&mut headers);
+    assert_eq!(cookies.len(), 3);
+    assert_eq!(headers.len(), 0);
+}
+
+#[test]
+fn remove_entry_multi_3_others() {
+    let mut headers = HeaderMap::new();
+    headers.insert(VIA, "1.1 example.com".parse().unwrap());
+    headers.insert(SET_COOKIE, "cookie_1=value 1".parse().unwrap());
+    headers.append(SET_COOKIE, "cookie_2=value 2".parse().unwrap());
+    headers.append(VIA, "1.1 other.com".parse().unwrap());
+    headers.append(SET_COOKIE, "cookie_3=value 3".parse().unwrap());
+    headers.insert(VARY, "*".parse().unwrap());
+
+    let cookies = remove_all_set_cookies(&mut headers);
+    assert_eq!(cookies.len(), 3);
+    assert_eq!(headers.len(), 3);
+}
+
+fn remove_all_set_cookies(headers: &mut HeaderMap) -> Vec<HeaderValue> {
+    match headers.entry(SET_COOKIE) {
         Entry::Occupied(e) => e.remove_entry_mult().1.collect(),
         Entry::Vacant(_) => vec![],
-    };
-
-    assert_eq!(cookies.len(), 2);
+    }
 }
