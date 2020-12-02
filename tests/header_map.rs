@@ -575,3 +575,62 @@ fn remove_all_values<K>(headers: &mut HeaderMap, key: K) -> Vec<HeaderValue>
         Entry::Vacant(_) => vec![],
     }
 }
+
+#[test]
+fn remove_entry_3_others_a() {
+    let mut headers = HeaderMap::new();
+    headers.insert(VIA, "1.1 example.com".parse().unwrap());
+    headers.insert(SET_COOKIE, "cookie_1=value 1".parse().unwrap());
+    headers.append(SET_COOKIE, "cookie_2=value 2".parse().unwrap());
+    headers.append(VIA, "1.1 other.com".parse().unwrap());
+    headers.append(SET_COOKIE, "cookie_3=value 3".parse().unwrap());
+    headers.insert(VARY, "*".parse().unwrap());
+
+    assert_eq!(headers.len(), 6);
+
+    let cookie = remove_values(&mut headers, SET_COOKIE);
+    assert_eq!(cookie, Some("cookie_1=value 1".parse().unwrap()));
+    assert_eq!(headers.len(), 3);
+
+    let via = remove_values(&mut headers, VIA);
+    assert_eq!(via, Some("1.1 example.com".parse().unwrap()));
+    assert_eq!(headers.len(), 1);
+
+    let vary = remove_values(&mut headers, VARY);
+    assert_eq!(vary, Some("*".parse().unwrap()));
+    assert_eq!(headers.len(), 0);
+}
+
+#[test]
+fn remove_entry_3_others_b() {
+    let mut headers = HeaderMap::new();
+    headers.insert(VIA, "1.1 example.com".parse().unwrap());
+    headers.insert(SET_COOKIE, "cookie_1=value 1".parse().unwrap());
+    headers.append(SET_COOKIE, "cookie_2=value 2".parse().unwrap());
+    headers.append(VIA, "1.1 other.com".parse().unwrap());
+    headers.append(SET_COOKIE, "cookie_3=value 3".parse().unwrap());
+    headers.insert(VARY, "*".parse().unwrap());
+
+    assert_eq!(headers.len(), 6);
+
+    let vary = remove_values(&mut headers, VARY);
+    assert_eq!(vary, Some("*".parse().unwrap()));
+    assert_eq!(headers.len(), 5);
+
+    let via = remove_values(&mut headers, VIA);
+    assert_eq!(via, Some("1.1 example.com".parse().unwrap()));
+    assert_eq!(headers.len(), 3);
+
+    let cookie = remove_values(&mut headers, SET_COOKIE);
+    assert_eq!(cookie, Some("cookie_1=value 1".parse().unwrap()));
+    assert_eq!(headers.len(), 0);
+}
+
+fn remove_values<K>(headers: &mut HeaderMap, key: K) -> Option<HeaderValue>
+    where K: IntoHeaderName
+{
+    match headers.entry(key) {
+        Entry::Occupied(e) => Some(e.remove_entry().1),
+        Entry::Vacant(_) => None,
+    }
+}
