@@ -425,6 +425,57 @@ fn value_htab() {
     HeaderValue::from_str("hello\tworld").unwrap();
 }
 
+
+#[test]
+fn remove_multiple_a() {
+    let mut headers = HeaderMap::new();
+    headers.insert(VIA, "1.1 example.com".parse().unwrap());
+    headers.insert(SET_COOKIE, "cookie_1=value 1".parse().unwrap());
+    headers.append(SET_COOKIE, "cookie_2=value 2".parse().unwrap());
+    headers.append(VIA, "1.1 other.com".parse().unwrap());
+    headers.append(SET_COOKIE, "cookie_3=value 3".parse().unwrap());
+    headers.insert(VARY, "*".parse().unwrap());
+
+    assert_eq!(headers.len(), 6);
+
+    let cookie = headers.remove(SET_COOKIE);
+    assert_eq!(cookie, Some("cookie_1=value 1".parse().unwrap()));
+    assert_eq!(headers.len(), 3);
+
+    let via = headers.remove(VIA);
+    assert_eq!(via, Some("1.1 example.com".parse().unwrap()));
+    assert_eq!(headers.len(), 1);
+
+    let vary = headers.remove(VARY);
+    assert_eq!(vary, Some("*".parse().unwrap()));
+    assert_eq!(headers.len(), 0);
+}
+
+#[test]
+fn remove_multiple_b() {
+    let mut headers = HeaderMap::new();
+    headers.insert(VIA, "1.1 example.com".parse().unwrap());
+    headers.insert(SET_COOKIE, "cookie_1=value 1".parse().unwrap());
+    headers.append(SET_COOKIE, "cookie_2=value 2".parse().unwrap());
+    headers.append(VIA, "1.1 other.com".parse().unwrap());
+    headers.append(SET_COOKIE, "cookie_3=value 3".parse().unwrap());
+    headers.insert(VARY, "*".parse().unwrap());
+
+    assert_eq!(headers.len(), 6);
+
+    let vary = headers.remove(VARY);
+    assert_eq!(vary, Some("*".parse().unwrap()));
+    assert_eq!(headers.len(), 5);
+
+    let via = headers.remove(VIA);
+    assert_eq!(via, Some("1.1 example.com".parse().unwrap()));
+    assert_eq!(headers.len(), 3);
+
+    let cookie = headers.remove(SET_COOKIE);
+    assert_eq!(cookie, Some("cookie_1=value 1".parse().unwrap()));
+    assert_eq!(headers.len(), 0);
+}
+
 #[test]
 fn remove_entry_multi_0() {
     let mut headers = HeaderMap::new();
