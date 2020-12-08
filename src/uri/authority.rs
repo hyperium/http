@@ -50,7 +50,6 @@ impl Authority {
             .expect("static str is not valid authority")
     }
 
-
     /// Attempt to convert a `Bytes` buffer to a `Authority`.
     ///
     /// This will try to prevent a copy if the type passed is the type used
@@ -91,13 +90,16 @@ impl Authority {
                     colon_cnt += 1;
                 }
                 b'[' => {
-                    start_bracket = true;
-                    if has_percent {
+                    if has_percent || start_bracket {
                         // Something other than the userinfo has a `%`, so reject it.
                         return Err(ErrorKind::InvalidAuthority.into());
                     }
+                    start_bracket = true;
                 }
                 b']' => {
+                    if end_bracket {
+                        return Err(ErrorKind::InvalidAuthority.into());
+                    }
                     end_bracket = true;
 
                     // Those were part of an IPv6 hostname, so forget them...
@@ -641,5 +643,11 @@ mod tests {
         let err = Authority::from_shared(Bytes::from_static([0xc0u8].as_ref()))
             .unwrap_err();
         assert_eq!(err.0, ErrorKind::InvalidUriChar);
+    }
+
+    #[test]
+    fn rejects_invalid_use_of_brackets() {
+        let err = Authority::parse_non_empty(b"[]@[").unwrap_err();
+        assert_eq!(err.0, ErrorKind::InvalidAuthority);
     }
 }
