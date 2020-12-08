@@ -279,6 +279,22 @@ impl<'a> TryFrom<&'a str> for PathAndQuery {
     }
 }
 
+impl TryFrom<String> for PathAndQuery {
+    type Error = InvalidUri;
+    #[inline]
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        TryFrom::try_from(s.as_bytes())
+    }
+}
+
+impl TryFrom<&String> for PathAndQuery {
+    type Error = InvalidUri;
+    #[inline]
+    fn try_from(s: &String) -> Result<Self, Self::Error> {
+        TryFrom::try_from(s.as_bytes())
+    }
+}
+
 impl FromStr for PathAndQuery {
     type Err = InvalidUri;
     #[inline]
