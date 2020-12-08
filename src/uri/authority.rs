@@ -644,4 +644,10 @@ mod tests {
             .unwrap_err();
         assert_eq!(err.0, ErrorKind::InvalidUriChar);
     }
+
+    #[test]
+    fn rejects_invalid_use_of_brackets() {
+        let err = Authority::parse_non_empty(b"[]@[").unwrap_err();
+        assert_eq!(err.0, ErrorKind::InvalidAuthority);
+    }
 }
