@@ -22,13 +22,15 @@ use std::str::FromStr;
 
 /// An HTTP status code (`status-code` in RFC 7230 et al.).
 ///
-/// This type contains constants for all common status codes.
-/// It allows status codes in the range [100, 999].
+/// Constants are provided for known status codes, including those in the IANA
+/// [HTTP Status Code Registry](
+/// https://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml).
 ///
-/// IANA maintain the [Hypertext Transfer Protocol (HTTP) Status Code
-/// Registry](http://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml) which is
-/// the source for this enum (with one exception, 418 I'm a teapot, which is
-/// inexplicably not in the register).
+/// Status code values in the range 100-999 (inclusive) are supported by this
+/// type. Values in the range 100-599 are semantically classified by the most
+/// significant digit. See [`StatusCode::is_success`], etc. Values above 599
+/// are unclassified but allowed for legacy compatibility, though their use is
+/// discouraged. Applications may interpret such values as protocol errors.
 ///
 /// # Examples
 ///
@@ -54,7 +56,7 @@ impl StatusCode {
     /// Converts a u16 to a status code.
     ///
     /// The function validates the correctness of the supplied u16. It must be
-    /// greater or equal to 100 but less than 1000.
+    /// greater or equal to 100 and less than 1000.
     ///
     /// # Example
     ///
@@ -530,7 +532,7 @@ impl fmt::Display for InvalidStatusCode {
 impl Error for InvalidStatusCode {}
 
 // A string of packed 3-ASCII-digit status code values for the supported range
-// of (100..=999)
+// of [100, 999] (900 codes, 2700 bytes).
 const CODE_DIGITS: &'static str = "\
 100101102103104105106107108109110111112113114115116117118119\
 120121122123124125126127128129130131132133134135136137138139\
