@@ -8,8 +8,9 @@
 //!
 //! ```
 //! use http::StatusCode;
+//! use std::convert::TryFrom;
 //!
-//! assert_eq!(StatusCode::from_u16(200).unwrap(), StatusCode::OK);
+//! assert_eq!(StatusCode::try_from(200).unwrap(), StatusCode::OK);
 //! assert_eq!(StatusCode::NOT_FOUND, 404);
 //! assert!(StatusCode::OK.is_success());
 //! ```
@@ -36,15 +37,17 @@ use std::str::FromStr;
 ///
 /// ```
 /// use http::StatusCode;
+/// use std::convert::TryFrom;
 ///
-/// assert_eq!(StatusCode::from_u16(200).unwrap(), StatusCode::OK);
+/// assert_eq!(StatusCode::try_from(200).unwrap(), StatusCode::OK);
 /// assert_eq!(StatusCode::NOT_FOUND, 404);
 /// assert!(StatusCode::OK.is_success());
 /// ```
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StatusCode(NonZeroU16);
 
-/// A possible error value when converting a `StatusCode` from a `u16` or `&str`
+/// A possible error value when converting a `StatusCode` from an integer type,
+/// `str` or byte slice.
 ///
 /// This error indicates that the supplied input was not a valid number, was less
 /// than 100, or was greater than 999.
@@ -265,8 +268,9 @@ impl<'a> TryFrom<&'a str> for StatusCode {
 }
 
 macro_rules! impl_numeric_support {
-    ($($t:ty),+) => {
+    ($($(#[$docs:meta])* $t:ty),+) => {
         $(
+            $(#[$docs])*
             impl TryFrom<$t> for StatusCode {
                 type Error = InvalidStatusCode;
 
@@ -278,6 +282,7 @@ macro_rules! impl_numeric_support {
                 }
             }
 
+            $(#[$docs])*
             impl From<StatusCode> for $t {
                 #[inline]
                 fn from(status: StatusCode) -> $t {
@@ -287,6 +292,7 @@ macro_rules! impl_numeric_support {
                 }
             }
 
+            $(#[$docs])*
             impl PartialEq<$t> for StatusCode {
                 #[inline]
                 fn eq(&self, other: &$t) -> bool {
@@ -298,6 +304,7 @@ macro_rules! impl_numeric_support {
                 }
             }
 
+            $(#[$docs])*
             impl PartialEq<StatusCode> for $t {
                 #[inline]
                 fn eq(&self, other: &StatusCode) -> bool {
@@ -308,9 +315,31 @@ macro_rules! impl_numeric_support {
     }
 }
 
+// Invariant: All types included here must be super-ranges of the `StatusCode`s
+// [100, 999] range. For example, `u8` or `i8` should _not_ be added.
 impl_numeric_support! {
-    u16, u32, usize, u64,
-    i16, i32, isize, i64
+    u16,
+    u32,
+    usize,
+    u64,
+    /// `StatusCode` is logically an unsigned type. Negative values are just
+    /// another case of [`InvalidStatusCode`] on input, and will always compare
+    /// false for equality.
+    i16,
+    /// `StatusCode` is logically an unsigned type. Negative values are just
+    /// another case of [`InvalidStatusCode`] on input, and will always compare
+    /// false for equality.  With multiple `TryFrom` impls, `i32` is essential
+    /// for continued support of un-annotated, non-inferable positive integer
+    /// literals, as it is the fallback type.
+    i32,
+    /// `StatusCode` is logically an unsigned type. Negative values are just
+    /// another case of [`InvalidStatusCode`] on input, and will always compare
+    /// false for equality.
+    isize,
+    /// `StatusCode` is logically an unsigned type. Negative values are just
+    /// another case of [`InvalidStatusCode`] on input, and will always compare
+    /// false for equality.
+    i64
 }
 
 macro_rules! status_codes {
