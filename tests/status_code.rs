@@ -26,9 +26,20 @@ fn from_bytes() {
 fn conversions() {
     let min = StatusCode::CONTINUE;
     assert_eq!(min.try_into(), Ok(100u16));
+    assert_eq!(min.try_into(), Ok(100u32));
+    assert_eq!(min.try_into(), Ok(100usize));
+    assert_eq!(min.try_into(), Ok(100u64));
+    assert_eq!(min.try_into(), Ok(100i32));
 
     let max = StatusCode::try_from(999).unwrap();
     assert_eq!(u16::from(max), 999);
+    assert_eq!(u32::from(max), 999);
+    assert_eq!(u64::from(max), 999);
+    assert_eq!(usize::from(max), 999);
+    assert_eq!(i16::from(max), 999);
+    assert_eq!(i32::from(max), 999);
+    assert_eq!(i64::from(max), 999);
+    assert_eq!(isize::from(max), 999);
 }
 
 #[test]
@@ -36,8 +47,21 @@ fn partial_eq_ne() {
     let status = StatusCode::from_u16(200u16).unwrap();
     assert_eq!(200u16, status);
     assert_eq!(status, 200u16);
+
+    assert_eq!(200i16, status);
+    assert_eq!(status, 200i16);
+
+    assert_eq!(200u32, status);
+    assert_eq!(status, 200u32);
+
+    assert_eq!(200u64, status);
+    assert_eq!(status, 200u64);
+
     assert_ne!(status, 201u16);
+    assert_ne!(status, 201u32);
     assert_ne!(status, 0u16);
+    assert_ne!(status, -3000i16);
+    assert_ne!(status, -10000i32);
 }
 
 #[test]
