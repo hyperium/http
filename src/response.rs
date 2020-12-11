@@ -221,7 +221,7 @@ impl Response<()> {
     /// ```
     /// # use http::*;
     /// let response = Response::builder()
-    ///     .status(200)
+    ///     .status(StatusCode::OK)
     ///     .header("X-Custom-Foo", "Bar")
     ///     .body(())
     ///     .unwrap();
@@ -534,8 +534,8 @@ impl Builder {
     /// # use http::*;
     ///
     /// let response = response::Builder::new()
-    ///     .status(200)
-    ///     .body(())
+    ///     .status(StatusCode::OK)
+    ///     .body("hello world")
     ///     .unwrap();
     /// ```
     #[inline]
@@ -548,7 +548,7 @@ impl Builder {
     /// This function will configure the HTTP status code of the `Response` that
     /// will be returned from `Builder::build`.
     ///
-    /// By default this is `200`.
+    /// By default this is [`StatusCode::OK`].
     ///
     /// # Examples
     ///
@@ -556,7 +556,7 @@ impl Builder {
     /// # use http::*;
     ///
     /// let response = Response::builder()
-    ///     .status(200)
+    ///     .status(StatusCode::NO_CONTENT)
     ///     .body(())
     ///     .unwrap();
     /// ```
