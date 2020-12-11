@@ -38,7 +38,7 @@ use std::str::FromStr;
 /// use http::StatusCode;
 ///
 /// assert_eq!(StatusCode::from_u16(200).unwrap(), StatusCode::OK);
-/// assert_eq!(StatusCode::NOT_FOUND.as_u16(), 404);
+/// assert_eq!(StatusCode::NOT_FOUND, 404);
 /// assert!(StatusCode::OK.is_success());
 /// ```
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -231,27 +231,6 @@ impl Default for StatusCode {
     }
 }
 
-impl PartialEq<u16> for StatusCode {
-    #[inline]
-    fn eq(&self, other: &u16) -> bool {
-        self.as_u16() == *other
-    }
-}
-
-impl PartialEq<StatusCode> for u16 {
-    #[inline]
-    fn eq(&self, other: &StatusCode) -> bool {
-        *self == other.as_u16()
-    }
-}
-
-impl From<StatusCode> for u16 {
-    #[inline]
-    fn from(status: StatusCode) -> u16 {
-        status.0.get()
-    }
-}
-
 impl FromStr for StatusCode {
     type Err = InvalidStatusCode;
 
@@ -285,13 +264,53 @@ impl<'a> TryFrom<&'a str> for StatusCode {
     }
 }
 
-impl TryFrom<u16> for StatusCode {
-    type Error = InvalidStatusCode;
+macro_rules! impl_numeric_support {
+    ($($t:ty),+) => {
+        $(
+            impl TryFrom<$t> for StatusCode {
+                type Error = InvalidStatusCode;
 
-    #[inline]
-    fn try_from(t: u16) -> Result<Self, Self::Error> {
-        StatusCode::from_u16(t)
+                #[inline]
+                fn try_from(t: $t) -> Result<Self, Self::Error> {
+                    u16::try_from(t)
+                        .map_err(|_| InvalidStatusCode::new())
+                        .and_then(StatusCode::from_u16)
+                }
+            }
+
+            impl From<StatusCode> for $t {
+                #[inline]
+                fn from(status: StatusCode) -> $t {
+                    // Invariant: All included numeric types are super-ranges
+                    <$t>::try_from(status.0.get())
+                        .expect(concat!("BUG: out of range for", stringify!($t)))
+                }
+            }
+
+            impl PartialEq<$t> for StatusCode {
+                #[inline]
+                fn eq(&self, other: &$t) -> bool {
+                    if let Ok(v) = <$t>::try_from(self.0.get()) {
+                        v == *other
+                    } else {
+                        false
+                    }
+                }
+            }
+
+            impl PartialEq<StatusCode> for $t {
+                #[inline]
+                fn eq(&self, other: &StatusCode) -> bool {
+                    other == self
+                }
+            }
+        )+
     }
+}
+
+impl_numeric_support! {
+    u16, u32, usize, u64,
+    i16, i32, isize, i64
 }
 
 macro_rules! status_codes {
