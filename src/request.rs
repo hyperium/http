@@ -9,26 +9,28 @@
 //!
 //! Creating a `Request` to send
 //!
-//! ```no_run
-//! use http::{Request, Response};
+//! ```
+//! use http::{HeaderValue, Request, Response, header};
 //!
-//! let mut request = Request::builder()
-//!     .uri("https://www.rust-lang.org/")
-//!     .header("User-Agent", "my-awesome-agent/1.0");
+//! # fn main() -> http::Result<()> {
+//! let mut request = Request::builder2()
+//!     .try_uri("https://www.rust-lang.org/")?
+//!     .header(header::USER_AGENT, HeaderValue::from_static("my-awesome-agent/1.0"));
 //!
 //! if needs_awesome_header() {
-//!     request = request.header("Awesome", "yes");
+//!     request = request.try_header("Awesome", "yes")?;
 //! }
 //!
-//! let response = send(request.body(()).unwrap());
-//!
+//! let response = send(request.body(()));
+//! # Ok(())
+//! # }
 //! # fn needs_awesome_header() -> bool {
 //! #     true
 //! # }
-//! #
+//!
 //! fn send(req: Request<()>) -> Response<()> {
 //!     // ...
-//! # panic!()
+//! #   Response::builder().body(()).unwrap()
 //! }
 //! ```
 //!
@@ -72,26 +74,28 @@ use crate::{Extensions, Result, Uri};
 ///
 /// Creating a `Request` to send
 ///
-/// ```no_run
-/// use http::{Request, Response};
+/// ```
+/// use http::{HeaderValue, Request, Response, header};
 ///
-/// let mut request = Request::builder()
-///     .uri("https://www.rust-lang.org/")
-///     .header("User-Agent", "my-awesome-agent/1.0");
+/// # fn main() -> http::Result<()> {
+/// let mut request = Request::builder2()
+///     .try_uri("https://www.rust-lang.org/")?
+///     .header(header::USER_AGENT, HeaderValue::from_static("my-awesome-agent/1.0"));
 ///
 /// if needs_awesome_header() {
-///     request = request.header("Awesome", "yes");
+///     request = request.try_header("Awesome", "yes")?;
 /// }
 ///
-/// let response = send(request.body(()).unwrap());
-///
+/// let response = send(request.body(()));
+/// # Ok(())
+/// # }
 /// # fn needs_awesome_header() -> bool {
 /// #     true
 /// # }
-/// #
+///
 /// fn send(req: Request<()>) -> Response<()> {
 ///     // ...
-/// # panic!()
+/// #   Response::builder().body(()).unwrap()
 /// }
 /// ```
 ///
@@ -209,6 +213,7 @@ impl Request<()> {
     ///     .unwrap();
     /// ```
     #[inline]
+    #[deprecated(note="Please use builder2")]
     pub fn builder() -> Builder {
         Builder::new()
     }
@@ -227,6 +232,7 @@ impl Request<()> {
     ///     .body(())
     ///     .unwrap();
     /// ```
+    #[deprecated(note="Please use get2")]
     pub fn get<T>(uri: T) -> Builder
     where
         Uri: TryFrom<T>,
@@ -250,6 +256,7 @@ impl Request<()> {
     ///     .body(())
     ///     .unwrap();
     /// ```
+    #[deprecated(note="Please use put2")]
     pub fn put<T>(uri: T) -> Builder
     where
         Uri: TryFrom<T>,
@@ -273,6 +280,7 @@ impl Request<()> {
     ///     .body(())
     ///     .unwrap();
     /// ```
+    #[deprecated(note="Please use post2")]
     pub fn post<T>(uri: T) -> Builder
     where
         Uri: TryFrom<T>,
@@ -296,6 +304,7 @@ impl Request<()> {
     ///     .body(())
     ///     .unwrap();
     /// ```
+    #[deprecated(note="Please use delete2")]
     pub fn delete<T>(uri: T) -> Builder
     where
         Uri: TryFrom<T>,
@@ -320,6 +329,7 @@ impl Request<()> {
     ///     .unwrap();
     /// # assert_eq!(*request.method(), Method::OPTIONS);
     /// ```
+    #[deprecated(note="Please use options2")]
     pub fn options<T>(uri: T) -> Builder
     where
         Uri: TryFrom<T>,
@@ -343,6 +353,7 @@ impl Request<()> {
     ///     .body(())
     ///     .unwrap();
     /// ```
+    #[deprecated(note="Please use head2")]
     pub fn head<T>(uri: T) -> Builder
     where
         Uri: TryFrom<T>,
@@ -366,6 +377,7 @@ impl Request<()> {
     ///     .body(())
     ///     .unwrap();
     /// ```
+    #[deprecated(note="Please use connect2")]
     pub fn connect<T>(uri: T) -> Builder
     where
         Uri: TryFrom<T>,
@@ -389,6 +401,7 @@ impl Request<()> {
     ///     .body(())
     ///     .unwrap();
     /// ```
+    #[deprecated(note="Please use patch2")]
     pub fn patch<T>(uri: T) -> Builder
     where
         Uri: TryFrom<T>,
@@ -411,12 +424,219 @@ impl Request<()> {
     ///     .body(())
     ///     .unwrap();
     /// ```
+    #[deprecated(note="Please use trace2")]
     pub fn trace<T>(uri: T) -> Builder
     where
         Uri: TryFrom<T>,
         <Uri as TryFrom<T>>::Error: Into<crate::Error>,
     {
         Builder::new().method(Method::TRACE).uri(uri)
+    }
+}
+
+/// An HTTP request builder
+///
+/// This type can be used to construct an instance or `Request`
+/// through a builder-like pattern.
+#[derive(Debug)]
+pub struct Builder2 {
+    inner: Parts,
+}
+
+impl Request<()> {
+    /// Creates a new builder-style object to manufacture a `Request`
+    ///
+    /// This method returns an instance of `Builder2` which can be used to
+    /// create a `Request`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    /// # fn main() -> Result<()> {
+    /// let request = Request::builder2()
+    ///     .method(Method::GET)
+    ///     .uri(Uri::from_static("https://www.rust-lang.org/"))
+    ///     .try_header("X-Custom-Foo", "Bar")?
+    ///     .body(());
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[inline]
+    pub fn builder2() -> Builder2 {
+        Builder2::new()
+    }
+
+    /// Creates a new builder initialized with a GET method and the given URI.
+    ///
+    /// This method returns an instance of `Builder2` which can be used to
+    /// create a `Request`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http::*;
+    /// let request = Request::get2(Uri::from_static("https://www.rust-lang.org/"))
+    ///     .body(());
+    /// ```
+    pub fn get2<T>(uri: T) -> Builder2
+    where
+        Uri: From<T>,
+    {
+        Builder2::new().method(Method::GET).uri(uri)
+    }
+
+    /// Creates a new builder initialized with a PUT method and the given URI.
+    ///
+    /// This method returns an instance of `Builder2` which can be used to
+    /// create a `Request`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http::*;
+    /// let request = Request::put2(Uri::from_static("https://www.rust-lang.org/"))
+    ///     .body(());
+    /// ```
+    pub fn put2<T>(uri: T) -> Builder2
+    where
+        Uri: From<T>,
+    {
+        Builder2::new().method(Method::PUT).uri(uri)
+    }
+
+    /// Creates a new builder initialized with a POST method and the given URI.
+    ///
+    /// This method returns an instance of `Builder2` which can be used to
+    /// create a `Request`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http::*;
+    /// let request = Request::post2(Uri::from_static("https://www.rust-lang.org/"))
+    ///     .body(());
+    /// ```
+    pub fn post2<T>(uri: T) -> Builder2
+    where
+        Uri: From<T>,
+    {
+        Builder2::new().method(Method::POST).uri(uri)
+    }
+
+    /// Creates a new builder initialized with a DELETE method and the given URI.
+    ///
+    /// This method returns an instance of `Builder2` which can be used to
+    /// create a `Request`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http::*;
+    /// let request = Request::delete2(Uri::from_static("https://www.rust-lang.org/"))
+    ///     .body(());
+    /// ```
+    pub fn delete2<T>(uri: T) -> Builder2
+    where
+        Uri: From<T>,
+    {
+        Builder2::new().method(Method::DELETE).uri(uri)
+    }
+
+    /// Creates a new builder initialized with an OPTIONS method and the given URI.
+    ///
+    /// This method returns an instance of `Builder2` which can be used to
+    /// create a `Request`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http::*;
+    /// let request = Request::options2(Uri::from_static("https://www.rust-lang.org/"))
+    ///     .body(());
+    /// assert_eq!(request.method(), Method::OPTIONS);
+    /// ```
+    pub fn options2<T>(uri: T) -> Builder2
+    where
+        Uri: From<T>,
+    {
+        Builder2::new().method(Method::OPTIONS).uri(uri)
+    }
+
+    /// Creates a new builder initialized with a HEAD method and the given URI.
+    ///
+    /// This method returns an instance of `Builder2` which can be used
+    /// to create a `Request`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http::*;
+    /// let request = Request::head2(Uri::from_static("https://www.rust-lang.org/"))
+    ///     .body(());
+    /// ```
+    pub fn head2<T>(uri: T) -> Builder2
+    where
+        Uri: From<T>,
+    {
+        Builder2::new().method(Method::HEAD).uri(uri)
+    }
+
+    /// Creates a new builder initialized with a CONNECT method and the given URI.
+    ///
+    /// This method returns an instance of `Builder2` which can be used to
+    /// create a `Request`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http::*;
+    /// let request = Request::connect2(Uri::from_static("https://www.rust-lang.org/"))
+    ///     .body(());
+    /// ```
+    pub fn connect2<T>(uri: T) -> Builder2
+    where
+        Uri: From<T>,
+    {
+        Builder2::new().method(Method::CONNECT).uri(uri)
+    }
+
+    /// Creates a new builder initialized with a PATCH method and the given URI.
+    ///
+    /// This method returns an instance of `Builder2` which can be used to
+    /// create a `Request`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http::*;
+    /// let request = Request::patch2(Uri::from_static("https://www.rust-lang.org/"))
+    ///     .body(());
+    /// ```
+    pub fn patch2<T>(uri: T) -> Builder2
+    where
+        Uri: From<T>,
+    {
+        Builder2::new().method(Method::PATCH).uri(uri)
+    }
+
+    /// Creates a new builder initialized with a TRACE method and the given URI.
+    ///
+    /// This method returns an instance of `Builder2` which can be used to
+    /// create a `Request`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http::*;
+    /// let request = Request::trace2(Uri::from_static("https://www.rust-lang.org/"))
+    ///     .body(());
+    /// ```
+    pub fn trace2<T>(uri: T) -> Builder2
+    where
+        Uri: From<T>,
+    {
+        Builder2::new().method(Method::TRACE).uri(uri)
     }
 }
 
@@ -748,7 +968,6 @@ impl Builder {
     ///
     /// ```
     /// # use http::*;
-    ///
     /// let req = request::Builder::new()
     ///     .method("POST")
     ///     .body(())
@@ -1061,13 +1280,358 @@ impl Default for Builder {
     }
 }
 
+impl Builder2 {
+    /// Creates a new default instance of `Builder2` to construct a `Request`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    /// let req = request::Builder2::new()
+    ///     .method(Method::POST)
+    ///     .body(());
+    /// ```
+    #[inline]
+    pub fn new() -> Builder2 {
+        Builder2::default()
+    }
+
+    /// Set the HTTP method for this request.
+    ///
+    /// This function will configure the HTTP method of the `Request` that will
+    /// be returned from `Builder2::build`.
+    ///
+    /// By default this is `GET`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    /// let req = Request::builder2()
+    ///     .method(Method::POST)
+    ///     .body(());
+    /// ```
+    pub fn method<T>(mut self, method: T) -> Builder2
+    where
+        Method: From<T>,
+    {
+        self.inner.method = method.into();
+        self
+    }
+
+    /// Get the HTTP Method for this request.
+    ///
+    /// By default this is `GET`. If builder has error, returns None.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    /// let mut req = Request::builder2();
+    /// assert_eq!(req.method_ref(), Method::GET);
+    ///
+    /// req = req.method(Method::POST);
+    /// assert_eq!(req.method_ref(), Method::POST);
+    /// ```
+    pub fn method_ref(&self) -> &Method {
+        &self.inner.method
+    }
+
+    /// Set the URI for this request.
+    ///
+    /// This function will configure the URI of the `Request` that will
+    /// be returned from `Builder2::build`.
+    ///
+    /// By default this is `/`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    /// let req = Request::builder2()
+    ///     .uri(Uri::from_static("https://www.rust-lang.org/"))
+    ///     .body(());
+    /// ```
+    pub fn uri<T>(mut self, uri: T) -> Builder2
+    where
+        Uri: From<T>,
+    {
+        self.inner.uri = uri.into();
+        self
+    }
+
+    /// Set the URI for this request.
+    ///
+    /// This function will configure the URI of the `Request` that will
+    /// be returned from `Builder2::build`.
+    ///
+    /// By default this is `/`.
+    ///
+    /// # Errors
+    ///
+    /// This method does a fallible conversion, and returns an error if
+    /// the conversion fails.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    /// # fn main() -> Result<()> {
+    /// let req = Request::builder2()
+    ///     .try_uri("https://www.rust-lang.org/")?
+    ///     .body(());
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn try_uri<T>(mut self, uri: T) -> Result<Builder2>
+    where
+        Uri: TryFrom<T>,
+        crate::Error: From<<Uri as TryFrom<T>>::Error>,
+    {
+        self.inner.uri = Uri::try_from(uri)?;
+        Ok(self)
+    }
+
+    /// Get the URI for this request
+    ///
+    /// By default this is `/`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    /// # fn main() -> Result<()> {
+    /// let mut req = Request::builder2();
+    /// assert_eq!(req.uri_ref(), "/" );
+    ///
+    /// req = req.try_uri("https://www.rust-lang.org/")?;
+    /// assert_eq!(req.uri_ref(), "https://www.rust-lang.org/");
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn uri_ref(&self) -> &Uri {
+        &self.inner.uri
+    }
+
+    /// Set the HTTP version for this request.
+    ///
+    /// This function will configure the HTTP version of the `Request` that
+    /// will be returned from `Builder2::build`.
+    ///
+    /// By default this is HTTP/1.1
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    ///
+    /// let req = Request::builder2()
+    ///     .version(Version::HTTP_2)
+    ///     .body(());
+    /// ```
+    pub fn version(mut self, version: Version) -> Builder2 {
+        self.inner.version = version;
+        self
+    }
+
+    /// Appends a header to this request builder.
+    ///
+    /// This function will append the provided key/value as a header to the
+    /// internal `HeaderMap` being constructed. Essentially this is equivalent
+    /// to calling `HeaderMap::append`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    /// # use http::header::{HeaderName, HeaderValue};
+    /// # #[allow(non_snake_case)] // look like mime::TEXT_HTML
+    /// # let TEXT_HTML: HeaderValue = HeaderValue::from_static("text/html");
+    ///
+    /// let req = Request::builder2()
+    ///     .header(header::ACCEPT, TEXT_HTML)
+    ///     .header(
+    ///         HeaderName::from_static("x-custom-foo"),
+    ///         HeaderValue::from_static("bar"),
+    ///     )
+    ///     .body(());
+    /// ```
+    pub fn header<K, V>(mut self, key: K, value: V) -> Builder2
+    where
+        HeaderName: From<K>,
+        HeaderValue: From<V>,
+    {
+        self.inner.headers.append(HeaderName::from(key), value.into());
+        self
+    }
+
+    /// Appends a header to this request builder.
+    ///
+    /// This function will append the provided key/value as a header to the
+    /// internal `HeaderMap` being constructed. Essentially this is equivalent
+    /// to calling `HeaderMap::append`.
+    ///
+    /// # Errors
+    ///
+    /// This method does fallible conversions, and returns an error if
+    /// one of the conversions fail.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    /// # fn main() -> Result<()> {
+    /// let req = Request::builder2()
+    ///     .try_header("Accept", "text/html")?
+    ///     .try_header("X-Custom-Foo", "bar")?
+    ///     .body(());
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn try_header<K, V>(mut self, key: K, value: V) -> Result<Builder2>
+    where
+        HeaderName: TryFrom<K>,
+        crate::Error: From<<HeaderName as TryFrom<K>>::Error>,
+        HeaderValue: TryFrom<V>,
+        crate::Error: From<<HeaderValue as TryFrom<V>>::Error>,
+    {
+        let name = HeaderName::try_from(key)?;
+        let value = HeaderValue::try_from(value)?;
+        self.inner.headers.append(name, value);
+        Ok(self)
+    }
+
+    /// Get header on this request builder.
+    /// when builder has error returns None
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http::Request;
+    /// # fn main() -> Result<(), http::Error> {
+    /// let req = Request::builder2()
+    ///     .try_header("Accept", "text/html")?
+    ///     .try_header("X-Custom-Foo", "bar")?;
+    /// let headers = req.headers_ref();
+    /// assert_eq!(headers["Accept"], "text/html");
+    /// assert_eq!(headers["X-Custom-Foo"], "bar");
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn headers_ref(&self) -> &HeaderMap<HeaderValue> {
+        &self.inner.headers
+    }
+
+    /// Get headers on this request builder.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http::{header::HeaderValue, Request};
+    /// let mut req = Request::builder2();
+    /// {
+    ///   let headers = req.headers_mut();
+    ///   headers.insert("Accept", HeaderValue::from_static("text/html"));
+    ///   headers.insert("X-Custom-Foo", HeaderValue::from_static("bar"));
+    /// }
+    /// let headers = req.headers_ref();
+    /// assert_eq!( headers["Accept"], "text/html" );
+    /// assert_eq!( headers["X-Custom-Foo"], "bar" );
+    /// ```
+    pub fn headers_mut(&mut self) -> &mut HeaderMap<HeaderValue> {
+        &mut self.inner.headers
+    }
+
+    /// Adds an extension to this builder
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    ///
+    /// let req = Request::builder2()
+    ///     .extension("My Extension")
+    ///     .body(());
+    ///
+    /// assert_eq!(req.extensions().get::<&'static str>(),
+    ///            Some(&"My Extension"));
+    /// ```
+    pub fn extension<T>(mut self, extension: T) -> Builder2
+    where
+        T: Any + Send + Sync + 'static,
+    {
+        self.inner.extensions.insert(extension);
+        self
+    }
+
+    /// Get a reference to the extensions for this request builder.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http::Request;
+    /// let req = Request::builder2()
+    ///     .extension("My Extension")
+    ///     .extension(5u32);
+    /// let extensions = req.extensions_ref();
+    /// assert_eq!(extensions.get::<&'static str>(), Some(&"My Extension"));
+    /// assert_eq!(extensions.get::<u32>(), Some(&5u32));
+    /// ```
+    pub fn extensions_ref(&self) -> &Extensions {
+        &self.inner.extensions
+    }
+
+    /// Get a mutable reference to the extensions for this request builder.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http::Request;
+    /// let mut req = Request::builder2().extension("My Extension");
+    /// let mut extensions = req.extensions_mut();
+    /// assert_eq!(extensions.get::<&'static str>(), Some(&"My Extension"));
+    /// extensions.insert(5u32);
+    /// assert_eq!(extensions.get::<u32>(), Some(&5u32));
+    /// ```
+    pub fn extensions_mut(&mut self) -> &mut Extensions {
+        &mut self.inner.extensions
+    }
+
+    /// "Consumes" this builder, using the provided `body` to return a
+    /// constructed `Request`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    ///
+    /// let request = Request::builder2()
+    ///     .body(());
+    /// ```
+    pub fn body<T>(self, body: T) -> Request<T> {
+        Request {
+            head: self.inner,
+            body,
+        }
+    }
+}
+
+impl Default for Builder2 {
+    #[inline]
+    fn default() -> Builder2 {
+        Builder2 {
+            inner: Parts::new(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn it_can_map_a_body_from_one_type_to_another() {
-        let request = Request::builder().body("some string").unwrap();
+        let request = Request::builder2().body("some string");
         let mapped_request = request.map(|s| {
             assert_eq!(s, "some string");
             123u32
