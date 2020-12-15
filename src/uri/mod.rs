@@ -997,14 +997,9 @@ impl PartialOrd for Uri {
 /// byte-wise `Ord` for [`PathAndQuery`].
 impl Ord for Uri {
     fn cmp(&self, r: &Self) -> cmp::Ordering {
-        let mut ord = self.authority().cmp(&r.authority());
-        if ord == cmp::Ordering::Equal {
-            ord = self.scheme().cmp(&r.scheme());
-        }
-        if ord == cmp::Ordering::Equal {
-            ord = self.path_and_query().cmp(&r.path_and_query());
-        }
-        ord
+        /***first with***/ self.authority()     .cmp(&r.authority())
+            .then_with(||  self.scheme()        .cmp(&r.scheme()))
+            .then_with(||  self.path_and_query().cmp(&r.path_and_query()))
     }
 }
 

@@ -518,7 +518,6 @@ fn test_partial_eq_path_with_terminating_questionmark() {
     assert_eq!(uri, a);
 }
 
-
 #[test]
 fn test_uri_ord() {
     let unordered = vec![
@@ -532,6 +531,10 @@ fn test_uri_ord() {
         "FILE://foo/bar/framis/",
         "https://ACME.COM:80/",
         "https://acme.com:443/",
+        "http://localGhost/boo/",
+        "http://localhost/boo/",
+        "bile://black.org/",
+        "http://black.org/",
         "https://acme.com/",
         "http://acme.com/",
         "/path",
@@ -555,6 +558,8 @@ fn test_uri_ord() {
     assert_eq!(ord.next().unwrap(), "https://acme.com/");
     assert_eq!(ord.next().unwrap(), "https://acme.com:443/");
     assert_eq!(ord.next().unwrap(), "https://ACME.COM:80/");
+    assert_eq!(ord.next().unwrap(), "bile://black.org/");
+    assert_eq!(ord.next().unwrap(), "http://black.org/");
     assert_eq!(ord.next().unwrap(), "http://EXAMPLE.COM/");
     assert_eq!(ord.next().unwrap(), "http://example.com/");
     assert_eq!(ord.next().unwrap(), "http://example.com/path?query");
@@ -563,5 +568,7 @@ fn test_uri_ord() {
     assert_eq!(ord.next().unwrap(), "file://foo/bar/framis/");
     assert_eq!(ord.next().unwrap(), "FILE://foo/bar/framis/");
     assert_eq!(ord.next().unwrap(), "file://foo/bar/framiz");
+    assert_eq!(ord.next().unwrap(), "http://localGhost/boo/");
+    assert_eq!(ord.next().unwrap(), "http://localhost/boo/");
     assert_eq!(ord.next(), None);
 }
