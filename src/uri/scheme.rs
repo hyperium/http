@@ -128,7 +128,7 @@ impl AsRef<str> for Scheme {
 /// Case-insensitive ordering
 impl Ord for Scheme {
     fn cmp(&self, other: &Self) -> cmp::Ordering {
-        use self::Scheme2::*;
+        use Scheme2::Standard;
         match (&self.inner, &other.inner) {
             (&Standard(pl), &Standard(pr)) => {
                 pl.cmp(&pr)
