@@ -886,6 +886,35 @@ impl Builder2 {
         self
     }
 
+    /// Try to Set the HTTP status for this response.
+    ///
+    /// This function will configure the HTTP status code of the `Response` that
+    /// will be returned from `Builder2::build`, using a fallible conversion.
+    /// If the conversion succeeds, the `Builder2` is updated with the status.
+    /// If the conversion fails, the `Builder2` is discarded and the error is returned.
+    ///
+    /// By default the status is `200`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    /// # fn main() -> Result<()> {
+    /// let response = Response::builder2()
+    ///     .try_status(404)?
+    ///     .body(());
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn try_status<T>(self, status: T) -> Result<Builder2>
+    where
+        StatusCode: TryFrom<T>,
+        crate::Error: From<<StatusCode as TryFrom<T>>::Error>,
+    {
+        use std::convert::TryInto;
+        Ok(self.status(status.try_into()?))
+    }
+
     /// Set the HTTP version for this response.
     ///
     /// This function will configure the HTTP version of the `Response` that
