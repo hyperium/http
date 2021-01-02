@@ -165,6 +165,7 @@ mod tests {
 
     #[test]
     fn build_from_str() {
+        #[allow(deprecated)]
         let uri = Builder::new()
             .scheme(Scheme::HTTP)
             .authority("hyper.rs")
@@ -180,6 +181,7 @@ mod tests {
     #[test]
     fn build_from_string() {
         for i in 1..10 {
+            #[allow(deprecated)]
             let uri = Builder::new()
                 .path_and_query(format!("/foo?a={}", i))
                 .build()
@@ -194,6 +196,7 @@ mod tests {
     fn build_from_string_ref() {
         for i in 1..10 {
             let p_a_q = format!("/foo?a={}", i);
+            #[allow(deprecated)]
             let uri = Builder::new().path_and_query(&p_a_q).build().unwrap();
             let expected_query = format!("a={}", i);
             assert_eq!(uri.path(), "/foo");
