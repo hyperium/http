@@ -241,3 +241,47 @@ impl Builder2<(Scheme, Authority, PathAndQuery)> {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn build_from_str() -> Result<(), crate::Error> {
+        let uri = Builder2::new()
+            .scheme(Scheme::HTTP)
+            .try_authority("hyper.rs")?
+            .try_path_and_query("/foo?a=1")?
+            .build();
+        assert_eq!(uri.scheme_str(), Some("http"));
+        assert_eq!(uri.authority().unwrap().host(), "hyper.rs");
+        assert_eq!(uri.path(), "/foo");
+        assert_eq!(uri.query(), Some("a=1"));
+        Ok(())
+    }
+
+    #[test]
+    fn build_from_string() -> Result<(), crate::Error> {
+        for i in 1..10 {
+            let uri = Builder2::new()
+                .try_path_and_query(format!("/foo?a={}", i))?
+                .build();
+            let expected_query = format!("a={}", i);
+            assert_eq!(uri.path(), "/foo");
+            assert_eq!(uri.query(), Some(expected_query.as_str()));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn build_from_string_ref() -> Result<(), crate::Error> {
+        for i in 1..10 {
+            let p_a_q = format!("/foo?a={}", i);
+            let uri = Builder2::new().try_path_and_query(&p_a_q)?.build();
+            let expected_query = format!("a={}", i);
+            assert_eq!(uri.path(), "/foo");
+            assert_eq!(uri.query(), Some(expected_query.as_str()));
+        }
+        Ok(())
+    }
+}
