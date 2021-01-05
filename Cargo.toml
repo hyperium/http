@@ -22,7 +22,7 @@ categories = ["web-programming"]
 edition = "2018"
 
 [dependencies]
-bytes = "1"
+bytes = ">=0.5.2, <2.0.0"
 fnv = "1.0.5"
 itoa = "0.4.1"
 
