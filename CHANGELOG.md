@@ -1,3 +1,10 @@
+# 0.2.3 (unreleased)
+
+* Broaden bytes dependency to include versions 0.5.z through 1.y. The rare
+  broad dependency range is intended to allow users to avoid duplicates of the
+  bytes crate during transition to bytes 1.0.0 in the broader ecosystem, while
+  simultaneously avoiding a Semver incompatible release of _http_. ([#461])
+
 # 0.2.2 (December 14, 2020)
 
 * Fix (potential double) panic of (`HeaderMap`) `OccupiedEntry::remove_entry` and
@@ -159,11 +166,11 @@
 [#414]: https://github.com/hyperium/http/pull/414
 [#432]: https://github.com/hyperium/http/issues/432
 [#433]: https://github.com/hyperium/http/pull/433
+[#435]: https://github.com/hyperium/http/issues/435
 [#438]: https://github.com/hyperium/http/pull/438
 [#443]: https://github.com/hyperium/http/pull/443
+[#445]: https://github.com/hyperium/http/pull/445
 [#446]: https://github.com/hyperium/http/issues/446
 [#449]: https://github.com/hyperium/http/pull/449
 [#450]: https://github.com/hyperium/http/pull/450
-[#435]: https://github.com/hyperium/http/issues/435
-[#445]: https://github.com/hyperium/http/pull/445
-
+[#461]: https://github.com/hyperium/http/pull/461
