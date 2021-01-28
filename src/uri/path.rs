@@ -19,74 +19,71 @@ const NONE: u16 = ::std::u16::MAX;
 impl PathAndQuery {
     // Not public while `bytes` is unstable.
     pub(super) fn from_shared(mut src: Bytes) -> Result<Self, InvalidUri> {
-        let mut query = NONE;
-        let mut fragment = None;
+        let mut query = None;
+        let mut len = 0;
 
-        // block for iterator borrow
-        {
-            let mut iter = src.as_ref().iter().enumerate();
+        // take_while() stops at the fragment specifier
+        let mut iter = src.as_ref().iter().take_while(|&&c| c!= b'#');
 
-            // path ...
-            for (i, &b) in &mut iter {
+        // path
+        for c in &mut iter {
+            match c {
+                b'?' => {
+                    // record the location of the query specifier
+                    query = Some(len);
+                    len += 1;
+                    break;
+                }
+
+                // This is the range of bytes that don't need to be
+                // percent-encoded in the path. If it should have been
+                // percent-encoded, then error.
+                //
                 // See https://url.spec.whatwg.org/#path-state
-                match b {
-                    b'?' => {
-                        debug_assert_eq!(query, NONE);
-                        query = i as u16;
-                        break;
-                    }
-                    b'#' => {
-                        fragment = Some(i);
-                        break;
-                    }
+                0x21 |
+                0x24..=0x3B |
+                0x3D |
+                0x40..=0x5F |
+                0x61..=0x7A |
+                0x7C |
+                0x7E => len += 1,
 
-                    // This is the range of bytes that don't need to be
-                    // percent-encoded in the path. If it should have been
-                    // percent-encoded, then error.
+                // all bytes 0x80 and above match here (among others)
+                // so all other match arms identify a single byte UTF-8 code point
+                _ => return Err(InvalidUri(ErrorKind::InvalidUriChar)),
+            }
+        }
+
+        // query
+        if query.is_some() {
+            for c in iter {
+                match c {
+                    // While queries *should* be percent-encoded, most
+                    // bytes are actually allowed...
+                    // See https://url.spec.whatwg.org/#query-state
+                    //
+                    // Allowed: 0x21 / 0x24 - 0x3B / 0x3D / 0x3F - 0x7E
                     0x21 |
                     0x24..=0x3B |
                     0x3D |
-                    0x40..=0x5F |
-                    0x61..=0x7A |
-                    0x7C |
-                    0x7E => {},
+                    0x3F..= 0x7E => len += 1,
 
-                    _ => return Err(ErrorKind::InvalidUriChar.into()),
-                }
-            }
-
-            // query ...
-            if query != NONE {
-                for (i, &b) in iter {
-                    match b {
-                        // While queries *should* be percent-encoded, most
-                        // bytes are actually allowed...
-                        // See https://url.spec.whatwg.org/#query-state
-                        //
-                        // Allowed: 0x21 / 0x24 - 0x3B / 0x3D / 0x3F - 0x7E
-                        0x21 |
-                        0x24..=0x3B |
-                        0x3D |
-                        0x3F..=0x7E => {},
-
-                        b'#' => {
-                            fragment = Some(i);
-                            break;
-                        }
-
-                        _ => return Err(ErrorKind::InvalidUriChar.into()),
-                    }
+                    // all bytes 0x80 and above match here (among others)
+                    // so all the other match arms identify a single byte UTF-8 code point
+                    _ => return Err(InvalidUri(ErrorKind::InvalidUriChar)),
                 }
             }
         }
 
-        if let Some(i) = fragment {
-            src.truncate(i);
-        }
+        // truncate src at the end of the bytes that have been checked
+        src.truncate(len as usize);
 
         Ok(PathAndQuery {
+            // Safety: The 2 loops checks that each byte in the (now truncated)
+            // src is a single byte UTF-8 code point. This means that src as a
+            // whole is valid UTF-8.
             data: unsafe { ByteStr::from_utf8_unchecked(src) },
-            query: query,
+            query: query.unwrap_or(NONE),
         })
     }
 
@@ -527,7 +524,40 @@ mod tests {
         assert_eq!("qr=%3", pq("/a/b?qr=%3").query().unwrap());
     }
 
+    #[test]
+    fn from_u8_slice_equates_with_string() {
+        assert_eq!("/", pq_bytes(&[b'/']));
+        assert_eq!("/ab", pq_bytes(&[b'/', b'a', b'b']));
+        assert_eq!("a", pq_bytes(&[b'a']));
+        assert_eq!("a?", pq_bytes(&[b'a', b'?']));
+        assert_eq!("a?b", pq_bytes(&[b'a', b'?', b'b']));
+        assert_eq!("a?{b}", pq_bytes(&[b'a', b'?', b'{', b'b', b'}']));
+        assert_eq!("a", pq_bytes(&[b'a', b'#', b'b']));
+        assert_eq!("a?b", pq_bytes(&[b'a', b'?', b'b', b'#', b'c']));
+
+        // This example has invalid UTF-8 in the fragment but the path
+        // and query are valid UTF-8
+        assert_eq!("a?b", pq_bytes(&[b'a', b'?', b'b', b'#', 0xc0]));
+    }
+
+    #[test]
+    fn from_invalid_u8_slice_is_error() {
+        assert!(is_invalid_pq_bytes(&[0xc0])); // invalid UTF-8
+        assert!(is_invalid_pq_bytes(&[b' '])); // need percent encoding
+        assert!(is_invalid_pq_bytes(&[b'{'])); // need percent encoding
+        assert!(is_invalid_pq_bytes(&[b'a', b'?', 0xc0])); // invalid UTF-8
+        assert!(is_invalid_pq_bytes(&[b'a', b'?', b' '])); // needs percent encoding
+    }
+
     fn pq(s: &str) -> PathAndQuery {
         s.parse().expect(&format!("parsing {}", s))
+    }
+
+    fn pq_bytes(s: &[u8]) -> PathAndQuery {
+        PathAndQuery::try_from(s).expect(&format!("converting {:?}", s))
+    }
+
+    fn is_invalid_pq_bytes(s: &[u8]) -> bool {
+        PathAndQuery::try_from(s).is_err()
     }
 }
