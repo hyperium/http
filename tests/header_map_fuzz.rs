@@ -47,24 +47,24 @@ struct Step {
 enum Action {
     Insert {
         name: HeaderName,         // Name to insert
-        val: HeaderValue,         // Value to insert
-        old: Option<HeaderValue>, // Old value
+        val: HeaderValue<'static>,         // Value to insert
+        old: Option<HeaderValue<'static>>, // Old value
     },
     Append {
         name: HeaderName,
-        val: HeaderValue,
+        val: HeaderValue<'static>,
         ret: bool,
     },
     Remove {
         name: HeaderName,         // Name to remove
-        val: Option<HeaderValue>, // Value to get
+        val: Option<HeaderValue<'static>>, // Value to get
     },
 }
 
 // An alternate implementation of HeaderMap backed by HashMap
 #[derive(Debug, Clone, Default)]
 struct AltMap {
-    map: HashMap<HeaderName, Vec<HeaderValue>>,
+    map: HashMap<HeaderName, Vec<HeaderValue<'static>>>,
 }
 
 impl Fuzz {
@@ -216,16 +216,16 @@ impl AltMap {
         }
     }
 
-    fn insert(&mut self, name: HeaderName, val: HeaderValue) -> Option<HeaderValue> {
+    fn insert(&mut self, name: HeaderName, val: HeaderValue<'static>) -> Option<HeaderValue<'static>> {
         let old = self.map.insert(name, vec![val]);
         old.and_then(|v| v.into_iter().next())
     }
 
-    fn remove(&mut self, name: &HeaderName) -> Option<HeaderValue> {
+    fn remove(&mut self, name: &HeaderName) -> Option<HeaderValue<'static>> {
         self.map.remove(name).and_then(|v| v.into_iter().next())
     }
 
-    fn assert_identical(&self, other: &HeaderMap<HeaderValue>) {
+    fn assert_identical(&self, other: &HeaderMap<HeaderValue<'static>>) {
         assert_eq!(self.map.len(), other.keys_len());
 
         for (key, val) in &self.map {
@@ -241,7 +241,7 @@ impl AltMap {
 }
 
 impl Action {
-    fn apply(self, map: &mut HeaderMap<HeaderValue>) {
+    fn apply(self, map: &mut HeaderMap<HeaderValue<'static>>) {
         match self {
             Action::Insert { name, val, old } => {
                 let actual = map.insert(name, val);
@@ -352,7 +352,7 @@ fn gen_header_name(g: &mut StdRng) -> HeaderName {
     }
 }
 
-fn gen_header_value(g: &mut StdRng) -> HeaderValue {
+fn gen_header_value(g: &mut StdRng) -> HeaderValue<'static> {
     let value = gen_string(g, 0, 70);
     HeaderValue::from_bytes(value.as_bytes()).unwrap()
 }

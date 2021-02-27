@@ -42,7 +42,7 @@ pub use self::into_header_name::IntoHeaderName;
 /// assert!(!headers.contains_key(HOST));
 /// ```
 #[derive(Clone)]
-pub struct HeaderMap<T = HeaderValue> {
+pub struct HeaderMap<T = HeaderValue<'static>> {
     // Used to mask values to get an index
     mask: Size,
     indices: Box<[Pos]>,
@@ -1835,7 +1835,6 @@ impl<T> FromIterator<(HeaderName, T)> for HeaderMap<T> {
 ///
 /// let mut map = HashMap::new();
 /// map.insert("X-Custom-Header".to_string(), "my value".to_string());
-///
 /// let headers: HeaderMap = (&map).try_into().expect("valid headers");
 /// assert_eq!(headers["X-Custom-Header"], "my value");
 /// ```

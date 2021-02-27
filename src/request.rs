@@ -174,7 +174,7 @@ pub struct Parts {
     pub version: Version,
 
     /// The request's headers
-    pub headers: HeaderMap<HeaderValue>,
+    pub headers: HeaderMap<HeaderValue<'static>>,
 
     /// The request's extensions
     pub extensions: Extensions,
@@ -560,7 +560,7 @@ impl<T> Request<T> {
     /// assert!(request.headers().is_empty());
     /// ```
     #[inline]
-    pub fn headers(&self) -> &HeaderMap<HeaderValue> {
+    pub fn headers(&self) -> &HeaderMap<HeaderValue<'static>> {
         &self.head.headers
     }
 
@@ -576,7 +576,7 @@ impl<T> Request<T> {
     /// assert!(!request.headers().is_empty());
     /// ```
     #[inline]
-    pub fn headers_mut(&mut self) -> &mut HeaderMap<HeaderValue> {
+    pub fn headers_mut(&mut self) -> &mut HeaderMap<HeaderValue<'static>> {
         &mut self.head.headers
     }
 
@@ -900,8 +900,8 @@ impl Builder {
     where
         HeaderName: TryFrom<K>,
         <HeaderName as TryFrom<K>>::Error: Into<crate::Error>,
-        HeaderValue: TryFrom<V>,
-        <HeaderValue as TryFrom<V>>::Error: Into<crate::Error>,
+        HeaderValue<'static>: TryFrom<V>,
+        <HeaderValue<'static> as TryFrom<V>>::Error: Into<crate::Error>,
     {
         self.and_then(move |mut head| {
             let name = <HeaderName as TryFrom<K>>::try_from(key).map_err(Into::into)?;
@@ -947,7 +947,7 @@ impl Builder {
     /// assert_eq!( headers["Accept"], "text/html" );
     /// assert_eq!( headers["X-Custom-Foo"], "bar" );
     /// ```
-    pub fn headers_mut(&mut self) -> Option<&mut HeaderMap<HeaderValue>> {
+    pub fn headers_mut(&mut self) -> Option<&mut HeaderMap<HeaderValue<'static>>> {
         self.inner.as_mut().ok().map(|h| &mut h.headers)
     }
 

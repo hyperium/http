@@ -176,8 +176,8 @@ use crate::{Extensions, Result};
 /// #
 /// # fn main() {}
 /// ```
-pub struct Response<T> {
-    head: Parts,
+pub struct Response<'r, T> {
+    head: Parts<'r>,
     body: T,
 }
 
@@ -185,7 +185,7 @@ pub struct Response<T> {
 ///
 /// The HTTP response head consists of a status, version, and a set of
 /// header fields.
-pub struct Parts {
+pub struct Parts<'r> {
     /// The response's status
     pub status: StatusCode,
 
@@ -193,7 +193,7 @@ pub struct Parts {
     pub version: Version,
 
     /// The response's headers
-    pub headers: HeaderMap<HeaderValue>,
+    pub headers: HeaderMap<HeaderValue<'r>>,
 
     /// The response's extensions
     pub extensions: Extensions,
@@ -206,11 +206,11 @@ pub struct Parts {
 /// This type can be used to construct an instance of `Response` through a
 /// builder-like pattern.
 #[derive(Debug)]
-pub struct Builder {
-    inner: Result<Parts>,
+pub struct Builder<'r> {
+    inner: Result<Parts<'r>>,
 }
 
-impl Response<()> {
+impl <'r> Response<'r, ()> {
     /// Creates a new builder-style object to manufacture a `Response`
     ///
     /// This method returns an instance of `Builder` which can be used to
@@ -227,12 +227,12 @@ impl Response<()> {
     ///     .unwrap();
     /// ```
     #[inline]
-    pub fn builder() -> Builder {
+    pub fn builder() -> Builder<'r> {
         Builder::new()
     }
 }
 
-impl<T> Response<T> {
+impl<'r, T> Response<'r, T> {
     /// Creates a new blank `Response` with the body
     ///
     /// The component ports of this response will be set to their default, e.g.
@@ -248,7 +248,7 @@ impl<T> Response<T> {
     /// assert_eq!(*response.body(), "hello world");
     /// ```
     #[inline]
-    pub fn new(body: T) -> Response<T> {
+    pub fn new(body: T) -> Response<'r, T> {
         Response {
             head: Parts::new(),
             body: body,
@@ -271,7 +271,7 @@ impl<T> Response<T> {
     /// assert_eq!(*response.body(), "hello world");
     /// ```
     #[inline]
-    pub fn from_parts(parts: Parts, body: T) -> Response<T> {
+    pub fn from_parts(parts: Parts<'r>, body: T) -> Response<'r, T> {
         Response {
             head: parts,
             body: body,
@@ -362,7 +362,7 @@ impl<T> Response<T> {
     /// assert!(!response.headers().is_empty());
     /// ```
     #[inline]
-    pub fn headers_mut(&mut self) -> &mut HeaderMap<HeaderValue> {
+    pub fn headers_mut(&mut self) -> &mut HeaderMap<HeaderValue<'r>> {
         &mut self.head.headers
     }
 
@@ -451,7 +451,7 @@ impl<T> Response<T> {
     /// assert_eq!(parts.status, StatusCode::OK);
     /// ```
     #[inline]
-    pub fn into_parts(self) -> (Parts, T) {
+    pub fn into_parts(self) -> (Parts<'r>, T) {
         (self.head, self.body)
     }
 
@@ -470,7 +470,7 @@ impl<T> Response<T> {
     /// assert_eq!(mapped_response.body(), &"some string".as_bytes());
     /// ```
     #[inline]
-    pub fn map<F, U>(self, f: F) -> Response<U>
+    pub fn map<F, U>(self, f: F) -> Response<'r, U>
     where
         F: FnOnce(T) -> U,
     {
@@ -481,14 +481,14 @@ impl<T> Response<T> {
     }
 }
 
-impl<T: Default> Default for Response<T> {
+impl<'r, T: Default> Default for Response<'r, T> {
     #[inline]
-    fn default() -> Response<T> {
+    fn default() -> Response<'r, T> {
         Response::new(T::default())
     }
 }
 
-impl<T: fmt::Debug> fmt::Debug for Response<T> {
+impl<'r, T: fmt::Debug> fmt::Debug for Response<'r, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Response")
             .field("status", &self.status())
@@ -500,9 +500,9 @@ impl<T: fmt::Debug> fmt::Debug for Response<T> {
     }
 }
 
-impl Parts {
+impl <'r> Parts<'r> {
     /// Creates a new default instance of `Parts`
-    fn new() -> Parts {
+    fn new() -> Parts<'r> {
         Parts {
             status: StatusCode::default(),
             version: Version::default(),
@@ -513,7 +513,7 @@ impl Parts {
     }
 }
 
-impl fmt::Debug for Parts {
+impl <'r> fmt::Debug for Parts<'r> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Parts")
             .field("status", &self.status)
@@ -525,7 +525,7 @@ impl fmt::Debug for Parts {
     }
 }
 
-impl Builder {
+impl <'r> Builder<'r> {
     /// Creates a new default instance of `Builder` to construct either a
     /// `Head` or a `Response`.
     ///
@@ -540,7 +540,7 @@ impl Builder {
     ///     .unwrap();
     /// ```
     #[inline]
-    pub fn new() -> Builder {
+    pub fn new() -> Builder<'r> {
         Builder::default()
     }
 
@@ -561,7 +561,7 @@ impl Builder {
     ///     .body(())
     ///     .unwrap();
     /// ```
-    pub fn status<T>(self, status: T) -> Builder
+    pub fn status<T>(self, status: T) -> Builder<'r>
     where
         StatusCode: TryFrom<T>,
         <StatusCode as TryFrom<T>>::Error: Into<crate::Error>,
@@ -589,7 +589,7 @@ impl Builder {
     ///     .body(())
     ///     .unwrap();
     /// ```
-    pub fn version(self, version: Version) -> Builder {
+    pub fn version(self, version: Version) -> Builder<'r> {
         self.and_then(move |mut head| {
             head.version = version;
             Ok(head)
@@ -615,12 +615,12 @@ impl Builder {
     ///     .body(())
     ///     .unwrap();
     /// ```
-    pub fn header<K, V>(self, key: K, value: V) -> Builder
+    pub fn header<K, V>(self, key: K, value: V) -> Builder<'r>
     where
         HeaderName: TryFrom<K>,
         <HeaderName as TryFrom<K>>::Error: Into<crate::Error>,
-        HeaderValue: TryFrom<V>,
-        <HeaderValue as TryFrom<V>>::Error: Into<crate::Error>,
+        HeaderValue<'static>: TryFrom<V>,
+        <HeaderValue<'static> as TryFrom<V>>::Error: Into<crate::Error>,
     {
         self.and_then(move |mut head| {
             let name = <HeaderName as TryFrom<K>>::try_from(key).map_err(Into::into)?;
@@ -669,7 +669,7 @@ impl Builder {
     /// assert_eq!( headers["Accept"], "text/html" );
     /// assert_eq!( headers["X-Custom-Foo"], "bar" );
     /// ```
-    pub fn headers_mut(&mut self) -> Option<&mut HeaderMap<HeaderValue>> {
+    pub fn headers_mut(&mut self) -> Option<&mut HeaderMap<HeaderValue<'r>>> {
         self.inner.as_mut().ok().map(|h| &mut h.headers)
     }
 
@@ -688,7 +688,7 @@ impl Builder {
     /// assert_eq!(response.extensions().get::<&'static str>(),
     ///            Some(&"My Extension"));
     /// ```
-    pub fn extension<T>(self, extension: T) -> Builder
+    pub fn extension<T>(self, extension: T) -> Builder<'r>
     where
         T: Any + Send + Sync + 'static,
     {
@@ -753,7 +753,7 @@ impl Builder {
     ///     .body(())
     ///     .unwrap();
     /// ```
-    pub fn body<T>(self, body: T) -> Result<Response<T>> {
+    pub fn body<T>(self, body: T) -> Result<Response<'r, T>> {
         self.inner.map(move |head| {
             Response {
                 head,
@@ -774,9 +774,9 @@ impl Builder {
     }
 }
 
-impl Default for Builder {
+impl <'r> Default for Builder<'r> {
     #[inline]
-    fn default() -> Builder {
+    fn default() -> Builder<'r> {
         Builder {
             inner: Ok(Parts::new()),
         }

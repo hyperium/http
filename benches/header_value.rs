@@ -28,6 +28,23 @@ fn from_shared_long(b: &mut Bencher) {
 }
 
 #[bench]
+fn from_static_short(b: &mut Bencher) {
+    b.bytes = SHORT.len() as u64;
+    b.iter(|| {
+        HeaderValue::from_bytes_ref(SHORT).unwrap();
+    });
+}
+
+#[bench]
+fn from_static_long(b: &mut Bencher) {
+    b.bytes = LONG.len() as u64;
+    let bytes = Bytes::from_static(LONG);
+    b.iter(|| {
+        HeaderValue::from_bytes_ref(LONG).unwrap();
+    });
+}
+
+#[bench]
 fn from_shared_unchecked_short(b: &mut Bencher) {
     b.bytes = SHORT.len() as u64;
     let bytes = Bytes::from_static(SHORT);

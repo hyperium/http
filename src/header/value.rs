@@ -17,9 +17,24 @@ use crate::header::name::HeaderName;
 /// with strings and implements `Debug`. A `to_str` fn is provided that returns
 /// an `Err` if the header value contains non visible ascii characters.
 #[derive(Clone, Hash)]
-pub struct HeaderValue {
-    inner: Bytes,
+pub struct HeaderValue<'a> {
+    inner: ValueInner<'a>,
     is_sensitive: bool,
+}
+
+#[derive(Clone, Hash, PartialOrd, PartialEq)]
+enum ValueInner<'a> {
+    Owned(Bytes),
+    Borrowed(&'a [u8]),
+}
+
+impl<'a> AsRef<[u8]> for ValueInner<'a> {
+    fn as_ref(&self) -> &[u8] {
+        match self {
+            ValueInner::Owned(o) => o.as_ref(),
+            ValueInner::Borrowed(b) => b.as_ref(),
+        }
+    }
 }
 
 /// A possible error when converting a `HeaderValue` from a string or byte
@@ -37,7 +52,7 @@ pub struct ToStrError {
     _priv: (),
 }
 
-impl HeaderValue {
+impl <'a> HeaderValue<'a> {
     /// Convert a static string to a `HeaderValue`.
     ///
     /// This function will not perform any copying, however the string is
@@ -66,7 +81,7 @@ impl HeaderValue {
         }
 
         HeaderValue {
-            inner: Bytes::from_static(bytes),
+            inner: ValueInner::Owned(Bytes::from_static(bytes)),
             is_sensitive: false,
         }
     }
@@ -97,10 +112,40 @@ impl HeaderValue {
     /// assert!(val.is_err());
     /// ```
     #[inline]
-    pub fn from_str(src: &str) -> Result<HeaderValue, InvalidHeaderValue> {
+    pub fn from_str(src: &str) -> Result<HeaderValue<'static>, InvalidHeaderValue> {
         HeaderValue::try_from_generic(src, |s| Bytes::copy_from_slice(s.as_bytes()))
     }
 
+    /// Attempt to borrow a string as a `HeaderValue`.
+    ///
+    /// If the argument contains invalid header value characters, an error is
+    /// returned. Only visible ASCII characters (32-127) are permitted. Use
+    /// `from_bytes` to create a `HeaderValue` that includes opaque octets
+    /// (128-255).
+    ///
+    /// This function is intended to be replaced in the future by a `TryFrom`
+    /// implementation once the trait is stabilized in std.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::HeaderValue;
+    /// let val = HeaderValue::from_str_ref("hello").unwrap();
+    /// let val2 = HeaderValue::from_str("hello").unwrap();
+    /// assert_eq!(val, val2);
+    /// ```
+    ///
+    /// An invalid value
+    ///
+    /// ```
+    /// # use http::header::HeaderValue;
+    /// let val = HeaderValue::from_str_ref("\n");
+    /// assert!(val.is_err());
+    /// ```
+    #[inline]
+    pub fn from_str_ref(src: &'a str) -> Result<HeaderValue<'a>, InvalidHeaderValue> {
+        HeaderValue::try_borrow(src.as_bytes())
+    }
     /// Converts a HeaderName into a HeaderValue
     ///
     /// Since every valid HeaderName is a valid HeaderValue this is done infallibly.
@@ -114,7 +159,7 @@ impl HeaderValue {
     /// assert_eq!(val, HeaderValue::from_bytes(b"accept").unwrap());
     /// ```
     #[inline]
-    pub fn from_name(name: HeaderName) -> HeaderValue {
+    pub fn from_name(name: HeaderName) -> HeaderValue<'static> {
         name.into()
     }
 
@@ -143,22 +188,50 @@ impl HeaderValue {
     /// assert!(val.is_err());
     /// ```
     #[inline]
-    pub fn from_bytes(src: &[u8]) -> Result<HeaderValue, InvalidHeaderValue> {
+    pub fn from_bytes(src: &[u8]) -> Result<HeaderValue<'static>, InvalidHeaderValue> {
         HeaderValue::try_from_generic(src, Bytes::copy_from_slice)
+    }
+
+    /// Attempt to borrow a byte slice to a `HeaderValue`.
+    ///
+    /// If the argument contains invalid header value bytes, an error is
+    /// returned. Only byte values between 32 and 255 (inclusive) are permitted,
+    /// excluding byte 127 (DEL).
+    ///
+    /// This function is intended to be replaced in the future by a `TryFrom`
+    /// implementation once the trait is stabilized in std.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::HeaderValue;
+    /// let val = HeaderValue::from_bytes_ref(b"hello\xfa").unwrap();
+    /// assert_eq!(val, &b"hello\xfa"[..]);
+    /// ```
+    ///
+    /// An invalid value
+    ///
+    /// ```
+    /// # use http::header::HeaderValue;
+    /// let val = HeaderValue::from_bytes_ref(b"\n");
+    /// assert!(val.is_err());
+    /// ```
+    #[inline]
+    pub fn from_bytes_ref(src: &'a [u8]) -> Result<HeaderValue<'a>, InvalidHeaderValue> {
+        HeaderValue::try_borrow(src)
     }
 
     /// Attempt to convert a `Bytes` buffer to a `HeaderValue`.
     ///
     /// This will try to prevent a copy if the type passed is the type used
     /// internally, and will copy the data if it is not.
-    pub fn from_maybe_shared<T>(src: T) -> Result<HeaderValue, InvalidHeaderValue>
+    pub fn from_maybe_shared<T>(src: T) -> Result<HeaderValue<'a>, InvalidHeaderValue>
     where
         T: AsRef<[u8]> + 'static,
     {
         if_downcast_into!(T, Bytes, src, {
             return HeaderValue::from_shared(src);
         });
-
         HeaderValue::from_bytes(src.as_ref())
     }
 
@@ -166,7 +239,7 @@ impl HeaderValue {
     ///
     /// This function does NOT validate that illegal bytes are not contained
     /// within the buffer.
-    pub unsafe fn from_maybe_shared_unchecked<T>(src: T) -> HeaderValue
+    pub unsafe fn from_maybe_shared_unchecked<T>(src: T) -> HeaderValue<'static>
     where
         T: AsRef<[u8]> + 'static,
     {
@@ -181,31 +254,43 @@ impl HeaderValue {
 
             if_downcast_into!(T, Bytes, src, {
                 return HeaderValue {
-                    inner: src,
+                    inner: ValueInner::Owned(src),
                     is_sensitive: false,
                 };
             });
 
             let src = Bytes::copy_from_slice(src.as_ref());
             HeaderValue {
-                inner: src,
+                inner: ValueInner::Owned(src),
                 is_sensitive: false,
             }
         }
     }
 
-    fn from_shared(src: Bytes) -> Result<HeaderValue, InvalidHeaderValue> {
+    fn from_shared(src: Bytes) -> Result<HeaderValue<'static>, InvalidHeaderValue> {
         HeaderValue::try_from_generic(src, std::convert::identity)
     }
 
-    fn try_from_generic<T: AsRef<[u8]>, F: FnOnce(T) -> Bytes>(src: T, into: F) -> Result<HeaderValue, InvalidHeaderValue> {
+    fn try_from_generic<T: AsRef<[u8]>, F: FnOnce(T) -> Bytes>(src: T, into: F) -> Result<HeaderValue<'static>, InvalidHeaderValue> {
         for &b in src.as_ref() {
             if !is_valid(b) {
                 return Err(InvalidHeaderValue { _priv: () });
             }
         }
         Ok(HeaderValue {
-            inner: into(src),
+            inner: ValueInner::Owned(into(src)),
+            is_sensitive: false,
+        })
+    }
+
+    fn try_borrow(src: &'a [u8]) -> Result<HeaderValue<'a>, InvalidHeaderValue> {
+        for &b in src.as_ref() {
+            if !is_valid(b) {
+                return Err(InvalidHeaderValue { _priv: () });
+            }
+        }
+        Ok(HeaderValue {
+            inner: ValueInner::Borrowed(src.as_ref()),
             is_sensitive: false,
         })
     }
@@ -223,8 +308,8 @@ impl HeaderValue {
     /// let val = HeaderValue::from_static("hello");
     /// assert_eq!(val.to_str().unwrap(), "hello");
     /// ```
-    pub fn to_str(&self) -> Result<&str, ToStrError> {
-        let bytes = self.as_ref();
+    pub fn to_str(&'a self) -> Result<&'a str, ToStrError> {
+        let bytes: &'a [u8] = self.as_ref();
 
         for &b in bytes {
             if !is_visible_ascii(b) {
@@ -333,14 +418,14 @@ impl HeaderValue {
     }
 }
 
-impl AsRef<[u8]> for HeaderValue {
+impl AsRef<[u8]> for HeaderValue<'_> {
     #[inline]
     fn as_ref(&self) -> &[u8] {
         self.inner.as_ref()
     }
 }
 
-impl fmt::Debug for HeaderValue {
+impl fmt::Debug for HeaderValue<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.is_sensitive {
             f.write_str("Sensitive")
@@ -368,11 +453,11 @@ impl fmt::Debug for HeaderValue {
     }
 }
 
-impl From<HeaderName> for HeaderValue {
+impl From<HeaderName> for HeaderValue<'_> {
     #[inline]
-    fn from(h: HeaderName) -> HeaderValue {
+    fn from(h: HeaderName) -> HeaderValue<'static> {
         HeaderValue {
-            inner: h.into_bytes(),
+            inner: ValueInner::Owned(h.into_bytes()),
             is_sensitive: false,
         }
     }
@@ -380,8 +465,8 @@ impl From<HeaderName> for HeaderValue {
 
 macro_rules! from_integers {
     ($($name:ident: $t:ident => $max_len:expr),*) => {$(
-        impl From<$t> for HeaderValue {
-            fn from(num: $t) -> HeaderValue {
+        impl From<$t> for HeaderValue<'_> {
+            fn from(num: $t) -> HeaderValue<'static> {
                 let mut buf = if mem::size_of::<BytesMut>() - 1 < $max_len {
                     // On 32bit platforms, BytesMut max inline size
                     // is 15 bytes, but the $max_len could be bigger.
@@ -405,7 +490,7 @@ macro_rules! from_integers {
                 };
                 let _ = ::itoa::fmt(&mut buf, num);
                 HeaderValue {
-                    inner: buf.freeze(),
+                    inner: ValueInner::Owned(buf.freeze()),
                     is_sensitive: false,
                 }
             }
@@ -481,23 +566,23 @@ mod from_header_name_tests {
     }
 }
 
-impl FromStr for HeaderValue {
+impl <'a> FromStr for HeaderValue<'a> {
     type Err = InvalidHeaderValue;
 
     #[inline]
-    fn from_str(s: &str) -> Result<HeaderValue, Self::Err> {
+    fn from_str(s: &'_ str) -> Result<HeaderValue<'a>, Self::Err> {
         HeaderValue::from_str(s)
     }
 }
 
-impl<'a> From<&'a HeaderValue> for HeaderValue {
+impl<'a: 'b, 'b> From<&'a HeaderValue<'a>> for HeaderValue<'b> {
     #[inline]
     fn from(t: &'a HeaderValue) -> Self {
         t.clone()
     }
 }
 
-impl<'a> TryFrom<&'a str> for HeaderValue {
+impl<'a> TryFrom<&'a str> for HeaderValue<'a> {
     type Error = InvalidHeaderValue;
 
     #[inline]
@@ -506,15 +591,15 @@ impl<'a> TryFrom<&'a str> for HeaderValue {
     }
 }
 
-impl<'a> TryFrom<&'a String> for HeaderValue {
+impl TryFrom<&String> for HeaderValue<'_> {
     type Error = InvalidHeaderValue;
     #[inline]
-    fn try_from(s: &'a String) -> Result<Self, Self::Error> {
-        Self::from_bytes(s.as_bytes())
+    fn try_from(s: &String) -> Result<Self, Self::Error> {
+        Self::from_str(s.as_str())
     }
 }
 
-impl<'a> TryFrom<&'a [u8]> for HeaderValue {
+impl<'a> TryFrom<&'a [u8]> for HeaderValue<'a> {
     type Error = InvalidHeaderValue;
 
     #[inline]
@@ -523,7 +608,7 @@ impl<'a> TryFrom<&'a [u8]> for HeaderValue {
     }
 }
 
-impl TryFrom<String> for HeaderValue {
+impl <'a> TryFrom<String> for HeaderValue<'a> {
     type Error = InvalidHeaderValue;
 
     #[inline]
@@ -532,7 +617,7 @@ impl TryFrom<String> for HeaderValue {
     }
 }
 
-impl TryFrom<Vec<u8>> for HeaderValue {
+impl TryFrom<Vec<u8>> for HeaderValue<'static> {
     type Error = InvalidHeaderValue;
 
     #[inline]
@@ -590,130 +675,130 @@ impl Error for ToStrError {}
 
 // ===== PartialEq / PartialOrd =====
 
-impl PartialEq for HeaderValue {
+impl PartialEq for HeaderValue<'_> {
     #[inline]
     fn eq(&self, other: &HeaderValue) -> bool {
-        self.inner == other.inner
+        self.as_bytes() == other.as_bytes()
     }
 }
 
-impl Eq for HeaderValue {}
+impl Eq for HeaderValue<'_> {}
 
-impl PartialOrd for HeaderValue {
-    #[inline]
-    fn partial_cmp(&self, other: &HeaderValue) -> Option<cmp::Ordering> {
-        self.inner.partial_cmp(&other.inner)
-    }
-}
-
-impl Ord for HeaderValue {
-    #[inline]
-    fn cmp(&self, other: &Self) -> cmp::Ordering {
-        self.inner.cmp(&other.inner)
-    }
-}
-
-impl PartialEq<str> for HeaderValue {
-    #[inline]
-    fn eq(&self, other: &str) -> bool {
-        self.inner == other.as_bytes()
-    }
-}
-
-impl PartialEq<[u8]> for HeaderValue {
-    #[inline]
-    fn eq(&self, other: &[u8]) -> bool {
-        self.inner == other
-    }
-}
-
-impl PartialOrd<str> for HeaderValue {
-    #[inline]
-    fn partial_cmp(&self, other: &str) -> Option<cmp::Ordering> {
-        (*self.inner).partial_cmp(other.as_bytes())
-    }
-}
-
-impl PartialOrd<[u8]> for HeaderValue {
-    #[inline]
-    fn partial_cmp(&self, other: &[u8]) -> Option<cmp::Ordering> {
-        (*self.inner).partial_cmp(other)
-    }
-}
-
-impl PartialEq<HeaderValue> for str {
-    #[inline]
-    fn eq(&self, other: &HeaderValue) -> bool {
-        *other == *self
-    }
-}
-
-impl PartialEq<HeaderValue> for [u8] {
-    #[inline]
-    fn eq(&self, other: &HeaderValue) -> bool {
-        *other == *self
-    }
-}
-
-impl PartialOrd<HeaderValue> for str {
+impl PartialOrd for HeaderValue<'_> {
     #[inline]
     fn partial_cmp(&self, other: &HeaderValue) -> Option<cmp::Ordering> {
         self.as_bytes().partial_cmp(other.as_bytes())
     }
 }
 
-impl PartialOrd<HeaderValue> for [u8] {
+impl Ord for HeaderValue<'_> {
+    #[inline]
+    fn cmp(&self, other: &Self) -> cmp::Ordering {
+        self.as_bytes().cmp(other.as_bytes())
+    }
+}
+
+impl PartialEq<str> for HeaderValue<'_> {
+    #[inline]
+    fn eq(&self, other: &str) -> bool {
+        self.as_bytes() == other.as_bytes()
+    }
+}
+
+impl PartialEq<[u8]> for HeaderValue<'_> {
+    #[inline]
+    fn eq(&self, other: &[u8]) -> bool {
+        self.as_bytes() == other
+    }
+}
+
+impl PartialOrd<str> for HeaderValue<'_> {
+    #[inline]
+    fn partial_cmp(&self, other: &str) -> Option<cmp::Ordering> {
+        (*self.as_bytes()).partial_cmp(other.as_bytes())
+    }
+}
+
+impl PartialOrd<[u8]> for HeaderValue<'_> {
+    #[inline]
+    fn partial_cmp(&self, other: &[u8]) -> Option<cmp::Ordering> {
+        (*self.as_bytes()).partial_cmp(other)
+    }
+}
+
+impl PartialEq<HeaderValue<'_>> for str {
+    #[inline]
+    fn eq(&self, other: &HeaderValue<'_>) -> bool {
+        *other == *self
+    }
+}
+
+impl PartialEq<HeaderValue<'_>> for [u8] {
+    #[inline]
+    fn eq(&self, other: &HeaderValue<'_>) -> bool {
+        *other == *self
+    }
+}
+
+impl PartialOrd<HeaderValue<'_>> for str {
+    #[inline]
+    fn partial_cmp(&self, other: &HeaderValue<'_>) -> Option<cmp::Ordering> {
+        self.as_bytes().partial_cmp(other.as_bytes())
+    }
+}
+
+impl PartialOrd<HeaderValue<'_>> for [u8] {
     #[inline]
     fn partial_cmp(&self, other: &HeaderValue) -> Option<cmp::Ordering> {
         self.partial_cmp(other.as_bytes())
     }
 }
 
-impl PartialEq<String> for HeaderValue {
+impl PartialEq<String> for HeaderValue<'_> {
     #[inline]
     fn eq(&self, other: &String) -> bool {
-        *self == &other[..]
+        self.as_bytes() == other.as_bytes()
     }
 }
 
-impl PartialOrd<String> for HeaderValue {
+impl PartialOrd<String> for HeaderValue<'_> {
     #[inline]
     fn partial_cmp(&self, other: &String) -> Option<cmp::Ordering> {
-        self.inner.partial_cmp(other.as_bytes())
+        self.as_bytes().partial_cmp(other.as_bytes())
     }
 }
 
-impl PartialEq<HeaderValue> for String {
+impl PartialEq<HeaderValue<'_>> for String {
     #[inline]
     fn eq(&self, other: &HeaderValue) -> bool {
         *other == *self
     }
 }
 
-impl PartialOrd<HeaderValue> for String {
+impl PartialOrd<HeaderValue<'_>> for String {
     #[inline]
     fn partial_cmp(&self, other: &HeaderValue) -> Option<cmp::Ordering> {
         self.as_bytes().partial_cmp(other.as_bytes())
     }
 }
 
-impl<'a> PartialEq<HeaderValue> for &'a HeaderValue {
+impl<'a> PartialEq<HeaderValue<'_>> for &'a HeaderValue<'_> {
     #[inline]
-    fn eq(&self, other: &HeaderValue) -> bool {
+    fn eq(&self, other: &HeaderValue<'_>) -> bool {
         **self == *other
     }
 }
 
-impl<'a> PartialOrd<HeaderValue> for &'a HeaderValue {
+impl<'a> PartialOrd<HeaderValue<'_>> for &'a HeaderValue<'_> {
     #[inline]
     fn partial_cmp(&self, other: &HeaderValue) -> Option<cmp::Ordering> {
         (**self).partial_cmp(other)
     }
 }
 
-impl<'a, T: ?Sized> PartialEq<&'a T> for HeaderValue
+impl<'a, 'b, T: ?Sized> PartialEq<&'a T> for HeaderValue<'b>
 where
-    HeaderValue: PartialEq<T>,
+    HeaderValue<'b>: PartialEq<T>,
 {
     #[inline]
     fn eq(&self, other: &&'a T) -> bool {
@@ -721,9 +806,9 @@ where
     }
 }
 
-impl<'a, T: ?Sized> PartialOrd<&'a T> for HeaderValue
+impl<'a, 'b, T: ?Sized> PartialOrd<&'a T> for HeaderValue<'b>
 where
-    HeaderValue: PartialOrd<T>,
+    HeaderValue<'b>: PartialOrd<T>,
 {
     #[inline]
     fn partial_cmp(&self, other: &&'a T) -> Option<cmp::Ordering> {
@@ -731,14 +816,14 @@ where
     }
 }
 
-impl<'a> PartialEq<HeaderValue> for &'a str {
+impl<'a> PartialEq<HeaderValue<'_>> for &'a str {
     #[inline]
-    fn eq(&self, other: &HeaderValue) -> bool {
-        *other == *self
+    fn eq(&self, other: &HeaderValue<'_>) -> bool {
+        other.as_bytes() == self.as_bytes()
     }
 }
 
-impl<'a> PartialOrd<HeaderValue> for &'a str {
+impl<'a> PartialOrd<HeaderValue<'_>> for &'a str {
     #[inline]
     fn partial_cmp(&self, other: &HeaderValue) -> Option<cmp::Ordering> {
         self.as_bytes().partial_cmp(other.as_bytes())
@@ -750,6 +835,22 @@ fn test_try_from() {
     HeaderValue::try_from(vec![127]).unwrap_err();
 }
 
+
+#[test]
+fn test_compare() {
+    let val1 = HeaderValue::from_bytes("aaa".as_bytes()).unwrap();
+    let val2 = HeaderValue::from_bytes("bbb".as_bytes()).unwrap();
+    let val3 = HeaderValue::from_bytes_ref("bbb".as_bytes()).unwrap();
+
+    assert!(val1 == val1);
+    assert!(val1 != val2);
+    assert!(val2 == val3);
+    assert!(val1 < val2);
+    assert!(val1 < val3);
+    assert!(val2 > val1);
+    assert!(val3 > val1);
+}
+
 #[test]
 fn test_debug() {
     let cases = &[
@@ -759,7 +860,7 @@ fn test_debug() {
     ];
 
     for &(value, expected) in cases {
-        let val = HeaderValue::from_bytes(value.as_bytes()).unwrap();
+        let val = HeaderValue::from_bytes_ref(value.as_bytes()).unwrap();
         let actual = format!("{:?}", val);
         assert_eq!(expected, actual);
     }
