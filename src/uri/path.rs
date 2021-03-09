@@ -17,8 +17,7 @@ pub struct PathAndQuery {
 const NONE: u16 = u16::MAX;
 
 impl PathAndQuery {
-    // Not public while `bytes` is unstable.
-    pub(super) fn from_shared(mut src: Bytes) -> Result<Self, InvalidUri> {
+    fn from_shared(mut src: Bytes) -> Result<Self, InvalidUri> {
         let mut query = NONE;
         let mut fragment = None;
 
@@ -127,7 +126,7 @@ impl PathAndQuery {
     pub fn from_static(src: &'static str) -> Self {
         let src = Bytes::from_static(src.as_bytes());
 
-        PathAndQuery::from_shared(src).unwrap()
+        PathAndQuery::try_from(src).unwrap()
     }
 
     /// Attempt to convert a `Bytes` buffer to a `PathAndQuery`.
@@ -139,7 +138,7 @@ impl PathAndQuery {
         T: AsRef<[u8]> + 'static,
     {
         if_downcast_into!(T, Bytes, src, {
-            return PathAndQuery::from_shared(src);
+            return PathAndQuery::try_from(src);
         });
 
         PathAndQuery::try_from(src.as_ref())
@@ -278,11 +277,19 @@ impl PathAndQuery {
     }
 }
 
+impl TryFrom<Bytes> for PathAndQuery {
+    type Error = InvalidUri;
+    #[inline]
+    fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
+        PathAndQuery::from_shared(bytes)
+    }
+}
+
 impl<'a> TryFrom<&'a [u8]> for PathAndQuery {
     type Error = InvalidUri;
     #[inline]
     fn try_from(s: &'a [u8]) -> Result<Self, Self::Error> {
-        PathAndQuery::from_shared(Bytes::copy_from_slice(s))
+        PathAndQuery::try_from(Bytes::copy_from_slice(s))
     }
 }
 
@@ -298,7 +305,7 @@ impl TryFrom<Vec<u8>> for PathAndQuery {
     type Error = InvalidUri;
     #[inline]
     fn try_from(vec: Vec<u8>) -> Result<Self, Self::Error> {
-        PathAndQuery::from_shared(vec.into())
+        PathAndQuery::try_from(Bytes::from(vec))
     }
 }
 
@@ -306,7 +313,7 @@ impl TryFrom<String> for PathAndQuery {
     type Error = InvalidUri;
     #[inline]
     fn try_from(s: String) -> Result<Self, Self::Error> {
-        PathAndQuery::from_shared(s.into())
+        PathAndQuery::try_from(Bytes::from(s))
     }
 }
 
@@ -323,6 +330,12 @@ impl FromStr for PathAndQuery {
     #[inline]
     fn from_str(s: &str) -> Result<Self, InvalidUri> {
         TryFrom::try_from(s)
+    }
+}
+
+impl From<PathAndQuery> for Bytes {
+    fn from(src: PathAndQuery) -> Bytes {
+        src.data.into()
     }
 }
 
