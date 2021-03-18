@@ -1,6 +1,5 @@
-use std::error;
-use std::fmt;
-use std::result;
+use core::fmt;
+use core::result;
 
 use crate::header;
 use crate::method;
@@ -46,12 +45,12 @@ impl fmt::Display for Error {
 
 impl Error {
     /// Return true if the underlying error has the same type as T.
-    pub fn is<T: error::Error + 'static>(&self) -> bool {
-        self.get_ref().is::<T>()
-    }
+    // pub fn is<T: core_error::Error + 'static>(&self) -> bool {
+    //     self.get_ref().is::<T>()
+    // }
 
     /// Return a reference to the lower level, inner error.
-    pub fn get_ref(&self) -> &(dyn error::Error + 'static) {
+    pub fn get_ref(&self) -> &(dyn core_error::Error + 'static) {
         use self::ErrorKind::*;
 
         match self.inner {
@@ -65,10 +64,10 @@ impl Error {
     }
 }
 
-impl error::Error for Error {
+impl core_error::Error for Error {
     // Return any available cause from the inner error. Note the inner error is
     // not itself the cause.
-    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+    fn source(&self) -> Option<&(dyn core_error::Error + 'static)> {
         self.get_ref().source()
     }
 }
@@ -121,8 +120,8 @@ impl From<header::InvalidHeaderValue> for Error {
     }
 }
 
-impl From<std::convert::Infallible> for Error {
-    fn from(err: std::convert::Infallible) -> Error {
+impl From<core::convert::Infallible> for Error {
+    fn from(err: core::convert::Infallible) -> Error {
         match err {}
     }
 }

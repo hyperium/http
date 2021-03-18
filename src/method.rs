@@ -18,11 +18,12 @@
 use self::Inner::*;
 use self::extension::{InlineExtension, AllocatedExtension};
 
-use std::convert::AsRef;
-use std::error::Error;
-use std::str::FromStr;
-use std::convert::TryFrom;
-use std::{fmt, str};
+use core::convert::AsRef;
+use core::str::FromStr;
+use core::convert::TryFrom;
+use core::{fmt, str};
+
+use core_error::Error;
 
 /// The Request Method (VERB)
 ///
@@ -311,7 +312,12 @@ impl Error for InvalidMethod {}
 
 mod extension {
     use super::InvalidMethod;
-    use std::str;
+    
+    use core::str;
+
+    use alloc::boxed::Box;
+    use alloc::vec::Vec;
+    use alloc::vec;
 
     #[derive(Clone, PartialEq, Eq, Hash)]
     // Invariant: the first self.1 bytes of self.0 are valid UTF-8.

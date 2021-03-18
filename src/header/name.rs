@@ -1,12 +1,15 @@
 use crate::byte_str::ByteStr;
 use bytes::{Bytes, BytesMut};
 
-use std::borrow::Borrow;
-use std::error::Error;
-use std::convert::{TryFrom};
-use std::hash::{Hash, Hasher};
-use std::str::FromStr;
-use std::{fmt, mem};
+use core::borrow::Borrow;
+use core::convert::{TryFrom};
+use core::hash::{Hash, Hasher};
+use core::str::FromStr;
+use core::{fmt, mem};
+
+use alloc::string::String;
+
+use core_error::Error;
 
 /// Represents an HTTP header field name
 ///

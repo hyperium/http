@@ -1,7 +1,9 @@
-use std::convert::TryFrom;
-use std::hash::{Hash, Hasher};
-use std::str::FromStr;
-use std::{cmp, fmt, str};
+use core::convert::TryFrom;
+use core::hash::{Hash, Hasher};
+use core::str::FromStr;
+use core::{cmp, fmt, str};
+
+use alloc::string::String;
 
 use bytes::Bytes;
 

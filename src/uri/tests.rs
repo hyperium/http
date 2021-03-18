@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use core::str::FromStr;
 
 use super::{ErrorKind, InvalidUri, Port, Uri, URI_CHARS};
 

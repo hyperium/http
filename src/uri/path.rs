@@ -1,6 +1,7 @@
-use std::convert::TryFrom;
-use std::str::FromStr;
-use std::{cmp, fmt, str};
+use core::convert::TryFrom;
+use core::str::FromStr;
+use core::{cmp, fmt, str};
+use alloc::string::String;
 
 use bytes::Bytes;
 
@@ -14,7 +15,7 @@ pub struct PathAndQuery {
     pub(super) query: u16,
 }
 
-const NONE: u16 = ::std::u16::MAX;
+const NONE: u16 = core::u16::MAX;
 
 impl PathAndQuery {
     // Not public while `bytes` is unstable.
