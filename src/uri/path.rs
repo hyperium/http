@@ -51,6 +51,18 @@ impl PathAndQuery {
                     0x7C |
                     0x7E => {},
 
+                    // These are code points that are supposed to be
+                    // percent-encoded in the path but there are clients
+                    // out there sending them as is and httparse accepts
+                    // to parse those requests, so they are allowed here
+                    // for parity.
+                    //
+                    // For reference, those are code points that are used
+                    // to send requests with JSON directly embedded in
+                    // the URI path. Yes, those things happen for real.
+                    b'"' |
+                    b'{' | b'}' => {},
+
                     _ => return Err(ErrorKind::InvalidUriChar.into()),
                 }
             }
@@ -525,6 +537,11 @@ mod tests {
         assert_eq!("/aa%2", pq("/aa%2").path());
         assert_eq!("/aa%2", pq("/aa%2?r=1").path());
         assert_eq!("qr=%3", pq("/a/b?qr=%3").query().unwrap());
+    }
+
+    #[test]
+    fn json_is_fine() {
+        assert_eq!(r#"/{"bread":"baguette"}"#, pq(r#"/{"bread":"baguette"}"#).path());
     }
 
     fn pq(s: &str) -> PathAndQuery {
