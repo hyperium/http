@@ -1,3 +1,7 @@
+# 0.2.4 (April 4, 2021)
+
+* Fix `Uri` parsing to allow `{`, `"`, and `}` in paths.
+
 # 0.2.3 (January 7, 2021)
 
 * Upgrade internal (private) `bytes` dependency to 1.0.
