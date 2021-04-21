@@ -291,11 +291,19 @@ impl<'a> TryFrom<&'a str> for PathAndQuery {
     }
 }
 
+impl<'a> TryFrom<Vec<u8>> for PathAndQuery {
+    type Error = InvalidUri;
+    #[inline]
+    fn try_from(vec: Vec<u8>) -> Result<Self, Self::Error> {
+        PathAndQuery::from_shared(vec.into())
+    }
+}
+
 impl TryFrom<String> for PathAndQuery {
     type Error = InvalidUri;
     #[inline]
     fn try_from(s: String) -> Result<Self, Self::Error> {
-        TryFrom::try_from(s.as_bytes())
+        PathAndQuery::from_shared(s.into())
     }
 }
 
