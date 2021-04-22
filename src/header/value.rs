@@ -57,12 +57,12 @@ impl HeaderValue {
     /// assert_eq!(val, "hello");
     /// ```
     #[inline]
-    pub fn from_static(src: &'static str) -> HeaderValue {
+    pub const fn from_static(src: &'static str) -> HeaderValue {
         let bytes = src.as_bytes();
-        for &b in bytes {
-            if !is_visible_ascii(b) {
-                panic!("invalid header value");
-            }
+        let mut i = 0;
+        while i < bytes.len() {
+            const_fn_assert::cfn_assert!(is_visible_ascii(bytes[i]));
+            i += 1;
         }
 
         HeaderValue {
@@ -555,7 +555,7 @@ mod try_from_header_name_tests {
     }
 }
 
-fn is_visible_ascii(b: u8) -> bool {
+const fn is_visible_ascii(b: u8) -> bool {
     b >= 32 && b < 127 || b == b'\t'
 }
 
