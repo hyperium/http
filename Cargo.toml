@@ -23,7 +23,6 @@ edition = "2018"
 
 [dependencies]
 bytes = "1"
-const_fn_assert = "0.1.2"
 fnv = "1.0.5"
 itoa = "0.4.1"
 

@@ -57,11 +57,15 @@ impl HeaderValue {
     /// assert_eq!(val, "hello");
     /// ```
     #[inline]
+    #[allow(unconditional_panic)] // required for the panic circumventon
+    #[track_caller]
     pub const fn from_static(src: &'static str) -> HeaderValue {
         let bytes = src.as_bytes();
         let mut i = 0;
         while i < bytes.len() {
-            const_fn_assert::cfn_assert!(is_visible_ascii(bytes[i]));
+            if !is_visible_ascii(bytes[i]) {
+                ([] as [u8; 0])[0]; // Invalid header value
+            }
             i += 1;
         }
 
