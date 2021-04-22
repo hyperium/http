@@ -81,6 +81,9 @@ impl PathAndQuery {
                         0x3D |
                         0x3F..=0x7E => {},
 
+                        // Allows for " to be passed in the query.
+                        0x22 => {},
+
                         b'#' => {
                             fragment = Some(i);
                             break;
