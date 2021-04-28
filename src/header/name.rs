@@ -397,7 +397,7 @@ standard_headers! {
     /// media types and not only to textual documents.
     (ContentLanguage, CONTENT_LANGUAGE, "content-language");
 
-    /// Indicates the size fo the entity-body.
+    /// Indicates the size of the entity-body.
     ///
     /// The header value must be a decimal indicating the number of octets sent
     /// to the recipient.

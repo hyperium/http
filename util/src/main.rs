@@ -326,7 +326,7 @@ standard_headers! {
     "content-language";
 
     r#"
-    /// Indicates the size fo the entity-body.
+    /// Indicates the size of the entity-body.
     ///
     /// The header value must be a decimal indicating the number of octets sent
     /// to the recipient.
