@@ -160,11 +160,11 @@
 
 #![deny(warnings, missing_docs, missing_debug_implementations)]
 
-#[cfg(test)]
+#[cfg(doctest)]
 #[macro_use]
 extern crate doc_comment;
 
-#[cfg(test)]
+#[cfg(doctest)]
 doctest!("../README.md");
 
 #[macro_use]
