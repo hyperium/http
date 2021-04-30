@@ -165,8 +165,10 @@ impl HeaderValue {
     /// Convert a `Bytes` directly into a `HeaderValue` without validating.
     ///
     /// This function does NOT validate that illegal bytes are not contained
-    /// within the buffer.
-    pub unsafe fn from_maybe_shared_unchecked<T>(src: T) -> HeaderValue
+    /// within the buffer. It is the caller's responsibility to ensure that 
+    /// the bytes in `src` are all between 32 and 255 (inclusive), excluding
+    /// byte 127 (DEL).
+    pub fn from_maybe_shared_unchecked<T>(src: T) -> HeaderValue
     where
         T: AsRef<[u8]> + 'static,
     {
@@ -232,6 +234,9 @@ impl HeaderValue {
             }
         }
 
+        // Safety: the loop above checks that each byte is_valid_ascii() and
+        // the postcondtion on is_valid_ascii() implies that each byte is
+        // valid single-byte UTF-8.
         unsafe { Ok(str::from_utf8_unchecked(bytes)) }
     }
 
@@ -346,23 +351,41 @@ impl fmt::Debug for HeaderValue {
             f.write_str("Sensitive")
         } else {
             f.write_str("\"")?;
-            let mut from = 0;
             let bytes = self.as_bytes();
-            for (i, &b) in bytes.iter().enumerate() {
-                if !is_visible_ascii(b) || b == b'"' {
-                    if from != i {
-                        f.write_str(unsafe { str::from_utf8_unchecked(&bytes[from..i]) })?;
-                    }
+
+            // Invariant: bytes[range] is valid UTF-8 (for both instanses of range).
+            //
+            // bytes[0..0] is empty so the starting value of range trivally satisfies
+            // the invariant.
+            let range = bytes.iter().try_fold(0..0, |range, _| {
+                let b = bytes[range.end];
+                if is_visible_ascii(b) && b != b'"' {
+                    // Invariant: By the invariant bytes[range] is valid UTF-8.
+                    // The postcondition on is_visible_ascii() means that b (and
+                    // hence bytes[range.end]) is valid, single-byte UTF-8 so
+                    // bytes[range.start..range.end+1] is valid UTF-8 and the
+                    // invariant is satified.
+                    Ok(range.start..range.end+1)
+                } else {
+                    // Safety: By the invariant bytes[range] is valid UTF-8
+                    let text_run = unsafe { str::from_utf8_unchecked(&bytes[range.clone()]) };
+                    f.write_str(text_run)?;
+
                     if b == b'"' {
                         f.write_str("\\\"")?;
                     } else {
                         write!(f, "\\x{:x}", b)?;
                     }
-                    from = i + 1;
-                }
-            }
 
-            f.write_str(unsafe { str::from_utf8_unchecked(&bytes[from..]) })?;
+                    // Invariant: The range is empty so the invariant is trivally
+                    // satified.
+                    Ok(range.end+1..range.end+1)
+                }
+            })?;
+
+            // Safety: By the invariant bytes[range] is valid UTF-8.
+            let text_run = unsafe { str::from_utf8_unchecked(&bytes[range]) };
+            f.write_str(text_run)?;
             f.write_str("\"")
         }
     }
@@ -555,6 +578,8 @@ mod try_from_header_name_tests {
     }
 }
 
+// Postcondition: if the return is true then b is a visible ascii byte
+// which implies that it is a valid single-byte UTF-8 codepoint.
 fn is_visible_ascii(b: u8) -> bool {
     b >= 32 && b < 127 || b == b'\t'
 }
@@ -745,26 +770,34 @@ impl<'a> PartialOrd<HeaderValue> for &'a str {
     }
 }
 
-#[test]
-fn test_try_from() {
-    HeaderValue::try_from(vec![127]).unwrap_err();
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-#[test]
-fn test_debug() {
-    let cases = &[
-        ("hello", "\"hello\""),
-        ("hello \"world\"", "\"hello \\\"world\\\"\""),
-        ("\u{7FFF}hello", "\"\\xe7\\xbf\\xbfhello\""),
-    ];
-
-    for &(value, expected) in cases {
-        let val = HeaderValue::from_bytes(value.as_bytes()).unwrap();
-        let actual = format!("{:?}", val);
-        assert_eq!(expected, actual);
+    #[test]
+    fn test_try_from() {
+        HeaderValue::try_from(vec![127]).unwrap_err();
     }
 
-    let mut sensitive = HeaderValue::from_static("password");
-    sensitive.set_sensitive(true);
-    assert_eq!("Sensitive", format!("{:?}", sensitive));
+    #[test]
+    fn test_debug() {
+        let cases = &[
+            // Note: Unicode codepoint U+7FFF is encoded as e7, bf, bf in UTF-8
+            ("hello", "\"hello\""),
+            ("hello \"world\"", "\"hello \\\"world\\\"\""),
+            ("\u{7FFF}hello", "\"\\xe7\\xbf\\xbfhello\""),
+            ("hell\u{7FFF}o", "\"hell\\xe7\\xbf\\xbfo\""),
+            ("hello\u{7FFF}", "\"hello\\xe7\\xbf\\xbf\""),
+        ];
+
+        for &(value, expected) in cases {
+            let val = HeaderValue::from_bytes(value.as_bytes()).unwrap();
+            let actual = format!("{:?}", val); assert_eq!(expected, actual); }
+
+        // test invalid UTF-8
+        let val = HeaderValue::from_bytes(b"\xC0").unwrap(); let actual = format!("{:?}", val);
+        assert_eq!("\"\\xc0\"", actual);
+
+        let mut sensitive = HeaderValue::from_static("password"); sensitive.set_sensitive(true);
+        assert_eq!("Sensitive", format!("{:?}", sensitive)); }
 }
