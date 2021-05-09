@@ -133,6 +133,8 @@ impl PartialEq for Scheme {
             (&Standard(Http), &Standard(Http)) => true,
             (&Standard(Https), &Standard(Https)) => true,
             (&Other(ref a), &Other(ref b)) => a.eq_ignore_ascii_case(b),
+            (&Other(ref a), &Standard(ref b)) => a.eq_ignore_ascii_case(b.as_str()),
+            (&Standard(ref a), &Other(ref b)) => b.eq_ignore_ascii_case(a.as_str()),
             (&None, _) | (_, &None) => unreachable!(),
             _ => false,
         }
@@ -322,6 +324,13 @@ impl Protocol {
             Protocol::Https => 5,
         }
     }
+
+    pub fn as_str(&self) -> &str {
+        match *self {
+            Protocol::Http => "http",
+            Protocol::Https => "https",
+        }
+    }
 }
 
 impl<T> From<Protocol> for Scheme2<T> {
@@ -355,6 +364,18 @@ mod test {
 
         // Invalid UTF-8
         Scheme::try_from([0xC0].as_ref()).expect_err("Unexpectly valid Scheme");
+    }
+
+    #[test]
+    fn case_insensitive_eq() {
+        assert_eq!(
+            "hTtP".parse::<Scheme>().unwrap(), // other
+            "http".parse::<Scheme>().unwrap() // standard
+        );
+        assert_eq!(
+            "https".parse::<Scheme>().unwrap(), // standard
+            "HtTpS".parse::<Scheme>().unwrap() // other
+        );
     }
 
     fn scheme(s: &str) -> Scheme {
