@@ -768,3 +768,14 @@ fn test_debug() {
     sensitive.set_sensitive(true);
     assert_eq!("Sensitive", format!("{:?}", sensitive));
 }
+
+#[test]
+fn test_from_static_valid() {
+    assert_eq!(HeaderValue::from_static("foo").to_str().unwrap(), "foo");
+}
+
+#[test]
+#[should_panic(expected = "invalid header value")]
+fn test_from_static_invalid_characters() {
+    HeaderValue::from_static("…");
+}
