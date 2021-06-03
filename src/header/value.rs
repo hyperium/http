@@ -79,7 +79,6 @@ impl HeaderValue {
     /// ```
     #[inline]
     #[allow(unconditional_panic)] // required for the panic circumventon
-    #[track_caller]
     pub const fn from_static(src: &'static str) -> HeaderValue {
         let bytes = src.as_bytes();
         let mut i = 0;
