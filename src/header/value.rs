@@ -53,7 +53,7 @@ impl HeaderValue {
     /// makes its way into stable, the panic message at compile-time is
     /// going to look cryptic, but should at least point at your header value:
     ///
-    /// ```
+    /// ```text
     /// error: any use of this value will cause an error
     ///   --> http/src/header/value.rs:67:17
     ///    |
