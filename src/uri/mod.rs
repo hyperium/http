@@ -491,8 +491,6 @@ impl Uri {
     ///                 authority
     /// ```
     ///
-    /// This function will be renamed to `authority` in the next semver release.
-    ///
     /// # Examples
     ///
     /// Absolute URI
