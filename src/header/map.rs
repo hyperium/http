@@ -3232,12 +3232,32 @@ fn probe_distance(mask: Size, hash: HashValue, current: usize) -> usize {
     current.wrapping_sub(desired_pos(mask, hash)) & mask as usize
 }
 
+#[cfg(all(feature = "ahash", not(feature = "fnv")))]
+#[inline]
+fn fast_hash<K: ?Sized>(k: &K) -> u64 where K: Hash {
+    let mut h = ahash::AHasher::default();
+    k.hash(&mut h);
+    h.finish()
+}
+
+#[cfg(all(feature = "fnv", not(feature = "ahash")))]
+#[inline]
+fn fast_hash<K: ?Sized>(k: &K) -> u64 where K: Hash {
+    let mut h = fnv::FnvHasher::default();
+    k.hash(&mut h);
+    h.finish()
+}
+
+#[cfg(all(feature = "fnv", feature = "ahash"))]
+compile_error!("choose only one of ahash or fnv feature");
+
+#[cfg(all(not(feature = "fnv"), not(feature = "ahash")))]
+compile_error!("choose one of ahash or fnv feature");
+
 fn hash_elem_using<K: ?Sized>(danger: &Danger, k: &K) -> HashValue
 where
     K: Hash,
 {
-    use fnv::FnvHasher;
-
     const MASK: u64 = (MAX_SIZE as u64) - 1;
 
     let hash = match *danger {
@@ -3249,9 +3269,7 @@ where
         }
         // Fast hash
         _ => {
-            let mut h = FnvHasher::default();
-            k.hash(&mut h);
-            h.finish()
+            fast_hash(k)
         }
     };
 
