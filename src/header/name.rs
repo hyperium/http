@@ -454,6 +454,16 @@ standard_headers! {
     /// the browser are set to block them, for example.
     (Cookie, COOKIE, "cookie");
 
+    /// The HTTP Cross-Origin-Embedder-Policy (COEP) response header prevents a
+    /// document from loading any cross-origin resources that don't explicitly
+    /// grant the document permission (using CORP or CORS).
+    (CrossOriginEmbedderPolicy, CROSS_ORIGIN_EMBEDDER_POLICY, "cross-origin-embedder-policy");
+
+    /// The `Cross-Origin-Resource-Policy` response header can be used to
+    /// require checking a request’s current URL’s origin against a request’s
+    /// origin when request’s mode is "no-cors".
+    (CrossOriginResourcePolicy, CROSS_ORIGIN_RESOURCE_POLICY, "cross-origin-resource-policy");
+
     /// Indicates the client's tracking preference.
     ///
     /// This header lets users indicate whether they would prefer privacy rather
@@ -1461,6 +1471,12 @@ fn parse_hdr<'a>(
                 } else if eq!(b[21] == b'm' b'e' b't' b'h' b'o' b'd' b's') {
                     return Ok(AccessControlAllowMethods.into())
                 }
+            } else if eq!(b == b'c' b'r' b'o' b's' b's' b'-' b'o' b'r' b'i' b'g' b'i' b'n' b'-') {
+                if eq!(b[13] ==  b'e' b'm' b'b' b'e' b'd' b'd' b'e' b'r' b'-' b'p' b'o' b'l' b'i' b'c' b'y') {
+                    return Ok(CrossOriginEmbedderPolicy.into())
+                } else if eq!(b[13] == b'r' b'e' b's' b'o' b'u' b'r' b'c' b'e' b'-' b'p' b'o' b'l' b'i' b'c' b'y') {
+                    return Ok(CrossOriginResourcePolicy.into())
+                }
             }
 
             validate(b, len)
@@ -1623,12 +1639,14 @@ fn parse_hdr<'a>(
                 b"upgrade-insecure-requests" => Ok(UpgradeInsecureRequests.into()),
                 b"access-control-allow-origin" => Ok(AccessControlAllowOrigin.into()),
                 b"public-key-pins-report-only" => Ok(PublicKeyPinsReportOnly.into()),
+                b"cross-origin-resource-policy" => Ok(CrossOriginResourcePolicy.into()),
                 b"access-control-allow-headers" => Ok(AccessControlAllowHeaders.into()),
                 b"access-control-allow-methods" => Ok(AccessControlAllowMethods.into()),
                 b"access-control-expose-headers" => Ok(AccessControlExposeHeaders.into()),
                 b"access-control-request-method" => Ok(AccessControlRequestMethod.into()),
                 b"access-control-request-headers" => Ok(AccessControlRequestHeaders.into()),
                 b"access-control-allow-credentials" => Ok(AccessControlAllowCredentials.into()),
+                b"cross-origin-embedder-policy-policy" => Ok(CrossOriginEmbedderPolicy.into()),
                 b"content-security-policy-report-only" => {
                     Ok(ContentSecurityPolicyReportOnly.into())
                 }
