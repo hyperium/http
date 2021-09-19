@@ -1200,7 +1200,7 @@ impl<T> HeaderMap<T> {
 
         ValueDrain {
             first: Some(old),
-            next: next,
+            next,
             lt: PhantomData,
         }
     }
@@ -1587,6 +1587,25 @@ impl<T> HeaderMap<T> {
     #[inline]
     fn raw_links(&mut self) -> RawLinks<T> {
         RawLinks(&mut self.entries[..] as *mut _)
+    }
+}
+
+#[cfg(feature = "borsh")]
+impl<T: borsh::BorshSerialize> borsh::BorshSerialize for HeaderMap<T> {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        let headers: Vec<(&HeaderName, &T)> = self.iter().collect();
+        borsh::BorshSerialize::serialize(&headers, writer)?;
+        Ok(())
+    }
+}
+
+#[cfg(feature = "borsh")]
+impl<T: borsh::BorshDeserialize> borsh::BorshDeserialize for HeaderMap<T> {
+    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        let headers: Vec<(HeaderName, T)> = borsh::BorshDeserialize::deserialize(buf)?;
+        let mut map = HeaderMap::<T>::default();
+        map.extend(headers);
+        Ok(map)
     }
 }
 

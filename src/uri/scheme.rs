@@ -14,6 +14,23 @@ pub struct Scheme {
     pub(super) inner: Scheme2,
 }
 
+#[cfg(feature = "borsh")]
+impl borsh::BorshSerialize for Scheme {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        borsh::BorshSerialize::serialize(&self.inner, writer)?;
+        Ok(())
+    }
+}
+
+#[cfg(feature = "borsh")]
+impl borsh::BorshDeserialize for Scheme {
+    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        let inner = borsh::BorshDeserialize::deserialize(buf)?;
+        Ok(Self { inner })
+    }
+}
+
+#[cfg_attr(feature = "borsh", derive(borsh::BorshDeserialize, borsh::BorshSerialize))]
 #[derive(Clone, Debug)]
 pub(super) enum Scheme2<T = Box<ByteStr>> {
     None,
@@ -21,6 +38,7 @@ pub(super) enum Scheme2<T = Box<ByteStr>> {
     Other(T),
 }
 
+#[cfg_attr(feature = "borsh", derive(borsh::BorshDeserialize, borsh::BorshSerialize))]
 #[derive(Copy, Clone, Debug)]
 pub(super) enum Protocol {
     Http,

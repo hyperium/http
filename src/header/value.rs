@@ -357,6 +357,27 @@ impl HeaderValue {
     }
 }
 
+#[cfg(feature = "borsh")]
+impl borsh::BorshSerialize for HeaderValue {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        borsh::BorshSerialize::serialize(self.inner.as_ref(), writer)?;
+        borsh::BorshSerialize::serialize(&self.is_sensitive, writer)?;
+        Ok(())
+    }
+}
+
+#[cfg(feature = "borsh")]
+impl borsh::BorshDeserialize for HeaderValue {
+    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        let inner: Vec<u8> = borsh::BorshDeserialize::deserialize(buf)?;
+        let is_sensitive = borsh::BorshDeserialize::deserialize(buf)?;
+        Ok(Self {
+            inner: inner.into(),
+            is_sensitive,
+        })
+    }
+}
+
 impl AsRef<[u8]> for HeaderValue {
     #[inline]
     fn as_ref(&self) -> &[u8] {

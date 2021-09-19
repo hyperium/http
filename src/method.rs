@@ -42,6 +42,7 @@ use std::{fmt, str};
 /// assert!(Method::GET.is_idempotent());
 /// assert_eq!(Method::POST.as_str(), "POST");
 /// ```
+#[cfg_attr(feature = "borsh", derive(borsh::BorshDeserialize, borsh::BorshSerialize))]
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Method(Inner);
 
@@ -50,6 +51,7 @@ pub struct InvalidMethod {
     _priv: (),
 }
 
+#[cfg_attr(feature = "borsh", derive(borsh::BorshDeserialize, borsh::BorshSerialize))]
 #[derive(Clone, PartialEq, Eq, Hash)]
 enum Inner {
     Options,
@@ -313,10 +315,12 @@ mod extension {
     use super::InvalidMethod;
     use std::str;
 
+    #[cfg_attr(feature = "borsh", derive(borsh::BorshDeserialize, borsh::BorshSerialize))]
     #[derive(Clone, PartialEq, Eq, Hash)]
     // Invariant: the first self.1 bytes of self.0 are valid UTF-8.
     pub struct InlineExtension([u8; InlineExtension::MAX], u8);
 
+    #[cfg_attr(feature = "borsh", derive(borsh::BorshDeserialize, borsh::BorshSerialize))]
     #[derive(Clone, PartialEq, Eq, Hash)]
     // Invariant: self.0 contains valid UTF-8.
     pub struct AllocatedExtension(Box<[u8]>);

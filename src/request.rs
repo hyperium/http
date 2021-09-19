@@ -154,6 +154,7 @@ use crate::{Extensions, Result, Uri};
 /// #
 /// # fn main() {}
 /// ```
+#[cfg_attr(feature = "borsh", derive(borsh::BorshDeserialize, borsh::BorshSerialize))]
 pub struct Request<T> {
     head: Parts,
     body: T,
@@ -163,6 +164,7 @@ pub struct Request<T> {
 ///
 /// The HTTP request head consists of a method, uri, version, and a set of
 /// header fields.
+#[cfg_attr(feature = "borsh", derive(borsh::BorshDeserialize, borsh::BorshSerialize))]
 pub struct Parts {
     /// The request's method
     pub method: Method,
@@ -177,8 +179,10 @@ pub struct Parts {
     pub headers: HeaderMap<HeaderValue>,
 
     /// The request's extensions
+    #[cfg_attr(feature = "borsh", borsh_skip)]
     pub extensions: Extensions,
 
+    #[cfg_attr(feature = "borsh", borsh_skip)]
     _priv: (),
 }
 

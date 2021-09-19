@@ -33,12 +33,29 @@ pub struct HeaderName {
     inner: Repr<Custom>,
 }
 
+#[cfg(feature = "borsh")]
+impl borsh::BorshSerialize for HeaderName {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        borsh::BorshSerialize::serialize(&self.inner, writer)?;
+        Ok(())
+    }
+}
+
+#[cfg(feature = "borsh")]
+impl borsh::BorshDeserialize for HeaderName {
+    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        let inner = borsh::BorshDeserialize::deserialize(buf)?;
+        Ok(Self { inner })
+    }
+}
+
 // Almost a full `HeaderName`
 #[derive(Debug, Hash)]
 pub struct HdrName<'a> {
     inner: Repr<MaybeLower<'a>>,
 }
 
+#[cfg_attr(feature = "borsh", derive(borsh::BorshDeserialize, borsh::BorshSerialize))]
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 enum Repr<T> {
     Standard(StandardHeader),
@@ -46,6 +63,7 @@ enum Repr<T> {
 }
 
 // Used to hijack the Hash impl
+#[cfg_attr(feature = "borsh", derive(borsh::BorshDeserialize, borsh::BorshSerialize))]
 #[derive(Debug, Clone, Eq, PartialEq)]
 struct Custom(ByteStr);
 
@@ -67,6 +85,7 @@ macro_rules! standard_headers {
             ($konst:ident, $upcase:ident, $name:expr);
         )+
     ) => {
+        #[cfg_attr(feature = "borsh", derive(borsh::BorshDeserialize, borsh::BorshSerialize))]
         #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
         enum StandardHeader {
             $(

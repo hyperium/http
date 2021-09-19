@@ -22,6 +22,7 @@ categories = ["web-programming"]
 edition = "2018"
 
 [dependencies]
+borsh = { version = "0.9", optional = true }
 bytes = "1"
 fnv = "1.0.5"
 itoa = "0.4.1"

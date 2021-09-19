@@ -275,6 +275,24 @@ impl PathAndQuery {
     }
 }
 
+#[cfg(feature = "borsh")]
+impl borsh::BorshSerialize for PathAndQuery {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        borsh::BorshSerialize::serialize(&self.data, writer)?;
+        borsh::BorshSerialize::serialize(&self.query, writer)?;
+        Ok(())
+    }
+}
+
+#[cfg(feature = "borsh")]
+impl borsh::BorshDeserialize for PathAndQuery {
+    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        let data = borsh::BorshDeserialize::deserialize(buf)?;
+        let query = borsh::BorshDeserialize::deserialize(buf)?;
+        Ok(Self { data, query })
+    }
+}
+
 impl<'a> TryFrom<&'a [u8]> for PathAndQuery {
     type Error = InvalidUri;
     #[inline]

@@ -22,6 +22,7 @@
 use std::fmt;
 
 /// Represents a version of the HTTP spec.
+#[cfg_attr(feature = "borsh", derive(borsh::BorshDeserialize, borsh::BorshSerialize))]
 #[derive(PartialEq, PartialOrd, Copy, Clone, Eq, Ord, Hash)]
 pub struct Version(Http);
 
@@ -42,6 +43,7 @@ impl Version {
     pub const HTTP_3: Version = Version(Http::H3);
 }
 
+#[cfg_attr(feature = "borsh", derive(borsh::BorshDeserialize, borsh::BorshSerialize))]
 #[derive(PartialEq, PartialOrd, Copy, Clone, Eq, Ord, Hash)]
 enum Http {
     Http09,

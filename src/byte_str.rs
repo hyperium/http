@@ -8,6 +8,22 @@ pub(crate) struct ByteStr {
     bytes: Bytes,
 }
 
+#[cfg(feature = "borsh")]
+impl borsh::BorshSerialize for ByteStr {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        borsh::BorshSerialize::serialize(&self as &str, writer)?;
+        Ok(())
+    }
+}
+
+#[cfg(feature = "borsh")]
+impl borsh::BorshDeserialize for ByteStr {
+    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        let string: String = borsh::BorshDeserialize::deserialize(buf)?;
+        Ok(string.into())
+    }
+}
+
 impl ByteStr {
     #[inline]
     pub fn new() -> ByteStr {
@@ -43,7 +59,7 @@ impl ByteStr {
             }
         }
         // Invariant: assumed by the safety requirements of this function.
-        ByteStr { bytes: bytes }
+        ByteStr { bytes }
     }
 }
 

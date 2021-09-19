@@ -199,6 +199,23 @@ impl StatusCode {
     }
 }
 
+#[cfg(feature = "borsh")]
+impl borsh::BorshSerialize for StatusCode {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        borsh::BorshSerialize::serialize(&self.0.get(), writer)?;
+        Ok(())
+    }
+}
+
+#[cfg(feature = "borsh")]
+impl borsh::BorshDeserialize for StatusCode {
+    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        let code = borsh::BorshDeserialize::deserialize(buf)?;
+        let non_zero_code = NonZeroU16::new(code).ok_or(std::io::ErrorKind::InvalidData)?;
+        Ok(Self(non_zero_code))
+    }
+}
+
 impl fmt::Debug for StatusCode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&self.0, f)

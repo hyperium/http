@@ -259,6 +259,22 @@ impl Authority {
     }
 }
 
+#[cfg(feature = "borsh")]
+impl borsh::BorshSerialize for Authority {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        borsh::BorshSerialize::serialize(&self.data, writer)?;
+        Ok(())
+    }
+}
+
+#[cfg(feature = "borsh")]
+impl borsh::BorshDeserialize for Authority {
+    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        let data = borsh::BorshDeserialize::deserialize(buf)?;
+        Ok(Self { data })
+    }
+}
+
 // Purposefully not public while `bytes` is unstable.
 // impl TryFrom<Bytes> for Authority
 

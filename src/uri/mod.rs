@@ -92,6 +92,7 @@ mod tests;
 /// assert_eq!(uri.host(), Some("www.rust-lang.org"));
 /// assert_eq!(uri.path(), "/install.html");
 /// ```
+#[cfg_attr(feature = "borsh", derive(borsh::BorshDeserialize, borsh::BorshSerialize))]
 #[derive(Clone)]
 pub struct Uri {
     scheme: Scheme,
