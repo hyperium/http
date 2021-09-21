@@ -1,3 +1,10 @@
+# 0.2.5 (September 21, 2021)
+
+* Add `is_empty()` and `len()` methods to `Extensions`.
+* Add `version_ref()` method to `request::Builder`.
+* Implement `TryFrom<Vec<u8>>` and `TryFrom<String>` for `Authority`, `Uri`, `PathAndQuery`, and `HeaderName`.
+* Make `HeaderValue::from_static` a `const fn`.
+
 # 0.2.4 (April 4, 2021)
 
 * Fix `Uri` parsing to allow `{`, `"`, and `}` in paths.
