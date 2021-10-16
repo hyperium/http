@@ -20,6 +20,23 @@ use std::error::Error;
 use std::fmt;
 use std::str::FromStr;
 
+/// Class of a status code as defined in [RFC7231, Section 6](https://datatracker.ietf.org/doc/html/rfc7231#section-6)
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum StatusCodeClass {
+    /// 1xx = The request was received, continuing process
+    Informational,
+    /// 2xx = The request was successfully received, understood, and accepted
+    Successful,
+    /// 3xx = Further action needs to be taken in order to complete the request
+    Redirection,
+    /// 4xx = The request contains bad syntax or cannot be fulfilled
+    ClientError,
+    /// 5xx = The server failed to fulfill an apparently valid request
+    ServerError,
+    /// The status code does not belong to any defined class.
+    Unclassified,
+}
+
 /// An HTTP status code (`status-code` in RFC 7230 et al.).
 ///
 /// Constants are provided for known status codes, including those in the IANA
@@ -196,6 +213,19 @@ impl StatusCode {
     #[inline]
     pub fn is_server_error(&self) -> bool {
         600 > self.0.get() && self.0.get() >= 500
+    }
+
+    /// Get the class of the status code.
+    #[inline]
+    pub fn class(&self) -> StatusCodeClass {
+        match self.0.get() {
+            100..=199 => StatusCodeClass::Informational,
+            200..=299 => StatusCodeClass::Successful,
+            300..=399 => StatusCodeClass::Redirection,
+            400..=499 => StatusCodeClass::ClientError,
+            500..=599 => StatusCodeClass::ServerError,
+            _ => StatusCodeClass::Unclassified,
+        }
     }
 }
 
