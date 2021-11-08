@@ -15,9 +15,9 @@
 //! ```
 
 use std::convert::TryFrom;
-use std::num::NonZeroU16;
 use std::error::Error;
 use std::fmt;
+use std::num::NonZeroU16;
 use std::str::FromStr;
 
 /// An HTTP status code (`status-code` in RFC 7230 et al.).
@@ -132,7 +132,7 @@ impl StatusCode {
     /// assert_eq!(status.as_str(), "200");
     /// ```
     #[inline]
-    pub fn as_str(&self) -> &str {
+    pub fn as_str(&self) -> &'static str {
         let offset = (self.0.get() - 100) as usize;
         let offset = offset * 3;
 
@@ -140,10 +140,14 @@ impl StatusCode {
         // ASCII-only, of length 900 * 3 = 2700 bytes
 
         #[cfg(debug_assertions)]
-        { &CODE_DIGITS[offset..offset+3] }
+        {
+            &CODE_DIGITS[offset..offset + 3]
+        }
 
         #[cfg(not(debug_assertions))]
-        unsafe { CODE_DIGITS.get_unchecked(offset..offset+3) }
+        unsafe {
+            CODE_DIGITS.get_unchecked(offset..offset + 3)
+        }
     }
 
     /// Get the standardised `reason-phrase` for this status code.
@@ -516,9 +520,7 @@ status_codes! {
 
 impl InvalidStatusCode {
     fn new() -> InvalidStatusCode {
-        InvalidStatusCode {
-            _priv: (),
-        }
+        InvalidStatusCode { _priv: () }
     }
 }
 
