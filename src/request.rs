@@ -682,12 +682,12 @@ impl<T> Request<T> {
     ///
     /// ```
     /// # use http::*;
-    /// let request = Request::new(());
+    /// let mut request = Request::new(());
     /// request.parts_mut().method = Method::POST;
     /// assert_eq!(request.method(), Method::POST);
     /// ```
     #[inline]
-    pub fn parts_mut(&self) -> &mut Parts {
+    pub fn parts_mut(&mut self) -> &mut Parts {
         &mut self.head
     }
 
