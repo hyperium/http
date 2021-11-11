@@ -19,6 +19,8 @@ jobs:
           - stable
           - beta
           - nightly
+          # When updating this value, don't forget to also adjust the
+          # `rust-version` field in the `Cargo.toml` file.
           - 1.46.0
 
         include:
