@@ -23,8 +23,6 @@ http = "0.2"
 Next, add this to your crate:
 
 ```rust
-extern crate http;
-
 use http::{Request, Response};
 
 fn main() {
@@ -37,8 +35,6 @@ fn main() {
 Create an HTTP request:
 
 ```rust
-extern crate http;
-
 use http::Request;
 
 fn main() {
@@ -53,8 +49,6 @@ fn main() {
 Create an HTTP response:
 
 ```rust
-extern crate http;
-
 use http::{Response, StatusCode};
 
 fn main() {
