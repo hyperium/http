@@ -1,10 +1,15 @@
-use std::collections::HashMap;
-use std::collections::hash_map::RandomState;
-use std::convert::TryFrom;
-use std::hash::{BuildHasher, Hash, Hasher};
-use std::iter::{FromIterator, FusedIterator};
-use std::marker::PhantomData;
-use std::{fmt, mem, ops, ptr, vec};
+use core::convert::TryFrom;
+use core::hash::{Hash, Hasher};
+use core::iter::{FromIterator, FusedIterator};
+use core::marker::PhantomData;
+use core::{fmt, mem, ops, ptr};
+
+use alloc::string::String;
+use alloc::boxed::Box;
+use alloc::vec;
+use alloc::vec::Vec;
+
+use hashbrown::HashMap;
 
 use crate::Error;
 
@@ -114,7 +119,7 @@ pub struct IntoIter<T> {
 /// associated value.
 #[derive(Debug)]
 pub struct Keys<'a, T> {
-    inner: ::std::slice::Iter<'a, Bucket<T>>,
+    inner: core::slice::Iter<'a, Bucket<T>>,
 }
 
 /// `HeaderMap` value iterator.
@@ -207,7 +212,7 @@ pub struct ValueIterMut<'a, T> {
 #[derive(Debug)]
 pub struct ValueDrain<'a, T> {
     first: Option<T>,
-    next: Option<::std::vec::IntoIter<T>>,
+    next: Option<vec::IntoIter<T>>,
     lt: PhantomData<&'a mut HeaderMap<T>>,
 }
 
@@ -309,7 +314,7 @@ enum Link {
 enum Danger {
     Green,
     Yellow,
-    Red(RandomState),
+    Red,
 }
 
 // Constants related to detecting DOS attacks.
@@ -992,7 +997,7 @@ impl<T> HeaderMap<T> {
         } else {
             ValueIter {
                 map: self,
-                index: ::std::usize::MAX,
+                index: core::usize::MAX,
                 front: None,
                 back: None,
             }
@@ -3177,14 +3182,14 @@ impl Pos {
 impl Danger {
     fn is_red(&self) -> bool {
         match *self {
-            Danger::Red(_) => true,
+            Danger::Red => true,
             _ => false,
         }
     }
 
     fn to_red(&mut self) {
         debug_assert!(self.is_yellow());
-        *self = Danger::Red(RandomState::new());
+        *self = Danger::Red;
     }
 
     fn is_yellow(&self) -> bool {
@@ -3242,11 +3247,11 @@ where
 
     let hash = match *danger {
         // Safe hash
-        Danger::Red(ref hasher) => {
-            let mut h = hasher.build_hasher();
-            k.hash(&mut h);
-            h.finish()
-        }
+        // Danger::Red(ref hasher) => {
+        //     let mut h = hasher.build_hasher();
+        //     k.hash(&mut h);
+        //     h.finish()
+        // }
         // Fast hash
         _ => {
             let mut h = FnvHasher::default();
@@ -3358,7 +3363,7 @@ mod into_header_name {
 }
 
 mod as_header_name {
-    use super::{Entry, HdrName, HeaderMap, HeaderName, InvalidHeaderName};
+    use super::{Entry, HdrName, HeaderMap, HeaderName, InvalidHeaderName, String};
 
     /// A marker trait used to identify values that can be used as search keys
     /// to a `HeaderMap`.

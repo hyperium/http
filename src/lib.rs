@@ -158,7 +158,10 @@
 //! assert_eq!(uri.query(), None);
 //! ```
 
+#![cfg_attr(not(feature = "std"), no_std)]
 #![deny(warnings, missing_docs, missing_debug_implementations)]
+
+extern crate alloc;
 
 #[cfg(test)]
 #[macro_use]

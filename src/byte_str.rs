@@ -1,6 +1,8 @@
 use bytes::Bytes;
 
-use std::{ops, str};
+use core::{ops, str};
+
+use alloc::string::String;
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub(crate) struct ByteStr {

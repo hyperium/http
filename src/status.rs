@@ -14,11 +14,12 @@
 //! assert!(StatusCode::OK.is_success());
 //! ```
 
-use std::convert::TryFrom;
-use std::num::NonZeroU16;
-use std::error::Error;
-use std::fmt;
-use std::str::FromStr;
+use core::convert::TryFrom;
+use core::num::NonZeroU16;
+use core::fmt;
+use core::str::FromStr;
+
+use core_error::Error;
 
 /// An HTTP status code (`status-code` in RFC 7230 et al.).
 ///

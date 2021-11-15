@@ -52,9 +52,9 @@
 //! }
 //! ```
 
-use std::any::Any;
-use std::convert::{TryFrom};
-use std::fmt;
+use core::any::Any;
+use core::convert::{TryFrom};
+use core::fmt;
 
 use crate::header::{HeaderMap, HeaderName, HeaderValue};
 use crate::method::Method;

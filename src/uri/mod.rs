@@ -23,14 +23,18 @@
 //! ```
 
 use crate::byte_str::ByteStr;
-use std::convert::TryFrom;
 
 use bytes::Bytes;
 
-use std::error::Error;
-use std::hash::{Hash, Hasher};
-use std::str::{self, FromStr};
-use std::{fmt, u16, u8};
+use core::convert::TryFrom;
+use core::hash::{Hash, Hasher};
+use core::str::{self, FromStr};
+use core::{fmt, u16, u8};
+
+use alloc::boxed::Box;
+use alloc::string::String;
+
+use core_error::Error;
 
 use self::scheme::Scheme2;
 
