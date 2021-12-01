@@ -2,7 +2,7 @@ use std::convert::TryFrom;
 use std::str::FromStr;
 use std::{cmp, fmt, str};
 
-use bytes::Bytes;
+use bytes::{BufMut as _, Bytes, BytesMut};
 
 use super::{ErrorKind, InvalidUri};
 use crate::byte_str::ByteStr;
@@ -98,7 +98,7 @@ impl PathAndQuery {
 
         Ok(PathAndQuery {
             data: unsafe { ByteStr::from_utf8_unchecked(src) },
-            query: query,
+            query,
         })
     }
 
@@ -272,6 +272,21 @@ impl PathAndQuery {
             return "/";
         }
         ret
+    }
+
+    /// Prepends a forward slash to the path if it does not already have one.
+    pub(crate) fn ensure_leading_slash(&mut self) {
+        if !self.data.starts_with('/') {
+            let mut prepended = BytesMut::with_capacity(self.data.len() + 1);
+
+            prepended.put_u8(b'/');
+            prepended.put_slice(self.data.as_bytes());
+
+            let prepended = prepended.freeze();
+
+            // Safety: prepended byte-string is still valid UTF-8
+            self.data = unsafe { ByteStr::from_utf8_unchecked(prepended) };
+        }
     }
 }
 

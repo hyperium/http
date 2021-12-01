@@ -56,6 +56,8 @@ impl Builder {
 
     /// Set the `Authority` for this URI.
     ///
+    /// If a path is already set, it will be ensured to have a leading slash.
+    ///
     /// # Examples
     ///
     /// ```
@@ -73,12 +75,20 @@ impl Builder {
     {
         self.map(move |mut parts| {
             let auth = auth.try_into().map_err(Into::into)?;
+
+            if let Some(ref mut p_and_q) = parts.path_and_query {
+                p_and_q.ensure_leading_slash();
+            }
+
             parts.authority = Some(auth);
             Ok(parts)
         })
     }
 
     /// Set the `PathAndQuery` for this URI.
+    ///
+    /// If an authority is already set and the input does not have a leading
+    /// slash, one will be prepended.
     ///
     /// # Examples
     ///
@@ -96,7 +106,12 @@ impl Builder {
         <PathAndQuery as TryFrom<T>>::Error: Into<crate::Error>,
     {
         self.map(move |mut parts| {
-            let p_and_q = p_and_q.try_into().map_err(Into::into)?;
+            let mut p_and_q: PathAndQuery = p_and_q.try_into().map_err(Into::into)?;
+
+            if parts.authority.is_some() {
+                p_and_q.ensure_leading_slash();
+            }
+
             parts.path_and_query = Some(p_and_q);
             Ok(parts)
         })
@@ -137,7 +152,6 @@ impl Builder {
     where
         F: FnOnce(Parts) -> Result<Parts, crate::Error>,
     {
-
         Builder {
             parts: self.parts.and_then(func),
         }
@@ -193,5 +207,39 @@ mod tests {
             assert_eq!(uri.path(), "/foo");
             assert_eq!(uri.query(), Some(expected_query.as_str()));
         }
+    }
+
+    #[test]
+    fn slash_prepended_to_path() {
+        // If a URI contains an authority component, then the path component
+        // must either be empty or begin with a slash ("/") character.
+        // - RFC 3986 §3.3
+
+        // authority set first
+        let uri = Uri::builder()
+            .scheme(Scheme::HTTP)
+            .authority("localhost:8000")
+            .path_and_query("hello/world")
+            .build()
+            .unwrap();
+        assert_eq!(uri.to_string(), "http://localhost:8000/hello/world");
+
+        // path set first
+        let uri = Uri::builder()
+            .scheme(Scheme::HTTP)
+            .path_and_query("hello/world")
+            .authority("localhost:8000")
+            .build()
+            .unwrap();
+        assert_eq!(uri.to_string(), "http://localhost:8000/hello/world");
+
+        // scheme makes no difference
+        let uri = Uri::builder()
+            .authority("localhost:8000")
+            .path_and_query("hello/world")
+            .scheme(Scheme::HTTP)
+            .build()
+            .unwrap();
+        assert_eq!(uri.to_string(), "http://localhost:8000/hello/world");
     }
 }
