@@ -2,6 +2,7 @@ use bytes::{Bytes, BytesMut};
 
 use std::convert::TryFrom;
 use std::error::Error;
+use std::fmt::Write;
 use std::str::FromStr;
 use std::{cmp, fmt, mem, str};
 
@@ -427,7 +428,7 @@ macro_rules! from_integers {
                     // full value fits inline, so don't allocate!
                     BytesMut::new()
                 };
-                let _ = ::itoa::fmt(&mut buf, num);
+                let _ = buf.write_str(::itoa::Buffer::new().format(num));
                 HeaderValue {
                     inner: buf.freeze(),
                     is_sensitive: false,
