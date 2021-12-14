@@ -26,7 +26,7 @@ rust-version = "1.46.0"
 [dependencies]
 bytes = "1"
 fnv = "1.0.5"
-itoa = "0.4.1"
+itoa = "1"
 
 [dev-dependencies]
 indexmap = "1.0"
