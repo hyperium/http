@@ -1,3 +1,7 @@
+# 0.2.6 (December 30, 2021)
+
+* Upgrade internal `itoa` dependency to 1.0.
+
 # 0.2.5 (September 21, 2021)
 
 * Add `is_empty()` and `len()` methods to `Extensions`.
