@@ -1,5 +1,6 @@
 use bytes::{Bytes, BytesMut};
 
+use std::borrow::Cow;
 use std::convert::TryFrom;
 use std::error::Error;
 use std::fmt::Write;
@@ -203,7 +204,6 @@ impl HeaderValue {
                 }
             }
         } else {
-
             if_downcast_into!(T, Bytes, src, {
                 return HeaderValue {
                     inner: src,
@@ -223,7 +223,10 @@ impl HeaderValue {
         HeaderValue::try_from_generic(src, std::convert::identity)
     }
 
-    fn try_from_generic<T: AsRef<[u8]>, F: FnOnce(T) -> Bytes>(src: T, into: F) -> Result<HeaderValue, InvalidHeaderValue> {
+    fn try_from_generic<T: AsRef<[u8]>, F: FnOnce(T) -> Bytes>(
+        src: T,
+        into: F,
+    ) -> Result<HeaderValue, InvalidHeaderValue> {
         for &b in src.as_ref() {
             if !is_valid(b) {
                 return Err(InvalidHeaderValue { _priv: () });
@@ -563,6 +566,18 @@ impl TryFrom<Vec<u8>> for HeaderValue {
     #[inline]
     fn try_from(vec: Vec<u8>) -> Result<Self, Self::Error> {
         HeaderValue::from_shared(vec.into())
+    }
+}
+
+impl TryFrom<Cow<'static, str>> for HeaderValue {
+    type Error = InvalidHeaderValue;
+
+    #[inline]
+    fn try_from(cow: Cow<'static, str>) -> Result<Self, Self::Error> {
+        match cow {
+            Cow::Borrowed(s) => Ok(Self::from_static(s)),
+            Cow::Owned(s) => Self::from_shared(s.into()),
+        }
     }
 }
 
