@@ -1039,7 +1039,7 @@ const HEADER_CHARS_H2: [u8; 256] = [
         0,     0,     0,     0,     0,     0                              // 25x
 ];
 
-#[cfg(any(not(debug_assertions), not(target_arch = "wasm32")))]
+#[cfg(all(not(debug_assertions), not(target_arch = "wasm32")))]
 macro_rules! eq {
     (($($cmp:expr,)*) $v:ident[$n:expr] ==) => {
         $($cmp) && *
@@ -1055,7 +1055,7 @@ macro_rules! eq {
     };
 }
 
-#[cfg(any(not(debug_assertions), not(target_arch = "wasm32")))]
+#[cfg(all(not(debug_assertions), not(target_arch = "wasm32")))]
 /// This version is best under optimized mode, however in a wasm debug compile,
 /// the `eq` macro expands to 1 + 1 + 1 + 1... and wasm explodes when this chain gets too long
 /// See https://github.com/DenisKolodin/yew/issues/478
@@ -1518,7 +1518,7 @@ fn parse_hdr<'a>(
     }
 }
 
-#[cfg(all(debug_assertions, target_arch = "wasm32"))]
+#[cfg(any(debug_assertions, target_arch = "wasm32"))]
 /// This version works best in debug mode in wasm
 fn parse_hdr<'a>(
     data: &'a [u8],
