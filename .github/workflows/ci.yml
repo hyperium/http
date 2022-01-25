@@ -44,6 +44,12 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
+      
+      - name: Test Release
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --release
 
       - name: Test all benches
         if: matrix.benches
