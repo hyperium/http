@@ -1056,9 +1056,8 @@ macro_rules! eq {
 }
 
 #[cfg(not(debug_assertions))]
-/// This version is best under optimized mode, however in a wasm debug compile,
-/// the `eq` macro expands to 1 + 1 + 1 + 1... and wasm explodes when this chain gets too long
-/// See https://github.com/DenisKolodin/yew/issues/478
+/// This version is best under optimized mode, however it generates a lot of
+/// code that adds ~1s to build times, so we only compile it for release builds.
 fn parse_hdr<'a>(
     data: &'a [u8],
     b: &'a mut [u8; 64],
@@ -1519,7 +1518,7 @@ fn parse_hdr<'a>(
 }
 
 #[cfg(debug_assertions)]
-/// This version works best in debug mode in wasm
+/// This version compiles faster for debug builds
 fn parse_hdr<'a>(
     data: &'a [u8],
     b: &'a mut [u8; 64],
