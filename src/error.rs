@@ -20,7 +20,7 @@ pub struct Error {
 /// A `Result` typedef to use with the `http::Error` type
 pub type Result<T> = result::Result<T, Error>;
 
-enum ErrorKind {
+pub enum ErrorKind {
     StatusCode(status::InvalidStatusCode),
     Method(method::InvalidMethod),
     Uri(uri::InvalidUri),
