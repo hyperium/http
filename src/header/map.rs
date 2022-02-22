@@ -29,8 +29,8 @@ pub use self::into_header_name::IntoHeaderName;
 /// # use http::header::{CONTENT_LENGTH, HOST, LOCATION};
 /// let mut headers = HeaderMap::new();
 ///
-/// headers.insert(HOST, "example.com".parse().unwrap());
-/// headers.insert(CONTENT_LENGTH, "123".parse().unwrap());
+/// headers.insert(HOST, HeaderValue::from_static("example.com"));
+/// headers.insert(CONTENT_LENGTH, HeaderValue::from_static("123"));
 ///
 /// assert!(headers.contains_key(HOST));
 /// assert!(!headers.contains_key(LOCATION));
