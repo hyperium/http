@@ -72,9 +72,9 @@ impl Authority {
         let mut colon_cnt = 0;
         let mut start_bracket = false;
         let mut end_bracket = false;
-        let mut has_percent = false;
         let mut end = s.len();
         let mut at_sign_pos = None;
+        let mut percent_encoded_left = 0_u8;
 
         // Among other things, this loop checks that every byte in s up to the
         // first '/', '?', or '#' is a valid URI character (or in some contexts,
@@ -90,7 +90,7 @@ impl Authority {
                     colon_cnt += 1;
                 }
                 b'[' => {
-                    if has_percent || start_bracket {
+                    if start_bracket {
                         // Something other than the userinfo has a `%`, so reject it.
                         return Err(ErrorKind::InvalidAuthority.into());
                     }
@@ -104,7 +104,6 @@ impl Authority {
 
                     // Those were part of an IPv6 hostname, so forget them...
                     colon_cnt = 0;
-                    has_percent = false;
                 }
                 b'@' => {
                     at_sign_pos = Some(i);
@@ -112,25 +111,27 @@ impl Authority {
                     // Those weren't a port colon, but part of the
                     // userinfo, so it needs to be forgotten.
                     colon_cnt = 0;
-                    has_percent = false;
                 }
-                0 if b == b'%' => {
-                    // Per https://tools.ietf.org/html/rfc3986#section-3.2.1 and
-                    // https://url.spec.whatwg.org/#authority-state
-                    // the userinfo can have a percent-encoded username and password,
-                    // so record that a `%` was found. If this turns out to be
-                    // part of the userinfo, this flag will be cleared.
-                    // Also per https://tools.ietf.org/html/rfc6874, percent-encoding can
-                    // be used to indicate a zone identifier.
-                    // If the flag hasn't been cleared at the end, that means this
-                    // was part of the hostname (and not part of an IPv6 address), and
-                    // will fail with an error.
-                    has_percent = true;
+                b'%' => {
+                    if percent_encoded_left > 0 {
+                        return Err(ErrorKind::InvalidAuthority.into())
+                    }
+                    // the next two characters should be alphanumerics
+                    percent_encoded_left = 2
+                }
+                b'a'..=b'f' | b'A'..=b'F' | b'0'..=b'9' => {
+                    percent_encoded_left = percent_encoded_left.saturating_sub(1);
                 }
                 0 => {
                     return Err(ErrorKind::InvalidUriChar.into());
                 }
-                _ => {}
+                _ => {
+                    // if we are in percent-encoding we shouldn't any other charcter than
+                    // hexdigits
+                    if percent_encoded_left > 0 {
+                        return Err(ErrorKind::InvalidAuthority.into())
+                    }
+                }
             }
         }
 
@@ -148,8 +149,8 @@ impl Authority {
             return Err(ErrorKind::InvalidAuthority.into());
         }
 
-        if has_percent {
-            // Something after the userinfo has a `%`, so reject it.
+        if percent_encoded_left > 0 {
+            // The percent-encoding is not finished
             return Err(ErrorKind::InvalidAuthority.into());
         }
 
@@ -629,12 +630,18 @@ mod tests {
     }
 
     #[test]
-    fn rejects_percent_in_hostname() {
-        let err = Authority::parse_non_empty(b"example%2f.com").unwrap_err();
-        assert_eq!(err.0, ErrorKind::InvalidAuthority);
+    fn allow_percent_encoding_in_hostname() {
+        let authority_str = "example%2f.com";
+        let authority: Authority = authority_str.parse().unwrap();
+        assert_eq!(authority, authority_str);
 
-        let err = Authority::parse_non_empty(b"a%2f:b%2f@example%2f.com").unwrap_err();
-        assert_eq!(err.0, ErrorKind::InvalidAuthority);
+        let authority_str = "a%2f:b%2f@example%2f.com";
+        let authority: Authority = authority_str.parse().unwrap();
+        assert_eq!(authority, authority_str);
+
+        let authority_str = "a%2f:b%2f@example%2F.com";
+        let authority: Authority = authority_str.parse().unwrap();
+        assert_eq!(authority, authority_str);
     }
 
     #[test]
@@ -645,11 +652,23 @@ mod tests {
     }
 
     #[test]
-    fn rejects_percent_outside_ipv6_address() {
-        let err = Authority::parse_non_empty(b"1234%20[fe80::1:2:3:4]").unwrap_err();
+    fn rejects_invalid_percent_in_ipv6_address() {
+        let authority_str = "[fe80::1:2:3:4%%25eth0]";
+        let err = authority_str.parse::<Authority>().unwrap_err();
         assert_eq!(err.0, ErrorKind::InvalidAuthority);
+    }
 
-        let err = Authority::parse_non_empty(b"[fe80::1:2:3:4]%20").unwrap_err();
+    #[test]
+    fn reject_invalid_percent_encoding_too_short_in_hostname() {
+        let authority_str = "example%2.com";
+        let err = authority_str.parse::<Authority>().unwrap_err();
+        assert_eq!(err.0, ErrorKind::InvalidAuthority);
+    }
+
+    #[test]
+    fn reject_invalid_percent_encoding_in_hostname() {
+        let authority_str = "example%1z.com";
+        let err = authority_str.parse::<Authority>().unwrap_err();
         assert_eq!(err.0, ErrorKind::InvalidAuthority);
     }
 
