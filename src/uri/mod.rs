@@ -736,6 +736,28 @@ impl<'a> TryFrom<&'a Uri> for Uri {
     }
 }
 
+/// Convert an `Authority` into a `Uri`.
+impl From<Authority> for Uri {
+    fn from(authority: Authority) -> Self {
+        Self {
+            scheme: Scheme::empty(),
+            authority,
+            path_and_query: PathAndQuery::empty(),
+        }
+    }
+}
+
+/// Convert a `PathAndQuery` into a `Uri`.
+impl From<PathAndQuery> for Uri {
+    fn from(path_and_query: PathAndQuery) -> Self {
+        Self {
+            scheme: Scheme::empty(),
+            authority: Authority::empty(),
+            path_and_query,
+        }
+    }
+}
+
 /// Convert a `Uri` from parts
 ///
 /// # Examples
