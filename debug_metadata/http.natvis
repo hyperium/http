@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="http::byte_str::ByteStr">
+    <DisplayString>{bytes.ptr,[bytes.len]sb}</DisplayString>
+  </Type>
+
+  <Type Name="http::header::map::Bucket&lt;*&gt;">
+    <DisplayString>{{ key={key}, value={value} }}</DisplayString>
+    <Expand>
+      <Item Name="[hash]">hash</Item>
+      <Item Name="[key]">key</Item>
+      <Item Name="[value]">value</Item>
+      <Item Name="[links]">links</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="http::header::map::HeaderMap&lt;*&gt;">
+    <Expand>
+      <ExpandedItem>entries</ExpandedItem>
+      <Item Name="[extra_values]">extra_values</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="http::header::name::HeaderName">
+    <Intrinsic Name="inner_tag" Expression="inner.discriminant" />
+    <DisplayString Condition="inner_tag() == 0">{inner.variant0.__0,en}</DisplayString>
+    <DisplayString Condition="inner_tag() == 1">{inner.variant1.__0.__0.bytes.ptr,[inner.variant1.__0.__0.bytes.len]s8}</DisplayString>
+  </Type>
+
+  <Type Name="http::header::value::HeaderValue">
+    <DisplayString>{(char*)inner.ptr,[inner.len]}</DisplayString>
+    <Expand>
+      <Item Name="[is_sensitive]">is_sensitive</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="http::method::Method">
+    <DisplayString>{__0}</DisplayString>
+  </Type>
+
+  <Type Name="http::request::Builder">
+    <Expand>
+      <ExpandedItem>inner</ExpandedItem>
+    </Expand>
+  </Type>
+
+  <Type Name="http::request::Parts">
+    <DisplayString>{{ method={method}, uri={uri} }}</DisplayString>
+    <Expand>
+      <Item Name="[method]">method</Item>
+      <Item Name="[uri]">uri</Item>
+      <Item Name="[version]">version</Item>
+      <Item Name="[headers]">headers</Item>
+      <Item Name="[extensions]">extensions</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="http::response::Parts">
+    <DisplayString>{{ status={status} }}</DisplayString>
+    <Expand>
+      <Item Name="[status]">status</Item>
+      <Item Name="[version]">version</Item>
+      <Item Name="[headers]">headers</Item>
+      <Item Name="[extensions]">extensions</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="http::status::StatusCode">
+    <DisplayString>{__0,d}</DisplayString>
+  </Type>
+
+  <Type Name="http::uri::authority::Authority">
+    <DisplayString Condition="data.bytes.len &gt; 0">{data.bytes.ptr,[data.bytes.len]sb}</DisplayString>
+  </Type>
+
+  <Type Name="http::uri::path::PathAndQuery">
+    <Intrinsic Name="path_length" Expression="data.bytes.len" />
+    <DisplayString Condition="path_length() == 0">/</DisplayString>
+    <DisplayString>{data.bytes.ptr,[data.bytes.len]sb}</DisplayString>
+  </Type>
+
+  <Type Name="http::uri::scheme::Scheme">
+    <Intrinsic Name="inner_tag" Expression="inner.discriminant" />
+    <DisplayString Condition="inner_tag() == 0">{inner.variant0,en}</DisplayString>
+    <DisplayString Condition="inner_tag() == 1">{inner.variant1.__0,en}</DisplayString>
+    <DisplayString Condition="inner_tag() == 2">{inner.variant2.__0,en}</DisplayString>
+  </Type>
+
+  <Type Name="http::uri::Uri">
+    <Intrinsic Name="scheme_tag" Expression="scheme.inner.discriminant" />
+    <Intrinsic Name="protocol_tag" Expression="scheme.inner.variant1.__0" />
+    <DisplayString Condition="scheme_tag() == 0">{authority}{path_and_query}</DisplayString>
+    <DisplayString Condition="scheme_tag() == 1 &amp;&amp; protocol_tag() == 0">http://{authority}{path_and_query}</DisplayString>
+    <DisplayString Condition="scheme_tag() == 1 &amp;&amp; protocol_tag() == 1">https://{authority}{path_and_query}</DisplayString>
+    <DisplayString>{scheme}://{authority}{path_and_query}</DisplayString>
+    <Expand>
+      <Item Name="[scheme]">scheme</Item>
+      <Item Name="[authority]">authority</Item>
+      <Item Name="[path_and_query]">path_and_query</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="http::version::Version">
+    <DisplayString>{__0,en}</DisplayString>
+  </Type>
+</AutoVisualizer>

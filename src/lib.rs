@@ -158,6 +158,12 @@
 //! assert_eq!(uri.query(), None);
 //! ```
 
+#![cfg_attr(feature = "debugger_visualizer", feature(debugger_visualizer))]
+#![cfg_attr(
+    feature = "debugger_visualizer",
+    debugger_visualizer(natvis_file = "../debug_metadata/http.natvis")
+)]
+
 #![deny(warnings, missing_docs, missing_debug_implementations)]
 
 #[cfg(test)]
