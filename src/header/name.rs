@@ -350,6 +350,18 @@ standard_headers! {
     /// is not mandatory.
     (Connection, CONNECTION, "connection");
 
+    /// A cryptographic digest over the message contents.
+    ///
+    /// For example:
+    ///
+    /// ```
+    /// Content-Digest: sha-256=:4REjxQ4yrqUVicfSKYNO/cF9zNj5ANbzgDZt3/h3Qxo=:
+    /// ```
+    ///
+    /// As this is a structured field (dictionary), multiple digests may be
+    /// specified. This header may be used in either requests or responses.
+    (ContentDigest, CONTENT_DIGEST, "content-digest");
+
     /// Indicates if the content is expected to be displayed inline.
     ///
     /// In a regular HTTP response, the Content-Disposition response header is a
@@ -778,6 +790,18 @@ standard_headers! {
     /// refreshed.
     (Refresh, REFRESH, "refresh");
 
+    /// A cryptographic digest over the "selected representation data."
+    ///
+    /// For example:
+    ///
+    /// ```
+    /// Repr-Digest: sha-256=:4REjxQ4yrqUVicfSKYNO/cF9zNj5ANbzgDZt3/h3Qxo=:
+    /// ```
+    ///
+    /// As this is a structured field (dictionary), multiple digests may be
+    /// specified. This header may be used in either requests or responses.
+    (ReprDigest, REPR_DIGEST, "repr-digest");
+
     /// The Retry-After response HTTP header indicates how long the user agent
     /// should wait before making a follow-up request. There are two main cases
     /// this header is used:
@@ -901,6 +925,34 @@ standard_headers! {
     /// identifying the protocol capabilities of senders along the
     /// request/response chain.
     (Via, VIA, "via");
+
+    /// Indicates preference for a particular content digest algorithm.
+    ///
+    /// For example:
+    ///
+    /// ```
+    /// Want-Content-Digest: sha-512=3, sha-256=10, unixsum=0
+    /// ```
+    ///
+    /// This dictionary structured field contains digest algorithms as keys
+    /// and the preference (`0`-`10`, inclusive) for that algorithm. `10`
+    /// indicates the most preferred algorithm and `0` indicates "not
+    /// acceptable".
+    (WantContentDigest, WANT_CONTENT_DIGEST, "want-content-digest");
+
+    /// Indicates preference for a particular representation digest algorithm.
+    ///
+    /// For example:
+    ///
+    /// ```
+    /// Want-Repr-Digest: sha-512=3, sha-256=10, unixsum=0
+    /// ```
+    ///
+    /// This dictionary structured field contains digest algorithms as keys
+    /// and the preference (`0`-`10`, inclusive) for that algorithm. `10`
+    /// indicates the most preferred algorithm and `0` indicates "not
+    /// acceptable".
+    (WantReprDigest, WANT_REPR_DIGEST, "want-repr-digest");
 
     /// General HTTP header contains information about possible problems with
     /// the status of the message.
