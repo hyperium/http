@@ -34,39 +34,49 @@ fn roundtrip() {
 
 #[test]
 fn is_informational() {
-    assert_eq!(true, StatusCode::from_u16(100).unwrap().is_informational());
-    assert_eq!(true, StatusCode::from_u16(199).unwrap().is_informational());
-    assert_eq!(false, StatusCode::from_u16(200).unwrap().is_informational());
+    assert!(status_code(100).is_informational());
+    assert!(status_code(199).is_informational());
+
+    assert!(!status_code(200).is_informational());
 }
 
 #[test]
 fn is_success() {
-    assert_eq!(false, StatusCode::from_u16(199).unwrap().is_success());
-    assert_eq!(true, StatusCode::from_u16(200).unwrap().is_success());
-    assert_eq!(true, StatusCode::from_u16(299).unwrap().is_success());
-    assert_eq!(false, StatusCode::from_u16(300).unwrap().is_success());
+    assert!(status_code(200).is_success());
+    assert!(status_code(299).is_success());
+
+    assert!(!status_code(199).is_success());
+    assert!(!status_code(300).is_success());
 }
 
 #[test]
 fn is_redirection() {
-    assert_eq!(false, StatusCode::from_u16(299).unwrap().is_redirection());
-    assert_eq!(true, StatusCode::from_u16(300).unwrap().is_redirection());
-    assert_eq!(true, StatusCode::from_u16(399).unwrap().is_redirection());
-    assert_eq!(false, StatusCode::from_u16(400).unwrap().is_redirection());
+    assert!(status_code(300).is_redirection());
+    assert!(status_code(399).is_redirection());
+
+    assert!(!status_code(299).is_redirection());
+    assert!(!status_code(400).is_redirection());
 }
 
 #[test]
 fn is_client_error() {
-    assert_eq!(false, StatusCode::from_u16(399).unwrap().is_client_error());
-    assert_eq!(true, StatusCode::from_u16(400).unwrap().is_client_error());
-    assert_eq!(true, StatusCode::from_u16(499).unwrap().is_client_error());
-    assert_eq!(false, StatusCode::from_u16(500).unwrap().is_client_error());
+    assert!(status_code(400).is_client_error());
+    assert!(status_code(499).is_client_error());
+
+    assert!(!status_code(399).is_client_error());
+    assert!(!status_code(500).is_client_error());
 }
 
 #[test]
 fn is_server_error() {
-    assert_eq!(false, StatusCode::from_u16(499).unwrap().is_server_error());
-    assert_eq!(true, StatusCode::from_u16(500).unwrap().is_server_error());
-    assert_eq!(true, StatusCode::from_u16(599).unwrap().is_server_error());
-    assert_eq!(false, StatusCode::from_u16(600).unwrap().is_server_error());
+    assert!(status_code(500).is_server_error());
+    assert!(status_code(599).is_server_error());
+
+    assert!(!status_code(499).is_server_error());
+    assert!(!status_code(600).is_server_error());
+}
+
+/// Helper method for readability
+fn status_code(status_code: u16) -> StatusCode {
+    StatusCode::from_u16(status_code).unwrap()
 }
