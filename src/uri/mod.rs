@@ -36,12 +36,14 @@ use self::scheme::Scheme2;
 
 pub use self::authority::Authority;
 pub use self::builder::Builder;
+pub use self::builder2::Builder2;
 pub use self::path::PathAndQuery;
 pub use self::port::Port;
 pub use self::scheme::Scheme;
 
 mod authority;
 mod builder;
+mod builder2;
 mod path;
 mod port;
 mod scheme;
@@ -197,8 +199,32 @@ impl Uri {
     ///     .build()
     ///     .unwrap();
     /// ```
+    #[deprecated(note = "Please use builder2 instead")]
     pub fn builder() -> Builder {
+        #[allow(deprecated)]
         Builder::new()
+    }
+
+    /// Creates a new builder-style object to manufacture a `Uri`.
+    ///
+    /// This method returns an instance of a `Builder2` which can be used
+    /// to create a `Uri`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use http::Uri;
+    /// use http::uri::{Scheme, Authority, PathAndQuery};
+    ///
+    /// let uri = Uri::builder2()
+    ///     .scheme(Scheme::HTTPS)
+    ///     .authority(Authority::from_static("hyper.rs"))
+    ///     .path_and_query(PathAndQuery::from_static("/"))
+    ///     .build();
+    /// assert_eq!(uri.to_string(), "https://hyper.rs/");
+    /// ```
+    pub fn builder2() -> Builder2 {
+        Builder2::new()
     }
 
     /// Attempt to convert a `Uri` from `Parts`

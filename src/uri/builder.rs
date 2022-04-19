@@ -28,6 +28,7 @@ impl Builder {
     ///     .unwrap();
     /// ```
     #[inline]
+    #[deprecated(note = "Please use `uri::Builder2::new` instead.")]
     pub fn new() -> Builder {
         Builder::default()
     }
@@ -42,6 +43,7 @@ impl Builder {
     /// let mut builder = uri::Builder::new();
     /// builder.scheme("https");
     /// ```
+    #[deprecated(note = "Please use `uri::Builder2` instead.")]
     pub fn scheme<T>(self, scheme: T) -> Self
     where
         Scheme: TryFrom<T>,
@@ -65,7 +67,9 @@ impl Builder {
     ///     .authority("tokio.rs")
     ///     .build()
     ///     .unwrap();
+    /// assert_eq!(uri.to_string(), "tokio.rs");
     /// ```
+    #[deprecated(note = "Please use `uri::Builder2` instead.")]
     pub fn authority<T>(self, auth: T) -> Self
     where
         Authority: TryFrom<T>,
@@ -90,6 +94,7 @@ impl Builder {
     ///     .build()
     ///     .unwrap();
     /// ```
+    #[deprecated(note = "Please use `uri::Builder2` instead.")]
     pub fn path_and_query<T>(self, p_and_q: T) -> Self
     where
         PathAndQuery: TryFrom<T>,
@@ -126,6 +131,7 @@ impl Builder {
     ///     .build()
     ///     .unwrap();
     /// ```
+    #[deprecated(note = "Please use `uri::Builder2` instead.")]
     pub fn build(self) -> Result<Uri, crate::Error> {
         let parts = self.parts?;
         Uri::from_parts(parts).map_err(Into::into)
@@ -159,6 +165,7 @@ mod tests {
 
     #[test]
     fn build_from_str() {
+        #[allow(deprecated)]
         let uri = Builder::new()
             .scheme(Scheme::HTTP)
             .authority("hyper.rs")
@@ -174,6 +181,7 @@ mod tests {
     #[test]
     fn build_from_string() {
         for i in 1..10 {
+            #[allow(deprecated)]
             let uri = Builder::new()
                 .path_and_query(format!("/foo?a={}", i))
                 .build()
@@ -188,6 +196,7 @@ mod tests {
     fn build_from_string_ref() {
         for i in 1..10 {
             let p_a_q = format!("/foo?a={}", i);
+            #[allow(deprecated)]
             let uri = Builder::new().path_and_query(&p_a_q).build().unwrap();
             let expected_query = format!("a={}", i);
             assert_eq!(uri.path(), "/foo");
