@@ -1,3 +1,7 @@
+# Unreleased
+
+* Add `extend()` method to `Extension`.
+
 # 0.2.6 (December 30, 2021)
 
 * Upgrade internal `itoa` dependency to 1.0.
