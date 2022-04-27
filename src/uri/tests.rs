@@ -12,9 +12,9 @@ fn test_char_table() {
 }
 
 #[test]
-fn test_to_builder() {
+fn test_into_builder() {
     let uri = Uri::from_static("http://example.com/foo?bar=baz");
-    let modified_uri = uri.to_builder()
+    let modified_uri = uri.into_builder()
         .path_and_query("/")
         .build()
         .unwrap();

@@ -675,7 +675,7 @@ impl Uri {
     }
 
     /// make a Uri::Builder from the Uri to modify part of it
-    pub fn to_builder(self) -> Builder {
+    pub fn into_builder(self) -> Builder {
         let parts = self.into_parts();
         let mut builder = Self::builder();
         if let Some(scheme) = parts.scheme {
