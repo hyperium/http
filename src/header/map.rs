@@ -206,10 +206,8 @@ pub struct ValueIterMut<'a, T> {
 /// An drain iterator of all values associated with a single header name.
 #[derive(Debug)]
 pub struct ValueDrain<'a, T> {
-    raw_links: RawLinks<T>,
-    extra_values: *mut Vec<ExtraValue<T>>,
     first: Option<T>,
-    next: Option<usize>,
+    next: Option<::std::vec::IntoIter<T>>,
     lt: PhantomData<&'a mut HeaderMap<T>>,
 }
 
@@ -1193,13 +1191,16 @@ impl<T> HeaderMap<T> {
         }
 
         let raw_links = self.raw_links();
-        let extra_values = &mut self.extra_values as *mut _;
+        let extra_values = &mut self.extra_values;
+
+        let next = links.map(|l| {
+            drain_all_extra_values(raw_links, extra_values, l.next)
+                .into_iter()
+        });
 
         ValueDrain {
-            raw_links,
-            extra_values,
             first: Some(old),
-            next: links.map(|l| l.next),
+            next: next,
             lt: PhantomData,
         }
     }
@@ -1368,6 +1369,10 @@ impl<T> HeaderMap<T> {
     }
 
     /// Remove an entry from the map.
+    ///
+    /// Warning: To avoid inconsistent state, extra values _must_ be removed
+    /// for the `found` index (via `remove_all_extra_values` or similar)
+    /// _before_ this method is called.
     #[inline]
     fn remove_found(&mut self, probe: usize, found: usize) -> Bucket<T> {
         // index `probe` and entry `found` is to be removed
@@ -1587,7 +1592,12 @@ impl<T> HeaderMap<T> {
 
 /// Removes the `ExtraValue` at the given index.
 #[inline]
-fn remove_extra_value<T>(mut raw_links: RawLinks<T>, extra_values: &mut Vec<ExtraValue<T>>, idx: usize) -> ExtraValue<T> {
+fn remove_extra_value<T>(
+    mut raw_links: RawLinks<T>,
+    extra_values: &mut Vec<ExtraValue<T>>,
+    idx: usize)
+    -> ExtraValue<T>
+{
     let prev;
     let next;
 
@@ -1701,6 +1711,26 @@ fn remove_extra_value<T>(mut raw_links: RawLinks<T>, extra_values: &mut Vec<Extr
     });
 
     extra
+}
+
+fn drain_all_extra_values<T>(
+    raw_links: RawLinks<T>,
+    extra_values: &mut Vec<ExtraValue<T>>,
+    mut head: usize)
+    -> Vec<T>
+{
+    let mut vec = Vec::new();
+    loop {
+        let extra = remove_extra_value(raw_links, extra_values, head);
+        vec.push(extra.value);
+
+        if let Link::Extra(idx) = extra.next {
+            head = idx;
+        } else {
+            break;
+        }
+    }
+    vec
 }
 
 impl<'a, T> IntoIterator for &'a HeaderMap<T> {
@@ -2922,11 +2952,11 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// assert!(!map.contains_key("host"));
     /// ```
     pub fn remove_entry(self) -> (HeaderName, T) {
-        let entry = self.map.remove_found(self.probe, self.index);
-
-        if let Some(links) = entry.links {
+        if let Some(links) = self.map.entries[self.index].links {
             self.map.remove_all_extra_values(links.next);
         }
+
+        let entry = self.map.remove_found(self.probe, self.index);
 
         (entry.key, entry.value)
     }
@@ -2936,14 +2966,19 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// The key and all values associated with the entry are removed and
     /// returned.
     pub fn remove_entry_mult(self) -> (HeaderName, ValueDrain<'a, T>) {
-        let entry = self.map.remove_found(self.probe, self.index);
         let raw_links = self.map.raw_links();
-        let extra_values = &mut self.map.extra_values as *mut _;
+        let extra_values = &mut self.map.extra_values;
+
+        let next = self.map.entries[self.index].links.map(|l| {
+            drain_all_extra_values(raw_links, extra_values, l.next)
+                .into_iter()
+        });
+
+        let entry = self.map.remove_found(self.probe, self.index);
+
         let drain = ValueDrain {
-            raw_links,
-            extra_values,
             first: Some(entry.value),
-            next: entry.links.map(|l| l.next),
+            next,
             lt: PhantomData,
         };
         (entry.key, drain)
@@ -3036,31 +3071,26 @@ impl<'a, T> Iterator for ValueDrain<'a, T> {
     fn next(&mut self) -> Option<T> {
         if self.first.is_some() {
             self.first.take()
-        } else if let Some(next) = self.next {
-            // Remove the extra value
-            let extra = unsafe {
-                remove_extra_value(self.raw_links, &mut *self.extra_values, next)
-            };
-
-            match extra.next {
-                Link::Extra(idx) => self.next = Some(idx),
-                Link::Entry(_) => self.next = None,
-            }
-
-            Some(extra.value)
+        } else if let Some(ref mut extras) = self.next {
+            extras.next()
         } else {
             None
         }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        match (&self.first, self.next) {
+        match (&self.first, &self.next) {
             // Exactly 1
-            (&Some(_), None) => (1, Some(1)),
-            // At least 1
-            (&_, Some(_)) => (1, None),
+            (&Some(_), &None) => (1, Some(1)),
+            // 1 + extras
+            (&Some(_), &Some(ref extras)) => {
+                let (l, u) = extras.size_hint();
+                (l + 1, u.map(|u| u + 1))
+            },
+            // Extras only
+            (&None, &Some(ref extras)) => extras.size_hint(),
             // No more
-            (&None, None) => (0, Some(0)),
+            (&None, &None) => (0, Some(0)),
         }
     }
 }

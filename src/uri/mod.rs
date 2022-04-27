@@ -491,8 +491,6 @@ impl Uri {
     ///                 authority
     /// ```
     ///
-    /// This function will be renamed to `authority` in the next semver release.
-    ///
     /// # Examples
     ///
     /// Absolute URI
@@ -724,6 +722,15 @@ impl TryFrom<String> for Uri {
     #[inline]
     fn try_from(t: String) -> Result<Self, Self::Error> {
         Uri::from_shared(Bytes::from(t))
+    }
+}
+
+impl<'a> TryFrom<Vec<u8>> for Uri {
+    type Error = InvalidUri;
+
+    #[inline]
+    fn try_from(vec: Vec<u8>) -> Result<Self, Self::Error> {
+        Uri::from_shared(Bytes::from(vec))
     }
 }
 
