@@ -1,5 +1,6 @@
 # 0.2.7 (April 28, 2022)
 
+* MSRV bumped to `1.49`
 * Add `extend()` method to `Extensions`.
 * Add `From<Authority>` and `From<PathAndQuery>` impls for `Uri`.
 * Make `HeaderName::from_static` a `const fn`.
