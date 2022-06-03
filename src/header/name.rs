@@ -1078,7 +1078,7 @@ fn parse_hdr<'a>(
                 }
             }
         }
-        0..=super::MAX_HEADER_NAME_LEN => Ok(HdrName::custom(data, false)),
+        SCRATCH_BUF_SIZE..=super::MAX_HEADER_NAME_LEN => Ok(HdrName::custom(data, false)),
         _ => Err(InvalidHeaderName::new()),
     }
 }
