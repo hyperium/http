@@ -8,26 +8,26 @@ use std::{fmt, mem, ops, ptr, vec};
 
 use crate::Error;
 
-use super::HeaderValue;
-use super::name::{HdrName, HeaderName, InvalidHeaderName};
+use super::FieldValue;
+use super::name::{HdrName, FieldName, InvalidFieldName};
 
-pub use self::as_header_name::AsHeaderName;
-pub use self::into_header_name::IntoHeaderName;
+pub use self::as_header_name::AsFieldName;
+pub use self::into_header_name::IntoFieldName;
 
 /// A set of HTTP headers
 ///
-/// `HeaderMap` is an multimap of [`HeaderName`] to values.
+/// `FieldMap` is an multimap of [`FieldName`] to values.
 ///
-/// [`HeaderName`]: struct.HeaderName.html
+/// [`FieldName`]: struct.FieldName.html
 ///
 /// # Examples
 ///
 /// Basic usage
 ///
 /// ```
-/// # use http::HeaderMap;
-/// # use http::header::{CONTENT_LENGTH, HOST, LOCATION};
-/// let mut headers = HeaderMap::new();
+/// # use http::FieldMap;
+/// # use http::field::{CONTENT_LENGTH, HOST, LOCATION};
+/// let mut headers = FieldMap::new();
 ///
 /// headers.insert(HOST, "example.com".parse().unwrap());
 /// headers.insert(CONTENT_LENGTH, "123".parse().unwrap());
@@ -42,7 +42,7 @@ pub use self::into_header_name::IntoHeaderName;
 /// assert!(!headers.contains_key(HOST));
 /// ```
 #[derive(Clone)]
-pub struct HeaderMap<T = HeaderValue> {
+pub struct FieldMap<T = FieldValue> {
     // Used to mask values to get an index
     mask: Size,
     indices: Box<[Pos]>,
@@ -58,12 +58,12 @@ pub struct HeaderMap<T = HeaderValue> {
 // multimap. The core hashing table is based on robin hood hashing [1]. While
 // this is the same hashing algorithm used as part of Rust's `HashMap` in
 // stdlib, many implementation details are different. The two primary reasons
-// for this divergence are that `HeaderMap` is a multimap and the structure has
+// for this divergence are that `FieldMap` is a multimap and the structure has
 // been optimized to take advantage of the characteristics of HTTP headers.
 //
 // ## Structure Layout
 //
-// Most of the data contained by `HeaderMap` is *not* stored in the hash table.
+// Most of the data contained by `FieldMap` is *not* stored in the hash table.
 // Instead, pairs of header name and *first* associated header value are stored
 // in the `entries` vector. If the header name has more than one associated
 // header value, then additional values are stored in `extra_values`. The actual
@@ -76,30 +76,30 @@ pub struct HeaderMap<T = HeaderValue> {
 //
 // [1]: https://en.wikipedia.org/wiki/Hash_table#Robin_Hood_hashing
 
-/// `HeaderMap` entry iterator.
+/// `FieldMap` entry iterator.
 ///
-/// Yields `(&HeaderName, &value)` tuples. The same header name may be yielded
+/// Yields `(&FieldName, &value)` tuples. The same header name may be yielded
 /// more than once if it has more than one associated value.
 #[derive(Debug)]
 pub struct Iter<'a, T> {
     inner: IterMut<'a, T>,
 }
 
-/// `HeaderMap` mutable entry iterator
+/// `FieldMap` mutable entry iterator
 ///
-/// Yields `(&HeaderName, &mut value)` tuples. The same header name may be
+/// Yields `(&FieldName, &mut value)` tuples. The same header name may be
 /// yielded more than once if it has more than one associated value.
 #[derive(Debug)]
 pub struct IterMut<'a, T> {
-    map: *mut HeaderMap<T>,
+    map: *mut FieldMap<T>,
     entry: usize,
     cursor: Option<Cursor>,
-    lt: PhantomData<&'a mut HeaderMap<T>>,
+    lt: PhantomData<&'a mut FieldMap<T>>,
 }
 
-/// An owning iterator over the entries of a `HeaderMap`.
+/// An owning iterator over the entries of a `FieldMap`.
 ///
-/// This struct is created by the `into_iter` method on `HeaderMap`.
+/// This struct is created by the `into_iter` method on `FieldMap`.
 #[derive(Debug)]
 pub struct IntoIter<T> {
     // If None, pull from `entries`
@@ -108,7 +108,7 @@ pub struct IntoIter<T> {
     extra_values: Vec<ExtraValue<T>>,
 }
 
-/// An iterator over `HeaderMap` keys.
+/// An iterator over `FieldMap` keys.
 ///
 /// Each header name is yielded only once, even if it has more than one
 /// associated value.
@@ -117,21 +117,21 @@ pub struct Keys<'a, T> {
     inner: ::std::slice::Iter<'a, Bucket<T>>,
 }
 
-/// `HeaderMap` value iterator.
+/// `FieldMap` value iterator.
 ///
-/// Each value contained in the `HeaderMap` will be yielded.
+/// Each value contained in the `FieldMap` will be yielded.
 #[derive(Debug)]
 pub struct Values<'a, T> {
     inner: Iter<'a, T>,
 }
 
-/// `HeaderMap` mutable value iterator
+/// `FieldMap` mutable value iterator
 #[derive(Debug)]
 pub struct ValuesMut<'a, T> {
     inner: IterMut<'a, T>,
 }
 
-/// A drain iterator for `HeaderMap`.
+/// A drain iterator for `FieldMap`.
 #[derive(Debug)]
 pub struct Drain<'a, T> {
     idx: usize,
@@ -140,19 +140,19 @@ pub struct Drain<'a, T> {
     // If None, pull from `entries`
     next: Option<usize>,
     extra_values: *mut Vec<ExtraValue<T>>,
-    lt: PhantomData<&'a mut HeaderMap<T>>,
+    lt: PhantomData<&'a mut FieldMap<T>>,
 }
 
 /// A view to all values stored in a single entry.
 ///
-/// This struct is returned by `HeaderMap::get_all`.
+/// This struct is returned by `FieldMap::get_all`.
 #[derive(Debug)]
 pub struct GetAll<'a, T> {
-    map: &'a HeaderMap<T>,
+    map: &'a FieldMap<T>,
     index: Option<usize>,
 }
 
-/// A view into a single location in a `HeaderMap`, which may be vacant or occupied.
+/// A view into a single location in a `FieldMap`, which may be vacant or occupied.
 #[derive(Debug)]
 pub enum Entry<'a, T: 'a> {
     /// An occupied entry
@@ -162,24 +162,24 @@ pub enum Entry<'a, T: 'a> {
     Vacant(VacantEntry<'a, T>),
 }
 
-/// A view into a single empty location in a `HeaderMap`.
+/// A view into a single empty location in a `FieldMap`.
 ///
 /// This struct is returned as part of the `Entry` enum.
 #[derive(Debug)]
 pub struct VacantEntry<'a, T> {
-    map: &'a mut HeaderMap<T>,
-    key: HeaderName,
+    map: &'a mut FieldMap<T>,
+    key: FieldName,
     hash: HashValue,
     probe: usize,
     danger: bool,
 }
 
-/// A view into a single occupied location in a `HeaderMap`.
+/// A view into a single occupied location in a `FieldMap`.
 ///
 /// This struct is returned as part of the `Entry` enum.
 #[derive(Debug)]
 pub struct OccupiedEntry<'a, T> {
-    map: &'a mut HeaderMap<T>,
+    map: &'a mut FieldMap<T>,
     probe: usize,
     index: usize,
 }
@@ -187,7 +187,7 @@ pub struct OccupiedEntry<'a, T> {
 /// An iterator of all values associated with a single header name.
 #[derive(Debug)]
 pub struct ValueIter<'a, T> {
-    map: &'a HeaderMap<T>,
+    map: &'a FieldMap<T>,
     index: usize,
     front: Option<Cursor>,
     back: Option<Cursor>,
@@ -196,11 +196,11 @@ pub struct ValueIter<'a, T> {
 /// A mutable iterator of all values associated with a single header name.
 #[derive(Debug)]
 pub struct ValueIterMut<'a, T> {
-    map: *mut HeaderMap<T>,
+    map: *mut FieldMap<T>,
     index: usize,
     front: Option<Cursor>,
     back: Option<Cursor>,
-    lt: PhantomData<&'a mut HeaderMap<T>>,
+    lt: PhantomData<&'a mut FieldMap<T>>,
 }
 
 /// An drain iterator of all values associated with a single header name.
@@ -208,7 +208,7 @@ pub struct ValueIterMut<'a, T> {
 pub struct ValueDrain<'a, T> {
     first: Option<T>,
     next: Option<::std::vec::IntoIter<T>>,
-    lt: PhantomData<&'a mut HeaderMap<T>>,
+    lt: PhantomData<&'a mut FieldMap<T>>,
 }
 
 /// Tracks the value iterator state
@@ -218,7 +218,7 @@ enum Cursor {
     Values(usize),
 }
 
-/// Type used for representing the size of a HeaderMap value.
+/// Type used for representing the size of a FieldMap value.
 ///
 /// 32,768 is more than enough entries for a single header map. Setting this
 /// limit enables using `u16` to represent all offsets, which takes 2 bytes
@@ -252,7 +252,7 @@ struct Pos {
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 struct HashValue(u16);
 
-/// Stores the data associated with a `HeaderMap` entry. Only the first value is
+/// Stores the data associated with a `FieldMap` entry. Only the first value is
 /// included in this struct. If a header name has more than one associated
 /// value, all extra values are stored in the `extra_values` vector. A doubly
 /// linked list of entries is maintained. The doubly linked list is used so that
@@ -261,7 +261,7 @@ struct HashValue(u16);
 #[derive(Debug, Clone)]
 struct Bucket<T> {
     hash: HashValue,
-    key: HeaderName,
+    key: FieldName,
     value: T,
     links: Option<Links>,
 }
@@ -298,7 +298,7 @@ enum Link {
 }
 
 /// Tracks the header map danger level! This relates to the adaptive hashing
-/// algorithm. A HeaderMap starts in the "green" state, when a large number of
+/// algorithm. A FieldMap starts in the "green" state, when a large number of
 /// collisions are detected, it transitions to the yellow state. At this point,
 /// the header map will either grow and switch back to the green state OR it
 /// will transition to the red state.
@@ -326,7 +326,7 @@ const FORWARD_SHIFT_THRESHOLD: usize = 512;
 // The default strategy for handling the yellow danger state is to increase the
 // header map capacity in order to (hopefully) reduce the number of collisions.
 // If growing the hash map would cause the load factor to drop bellow this
-// threshold, then instead of growing, the headermap is switched to the red
+// threshold, then instead of growing, the FieldMap is switched to the red
 // danger state and safe hashing is used instead.
 const LOAD_FACTOR_THRESHOLD: f32 = 0.2;
 
@@ -421,10 +421,10 @@ macro_rules! insert_phase_one {
     }}
 }
 
-// ===== impl HeaderMap =====
+// ===== impl FieldMap =====
 
-impl HeaderMap {
-    /// Create an empty `HeaderMap`.
+impl FieldMap {
+    /// Create an empty `FieldMap`.
     ///
     /// The map will be created without any capacity. This function will not
     /// allocate.
@@ -432,19 +432,19 @@ impl HeaderMap {
     /// # Examples
     ///
     /// ```
-    /// # use http::HeaderMap;
-    /// let map = HeaderMap::new();
+    /// # use http::FieldMap;
+    /// let map = FieldMap::new();
     ///
     /// assert!(map.is_empty());
     /// assert_eq!(0, map.capacity());
     /// ```
     pub fn new() -> Self {
-        HeaderMap::with_capacity(0)
+        FieldMap::with_capacity(0)
     }
 }
 
-impl<T> HeaderMap<T> {
-    /// Create an empty `HeaderMap` with the specified capacity.
+impl<T> FieldMap<T> {
+    /// Create an empty `FieldMap` with the specified capacity.
     ///
     /// The returned map will allocate internal storage in order to hold about
     /// `capacity` elements without reallocating. However, this is a "best
@@ -456,15 +456,15 @@ impl<T> HeaderMap<T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::HeaderMap;
-    /// let map: HeaderMap<u32> = HeaderMap::with_capacity(10);
+    /// # use http::FieldMap;
+    /// let map: FieldMap<u32> = FieldMap::with_capacity(10);
     ///
     /// assert!(map.is_empty());
     /// assert_eq!(12, map.capacity());
     /// ```
-    pub fn with_capacity(capacity: usize) -> HeaderMap<T> {
+    pub fn with_capacity(capacity: usize) -> FieldMap<T> {
         if capacity == 0 {
-            HeaderMap {
+            FieldMap {
                 mask: 0,
                 indices: Box::new([]), // as a ZST, this doesn't actually allocate anything
                 entries: Vec::new(),
@@ -476,7 +476,7 @@ impl<T> HeaderMap<T> {
             assert!(raw_cap <= MAX_SIZE, "requested capacity too large");
             debug_assert!(raw_cap > 0);
 
-            HeaderMap {
+            FieldMap {
                 mask: (raw_cap - 1) as Size,
                 indices: vec![Pos::none(); raw_cap].into_boxed_slice(),
                 entries: Vec::with_capacity(raw_cap),
@@ -495,9 +495,9 @@ impl<T> HeaderMap<T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::HeaderMap;
-    /// # use http::header::{ACCEPT, HOST};
-    /// let mut map = HeaderMap::new();
+    /// # use http::FieldMap;
+    /// # use http::field::{ACCEPT, HOST};
+    /// let mut map = FieldMap::new();
     ///
     /// assert_eq!(0, map.len());
     ///
@@ -522,9 +522,9 @@ impl<T> HeaderMap<T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::HeaderMap;
-    /// # use http::header::{ACCEPT, HOST};
-    /// let mut map = HeaderMap::new();
+    /// # use http::FieldMap;
+    /// # use http::field::{ACCEPT, HOST};
+    /// let mut map = FieldMap::new();
     ///
     /// assert_eq!(0, map.keys_len());
     ///
@@ -546,9 +546,9 @@ impl<T> HeaderMap<T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::HeaderMap;
-    /// # use http::header::HOST;
-    /// let mut map = HeaderMap::new();
+    /// # use http::FieldMap;
+    /// # use http::field::HOST;
+    /// let mut map = FieldMap::new();
     ///
     /// assert!(map.is_empty());
     ///
@@ -566,9 +566,9 @@ impl<T> HeaderMap<T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::HeaderMap;
-    /// # use http::header::HOST;
-    /// let mut map = HeaderMap::new();
+    /// # use http::FieldMap;
+    /// # use http::field::HOST;
+    /// let mut map = FieldMap::new();
     /// map.insert(HOST, "hello.world".parse().unwrap());
     ///
     /// map.clear();
@@ -593,9 +593,9 @@ impl<T> HeaderMap<T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::HeaderMap;
-    /// # use http::header::HOST;
-    /// let mut map = HeaderMap::new();
+    /// # use http::FieldMap;
+    /// # use http::field::HOST;
+    /// let mut map = FieldMap::new();
     ///
     /// assert_eq!(0, map.capacity());
     ///
@@ -607,7 +607,7 @@ impl<T> HeaderMap<T> {
     }
 
     /// Reserves capacity for at least `additional` more headers to be inserted
-    /// into the `HeaderMap`.
+    /// into the `FieldMap`.
     ///
     /// The header map may reserve more space to avoid frequent reallocations.
     /// Like with `with_capacity`, this will be a "best effort" to avoid
@@ -622,9 +622,9 @@ impl<T> HeaderMap<T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::HeaderMap;
-    /// # use http::header::HOST;
-    /// let mut map = HeaderMap::new();
+    /// # use http::FieldMap;
+    /// # use http::field::HOST;
+    /// let mut map = FieldMap::new();
     /// map.reserve(10);
     /// # map.insert(HOST, "bar".parse().unwrap());
     /// ```
@@ -661,9 +661,9 @@ impl<T> HeaderMap<T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::HeaderMap;
-    /// # use http::header::HOST;
-    /// let mut map = HeaderMap::new();
+    /// # use http::FieldMap;
+    /// # use http::field::HOST;
+    /// let mut map = FieldMap::new();
     /// assert!(map.get("host").is_none());
     ///
     /// map.insert(HOST, "hello".parse().unwrap());
@@ -675,14 +675,14 @@ impl<T> HeaderMap<T> {
     /// ```
     pub fn get<K>(&self, key: K) -> Option<&T>
     where
-        K: AsHeaderName,
+        K: AsFieldName,
     {
         self.get2(&key)
     }
 
     fn get2<K>(&self, key: &K) -> Option<&T>
     where
-        K: AsHeaderName,
+        K: AsFieldName,
     {
         match key.find(self) {
             Some((_, found)) => {
@@ -702,9 +702,9 @@ impl<T> HeaderMap<T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::HeaderMap;
-    /// # use http::header::HOST;
-    /// let mut map = HeaderMap::default();
+    /// # use http::FieldMap;
+    /// # use http::field::HOST;
+    /// let mut map = FieldMap::default();
     /// map.insert(HOST, "hello".to_string());
     /// map.get_mut("host").unwrap().push_str("-world");
     ///
@@ -712,7 +712,7 @@ impl<T> HeaderMap<T> {
     /// ```
     pub fn get_mut<K>(&mut self, key: K) -> Option<&mut T>
     where
-        K: AsHeaderName,
+        K: AsFieldName,
     {
         match key.find(self) {
             Some((_, found)) => {
@@ -734,9 +734,9 @@ impl<T> HeaderMap<T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::HeaderMap;
-    /// # use http::header::HOST;
-    /// let mut map = HeaderMap::new();
+    /// # use http::FieldMap;
+    /// # use http::field::HOST;
+    /// let mut map = FieldMap::new();
     ///
     /// map.insert(HOST, "hello".parse().unwrap());
     /// map.append(HOST, "goodbye".parse().unwrap());
@@ -750,7 +750,7 @@ impl<T> HeaderMap<T> {
     /// ```
     pub fn get_all<K>(&self, key: K) -> GetAll<'_, T>
     where
-        K: AsHeaderName,
+        K: AsFieldName,
     {
         GetAll {
             map: self,
@@ -763,9 +763,9 @@ impl<T> HeaderMap<T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::HeaderMap;
-    /// # use http::header::HOST;
-    /// let mut map = HeaderMap::new();
+    /// # use http::FieldMap;
+    /// # use http::field::HOST;
+    /// let mut map = FieldMap::new();
     /// assert!(!map.contains_key(HOST));
     ///
     /// map.insert(HOST, "world".parse().unwrap());
@@ -773,7 +773,7 @@ impl<T> HeaderMap<T> {
     /// ```
     pub fn contains_key<K>(&self, key: K) -> bool
     where
-        K: AsHeaderName,
+        K: AsFieldName,
     {
         key.find(self).is_some()
     }
@@ -787,9 +787,9 @@ impl<T> HeaderMap<T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::HeaderMap;
-    /// # use http::header::{CONTENT_LENGTH, HOST};
-    /// let mut map = HeaderMap::new();
+    /// # use http::FieldMap;
+    /// # use http::field::{CONTENT_LENGTH, HOST};
+    /// let mut map = FieldMap::new();
     ///
     /// map.insert(HOST, "hello".parse().unwrap());
     /// map.append(HOST, "goodbye".parse().unwrap());
@@ -819,9 +819,9 @@ impl<T> HeaderMap<T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::HeaderMap;
-    /// # use http::header::{CONTENT_LENGTH, HOST};
-    /// let mut map = HeaderMap::default();
+    /// # use http::FieldMap;
+    /// # use http::field::{CONTENT_LENGTH, HOST};
+    /// let mut map = FieldMap::default();
     ///
     /// map.insert(HOST, "hello".to_string());
     /// map.append(HOST, "goodbye".to_string());
@@ -849,9 +849,9 @@ impl<T> HeaderMap<T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::HeaderMap;
-    /// # use http::header::{CONTENT_LENGTH, HOST};
-    /// let mut map = HeaderMap::new();
+    /// # use http::FieldMap;
+    /// # use http::field::{CONTENT_LENGTH, HOST};
+    /// let mut map = FieldMap::new();
     ///
     /// map.insert(HOST, "hello".parse().unwrap());
     /// map.append(HOST, "goodbye".parse().unwrap());
@@ -875,9 +875,9 @@ impl<T> HeaderMap<T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::HeaderMap;
-    /// # use http::header::{CONTENT_LENGTH, HOST};
-    /// let mut map = HeaderMap::new();
+    /// # use http::FieldMap;
+    /// # use http::field::{CONTENT_LENGTH, HOST};
+    /// let mut map = FieldMap::new();
     ///
     /// map.insert(HOST, "hello".parse().unwrap());
     /// map.append(HOST, "goodbye".parse().unwrap());
@@ -899,9 +899,9 @@ impl<T> HeaderMap<T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::HeaderMap;
-    /// # use http::header::{CONTENT_LENGTH, HOST};
-    /// let mut map = HeaderMap::default();
+    /// # use http::FieldMap;
+    /// # use http::field::{CONTENT_LENGTH, HOST};
+    /// let mut map = FieldMap::default();
     ///
     /// map.insert(HOST, "hello".to_string());
     /// map.append(HOST, "goodbye".to_string());
@@ -921,16 +921,16 @@ impl<T> HeaderMap<T> {
     ///
     /// The internal memory is kept for reuse.
     ///
-    /// For each yielded item that has `None` provided for the `HeaderName`,
+    /// For each yielded item that has `None` provided for the `FieldName`,
     /// then the associated header name is the same as that of the previously
-    /// yielded item. The first yielded item will have `HeaderName` set.
+    /// yielded item. The first yielded item will have `FieldName` set.
     ///
     /// # Examples
     ///
     /// ```
-    /// # use http::HeaderMap;
-    /// # use http::header::{CONTENT_LENGTH, HOST};
-    /// let mut map = HeaderMap::new();
+    /// # use http::FieldMap;
+    /// # use http::field::{CONTENT_LENGTH, HOST};
+    /// let mut map = FieldMap::new();
     ///
     /// map.insert(HOST, "hello".parse().unwrap());
     /// map.append(HOST, "goodbye".parse().unwrap());
@@ -1023,8 +1023,8 @@ impl<T> HeaderMap<T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::HeaderMap;
-    /// let mut map: HeaderMap<u32> = HeaderMap::default();
+    /// # use http::FieldMap;
+    /// let mut map: FieldMap<u32> = FieldMap::default();
     ///
     /// let headers = &[
     ///     "content-length",
@@ -1043,7 +1043,7 @@ impl<T> HeaderMap<T> {
     /// ```
     pub fn entry<K>(&mut self, key: K) -> Entry<'_, T>
     where
-        K: IntoHeaderName,
+        K: IntoFieldName,
     {
         key.entry(self)
     }
@@ -1054,20 +1054,20 @@ impl<T> HeaderMap<T> {
     /// # Errors
     ///
     /// This method differs from `entry` by allowing types that may not be
-    /// valid `HeaderName`s to passed as the key (such as `String`). If they
-    /// do not parse as a valid `HeaderName`, this returns an
-    /// `InvalidHeaderName` error.
-    pub fn try_entry<K>(&mut self, key: K) -> Result<Entry<'_, T>, InvalidHeaderName>
+    /// valid `FieldName`s to passed as the key (such as `String`). If they
+    /// do not parse as a valid `FieldName`, this returns an
+    /// `InvalidFieldName` error.
+    pub fn try_entry<K>(&mut self, key: K) -> Result<Entry<'_, T>, InvalidFieldName>
     where
-        K: AsHeaderName,
+        K: AsFieldName,
     {
         key.try_entry(self)
     }
 
     fn entry2<K>(&mut self, key: K) -> Entry<'_, T>
     where
-        K: Hash + Into<HeaderName>,
-        HeaderName: PartialEq<K>,
+        K: Hash + Into<FieldName>,
+        FieldName: PartialEq<K>,
     {
         // Ensure that there is space in the map
         self.reserve_one();
@@ -1119,9 +1119,9 @@ impl<T> HeaderMap<T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::HeaderMap;
-    /// # use http::header::HOST;
-    /// let mut map = HeaderMap::new();
+    /// # use http::FieldMap;
+    /// # use http::field::HOST;
+    /// let mut map = FieldMap::new();
     /// assert!(map.insert(HOST, "world".parse().unwrap()).is_none());
     /// assert!(!map.is_empty());
     ///
@@ -1130,7 +1130,7 @@ impl<T> HeaderMap<T> {
     /// ```
     pub fn insert<K>(&mut self, key: K, val: T) -> Option<T>
     where
-        K: IntoHeaderName,
+        K: IntoFieldName,
     {
         key.insert(self, val)
     }
@@ -1138,8 +1138,8 @@ impl<T> HeaderMap<T> {
     #[inline]
     fn insert2<K>(&mut self, key: K, value: T) -> Option<T>
     where
-        K: Hash + Into<HeaderName>,
-        HeaderName: PartialEq<K>,
+        K: Hash + Into<FieldName>,
+        FieldName: PartialEq<K>,
     {
         self.reserve_one();
 
@@ -1218,9 +1218,9 @@ impl<T> HeaderMap<T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::HeaderMap;
-    /// # use http::header::HOST;
-    /// let mut map = HeaderMap::new();
+    /// # use http::FieldMap;
+    /// # use http::field::HOST;
+    /// let mut map = FieldMap::new();
     /// assert!(map.insert(HOST, "world".parse().unwrap()).is_none());
     /// assert!(!map.is_empty());
     ///
@@ -1233,7 +1233,7 @@ impl<T> HeaderMap<T> {
     /// ```
     pub fn append<K>(&mut self, key: K, value: T) -> bool
     where
-        K: IntoHeaderName,
+        K: IntoFieldName,
     {
         key.append(self, value)
     }
@@ -1241,8 +1241,8 @@ impl<T> HeaderMap<T> {
     #[inline]
     fn append2<K>(&mut self, key: K, value: T) -> bool
     where
-        K: Hash + Into<HeaderName>,
-        HeaderName: PartialEq<K>,
+        K: Hash + Into<FieldName>,
+        FieldName: PartialEq<K>,
     {
         self.reserve_one();
 
@@ -1278,8 +1278,8 @@ impl<T> HeaderMap<T> {
     #[inline]
     fn find<K: ?Sized>(&self, key: &K) -> Option<(usize, usize)>
     where
-        K: Hash + Into<HeaderName>,
-        HeaderName: PartialEq<K>,
+        K: Hash + Into<FieldName>,
+        FieldName: PartialEq<K>,
     {
         if self.entries.is_empty() {
             return None;
@@ -1310,7 +1310,7 @@ impl<T> HeaderMap<T> {
     #[inline]
     fn insert_phase_two(
         &mut self,
-        key: HeaderName,
+        key: FieldName,
         value: T,
         hash: HashValue,
         probe: usize,
@@ -1340,9 +1340,9 @@ impl<T> HeaderMap<T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::HeaderMap;
-    /// # use http::header::HOST;
-    /// let mut map = HeaderMap::new();
+    /// # use http::FieldMap;
+    /// # use http::field::HOST;
+    /// let mut map = FieldMap::new();
     /// map.insert(HOST, "hello.world".parse().unwrap());
     ///
     /// let prev = map.remove(HOST).unwrap();
@@ -1352,7 +1352,7 @@ impl<T> HeaderMap<T> {
     /// ```
     pub fn remove<K>(&mut self, key: K) -> Option<T>
     where
-        K: AsHeaderName,
+        K: AsFieldName,
     {
         match key.find(self) {
             Some((probe, idx)) => {
@@ -1449,7 +1449,7 @@ impl<T> HeaderMap<T> {
     }
 
     #[inline]
-    fn insert_entry(&mut self, hash: HashValue, key: HeaderName, value: T) {
+    fn insert_entry(&mut self, hash: HashValue, key: FieldName, value: T) {
         assert!(self.entries.len() < MAX_SIZE, "header map at capacity");
 
         self.entries.push(Bucket {
@@ -1733,8 +1733,8 @@ fn drain_all_extra_values<T>(
     vec
 }
 
-impl<'a, T> IntoIterator for &'a HeaderMap<T> {
-    type Item = (&'a HeaderName, &'a T);
+impl<'a, T> IntoIterator for &'a FieldMap<T> {
+    type Item = (&'a FieldName, &'a T);
     type IntoIter = Iter<'a, T>;
 
     fn into_iter(self) -> Iter<'a, T> {
@@ -1742,8 +1742,8 @@ impl<'a, T> IntoIterator for &'a HeaderMap<T> {
     }
 }
 
-impl<'a, T> IntoIterator for &'a mut HeaderMap<T> {
-    type Item = (&'a HeaderName, &'a mut T);
+impl<'a, T> IntoIterator for &'a mut FieldMap<T> {
+    type Item = (&'a FieldName, &'a mut T);
     type IntoIter = IterMut<'a, T>;
 
     fn into_iter(self) -> IterMut<'a, T> {
@@ -1751,55 +1751,55 @@ impl<'a, T> IntoIterator for &'a mut HeaderMap<T> {
     }
 }
 
-impl<T> IntoIterator for HeaderMap<T> {
-    type Item = (Option<HeaderName>, T);
+impl<T> IntoIterator for FieldMap<T> {
+    type Item = (Option<FieldName>, T);
     type IntoIter = IntoIter<T>;
 
     /// Creates a consuming iterator, that is, one that moves keys and values
     /// out of the map in arbitrary order. The map cannot be used after calling
     /// this.
     ///
-    /// For each yielded item that has `None` provided for the `HeaderName`,
+    /// For each yielded item that has `None` provided for the `FieldName`,
     /// then the associated header name is the same as that of the previously
-    /// yielded item. The first yielded item will have `HeaderName` set.
+    /// yielded item. The first yielded item will have `FieldName` set.
     ///
     /// # Examples
     ///
     /// Basic usage.
     ///
     /// ```
-    /// # use http::header;
-    /// # use http::header::*;
-    /// let mut map = HeaderMap::new();
-    /// map.insert(header::CONTENT_LENGTH, "123".parse().unwrap());
-    /// map.insert(header::CONTENT_TYPE, "json".parse().unwrap());
+    /// # use http::field;
+    /// # use http::field::*;
+    /// let mut map = FieldMap::new();
+    /// map.insert(field::CONTENT_LENGTH, "123".parse().unwrap());
+    /// map.insert(field::CONTENT_TYPE, "json".parse().unwrap());
     ///
     /// let mut iter = map.into_iter();
-    /// assert_eq!(iter.next(), Some((Some(header::CONTENT_LENGTH), "123".parse().unwrap())));
-    /// assert_eq!(iter.next(), Some((Some(header::CONTENT_TYPE), "json".parse().unwrap())));
+    /// assert_eq!(iter.next(), Some((Some(field::CONTENT_LENGTH), "123".parse().unwrap())));
+    /// assert_eq!(iter.next(), Some((Some(field::CONTENT_TYPE), "json".parse().unwrap())));
     /// assert!(iter.next().is_none());
     /// ```
     ///
     /// Multiple values per key.
     ///
     /// ```
-    /// # use http::header;
-    /// # use http::header::*;
-    /// let mut map = HeaderMap::new();
+    /// # use http::field;
+    /// # use http::field::*;
+    /// let mut map = FieldMap::new();
     ///
-    /// map.append(header::CONTENT_LENGTH, "123".parse().unwrap());
-    /// map.append(header::CONTENT_LENGTH, "456".parse().unwrap());
+    /// map.append(field::CONTENT_LENGTH, "123".parse().unwrap());
+    /// map.append(field::CONTENT_LENGTH, "456".parse().unwrap());
     ///
-    /// map.append(header::CONTENT_TYPE, "json".parse().unwrap());
-    /// map.append(header::CONTENT_TYPE, "html".parse().unwrap());
-    /// map.append(header::CONTENT_TYPE, "xml".parse().unwrap());
+    /// map.append(field::CONTENT_TYPE, "json".parse().unwrap());
+    /// map.append(field::CONTENT_TYPE, "html".parse().unwrap());
+    /// map.append(field::CONTENT_TYPE, "xml".parse().unwrap());
     ///
     /// let mut iter = map.into_iter();
     ///
-    /// assert_eq!(iter.next(), Some((Some(header::CONTENT_LENGTH), "123".parse().unwrap())));
+    /// assert_eq!(iter.next(), Some((Some(field::CONTENT_LENGTH), "123".parse().unwrap())));
     /// assert_eq!(iter.next(), Some((None, "456".parse().unwrap())));
     ///
-    /// assert_eq!(iter.next(), Some((Some(header::CONTENT_TYPE), "json".parse().unwrap())));
+    /// assert_eq!(iter.next(), Some((Some(field::CONTENT_TYPE), "json".parse().unwrap())));
     /// assert_eq!(iter.next(), Some((None, "html".parse().unwrap())));
     /// assert_eq!(iter.next(), Some((None, "xml".parse().unwrap())));
     /// assert!(iter.next().is_none());
@@ -1813,37 +1813,37 @@ impl<T> IntoIterator for HeaderMap<T> {
     }
 }
 
-impl<T> FromIterator<(HeaderName, T)> for HeaderMap<T> {
+impl<T> FromIterator<(FieldName, T)> for FieldMap<T> {
     fn from_iter<I>(iter: I) -> Self
     where
-        I: IntoIterator<Item = (HeaderName, T)>,
+        I: IntoIterator<Item = (FieldName, T)>,
     {
-        let mut map = HeaderMap::default();
+        let mut map = FieldMap::default();
         map.extend(iter);
         map
     }
 }
 
-/// Try to convert a `HashMap` into a `HeaderMap`.
+/// Try to convert a `HashMap` into a `FieldMap`.
 ///
 /// # Examples
 ///
 /// ```
 /// use std::collections::HashMap;
 /// use std::convert::TryInto;
-/// use http::HeaderMap;
+/// use http::FieldMap;
 ///
 /// let mut map = HashMap::new();
 /// map.insert("X-Custom-Header".to_string(), "my value".to_string());
 ///
-/// let headers: HeaderMap = (&map).try_into().expect("valid headers");
+/// let headers: FieldMap = (&map).try_into().expect("valid headers");
 /// assert_eq!(headers["X-Custom-Header"], "my value");
 /// ```
-impl<'a, K, V, T> TryFrom<&'a HashMap<K, V>> for HeaderMap<T>
+impl<'a, K, V, T> TryFrom<&'a HashMap<K, V>> for FieldMap<T>
     where
         K: Eq + Hash,
-        HeaderName: TryFrom<&'a K>,
-        <HeaderName as TryFrom<&'a K>>::Error: Into<crate::Error>,
+        FieldName: TryFrom<&'a K>,
+        <FieldName as TryFrom<&'a K>>::Error: Into<crate::Error>,
         T: TryFrom<&'a V>,
         T::Error: Into<crate::Error>,
 {
@@ -1851,7 +1851,7 @@ impl<'a, K, V, T> TryFrom<&'a HashMap<K, V>> for HeaderMap<T>
 
     fn try_from(c: &'a HashMap<K, V>) -> Result<Self, Self::Error> {
         c.into_iter()
-            .map(|(k, v)| -> crate::Result<(HeaderName, T)> {
+            .map(|(k, v)| -> crate::Result<(FieldName, T)> {
                 let name = TryFrom::try_from(k).map_err(Into::into)?;
                 let value = TryFrom::try_from(v).map_err(Into::into)?;
                 Ok((name, value))
@@ -1860,26 +1860,26 @@ impl<'a, K, V, T> TryFrom<&'a HashMap<K, V>> for HeaderMap<T>
     }
 }
 
-impl<T> Extend<(Option<HeaderName>, T)> for HeaderMap<T> {
-    /// Extend a `HeaderMap` with the contents of another `HeaderMap`.
+impl<T> Extend<(Option<FieldName>, T)> for FieldMap<T> {
+    /// Extend a `FieldMap` with the contents of another `FieldMap`.
     ///
     /// This function expects the yielded items to follow the same structure as
     /// `IntoIter`.
     ///
     /// # Panics
     ///
-    /// This panics if the first yielded item does not have a `HeaderName`.
+    /// This panics if the first yielded item does not have a `FieldName`.
     ///
     /// # Examples
     ///
     /// ```
-    /// # use http::header::*;
-    /// let mut map = HeaderMap::new();
+    /// # use http::field::*;
+    /// let mut map = FieldMap::new();
     ///
     /// map.insert(ACCEPT, "text/plain".parse().unwrap());
     /// map.insert(HOST, "hello.world".parse().unwrap());
     ///
-    /// let mut extra = HeaderMap::new();
+    /// let mut extra = FieldMap::new();
     ///
     /// extra.insert(HOST, "foo.bar".parse().unwrap());
     /// extra.insert(COOKIE, "hello".parse().unwrap());
@@ -1897,7 +1897,7 @@ impl<T> Extend<(Option<HeaderName>, T)> for HeaderMap<T> {
     /// let v = map.get_all("cookie");
     /// assert_eq!(2, v.iter().count());
     /// ```
-    fn extend<I: IntoIterator<Item = (Option<HeaderName>, T)>>(&mut self, iter: I) {
+    fn extend<I: IntoIterator<Item = (Option<FieldName>, T)>>(&mut self, iter: I) {
         let mut iter = iter.into_iter();
 
         // The structure of this is a bit weird, but it is mostly to make the
@@ -1919,7 +1919,7 @@ impl<T> Extend<(Option<HeaderName>, T)> for HeaderMap<T> {
                 Entry::Vacant(e) => e.insert_entry(val),
             };
 
-            // As long as `HeaderName` is none, keep inserting the value into
+            // As long as `FieldName` is none, keep inserting the value into
             // the current entry
             loop {
                 match iter.next() {
@@ -1940,8 +1940,8 @@ impl<T> Extend<(Option<HeaderName>, T)> for HeaderMap<T> {
     }
 }
 
-impl<T> Extend<(HeaderName, T)> for HeaderMap<T> {
-    fn extend<I: IntoIterator<Item = (HeaderName, T)>>(&mut self, iter: I) {
+impl<T> Extend<(FieldName, T)> for FieldMap<T> {
+    fn extend<I: IntoIterator<Item = (FieldName, T)>>(&mut self, iter: I) {
         // Keys may be already present or show multiple times in the iterator.
         // Reserve the entire hint lower bound if the map is empty.
         // Otherwise reserve half the hint (rounded up), so the map
@@ -1962,8 +1962,8 @@ impl<T> Extend<(HeaderName, T)> for HeaderMap<T> {
     }
 }
 
-impl<T: PartialEq> PartialEq for HeaderMap<T> {
-    fn eq(&self, other: &HeaderMap<T>) -> bool {
+impl<T: PartialEq> PartialEq for FieldMap<T> {
+    fn eq(&self, other: &FieldMap<T>) -> bool {
         if self.len() != other.len() {
             return false;
         }
@@ -1973,23 +1973,23 @@ impl<T: PartialEq> PartialEq for HeaderMap<T> {
     }
 }
 
-impl<T: Eq> Eq for HeaderMap<T> {}
+impl<T: Eq> Eq for FieldMap<T> {}
 
-impl<T: fmt::Debug> fmt::Debug for HeaderMap<T> {
+impl<T: fmt::Debug> fmt::Debug for FieldMap<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_map().entries(self.iter()).finish()
     }
 }
 
-impl<T> Default for HeaderMap<T> {
+impl<T> Default for FieldMap<T> {
     fn default() -> Self {
-        HeaderMap::with_capacity(0)
+        FieldMap::with_capacity(0)
     }
 }
 
-impl<'a, K, T> ops::Index<K> for HeaderMap<T>
+impl<'a, K, T> ops::Index<K> for FieldMap<T>
 where
-    K: AsHeaderName,
+    K: AsFieldName,
 {
     type Output = T;
 
@@ -2065,7 +2065,7 @@ fn append_value<T>(
 // ===== impl Iter =====
 
 impl<'a, T> Iterator for Iter<'a, T> {
-    type Item = (&'a HeaderName, &'a T);
+    type Item = (&'a FieldName, &'a T);
 
     fn next(&mut self) -> Option<Self::Item> {
         self.inner
@@ -2086,7 +2086,7 @@ unsafe impl<'a, T: Sync> Send for Iter<'a, T> {}
 // ===== impl IterMut =====
 
 impl<'a, T> IterMut<'a, T> {
-    fn next_unsafe(&mut self) -> Option<(&'a HeaderName, *mut T)> {
+    fn next_unsafe(&mut self) -> Option<(&'a FieldName, *mut T)> {
         use self::Cursor::*;
 
         if self.cursor.is_none() {
@@ -2120,7 +2120,7 @@ impl<'a, T> IterMut<'a, T> {
 }
 
 impl<'a, T> Iterator for IterMut<'a, T> {
-    type Item = (&'a HeaderName, &'a mut T);
+    type Item = (&'a FieldName, &'a mut T);
 
     fn next(&mut self) -> Option<Self::Item> {
         self.next_unsafe()
@@ -2148,7 +2148,7 @@ unsafe impl<'a, T: Send> Send for IterMut<'a, T> {}
 // ===== impl Keys =====
 
 impl<'a, T> Iterator for Keys<'a, T> {
-    type Item = &'a HeaderName;
+    type Item = &'a FieldName;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next().map(|b| &b.key)
@@ -2197,7 +2197,7 @@ impl<'a, T> FusedIterator for ValuesMut<'a, T> {}
 // ===== impl Drain =====
 
 impl<'a, T> Iterator for Drain<'a, T> {
-    type Item = (Option<HeaderName>, T);
+    type Item = (Option<FieldName>, T);
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(next) = self.next {
@@ -2240,7 +2240,7 @@ impl<'a, T> Iterator for Drain<'a, T> {
         // At least this many names... It's unknown if the user wants
         // to count the extra_values on top.
         //
-        // For instance, extending a new `HeaderMap` wouldn't need to
+        // For instance, extending a new `FieldMap` wouldn't need to
         // reserve the upper-bound in `entries`, only the lower-bound.
         let lower = self.len - self.idx;
         let upper = unsafe { (*self.extra_values).len() } + lower;
@@ -2269,8 +2269,8 @@ impl<'a, T> Entry<'a, T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::HeaderMap;
-    /// let mut map: HeaderMap<u32> = HeaderMap::default();
+    /// # use http::FieldMap;
+    /// let mut map: FieldMap<u32> = FieldMap::default();
     ///
     /// let headers = &[
     ///     "content-length",
@@ -2308,8 +2308,8 @@ impl<'a, T> Entry<'a, T> {
     /// Basic usage.
     ///
     /// ```
-    /// # use http::HeaderMap;
-    /// let mut map = HeaderMap::new();
+    /// # use http::FieldMap;
+    /// let mut map = FieldMap::new();
     ///
     /// let res = map.entry("x-hello")
     ///     .or_insert_with(|| "world".parse().unwrap());
@@ -2320,9 +2320,9 @@ impl<'a, T> Entry<'a, T> {
     /// The default function is not called if the entry exists in the map.
     ///
     /// ```
-    /// # use http::HeaderMap;
-    /// # use http::header::HOST;
-    /// let mut map = HeaderMap::new();
+    /// # use http::FieldMap;
+    /// # use http::field::HOST;
+    /// let mut map = FieldMap::new();
     /// map.insert(HOST, "world".parse().unwrap());
     ///
     /// let res = map.entry("host")
@@ -2345,12 +2345,12 @@ impl<'a, T> Entry<'a, T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::HeaderMap;
-    /// let mut map = HeaderMap::new();
+    /// # use http::FieldMap;
+    /// let mut map = FieldMap::new();
     ///
     /// assert_eq!(map.entry("x-hello").key(), "x-hello");
     /// ```
-    pub fn key(&self) -> &HeaderName {
+    pub fn key(&self) -> &FieldName {
         use self::Entry::*;
 
         match *self {
@@ -2368,12 +2368,12 @@ impl<'a, T> VacantEntry<'a, T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::HeaderMap;
-    /// let mut map = HeaderMap::new();
+    /// # use http::FieldMap;
+    /// let mut map = FieldMap::new();
     ///
     /// assert_eq!(map.entry("x-hello").key().as_str(), "x-hello");
     /// ```
-    pub fn key(&self) -> &HeaderName {
+    pub fn key(&self) -> &FieldName {
         &self.key
     }
 
@@ -2382,14 +2382,14 @@ impl<'a, T> VacantEntry<'a, T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::header::{HeaderMap, Entry};
-    /// let mut map = HeaderMap::new();
+    /// # use http::field::{FieldMap, Entry};
+    /// let mut map = FieldMap::new();
     ///
     /// if let Entry::Vacant(v) = map.entry("x-hello") {
     ///     assert_eq!(v.into_key().as_str(), "x-hello");
     /// }
     /// ```
-    pub fn into_key(self) -> HeaderName {
+    pub fn into_key(self) -> FieldName {
         self.key
     }
 
@@ -2401,8 +2401,8 @@ impl<'a, T> VacantEntry<'a, T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::header::{HeaderMap, Entry};
-    /// let mut map = HeaderMap::new();
+    /// # use http::field::{FieldMap, Entry};
+    /// let mut map = FieldMap::new();
     ///
     /// if let Entry::Vacant(v) = map.entry("x-hello") {
     ///     v.insert("world".parse().unwrap());
@@ -2427,8 +2427,8 @@ impl<'a, T> VacantEntry<'a, T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::header::*;
-    /// let mut map = HeaderMap::new();
+    /// # use http::field::*;
+    /// let mut map = FieldMap::new();
     ///
     /// if let Entry::Vacant(v) = map.entry("x-hello") {
     ///     let mut e = v.insert_entry("world".parse().unwrap());
@@ -2461,9 +2461,9 @@ impl<'a, T: 'a> GetAll<'a, T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::HeaderMap;
-    /// # use http::header::HOST;
-    /// let mut map = HeaderMap::new();
+    /// # use http::FieldMap;
+    /// # use http::field::HOST;
+    /// let mut map = FieldMap::new();
     /// map.insert(HOST, "hello.world".parse().unwrap());
     /// map.append(HOST, "hello.earth".parse().unwrap());
     ///
@@ -2685,7 +2685,7 @@ unsafe impl<'a, T: Send> Send for ValueIterMut<'a, T> {}
 // ===== impl IntoIter =====
 
 impl<T> Iterator for IntoIter<T> {
-    type Item = (Option<HeaderName>, T);
+    type Item = (Option<FieldName>, T);
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(next) = self.next {
@@ -2741,15 +2741,15 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::header::{HeaderMap, Entry, HOST};
-    /// let mut map = HeaderMap::new();
+    /// # use http::field::{FieldMap, Entry, HOST};
+    /// let mut map = FieldMap::new();
     /// map.insert(HOST, "world".parse().unwrap());
     ///
     /// if let Entry::Occupied(e) = map.entry("host") {
     ///     assert_eq!("host", e.key());
     /// }
     /// ```
-    pub fn key(&self) -> &HeaderName {
+    pub fn key(&self) -> &FieldName {
         &self.map.entries[self.index].key
     }
 
@@ -2764,8 +2764,8 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::header::{HeaderMap, Entry, HOST};
-    /// let mut map = HeaderMap::new();
+    /// # use http::field::{FieldMap, Entry, HOST};
+    /// let mut map = FieldMap::new();
     /// map.insert(HOST, "hello.world".parse().unwrap());
     ///
     /// if let Entry::Occupied(mut e) = map.entry("host") {
@@ -2791,8 +2791,8 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::header::{HeaderMap, Entry, HOST};
-    /// let mut map = HeaderMap::default();
+    /// # use http::field::{FieldMap, Entry, HOST};
+    /// let mut map = FieldMap::default();
     /// map.insert(HOST, "hello.world".to_string());
     ///
     /// if let Entry::Occupied(mut e) = map.entry("host") {
@@ -2816,8 +2816,8 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::header::{HeaderMap, Entry, HOST};
-    /// let mut map = HeaderMap::default();
+    /// # use http::field::{FieldMap, Entry, HOST};
+    /// let mut map = FieldMap::default();
     /// map.insert(HOST, "hello.world".to_string());
     /// map.append(HOST, "hello.earth".to_string());
     ///
@@ -2839,8 +2839,8 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::header::{HeaderMap, Entry, HOST};
-    /// let mut map = HeaderMap::new();
+    /// # use http::field::{FieldMap, Entry, HOST};
+    /// let mut map = FieldMap::new();
     /// map.insert(HOST, "hello.world".parse().unwrap());
     ///
     /// if let Entry::Occupied(mut e) = map.entry("host") {
@@ -2862,8 +2862,8 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::header::{HeaderMap, Entry, HOST};
-    /// let mut map = HeaderMap::new();
+    /// # use http::field::{FieldMap, Entry, HOST};
+    /// let mut map = FieldMap::new();
     /// map.insert(HOST, "world".parse().unwrap());
     /// map.append(HOST, "world2".parse().unwrap());
     ///
@@ -2888,8 +2888,8 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::header::{HeaderMap, Entry, HOST};
-    /// let mut map = HeaderMap::new();
+    /// # use http::field::{FieldMap, Entry, HOST};
+    /// let mut map = FieldMap::new();
     /// map.insert(HOST, "world".parse().unwrap());
     ///
     /// if let Entry::Occupied(mut e) = map.entry("host") {
@@ -2915,8 +2915,8 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::header::{HeaderMap, Entry, HOST};
-    /// let mut map = HeaderMap::new();
+    /// # use http::field::{FieldMap, Entry, HOST};
+    /// let mut map = FieldMap::new();
     /// map.insert(HOST, "world".parse().unwrap());
     ///
     /// if let Entry::Occupied(e) = map.entry("host") {
@@ -2939,8 +2939,8 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::header::{HeaderMap, Entry, HOST};
-    /// let mut map = HeaderMap::new();
+    /// # use http::field::{FieldMap, Entry, HOST};
+    /// let mut map = FieldMap::new();
     /// map.insert(HOST, "world".parse().unwrap());
     ///
     /// if let Entry::Occupied(e) = map.entry("host") {
@@ -2951,7 +2951,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     ///
     /// assert!(!map.contains_key("host"));
     /// ```
-    pub fn remove_entry(self) -> (HeaderName, T) {
+    pub fn remove_entry(self) -> (FieldName, T) {
         if let Some(links) = self.map.entries[self.index].links {
             self.map.remove_all_extra_values(links.next);
         }
@@ -2965,7 +2965,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     ///
     /// The key and all values associated with the entry are removed and
     /// returned.
-    pub fn remove_entry_mult(self) -> (HeaderName, ValueDrain<'a, T>) {
+    pub fn remove_entry_mult(self) -> (FieldName, ValueDrain<'a, T>) {
         let raw_links = self.map.raw_links();
         let extra_values = &mut self.map.extra_values;
 
@@ -2991,8 +2991,8 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::header::{HeaderMap, Entry, HOST};
-    /// let mut map = HeaderMap::new();
+    /// # use http::field::{FieldMap, Entry, HOST};
+    /// let mut map = FieldMap::new();
     /// map.insert(HOST, "world".parse().unwrap());
     /// map.append(HOST, "earth".parse().unwrap());
     ///
@@ -3015,8 +3015,8 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// # Examples
     ///
     /// ```
-    /// # use http::header::{HeaderMap, Entry, HOST};
-    /// let mut map = HeaderMap::default();
+    /// # use http::field::{FieldMap, Entry, HOST};
+    /// let mut map = FieldMap::default();
     /// map.insert(HOST, "world".to_string());
     /// map.append(HOST, "earth".to_string());
     ///
@@ -3260,115 +3260,115 @@ where
 
 /*
  *
- * ===== impl IntoHeaderName / AsHeaderName =====
+ * ===== impl IntoFieldName / AsFieldName =====
  *
  */
 
 mod into_header_name {
-    use super::{Entry, HdrName, HeaderMap, HeaderName};
+    use super::{Entry, HdrName, FieldMap, FieldName};
 
     /// A marker trait used to identify values that can be used as insert keys
-    /// to a `HeaderMap`.
-    pub trait IntoHeaderName: Sealed {}
+    /// to a `FieldMap`.
+    pub trait IntoFieldName: Sealed {}
 
-    // All methods are on this pub(super) trait, instead of `IntoHeaderName`,
+    // All methods are on this pub(super) trait, instead of `IntoFieldName`,
     // so that they aren't publicly exposed to the world.
     //
-    // Being on the `IntoHeaderName` trait would mean users could call
+    // Being on the `IntoFieldName` trait would mean users could call
     // `"host".insert(&mut map, "localhost")`.
     //
     // Ultimately, this allows us to adjust the signatures of these methods
     // without breaking any external crate.
     pub trait Sealed {
         #[doc(hidden)]
-        fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<T>;
+        fn insert<T>(self, map: &mut FieldMap<T>, val: T) -> Option<T>;
 
         #[doc(hidden)]
-        fn append<T>(self, map: &mut HeaderMap<T>, val: T) -> bool;
+        fn append<T>(self, map: &mut FieldMap<T>, val: T) -> bool;
 
         #[doc(hidden)]
-        fn entry<T>(self, map: &mut HeaderMap<T>) -> Entry<'_, T>;
+        fn entry<T>(self, map: &mut FieldMap<T>) -> Entry<'_, T>;
     }
 
     // ==== impls ====
 
-    impl Sealed for HeaderName {
+    impl Sealed for FieldName {
         #[inline]
-        fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<T> {
+        fn insert<T>(self, map: &mut FieldMap<T>, val: T) -> Option<T> {
             map.insert2(self, val)
         }
 
         #[inline]
-        fn append<T>(self, map: &mut HeaderMap<T>, val: T) -> bool {
+        fn append<T>(self, map: &mut FieldMap<T>, val: T) -> bool {
             map.append2(self, val)
         }
 
         #[inline]
-        fn entry<T>(self, map: &mut HeaderMap<T>) -> Entry<'_, T> {
+        fn entry<T>(self, map: &mut FieldMap<T>) -> Entry<'_, T> {
             map.entry2(self)
         }
     }
 
-    impl IntoHeaderName for HeaderName {}
+    impl IntoFieldName for FieldName {}
 
-    impl<'a> Sealed for &'a HeaderName {
+    impl<'a> Sealed for &'a FieldName {
         #[inline]
-        fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<T> {
+        fn insert<T>(self, map: &mut FieldMap<T>, val: T) -> Option<T> {
             map.insert2(self, val)
         }
         #[inline]
-        fn append<T>(self, map: &mut HeaderMap<T>, val: T) -> bool {
+        fn append<T>(self, map: &mut FieldMap<T>, val: T) -> bool {
             map.append2(self, val)
         }
 
         #[inline]
-        fn entry<T>(self, map: &mut HeaderMap<T>) -> Entry<'_, T> {
+        fn entry<T>(self, map: &mut FieldMap<T>) -> Entry<'_, T> {
             map.entry2(self)
         }
     }
 
-    impl<'a> IntoHeaderName for &'a HeaderName {}
+    impl<'a> IntoFieldName for &'a FieldName {}
 
     impl Sealed for &'static str {
         #[inline]
-        fn insert<T>(self, map: &mut HeaderMap<T>, val: T) -> Option<T> {
+        fn insert<T>(self, map: &mut FieldMap<T>, val: T) -> Option<T> {
             HdrName::from_static(self, move |hdr| map.insert2(hdr, val))
         }
         #[inline]
-        fn append<T>(self, map: &mut HeaderMap<T>, val: T) -> bool {
+        fn append<T>(self, map: &mut FieldMap<T>, val: T) -> bool {
             HdrName::from_static(self, move |hdr| map.append2(hdr, val))
         }
 
         #[inline]
-        fn entry<T>(self, map: &mut HeaderMap<T>) -> Entry<'_, T> {
+        fn entry<T>(self, map: &mut FieldMap<T>) -> Entry<'_, T> {
             HdrName::from_static(self, move |hdr| map.entry2(hdr))
         }
     }
 
-    impl IntoHeaderName for &'static str {}
+    impl IntoFieldName for &'static str {}
 }
 
 mod as_header_name {
-    use super::{Entry, HdrName, HeaderMap, HeaderName, InvalidHeaderName};
+    use super::{Entry, HdrName, FieldMap, FieldName, InvalidFieldName};
 
     /// A marker trait used to identify values that can be used as search keys
-    /// to a `HeaderMap`.
-    pub trait AsHeaderName: Sealed {}
+    /// to a `FieldMap`.
+    pub trait AsFieldName: Sealed {}
 
-    // All methods are on this pub(super) trait, instead of `AsHeaderName`,
+    // All methods are on this pub(super) trait, instead of `AsFieldName`,
     // so that they aren't publicly exposed to the world.
     //
-    // Being on the `AsHeaderName` trait would mean users could call
+    // Being on the `AsFieldName` trait would mean users could call
     // `"host".find(&map)`.
     //
     // Ultimately, this allows us to adjust the signatures of these methods
     // without breaking any external crate.
     pub trait Sealed {
         #[doc(hidden)]
-        fn try_entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<'_, T>, InvalidHeaderName>;
+        fn try_entry<T>(self, map: &mut FieldMap<T>) -> Result<Entry<'_, T>, InvalidFieldName>;
 
         #[doc(hidden)]
-        fn find<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)>;
+        fn find<T>(&self, map: &FieldMap<T>) -> Option<(usize, usize)>;
 
         #[doc(hidden)]
         fn as_str(&self) -> &str;
@@ -3376,50 +3376,50 @@ mod as_header_name {
 
     // ==== impls ====
 
-    impl Sealed for HeaderName {
+    impl Sealed for FieldName {
         #[inline]
-        fn try_entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<'_, T>, InvalidHeaderName> {
+        fn try_entry<T>(self, map: &mut FieldMap<T>) -> Result<Entry<'_, T>, InvalidFieldName> {
             Ok(map.entry2(self))
         }
 
         #[inline]
-        fn find<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)> {
+        fn find<T>(&self, map: &FieldMap<T>) -> Option<(usize, usize)> {
             map.find(self)
         }
 
         fn as_str(&self) -> &str {
-            <HeaderName>::as_str(self)
+            <FieldName>::as_str(self)
         }
     }
 
-    impl AsHeaderName for HeaderName {}
+    impl AsFieldName for FieldName {}
 
-    impl<'a> Sealed for &'a HeaderName {
+    impl<'a> Sealed for &'a FieldName {
         #[inline]
-        fn try_entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<'_, T>, InvalidHeaderName> {
+        fn try_entry<T>(self, map: &mut FieldMap<T>) -> Result<Entry<'_, T>, InvalidFieldName> {
             Ok(map.entry2(self))
         }
 
         #[inline]
-        fn find<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)> {
+        fn find<T>(&self, map: &FieldMap<T>) -> Option<(usize, usize)> {
             map.find(*self)
         }
 
         fn as_str(&self) -> &str {
-            <HeaderName>::as_str(*self)
+            <FieldName>::as_str(*self)
         }
     }
 
-    impl<'a> AsHeaderName for &'a HeaderName {}
+    impl<'a> AsFieldName for &'a FieldName {}
 
     impl<'a> Sealed for &'a str {
         #[inline]
-        fn try_entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<'_, T>, InvalidHeaderName> {
+        fn try_entry<T>(self, map: &mut FieldMap<T>) -> Result<Entry<'_, T>, InvalidFieldName> {
             HdrName::from_bytes(self.as_bytes(), move |hdr| map.entry2(hdr))
         }
 
         #[inline]
-        fn find<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)> {
+        fn find<T>(&self, map: &FieldMap<T>) -> Option<(usize, usize)> {
             HdrName::from_bytes(self.as_bytes(), move |hdr| map.find(&hdr)).unwrap_or(None)
         }
 
@@ -3428,16 +3428,16 @@ mod as_header_name {
         }
     }
 
-    impl<'a> AsHeaderName for &'a str {}
+    impl<'a> AsFieldName for &'a str {}
 
     impl Sealed for String {
         #[inline]
-        fn try_entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<'_, T>, InvalidHeaderName> {
+        fn try_entry<T>(self, map: &mut FieldMap<T>) -> Result<Entry<'_, T>, InvalidFieldName> {
             self.as_str().try_entry(map)
         }
 
         #[inline]
-        fn find<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)> {
+        fn find<T>(&self, map: &FieldMap<T>) -> Option<(usize, usize)> {
             Sealed::find(&self.as_str(), map)
         }
 
@@ -3446,16 +3446,16 @@ mod as_header_name {
         }
     }
 
-    impl AsHeaderName for String {}
+    impl AsFieldName for String {}
 
     impl<'a> Sealed for &'a String {
         #[inline]
-        fn try_entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<'_, T>, InvalidHeaderName> {
+        fn try_entry<T>(self, map: &mut FieldMap<T>) -> Result<Entry<'_, T>, InvalidFieldName> {
             self.as_str().try_entry(map)
         }
 
         #[inline]
-        fn find<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)> {
+        fn find<T>(&self, map: &FieldMap<T>) -> Option<(usize, usize)> {
             Sealed::find(*self, map)
         }
 
@@ -3464,14 +3464,14 @@ mod as_header_name {
         }
     }
 
-    impl<'a> AsHeaderName for &'a String {}
+    impl<'a> AsFieldName for &'a String {}
 }
 
 #[test]
 fn test_bounds() {
     fn check_bounds<T: Send + Send>() {}
 
-    check_bounds::<HeaderMap<()>>();
+    check_bounds::<FieldMap<()>>();
     check_bounds::<Iter<'static, ()>>();
     check_bounds::<IterMut<'static, ()>>();
     check_bounds::<Keys<'static, ()>>();
@@ -3489,8 +3489,8 @@ fn test_bounds() {
 
 #[test]
 fn skip_duplicates_during_key_iteration() {
-    let mut map = HeaderMap::new();
-    map.append("a", HeaderValue::from_static("a"));
-    map.append("a", HeaderValue::from_static("b"));
+    let mut map = FieldMap::new();
+    map.append("a", FieldValue::from_static("a"));
+    map.append("a", FieldValue::from_static("b"));
     assert_eq!(map.keys().count(), map.keys_len());
 }

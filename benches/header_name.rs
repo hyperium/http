@@ -4,7 +4,7 @@ extern crate bytes;
 extern crate http;
 extern crate test;
 
-use http::header::HeaderName;
+use http::field::FieldName;
 use test::Bencher;
 
 fn make_all_known_headers() -> Vec<Vec<u8>> {
@@ -256,7 +256,7 @@ static ALL_KNOWN_HEADERS: &[&str] = &[
 fn header_name_easy(b: &mut Bencher) {
     let name = b"Content-type";
     b.iter(|| {
-        HeaderName::from_bytes(&name[..]).unwrap();
+        FieldName::from_bytes(&name[..]).unwrap();
     });
 }
 
@@ -264,7 +264,7 @@ fn header_name_easy(b: &mut Bencher) {
 fn header_name_custom(b: &mut Bencher) {
     let name = b"Foo-Bar-Baz-Blah";
     b.iter(|| {
-        HeaderName::from_bytes(&name[..]).unwrap();
+        FieldName::from_bytes(&name[..]).unwrap();
     });
 }
 
@@ -272,7 +272,7 @@ fn header_name_custom(b: &mut Bencher) {
 fn header_name_bad(b: &mut Bencher) {
     let name = b"bad header name";
     b.iter(|| {
-        HeaderName::from_bytes(&name[..]).expect_err("Bad header name");
+        FieldName::from_bytes(&name[..]).expect_err("Bad header name");
     });
 }
 
@@ -281,7 +281,7 @@ fn header_name_various(b: &mut Bencher) {
     let all_known_headers = make_all_known_headers();
     b.iter(|| {
         for name in &all_known_headers{
-            HeaderName::from_bytes(name.as_slice()).unwrap();
+            FieldName::from_bytes(name.as_slice()).unwrap();
         }
     });
 }
@@ -290,7 +290,7 @@ fn header_name_various(b: &mut Bencher) {
 fn header_name_from_static(b: &mut Bencher) {
     b.iter(|| {
         for name in ALL_KNOWN_HEADERS {
-            HeaderName::from_static(name);
+            FieldName::from_static(name);
         }
     });
 }
