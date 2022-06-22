@@ -29,7 +29,7 @@ fnv = "1.0.5"
 itoa = "1"
 
 [dev-dependencies]
-indexmap = "1.0"
+indexmap = "<=1.8"
 quickcheck = "0.9.0"
 rand = "0.7.0"
 seahash = "3.0.5"
