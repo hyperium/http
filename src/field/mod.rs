@@ -1,41 +1,41 @@
 //! HTTP header types
 //!
-//! The module provides [`HeaderName`], [`HeaderMap`], and a number of types
-//! used for interacting with `HeaderMap`. These types allow representing both
+//! The module provides [`FieldName`], [`FieldMap`], and a number of types
+//! used for interacting with `FieldMap`. These types allow representing both
 //! HTTP/1 and HTTP/2 headers.
 //!
-//! # `HeaderName`
+//! # `FieldName`
 //!
-//! The `HeaderName` type represents both standard header names as well as
+//! The `FieldName` type represents both standard header names as well as
 //! custom header names. The type handles the case insensitive nature of header
-//! names and is used as the key portion of `HeaderMap`. Header names are
-//! normalized to lower case. In other words, when creating a `HeaderName` with
+//! names and is used as the key portion of `FieldMap`. Header names are
+//! normalized to lower case. In other words, when creating a `FieldName` with
 //! a string, even if upper case characters are included, when getting a string
-//! representation of the `HeaderName`, it will be all lower case. This allows
-//! for faster `HeaderMap` comparison operations.
+//! representation of the `FieldName`, it will be all lower case. This allows
+//! for faster `FieldMap` comparison operations.
 //!
 //! The internal representation is optimized to efficiently handle the cases
 //! most commonly encountered when working with HTTP. Standard header names are
 //! special cased and are represented internally as an enum. Short custom
-//! headers will be stored directly in the `HeaderName` struct and will not
+//! headers will be stored directly in the `FieldName` struct and will not
 //! incur any allocation overhead, however longer strings will require an
 //! allocation for storage.
 //!
 //! ## Limitations
 //!
-//! `HeaderName` has a max length of 32,768 for header names. Attempting to
+//! `FieldName` has a max length of 32,768 for header names. Attempting to
 //! parse longer names will result in a panic.
 //!
-//! # `HeaderMap`
+//! # `FieldMap`
 //!
-//! `HeaderMap` is a map structure of header names highly optimized for use
+//! `FieldMap` is a map structure of header names highly optimized for use
 //! cases common with HTTP. It is a [multimap] structure, where each header name
 //! may have multiple associated header values. Given this, some of the APIs
 //! diverge from [`HashMap`].
 //!
 //! ## Overview
 //!
-//! Just like `HashMap` in Rust's stdlib, `HeaderMap` is based on [Robin Hood
+//! Just like `HashMap` in Rust's stdlib, `FieldMap` is based on [Robin Hood
 //! hashing]. This algorithm tends to reduce the worst case search times in the
 //! table and enables high load factors without seriously affecting performance.
 //! Internally, keys and values are stored in vectors. As such, each insertion
@@ -44,28 +44,28 @@
 //!
 //! ## Deterministic ordering
 //!
-//! Unlike Rust's `HashMap`, values in `HeaderMap` are deterministically
+//! Unlike Rust's `HashMap`, values in `FieldMap` are deterministically
 //! ordered. Roughly, values are ordered by insertion. This means that a
 //! function that deterministically operates on a header map can rely on the
 //! iteration order to remain consistent across processes and platforms.
 //!
 //! ## Adaptive hashing
 //!
-//! `HeaderMap` uses an adaptive hashing strategy in order to efficiently handle
+//! `FieldMap` uses an adaptive hashing strategy in order to efficiently handle
 //! most common cases. All standard headers have statically computed hash values
 //! which removes the need to perform any hashing of these headers at runtime.
 //! The default hash function emphasizes performance over robustness. However,
-//! `HeaderMap` detects high collision rates and switches to a secure hash
+//! `FieldMap` detects high collision rates and switches to a secure hash
 //! function in those events. The threshold is set such that only denial of
 //! service attacks should trigger it.
 //!
 //! ## Limitations
 //!
-//! `HeaderMap` can store a maximum of 32,768 headers (header name / value
+//! `FieldMap` can store a maximum of 32,768 headers (header name / value
 //! pairs). Attempting to insert more will result in a panic.
 //!
-//! [`HeaderName`]: struct.HeaderName.html
-//! [`HeaderMap`]: struct.HeaderMap.html
+//! [`FieldName`]: struct.FieldName.html
+//! [`FieldMap`]: struct.FieldMap.html
 //! [multimap]: https://en.wikipedia.org/wiki/Multimap
 //! [`HashMap`]: https://doc.rust-lang.org/std/collections/struct.HashMap.html
 //! [Robin Hood hashing]: https://en.wikipedia.org/wiki/Hash_table#Robin_Hood_hashing
@@ -75,11 +75,11 @@ mod name;
 mod value;
 
 pub use self::map::{
-    AsHeaderName, Drain, Entry, GetAll, HeaderMap, IntoHeaderName, IntoIter, Iter, IterMut, Keys,
+    AsFieldName, Drain, Entry, GetAll, FieldMap, IntoFieldName, IntoIter, Iter, IterMut, Keys,
     OccupiedEntry, VacantEntry, ValueDrain, ValueIter, ValueIterMut, Values, ValuesMut,
 };
-pub use self::name::{HeaderName, InvalidHeaderName};
-pub use self::value::{HeaderValue, InvalidHeaderValue, ToStrError};
+pub use self::name::{FieldName, InvalidFieldName};
+pub use self::value::{FieldValue, InvalidFieldValue, ToStrError};
 
 // Use header name constants
 pub use self::name::{

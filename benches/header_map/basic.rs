@@ -4,7 +4,7 @@ macro_rules! bench {
             #[allow(unused_imports)]
             use super::custom_hdr;
             use fnv::FnvHasher;
-            use http::header::*;
+            use http::field::*;
             use seahash::SeaHasher;
             use std::hash::BuildHasherDefault;
             #[allow(unused_imports)]
@@ -12,7 +12,7 @@ macro_rules! bench {
 
             #[bench]
             fn header_map($b: &mut Bencher) {
-                let $map = || HeaderMap::default();
+                let $map = || FieldMap::default();
                 $body
             }
 
@@ -353,7 +353,7 @@ bench!(insert_500_custom_headers(new_map, b) {
 });
 
 bench!(insert_one_15_char_header(new_map, b) {
-    let hdr: HeaderName = "abcd-abcd-abcde"
+    let hdr: FieldName = "abcd-abcd-abcde"
         .parse().unwrap();
 
     b.iter(|| {
@@ -364,7 +364,7 @@ bench!(insert_one_15_char_header(new_map, b) {
 });
 
 bench!(insert_one_25_char_header(new_map, b) {
-    let hdr: HeaderName = "abcd-abcd-abcd-abcd-abcde"
+    let hdr: FieldName = "abcd-abcd-abcd-abcd-abcde"
         .parse().unwrap();
 
     b.iter(|| {
@@ -375,7 +375,7 @@ bench!(insert_one_25_char_header(new_map, b) {
 });
 
 bench!(insert_one_50_char_header(new_map, b) {
-    let hdr: HeaderName = "abcd-abcd-abcd-abcd-abcd-abcd-abcd-abcd-abcd-abcde"
+    let hdr: FieldName = "abcd-abcd-abcd-abcd-abcd-abcd-abcd-abcd-abcd-abcde"
         .parse().unwrap();
 
     b.iter(|| {
@@ -386,7 +386,7 @@ bench!(insert_one_50_char_header(new_map, b) {
 });
 
 bench!(insert_one_100_char_header(new_map, b) {
-    let hdr: HeaderName = "abcd-abcd-abcd-abcd-abcd-abcd-abcd-abcd-abcd-abcdeabcd-abcd-abcd-abcd-abcd-abcd-abcd-abcd-abcd-abcde"
+    let hdr: FieldName = "abcd-abcd-abcd-abcd-abcd-abcd-abcd-abcd-abcd-abcdeabcd-abcd-abcd-abcd-abcd-abcd-abcd-abcd-abcd-abcde"
         .parse().unwrap();
 
     b.iter(|| {
@@ -411,7 +411,7 @@ const HN_HDRS: [(&'static str, &'static str); 11] = [
 ];
 
 bench!(hn_hdrs_set_8_get_many(new_map, b) {
-    let hdrs: Vec<(HeaderName, &'static str)> = super::HN_HDRS[..8].iter()
+    let hdrs: Vec<(FieldName, &'static str)> = super::HN_HDRS[..8].iter()
         .map(|&(name, val)| (name.parse().unwrap(), val))
         .collect();
 
@@ -430,11 +430,11 @@ bench!(hn_hdrs_set_8_get_many(new_map, b) {
 });
 
 bench!(hn_hdrs_set_8_get_miss(new_map, b) {
-    let hdrs: Vec<(HeaderName, &'static str)> = super::HN_HDRS[..8].iter()
+    let hdrs: Vec<(FieldName, &'static str)> = super::HN_HDRS[..8].iter()
         .map(|&(name, val)| (name.parse().unwrap(), val))
         .collect();
 
-    let miss: HeaderName = "x-wat".parse().unwrap();
+    let miss: FieldName = "x-wat".parse().unwrap();
 
     b.iter(|| {
         let mut h = new_map();
@@ -449,11 +449,11 @@ bench!(hn_hdrs_set_8_get_miss(new_map, b) {
 });
 
 bench!(hn_hdrs_set_11_get_with_miss(new_map, b) {
-    let hdrs: Vec<(HeaderName, &'static str)> = super::HN_HDRS.iter()
+    let hdrs: Vec<(FieldName, &'static str)> = super::HN_HDRS.iter()
         .map(|&(name, val)| (name.parse().unwrap(), val))
         .collect();
 
-    let miss: HeaderName = "x-wat".parse().unwrap();
+    let miss: FieldName = "x-wat".parse().unwrap();
 
     b.iter(|| {
         let mut h = new_map();
@@ -470,9 +470,9 @@ bench!(hn_hdrs_set_11_get_with_miss(new_map, b) {
     });
 });
 
-use http::header::*;
+use http::field::*;
 
-fn custom_hdr(n: usize) -> Vec<HeaderName> {
+fn custom_hdr(n: usize) -> Vec<FieldName> {
     (0..n)
         .map(|i| {
             let s = format!("x-custom-{}", i);
@@ -481,7 +481,7 @@ fn custom_hdr(n: usize) -> Vec<HeaderName> {
         .collect()
 }
 
-fn med_custom_hdr(n: usize) -> Vec<HeaderName> {
+fn med_custom_hdr(n: usize) -> Vec<FieldName> {
     (0..n)
         .map(|i| {
             let s = format!("content-length-{}", i);
@@ -490,7 +490,7 @@ fn med_custom_hdr(n: usize) -> Vec<HeaderName> {
         .collect()
 }
 
-fn long_custom_hdr(n: usize) -> Vec<HeaderName> {
+fn long_custom_hdr(n: usize) -> Vec<FieldName> {
     (0..n)
         .map(|i| {
             let s = format!("access-control-allow-headers-{}", i);
@@ -499,7 +499,7 @@ fn long_custom_hdr(n: usize) -> Vec<HeaderName> {
         .collect()
 }
 
-fn very_long_custom_hdr(n: usize) -> Vec<HeaderName> {
+fn very_long_custom_hdr(n: usize) -> Vec<FieldName> {
     (0..n)
         .map(|i| {
             let s = format!("access-control-allow-access-control-allow-headers-{}", i);
@@ -508,7 +508,7 @@ fn very_long_custom_hdr(n: usize) -> Vec<HeaderName> {
         .collect()
 }
 
-fn custom_std(n: usize) -> Vec<HeaderName> {
+fn custom_std(n: usize) -> Vec<FieldName> {
     (0..n)
         .map(|i| {
             let s = format!("{}-{}", STD[i % STD.len()].as_str(), i);
@@ -517,7 +517,7 @@ fn custom_std(n: usize) -> Vec<HeaderName> {
         .collect()
 }
 
-const STD: &'static [HeaderName] = &[
+const STD: &'static [FieldName] = &[
     ACCEPT,
     ACCEPT_CHARSET,
     ACCEPT_ENCODING,

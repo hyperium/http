@@ -1,13 +1,13 @@
-use http::header::*;
+use http::field::*;
 use http::*;
 
 #[test]
 fn smoke() {
-    let mut headers = HeaderMap::new();
+    let mut headers = FieldMap::new();
 
     assert!(headers.get("hello").is_none());
 
-    let name: HeaderName = "hello".parse().unwrap();
+    let name: FieldName = "hello".parse().unwrap();
 
     match headers.entry(&name) {
         Entry::Vacant(e) => {
@@ -39,36 +39,36 @@ fn smoke() {
 #[should_panic]
 fn reserve_over_capacity() {
     // See https://github.com/hyperium/http/issues/352
-    let mut headers = HeaderMap::<u32>::with_capacity(32);
+    let mut headers = FieldMap::<u32>::with_capacity(32);
     headers.reserve(50_000); // over MAX_SIZE
 }
 
 #[test]
 fn with_capacity_max() {
     // The largest capacity such that (cap + cap / 3) < MAX_SIZE.
-    HeaderMap::<u32>::with_capacity(24_576);
+    FieldMap::<u32>::with_capacity(24_576);
 }
 
 #[test]
 #[should_panic]
 fn with_capacity_overflow() {
-    HeaderMap::<u32>::with_capacity(24_577);
+    FieldMap::<u32>::with_capacity(24_577);
 }
 
 #[test]
 #[should_panic]
 fn reserve_overflow() {
     // See https://github.com/hyperium/http/issues/352
-    let mut headers = HeaderMap::<u32>::with_capacity(0);
+    let mut headers = FieldMap::<u32>::with_capacity(0);
     headers.reserve(std::usize::MAX); // next_power_of_two overflows
 }
 
 #[test]
 fn drain() {
-    let mut headers = HeaderMap::new();
+    let mut headers = FieldMap::new();
 
     // Insert a single value
-    let name: HeaderName = "hello".parse().unwrap();
+    let name: FieldName = "hello".parse().unwrap();
     headers.insert(name, "world".parse().unwrap());
 
     {
@@ -85,15 +85,15 @@ fn drain() {
 
     // Insert two sequential values
     headers.insert(
-        "hello".parse::<HeaderName>().unwrap(),
+        "hello".parse::<FieldName>().unwrap(),
         "world".parse().unwrap(),
     );
     headers.insert(
-        "zomg".parse::<HeaderName>().unwrap(),
+        "zomg".parse::<FieldName>().unwrap(),
         "bar".parse().unwrap(),
     );
     headers.append(
-        "hello".parse::<HeaderName>().unwrap(),
+        "hello".parse::<FieldName>().unwrap(),
         "world2".parse().unwrap(),
     );
 
@@ -121,7 +121,7 @@ fn drain() {
 fn drain_drop_immediately() {
     // test mem::forgetting does not double-free
 
-    let mut headers = HeaderMap::new();
+    let mut headers = FieldMap::new();
     headers.insert("hello", "world".parse().unwrap());
     headers.insert("zomg", "bar".parse().unwrap());
     headers.append("hello", "world2".parse().unwrap());
@@ -135,7 +135,7 @@ fn drain_drop_immediately() {
 fn drain_forget() {
     // test mem::forgetting does not double-free
 
-    let mut headers = HeaderMap::<HeaderValue>::new();
+    let mut headers = FieldMap::<FieldValue>::new();
     headers.insert("hello", "world".parse().unwrap());
     headers.insert("zomg", "bar".parse().unwrap());
 
@@ -153,26 +153,26 @@ fn drain_forget() {
 
 #[test]
 fn drain_entry() {
-    let mut headers = HeaderMap::new();
+    let mut headers = FieldMap::new();
 
     headers.insert(
-        "hello".parse::<HeaderName>().unwrap(),
+        "hello".parse::<FieldName>().unwrap(),
         "world".parse().unwrap(),
     );
     headers.insert(
-        "zomg".parse::<HeaderName>().unwrap(),
+        "zomg".parse::<FieldName>().unwrap(),
         "foo".parse().unwrap(),
     );
     headers.append(
-        "hello".parse::<HeaderName>().unwrap(),
+        "hello".parse::<FieldName>().unwrap(),
         "world2".parse().unwrap(),
     );
     headers.insert(
-        "more".parse::<HeaderName>().unwrap(),
+        "more".parse::<FieldName>().unwrap(),
         "words".parse().unwrap(),
     );
     headers.append(
-        "more".parse::<HeaderName>().unwrap(),
+        "more".parse::<FieldName>().unwrap(),
         "insertions".parse().unwrap(),
     );
     assert_eq!(5, headers.len());
@@ -195,44 +195,44 @@ fn drain_entry() {
 
 #[test]
 fn eq() {
-    let mut a = HeaderMap::new();
-    let mut b = HeaderMap::new();
+    let mut a = FieldMap::new();
+    let mut b = FieldMap::new();
 
     assert_eq!(a, b);
 
     a.insert(
-        "hello".parse::<HeaderName>().unwrap(),
+        "hello".parse::<FieldName>().unwrap(),
         "world".parse().unwrap(),
     );
     assert_ne!(a, b);
 
     b.insert(
-        "hello".parse::<HeaderName>().unwrap(),
+        "hello".parse::<FieldName>().unwrap(),
         "world".parse().unwrap(),
     );
     assert_eq!(a, b);
 
-    a.insert("foo".parse::<HeaderName>().unwrap(), "bar".parse().unwrap());
-    a.append("foo".parse::<HeaderName>().unwrap(), "baz".parse().unwrap());
+    a.insert("foo".parse::<FieldName>().unwrap(), "bar".parse().unwrap());
+    a.append("foo".parse::<FieldName>().unwrap(), "baz".parse().unwrap());
     assert_ne!(a, b);
 
-    b.insert("foo".parse::<HeaderName>().unwrap(), "bar".parse().unwrap());
+    b.insert("foo".parse::<FieldName>().unwrap(), "bar".parse().unwrap());
     assert_ne!(a, b);
 
-    b.append("foo".parse::<HeaderName>().unwrap(), "baz".parse().unwrap());
+    b.append("foo".parse::<FieldName>().unwrap(), "baz".parse().unwrap());
     assert_eq!(a, b);
 
-    a.append("a".parse::<HeaderName>().unwrap(), "a".parse().unwrap());
-    a.append("a".parse::<HeaderName>().unwrap(), "b".parse().unwrap());
-    b.append("a".parse::<HeaderName>().unwrap(), "b".parse().unwrap());
-    b.append("a".parse::<HeaderName>().unwrap(), "a".parse().unwrap());
+    a.append("a".parse::<FieldName>().unwrap(), "a".parse().unwrap());
+    a.append("a".parse::<FieldName>().unwrap(), "b".parse().unwrap());
+    b.append("a".parse::<FieldName>().unwrap(), "b".parse().unwrap());
+    b.append("a".parse::<FieldName>().unwrap(), "a".parse().unwrap());
 
     assert_ne!(a, b);
 }
 
 #[test]
 fn into_header_name() {
-    let mut m = HeaderMap::new();
+    let mut m = FieldMap::new();
     m.insert(HOST, "localhost".parse().unwrap());
     m.insert(&ACCEPT, "*/*".parse().unwrap());
     m.insert("connection", "keep-alive".parse().unwrap());
@@ -246,8 +246,8 @@ fn into_header_name() {
 
 #[test]
 fn as_header_name() {
-    let mut m = HeaderMap::new();
-    let v: HeaderValue = "localhost".parse().unwrap();
+    let mut m = FieldMap::new();
+    let v: FieldValue = "localhost".parse().unwrap();
     m.insert(HOST, v.clone());
 
     let expected = Some(&v);
@@ -262,7 +262,7 @@ fn as_header_name() {
 
 #[test]
 fn insert_all_std_headers() {
-    let mut m = HeaderMap::new();
+    let mut m = FieldMap::new();
 
     for (i, hdr) in STD.iter().enumerate() {
         m.insert(hdr.clone(), hdr.as_str().parse().unwrap());
@@ -286,7 +286,7 @@ fn insert_all_std_headers() {
 
 #[test]
 fn insert_79_custom_std_headers() {
-    let mut h = HeaderMap::new();
+    let mut h = FieldMap::new();
     let hdrs = custom_std(79);
 
     for (i, hdr) in hdrs.iter().enumerate() {
@@ -304,21 +304,21 @@ fn insert_79_custom_std_headers() {
 
 #[test]
 fn append_multiple_values() {
-    let mut map = HeaderMap::new();
+    let mut map = FieldMap::new();
 
-    map.append(header::CONTENT_TYPE, "json".parse().unwrap());
-    map.append(header::CONTENT_TYPE, "html".parse().unwrap());
-    map.append(header::CONTENT_TYPE, "xml".parse().unwrap());
+    map.append(field::CONTENT_TYPE, "json".parse().unwrap());
+    map.append(field::CONTENT_TYPE, "html".parse().unwrap());
+    map.append(field::CONTENT_TYPE, "xml".parse().unwrap());
 
     let vals = map
-        .get_all(&header::CONTENT_TYPE)
+        .get_all(&field::CONTENT_TYPE)
         .iter()
         .collect::<Vec<_>>();
 
     assert_eq!(&vals, &[&"json", &"html", &"xml"]);
 }
 
-fn custom_std(n: usize) -> Vec<HeaderName> {
+fn custom_std(n: usize) -> Vec<FieldName> {
     (0..n)
         .map(|i| {
             let s = format!("{}-{}", STD[i % STD.len()].as_str(), i);
@@ -327,7 +327,7 @@ fn custom_std(n: usize) -> Vec<HeaderName> {
         .collect()
 }
 
-const STD: &'static [HeaderName] = &[
+const STD: &'static [FieldName] = &[
     ACCEPT,
     ACCEPT_CHARSET,
     ACCEPT_ENCODING,
@@ -405,7 +405,7 @@ const STD: &'static [HeaderName] = &[
 
 #[test]
 fn get_invalid() {
-    let mut headers = HeaderMap::new();
+    let mut headers = FieldMap::new();
     headers.insert("foo", "bar".parse().unwrap());
     assert!(headers.get("Evil\r\nKey").is_none());
 }
@@ -413,7 +413,7 @@ fn get_invalid() {
 #[test]
 #[should_panic]
 fn insert_invalid() {
-    let mut headers = HeaderMap::new();
+    let mut headers = FieldMap::new();
     headers.insert("evil\r\nfoo", "bar".parse().unwrap());
 }
 
@@ -421,14 +421,14 @@ fn insert_invalid() {
 fn value_htab() {
     // RFC 7230 Section 3.2:
     // > field-content  = field-vchar [ 1*( SP / HTAB ) field-vchar ]
-    HeaderValue::from_static("hello\tworld");
-    HeaderValue::from_str("hello\tworld").unwrap();
+    FieldValue::from_static("hello\tworld");
+    FieldValue::from_str("hello\tworld").unwrap();
 }
 
 
 #[test]
 fn remove_multiple_a() {
-    let mut headers = HeaderMap::new();
+    let mut headers = FieldMap::new();
     headers.insert(VIA, "1.1 example.com".parse().unwrap());
     headers.insert(SET_COOKIE, "cookie_1=value 1".parse().unwrap());
     headers.append(SET_COOKIE, "cookie_2=value 2".parse().unwrap());
@@ -453,7 +453,7 @@ fn remove_multiple_a() {
 
 #[test]
 fn remove_multiple_b() {
-    let mut headers = HeaderMap::new();
+    let mut headers = FieldMap::new();
     headers.insert(VIA, "1.1 example.com".parse().unwrap());
     headers.insert(SET_COOKIE, "cookie_1=value 1".parse().unwrap());
     headers.append(SET_COOKIE, "cookie_2=value 2".parse().unwrap());
@@ -478,7 +478,7 @@ fn remove_multiple_b() {
 
 #[test]
 fn remove_entry_multi_0() {
-    let mut headers = HeaderMap::new();
+    let mut headers = FieldMap::new();
     let cookies = remove_all_values(&mut headers, SET_COOKIE);
     assert_eq!(cookies.len(), 0);
     assert_eq!(headers.len(), 0);
@@ -486,7 +486,7 @@ fn remove_entry_multi_0() {
 
 #[test]
 fn remove_entry_multi_0_others() {
-    let mut headers = HeaderMap::new();
+    let mut headers = FieldMap::new();
     headers.insert(VIA, "1.1 example.com".parse().unwrap());
     headers.append(VIA, "1.1 other.com".parse().unwrap());
 
@@ -497,7 +497,7 @@ fn remove_entry_multi_0_others() {
 
 #[test]
 fn remove_entry_multi_1() {
-    let mut headers = HeaderMap::new();
+    let mut headers = FieldMap::new();
     headers.insert(SET_COOKIE, "cookie_1=value 1".parse().unwrap());
 
     let cookies = remove_all_values(&mut headers, SET_COOKIE);
@@ -507,7 +507,7 @@ fn remove_entry_multi_1() {
 
 #[test]
 fn remove_entry_multi_1_other() {
-    let mut headers = HeaderMap::new();
+    let mut headers = FieldMap::new();
     headers.insert(SET_COOKIE, "cookie_1=value 1".parse().unwrap());
     headers.insert(VIA, "1.1 example.com".parse().unwrap());
 
@@ -523,7 +523,7 @@ fn remove_entry_multi_1_other() {
 // For issue hyperimum/http#446
 #[test]
 fn remove_entry_multi_2() {
-    let mut headers = HeaderMap::new();
+    let mut headers = FieldMap::new();
     headers.insert(SET_COOKIE, "cookie_1=value 1".parse().unwrap());
     headers.append(SET_COOKIE, "cookie_2=value 2".parse().unwrap());
 
@@ -534,7 +534,7 @@ fn remove_entry_multi_2() {
 
 #[test]
 fn remove_entry_multi_3() {
-    let mut headers = HeaderMap::new();
+    let mut headers = FieldMap::new();
     headers.insert(SET_COOKIE, "cookie_1=value 1".parse().unwrap());
     headers.append(SET_COOKIE, "cookie_2=value 2".parse().unwrap());
     headers.append(SET_COOKIE, "cookie_3=value 3".parse().unwrap());
@@ -546,7 +546,7 @@ fn remove_entry_multi_3() {
 
 #[test]
 fn remove_entry_multi_3_others() {
-    let mut headers = HeaderMap::new();
+    let mut headers = FieldMap::new();
     headers.insert(VIA, "1.1 example.com".parse().unwrap());
     headers.insert(SET_COOKIE, "cookie_1=value 1".parse().unwrap());
     headers.append(SET_COOKIE, "cookie_2=value 2".parse().unwrap());
@@ -567,8 +567,8 @@ fn remove_entry_multi_3_others() {
     assert_eq!(headers.len(), 0);
 }
 
-fn remove_all_values<K>(headers: &mut HeaderMap, key: K) -> Vec<HeaderValue>
-    where K: IntoHeaderName
+fn remove_all_values<K>(headers: &mut FieldMap, key: K) -> Vec<FieldValue>
+    where K: IntoFieldName
 {
     match headers.entry(key) {
         Entry::Occupied(e) => e.remove_entry_mult().1.collect(),
@@ -578,7 +578,7 @@ fn remove_all_values<K>(headers: &mut HeaderMap, key: K) -> Vec<HeaderValue>
 
 #[test]
 fn remove_entry_3_others_a() {
-    let mut headers = HeaderMap::new();
+    let mut headers = FieldMap::new();
     headers.insert(VIA, "1.1 example.com".parse().unwrap());
     headers.insert(SET_COOKIE, "cookie_1=value 1".parse().unwrap());
     headers.append(SET_COOKIE, "cookie_2=value 2".parse().unwrap());
@@ -603,7 +603,7 @@ fn remove_entry_3_others_a() {
 
 #[test]
 fn remove_entry_3_others_b() {
-    let mut headers = HeaderMap::new();
+    let mut headers = FieldMap::new();
     headers.insert(VIA, "1.1 example.com".parse().unwrap());
     headers.insert(SET_COOKIE, "cookie_1=value 1".parse().unwrap());
     headers.append(SET_COOKIE, "cookie_2=value 2".parse().unwrap());
@@ -626,8 +626,8 @@ fn remove_entry_3_others_b() {
     assert_eq!(headers.len(), 0);
 }
 
-fn remove_values<K>(headers: &mut HeaderMap, key: K) -> Option<HeaderValue>
-    where K: IntoHeaderName
+fn remove_values<K>(headers: &mut FieldMap, key: K) -> Option<FieldValue>
+    where K: IntoFieldName
 {
     match headers.entry(key) {
         Entry::Occupied(e) => Some(e.remove_entry().1),

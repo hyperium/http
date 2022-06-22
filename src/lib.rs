@@ -8,7 +8,7 @@
 //! Notably you'll find `Uri` for what a `Request` is requesting, a `Method`
 //! for how it's being requested, a `StatusCode` for what sort of response came
 //! back, a `Version` for how this was communicated, and
-//! `HeaderName`/`HeaderValue` definitions to get grouped in a `HeaderMap` to
+//! `FieldName`/`FieldValue` definitions to get grouped in a `FieldMap` to
 //! work with request/response headers.
 //!
 //! You will notably *not* find an implementation of sending requests or
@@ -55,12 +55,12 @@
 //! to edit the request/response:
 //!
 //! ```
-//! use http::{HeaderValue, Response, StatusCode};
-//! use http::header::CONTENT_TYPE;
+//! use http::{FieldValue, Response, StatusCode};
+//! use http::field::CONTENT_TYPE;
 //!
 //! fn add_server_headers<T>(response: &mut Response<T>) {
 //!     response.headers_mut()
-//!         .insert(CONTENT_TYPE, HeaderValue::from_static("text/html"));
+//!         .insert(CONTENT_TYPE, FieldValue::from_static("text/html"));
 //!     *response.status_mut() = StatusCode::OK;
 //! }
 //! ```
@@ -78,8 +78,8 @@
 //! ## HTTP Headers
 //!
 //! Another major piece of functionality in this library is HTTP header
-//! interpretation and generation. The `HeaderName` type serves as a way to
-//! define header *names*, or what's to the left of the colon. A `HeaderValue`
+//! interpretation and generation. The `FieldName` type serves as a way to
+//! define header *names*, or what's to the left of the colon. A `FieldValue`
 //! conversely is the header *value*, or what's to the right of a colon.
 //!
 //! For example, if you have an HTTP request that looks like:
@@ -89,54 +89,54 @@
 //! Accept: text/html
 //! ```
 //!
-//! Then `"Accept"` is a `HeaderName` while `"text/html"` is a `HeaderValue`.
+//! Then `"Accept"` is a `FieldName` while `"text/html"` is a `FieldValue`.
 //! Each of these is a dedicated type to allow for a number of interesting
 //! optimizations and to also encode the static guarantees of each type. For
-//! example a `HeaderName` is always a valid `&str`, but a `HeaderValue` may
+//! example a `FieldName` is always a valid `&str`, but a `FieldValue` may
 //! not be valid UTF-8.
 //!
 //! The most common header names are already defined for you as constant values
 //! in the `header` module of this crate. For example:
 //!
 //! ```
-//! use http::header::{self, HeaderName};
+//! use http::field::{self, FieldName};
 //!
-//! let name: HeaderName = header::ACCEPT;
+//! let name: FieldName = field::ACCEPT;
 //! assert_eq!(name.as_str(), "accept");
 //! ```
 //!
 //! You can, however, also parse header names from strings:
 //!
 //! ```
-//! use http::header::{self, HeaderName};
+//! use http::field::{self, FieldName};
 //!
-//! let name = "Accept".parse::<HeaderName>().unwrap();
-//! assert_eq!(name, header::ACCEPT);
+//! let name = "Accept".parse::<FieldName>().unwrap();
+//! assert_eq!(name, field::ACCEPT);
 //! ```
 //!
 //! Header values can be created from string literals through the `from_static`
 //! function:
 //!
 //! ```
-//! use http::HeaderValue;
+//! use http::FieldValue;
 //!
-//! let value = HeaderValue::from_static("text/html");
+//! let value = FieldValue::from_static("text/html");
 //! assert_eq!(value.as_bytes(), b"text/html");
 //! ```
 //!
 //! And header values can also be parsed like names:
 //!
 //! ```
-//! use http::HeaderValue;
+//! use http::FieldValue;
 //!
 //! let value = "text/html";
-//! let value = value.parse::<HeaderValue>().unwrap();
+//! let value = value.parse::<FieldValue>().unwrap();
 //! ```
 //!
 //! Most HTTP requests and responses tend to come with more than one header, so
 //! it's not too useful to just work with names and values only! This crate also
-//! provides a `HeaderMap` type which is a specialized hash map for keys as
-//! `HeaderName` and generic values. This type, like header names, is optimized
+//! provides a `FieldMap` type which is a specialized hash map for keys as
+//! `FieldName` and generic values. This type, like header names, is optimized
 //! for common usage but should continue to scale with your needs over time.
 //!
 //! # URIs
@@ -170,13 +170,29 @@ doctest!("../README.md");
 #[macro_use]
 mod convert;
 
-pub mod header;
+pub mod field;
 pub mod method;
 pub mod request;
 pub mod response;
 pub mod status;
 pub mod uri;
 pub mod version;
+
+#[deprecated(since = "0.2.9", note = "use http::field instead")]
+/// Use `http::field` instead
+pub mod header {
+    #[deprecated(since = "0.2.9", note = "use http::field::FieldMap instead")]
+    /// Use `http::field::FieldMap` instead
+    pub type HeaderMap<T> = crate::field::FieldMap<T>;
+
+    #[deprecated(since = "0.2.9", note = "use http::field::FieldMap instead")]
+    /// Use `http::field::FieldName` instead
+    pub type HeaderName = crate::field::FieldName;
+
+    #[deprecated(since = "0.2.9", note = "use http::field::FieldMap instead")]
+    /// Use `http::field::FieldValue` instead
+    pub type HeaderValue = crate::field::FieldValue;
+}
 
 mod byte_str;
 mod error;
@@ -185,7 +201,7 @@ mod extensions;
 pub use crate::error::{Error, Result};
 pub use crate::extensions::Extensions;
 #[doc(no_inline)]
-pub use crate::header::{HeaderMap, HeaderValue};
+pub use crate::field::{FieldMap, FieldValue};
 pub use crate::method::Method;
 pub use crate::request::Request;
 pub use crate::response::Response;

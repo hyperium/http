@@ -16,25 +16,25 @@ use std::fmt;
 /// standard headers, but HTTP messages may include non-standard header names as
 /// well as long as they adhere to the specification.
 ///
-/// `HeaderName` is used as the [`HeaderMap`] key. Constants are available for
+/// `FieldName` is used as the [`FieldMap`] key. Constants are available for
 /// all standard header names in the [`header`] module.
 ///
 /// # Representation
 ///
-/// `HeaderName` represents standard header names using an `enum`, as such they
+/// `FieldName` represents standard header names using an `enum`, as such they
 /// will not require an allocation for storage. All custom header names are
-/// lower cased upon conversion to a `HeaderName` value. This avoids the
+/// lower cased upon conversion to a `FieldName` value. This avoids the
 /// overhead of dynamically doing lower case conversion during the hash code
 /// computation and the comparison operation.
 ///
-/// [`HeaderMap`]: struct.HeaderMap.html
+/// [`FieldMap`]: struct.FieldMap.html
 /// [`header`]: index.html
 #[derive(Clone, Eq, PartialEq, Hash)]
-pub struct HeaderName {
+pub struct FieldName {
     inner: Repr<Custom>,
 }
 
-// Almost a full `HeaderName`
+// Almost a full `FieldName`
 #[derive(Debug, Hash)]
 pub struct HdrName<'a> {
     inner: Repr<MaybeLower<'a>>,
@@ -57,8 +57,8 @@ struct MaybeLower<'a> {
     lower: bool,
 }
 
-/// A possible error when converting a `HeaderName` from another type.
-pub struct InvalidHeaderName {
+/// A possible error when converting a `FieldName` from another type.
+pub struct InvalidFieldName {
     _priv: (),
 }
 
@@ -78,7 +78,7 @@ macro_rules! standard_headers {
 
         $(
             $(#[$docs])*
-            pub const $upcase: HeaderName = HeaderName {
+            pub const $upcase: FieldName = FieldName {
                 inner: Repr::Standard(StandardHeader::$konst),
             };
         )+
@@ -115,11 +115,11 @@ macro_rules! standard_headers {
         fn test_parse_standard_headers() {
             for &(std, name_bytes) in TEST_HEADERS {
                 // Test lower case
-                assert_eq!(HeaderName::from_bytes(name_bytes).unwrap(), HeaderName::from(std));
+                assert_eq!(FieldName::from_bytes(name_bytes).unwrap(), FieldName::from(std));
 
                 // Test upper case
                 let upper = std::str::from_utf8(name_bytes).expect("byte string constants are all utf-8").to_uppercase();
-                assert_eq!(HeaderName::from_bytes(upper.as_bytes()).unwrap(), HeaderName::from(std));
+                assert_eq!(FieldName::from_bytes(upper.as_bytes()).unwrap(), FieldName::from(std));
             }
         }
 
@@ -127,19 +127,19 @@ macro_rules! standard_headers {
         fn test_standard_headers_into_bytes() {
             for &(std, name_bytes) in TEST_HEADERS {
                 let name = std::str::from_utf8(name_bytes).unwrap();
-                let std = HeaderName::from(std);
+                let std = FieldName::from(std);
                 // Test lower case
                 let bytes: Bytes =
-                    HeaderName::from_bytes(name_bytes).unwrap().inner.into();
+                    FieldName::from_bytes(name_bytes).unwrap().inner.into();
                 assert_eq!(bytes, name);
-                assert_eq!(HeaderName::from_bytes(name_bytes).unwrap(), std);
+                assert_eq!(FieldName::from_bytes(name_bytes).unwrap(), std);
 
                 // Test upper case
                 let upper = name.to_uppercase();
                 let bytes: Bytes =
-                    HeaderName::from_bytes(upper.as_bytes()).unwrap().inner.into();
+                    FieldName::from_bytes(upper.as_bytes()).unwrap().inner.into();
                 assert_eq!(bytes, name_bytes);
-                assert_eq!(HeaderName::from_bytes(upper.as_bytes()).unwrap(),
+                assert_eq!(FieldName::from_bytes(upper.as_bytes()).unwrap(),
                            std);
             }
 
@@ -1057,9 +1057,9 @@ fn parse_hdr<'a>(
     data: &'a [u8],
     b: &'a mut [MaybeUninit<u8>; SCRATCH_BUF_SIZE],
     table: &[u8; 256],
-) -> Result<HdrName<'a>, InvalidHeaderName> {
+) -> Result<HdrName<'a>, InvalidFieldName> {
     match data.len() {
-        0 => Err(InvalidHeaderName::new()),
+        0 => Err(InvalidFieldName::new()),
         len @ 1..=SCRATCH_BUF_SIZE => {
             // Read from data into the buffer - transforming using `table` as we go
             data.iter()
@@ -1071,7 +1071,7 @@ fn parse_hdr<'a>(
                 Some(sh) => Ok(sh.into()),
                 None => {
                     if name.contains(&0) {
-                        Err(InvalidHeaderName::new())
+                        Err(InvalidFieldName::new())
                     } else {
                         Ok(HdrName::custom(name, true))
                     }
@@ -1079,7 +1079,7 @@ fn parse_hdr<'a>(
             }
         }
         SCRATCH_BUF_OVERFLOW..=super::MAX_HEADER_NAME_LEN => Ok(HdrName::custom(data, false)),
-        _ => Err(InvalidHeaderName::new()),
+        _ => Err(InvalidFieldName::new()),
     }
 }
 
@@ -1091,11 +1091,11 @@ impl<'a> From<StandardHeader> for HdrName<'a> {
     }
 }
 
-impl HeaderName {
+impl FieldName {
     /// Converts a slice of bytes to an HTTP header name.
     ///
     /// This function normalizes the input.
-    pub fn from_bytes(src: &[u8]) -> Result<HeaderName, InvalidHeaderName> {
+    pub fn from_bytes(src: &[u8]) -> Result<FieldName, InvalidFieldName> {
         let mut buf = uninit_u8_array();
         // Precondition: HEADER_CHARS is a valid table for parse_hdr().
         match parse_hdr(src, &mut buf, &HEADER_CHARS)?.inner {
@@ -1115,7 +1115,7 @@ impl HeaderName {
                     let b = HEADER_CHARS[*b as usize];
 
                     if b == 0 {
-                        return Err(InvalidHeaderName::new());
+                        return Err(InvalidFieldName::new());
                     }
 
                     dst.put_u8(b);
@@ -1140,16 +1140,16 @@ impl HeaderName {
     /// # Examples
     ///
     /// ```
-    /// # use http::header::*;
+    /// # use http::field::*;
     ///
     /// // Parsing a lower case header
-    /// let hdr = HeaderName::from_lowercase(b"content-length").unwrap();
+    /// let hdr = FieldName::from_lowercase(b"content-length").unwrap();
     /// assert_eq!(CONTENT_LENGTH, hdr);
     ///
     /// // Parsing a header that contains uppercase characters
-    /// assert!(HeaderName::from_lowercase(b"Content-Length").is_err());
+    /// assert!(FieldName::from_lowercase(b"Content-Length").is_err());
     /// ```
-    pub fn from_lowercase(src: &[u8]) -> Result<HeaderName, InvalidHeaderName> {
+    pub fn from_lowercase(src: &[u8]) -> Result<FieldName, InvalidFieldName> {
         let mut buf = uninit_u8_array();
         // Precondition: HEADER_CHARS_H2 is a valid table for parse_hdr()
         match parse_hdr(src, &mut buf, &HEADER_CHARS_H2)?.inner {
@@ -1165,7 +1165,7 @@ impl HeaderName {
                     // HEADER_CHARS maps all bytes that are not valid single-byte
                     // UTF-8 to 0 so this check returns an error for invalid UTF-8.
                     if b != HEADER_CHARS[b as usize] {
-                        return Err(InvalidHeaderName::new());
+                        return Err(InvalidFieldName::new());
                     }
                 }
 
@@ -1200,46 +1200,46 @@ impl HeaderName {
     ///      |             ^^^^^^^^^^^^^^^^^^
     ///      |             |
     ///      |             index out of bounds: the length is 0 but the index is 0
-    ///      |             inside `http::HeaderName::from_static` at http/src/header/name.rs:1241:13
+    ///      |             inside `http::FieldName::from_static` at http/src/header/name.rs:1241:13
     ///      |             inside `INVALID_NAME` at src/main.rs:3:34
     ///      |
     ///     ::: src/main.rs:3:1
     ///      |
-    /// 3    | const INVALID_NAME: HeaderName = HeaderName::from_static("Capitalized");
+    /// 3    | const INVALID_NAME: FieldName = FieldName::from_static("Capitalized");
     ///      | ------------------------------------------------------------------------
     /// ```
     ///
     /// # Examples
     ///
     /// ```
-    /// # use http::header::*;
+    /// # use http::field::*;
     /// // Parsing a standard header
-    /// let hdr = HeaderName::from_static("content-length");
+    /// let hdr = FieldName::from_static("content-length");
     /// assert_eq!(CONTENT_LENGTH, hdr);
     ///
     /// // Parsing a custom header
     /// let CUSTOM_HEADER: &'static str = "custom-header";
     ///
-    /// let a = HeaderName::from_lowercase(b"custom-header").unwrap();
-    /// let b = HeaderName::from_static(CUSTOM_HEADER);
+    /// let a = FieldName::from_lowercase(b"custom-header").unwrap();
+    /// let b = FieldName::from_static(CUSTOM_HEADER);
     /// assert_eq!(a, b);
     /// ```
     ///
     /// ```should_panic
-    /// # use http::header::*;
+    /// # use http::field::*;
     /// #
     /// // Parsing a header that contains invalid symbols(s):
-    /// HeaderName::from_static("content{}{}length"); // This line panics!
+    /// FieldName::from_static("content{}{}length"); // This line panics!
     ///
     /// // Parsing a header that contains invalid uppercase characters.
-    /// let a = HeaderName::from_static("foobar");
-    /// let b = HeaderName::from_static("FOOBAR"); // This line panics!
+    /// let a = FieldName::from_static("foobar");
+    /// let b = FieldName::from_static("FOOBAR"); // This line panics!
     /// ```
     #[allow(unconditional_panic)] // required for the panic circumvention
-    pub const fn from_static(src: &'static str) -> HeaderName {
+    pub const fn from_static(src: &'static str) -> FieldName {
         let name_bytes = src.as_bytes();
         if let Some(standard) = StandardHeader::from_bytes(name_bytes) {
-            return HeaderName{
+            return FieldName{
                 inner: Repr::Standard(standard),
             };
         }
@@ -1258,7 +1258,7 @@ impl HeaderName {
             ([] as [u8; 0])[0]; // Invalid header name
         }
 
-        HeaderName {
+        FieldName {
             inner: Repr::Custom(Custom(ByteStr::from_static(src)))
         }
     }
@@ -1279,52 +1279,52 @@ impl HeaderName {
     }
 }
 
-impl FromStr for HeaderName {
-    type Err = InvalidHeaderName;
+impl FromStr for FieldName {
+    type Err = InvalidFieldName;
 
-    fn from_str(s: &str) -> Result<HeaderName, InvalidHeaderName> {
-        HeaderName::from_bytes(s.as_bytes()).map_err(|_| InvalidHeaderName { _priv: () })
+    fn from_str(s: &str) -> Result<FieldName, InvalidFieldName> {
+        FieldName::from_bytes(s.as_bytes()).map_err(|_| InvalidFieldName { _priv: () })
     }
 }
 
-impl AsRef<str> for HeaderName {
+impl AsRef<str> for FieldName {
     fn as_ref(&self) -> &str {
         self.as_str()
     }
 }
 
-impl AsRef<[u8]> for HeaderName {
+impl AsRef<[u8]> for FieldName {
     fn as_ref(&self) -> &[u8] {
         self.as_str().as_bytes()
     }
 }
 
-impl Borrow<str> for HeaderName {
+impl Borrow<str> for FieldName {
     fn borrow(&self) -> &str {
         self.as_str()
     }
 }
 
-impl fmt::Debug for HeaderName {
+impl fmt::Debug for FieldName {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(self.as_str(), fmt)
     }
 }
 
-impl fmt::Display for HeaderName {
+impl fmt::Display for FieldName {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(self.as_str(), fmt)
     }
 }
 
-impl InvalidHeaderName {
-    fn new() -> InvalidHeaderName {
-        InvalidHeaderName { _priv: () }
+impl InvalidFieldName {
+    fn new() -> InvalidFieldName {
+        InvalidFieldName { _priv: () }
     }
 }
 
-impl<'a> From<&'a HeaderName> for HeaderName {
-    fn from(src: &'a HeaderName) -> HeaderName {
+impl<'a> From<&'a FieldName> for FieldName {
+    fn from(src: &'a FieldName) -> FieldName {
         src.clone()
     }
 }
@@ -1349,32 +1349,32 @@ impl From<Custom> for Bytes {
     }
 }
 
-impl<'a> TryFrom<&'a str> for HeaderName {
-    type Error = InvalidHeaderName;
+impl<'a> TryFrom<&'a str> for FieldName {
+    type Error = InvalidFieldName;
     #[inline]
     fn try_from(s: &'a str) -> Result<Self, Self::Error> {
         Self::from_bytes(s.as_bytes())
     }
 }
 
-impl<'a> TryFrom<&'a String> for HeaderName {
-    type Error = InvalidHeaderName;
+impl<'a> TryFrom<&'a String> for FieldName {
+    type Error = InvalidFieldName;
     #[inline]
     fn try_from(s: &'a String) -> Result<Self, Self::Error> {
         Self::from_bytes(s.as_bytes())
     }
 }
 
-impl<'a> TryFrom<&'a [u8]> for HeaderName {
-    type Error = InvalidHeaderName;
+impl<'a> TryFrom<&'a [u8]> for FieldName {
+    type Error = InvalidFieldName;
     #[inline]
     fn try_from(s: &'a [u8]) -> Result<Self, Self::Error> {
         Self::from_bytes(s)
     }
 }
 
-impl TryFrom<String> for HeaderName {
-    type Error = InvalidHeaderName;
+impl TryFrom<String> for FieldName {
+    type Error = InvalidFieldName;
 
     #[inline]
     fn try_from(s: String) -> Result<Self, Self::Error> {
@@ -1382,8 +1382,8 @@ impl TryFrom<String> for HeaderName {
     }
 }
 
-impl TryFrom<Vec<u8>> for HeaderName {
-    type Error = InvalidHeaderName;
+impl TryFrom<Vec<u8>> for FieldName {
+    type Error = InvalidFieldName;
 
     #[inline]
     fn try_from(vec: Vec<u8>) -> Result<Self, Self::Error> {
@@ -1392,45 +1392,45 @@ impl TryFrom<Vec<u8>> for HeaderName {
 }
 
 #[doc(hidden)]
-impl From<StandardHeader> for HeaderName {
-    fn from(src: StandardHeader) -> HeaderName {
-        HeaderName {
+impl From<StandardHeader> for FieldName {
+    fn from(src: StandardHeader) -> FieldName {
+        FieldName {
             inner: Repr::Standard(src),
         }
     }
 }
 
 #[doc(hidden)]
-impl From<Custom> for HeaderName {
-    fn from(src: Custom) -> HeaderName {
-        HeaderName {
+impl From<Custom> for FieldName {
+    fn from(src: Custom) -> FieldName {
+        FieldName {
             inner: Repr::Custom(src),
         }
     }
 }
 
-impl<'a> PartialEq<&'a HeaderName> for HeaderName {
+impl<'a> PartialEq<&'a FieldName> for FieldName {
     #[inline]
-    fn eq(&self, other: &&'a HeaderName) -> bool {
+    fn eq(&self, other: &&'a FieldName) -> bool {
         *self == **other
     }
 }
 
-impl<'a> PartialEq<HeaderName> for &'a HeaderName {
+impl<'a> PartialEq<FieldName> for &'a FieldName {
     #[inline]
-    fn eq(&self, other: &HeaderName) -> bool {
+    fn eq(&self, other: &FieldName) -> bool {
         *other == *self
     }
 }
 
-impl PartialEq<str> for HeaderName {
+impl PartialEq<str> for FieldName {
     /// Performs a case-insensitive comparison of the string against the header
     /// name
     ///
     /// # Examples
     ///
     /// ```
-    /// use http::header::CONTENT_LENGTH;
+    /// use http::field::CONTENT_LENGTH;
     ///
     /// assert_eq!(CONTENT_LENGTH, "content-length");
     /// assert_eq!(CONTENT_LENGTH, "Content-Length");
@@ -1442,26 +1442,26 @@ impl PartialEq<str> for HeaderName {
     }
 }
 
-impl PartialEq<HeaderName> for str {
+impl PartialEq<FieldName> for str {
     /// Performs a case-insensitive comparison of the string against the header
     /// name
     ///
     /// # Examples
     ///
     /// ```
-    /// use http::header::CONTENT_LENGTH;
+    /// use http::field::CONTENT_LENGTH;
     ///
     /// assert_eq!(CONTENT_LENGTH, "content-length");
     /// assert_eq!(CONTENT_LENGTH, "Content-Length");
     /// assert_ne!(CONTENT_LENGTH, "content length");
     /// ```
     #[inline]
-    fn eq(&self, other: &HeaderName) -> bool {
+    fn eq(&self, other: &FieldName) -> bool {
         *other == *self
     }
 }
 
-impl<'a> PartialEq<&'a str> for HeaderName {
+impl<'a> PartialEq<&'a str> for FieldName {
     /// Performs a case-insensitive comparison of the string against the header
     /// name
     #[inline]
@@ -1470,30 +1470,30 @@ impl<'a> PartialEq<&'a str> for HeaderName {
     }
 }
 
-impl<'a> PartialEq<HeaderName> for &'a str {
+impl<'a> PartialEq<FieldName> for &'a str {
     /// Performs a case-insensitive comparison of the string against the header
     /// name
     #[inline]
-    fn eq(&self, other: &HeaderName) -> bool {
+    fn eq(&self, other: &FieldName) -> bool {
         *other == *self
     }
 }
 
-impl fmt::Debug for InvalidHeaderName {
+impl fmt::Debug for InvalidFieldName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("InvalidHeaderName")
+        f.debug_struct("InvalidFieldName")
             // skip _priv noise
             .finish()
     }
 }
 
-impl fmt::Display for InvalidHeaderName {
+impl fmt::Display for InvalidFieldName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("invalid HTTP header name")
     }
 }
 
-impl Error for InvalidHeaderName {}
+impl Error for InvalidFieldName {}
 
 // ===== HdrName =====
 
@@ -1509,7 +1509,7 @@ impl<'a> HdrName<'a> {
         }
     }
 
-    pub fn from_bytes<F, U>(hdr: &[u8], f: F) -> Result<U, InvalidHeaderName>
+    pub fn from_bytes<F, U>(hdr: &[u8], f: F) -> Result<U, InvalidFieldName>
         where F: FnOnce(HdrName<'_>) -> U,
     {
         let mut buf = uninit_u8_array();
@@ -1531,10 +1531,10 @@ impl<'a> HdrName<'a> {
 }
 
 #[doc(hidden)]
-impl<'a> From<HdrName<'a>> for HeaderName {
-    fn from(src: HdrName<'a>) -> HeaderName {
+impl<'a> From<HdrName<'a>> for FieldName {
+    fn from(src: HdrName<'a>) -> FieldName {
         match src.inner {
-            Repr::Standard(s) => HeaderName {
+            Repr::Standard(s) => FieldName {
                 inner: Repr::Standard(s),
             },
             Repr::Custom(maybe_lower) => {
@@ -1543,7 +1543,7 @@ impl<'a> From<HdrName<'a>> for HeaderName {
                     // Safety: the invariant on MaybeLower ensures buf is valid UTF-8.
                     let byte_str = unsafe { ByteStr::from_utf8_unchecked(buf) };
 
-                    HeaderName {
+                    FieldName {
                         inner: Repr::Custom(Custom(byte_str)),
                     }
                 } else {
@@ -1561,7 +1561,7 @@ impl<'a> From<HdrName<'a>> for HeaderName {
                     // dst (and hence dst.freeze()) is thus valid UTF-8.
                     let buf = unsafe { ByteStr::from_utf8_unchecked(dst.freeze()) };
 
-                    HeaderName {
+                    FieldName {
                         inner: Repr::Custom(Custom(buf)),
                     }
                 }
@@ -1571,7 +1571,7 @@ impl<'a> From<HdrName<'a>> for HeaderName {
 }
 
 #[doc(hidden)]
-impl<'a> PartialEq<HdrName<'a>> for HeaderName {
+impl<'a> PartialEq<HdrName<'a>> for FieldName {
     #[inline]
     fn eq(&self, other: &HdrName<'a>) -> bool {
         match self.inner {
@@ -1657,14 +1657,14 @@ mod tests {
     #[test]
     fn test_bounds() {
         fn check_bounds<T: Sync + Send>() {}
-        check_bounds::<HeaderName>();
+        check_bounds::<FieldName>();
     }
 
     #[test]
     fn test_parse_invalid_headers() {
         for i in 0..128 {
             let hdr = vec![1u8; i];
-            assert!(HeaderName::from_bytes(&hdr).is_err(), "{} invalid header chars did not fail", i);
+            assert!(FieldName::from_bytes(&hdr).is_err(), "{} invalid header chars did not fail", i);
         }
     }
 
@@ -1673,21 +1673,21 @@ mod tests {
     #[test]
     fn test_invalid_name_lengths() {
         assert!(
-            HeaderName::from_bytes(&[]).is_err(),
+            FieldName::from_bytes(&[]).is_err(),
             "zero-length header name is an error",
         );
 
         let long = &ONE_TOO_LONG[0..super::super::MAX_HEADER_NAME_LEN];
 
         let long_str = std::str::from_utf8(long).unwrap();
-        assert_eq!(HeaderName::from_static(long_str), long_str); // shouldn't panic!
+        assert_eq!(FieldName::from_static(long_str), long_str); // shouldn't panic!
 
         assert!(
-            HeaderName::from_bytes(long).is_ok(),
+            FieldName::from_bytes(long).is_ok(),
             "max header name length is ok",
         );
         assert!(
-            HeaderName::from_bytes(ONE_TOO_LONG).is_err(),
+            FieldName::from_bytes(ONE_TOO_LONG).is_err(),
             "longer than max header name length is an error",
         );
     }
@@ -1696,20 +1696,20 @@ mod tests {
     #[should_panic]
     fn test_static_invalid_name_lengths() {
         // Safety: ONE_TOO_LONG contains only the UTF-8 safe, single-byte codepoint b'a'.
-        let _ = HeaderName::from_static(unsafe { std::str::from_utf8_unchecked(ONE_TOO_LONG) });
+        let _ = FieldName::from_static(unsafe { std::str::from_utf8_unchecked(ONE_TOO_LONG) });
     }
 
     #[test]
     fn test_from_hdr_name() {
         use self::StandardHeader::Vary;
 
-        let name = HeaderName::from(HdrName {
+        let name = FieldName::from(HdrName {
             inner: Repr::Standard(Vary),
         });
 
         assert_eq!(name.inner, Repr::Standard(Vary));
 
-        let name = HeaderName::from(HdrName {
+        let name = FieldName::from(HdrName {
             inner: Repr::Custom(MaybeLower {
                 buf: b"hello-world",
                 lower: true,
@@ -1718,7 +1718,7 @@ mod tests {
 
         assert_eq!(name.inner, Repr::Custom(Custom(ByteStr::from_static("hello-world"))));
 
-        let name = HeaderName::from(HdrName {
+        let name = FieldName::from(HdrName {
             inner: Repr::Custom(MaybeLower {
                 buf: b"Hello-World",
                 lower: false,
@@ -1732,12 +1732,12 @@ mod tests {
     fn test_eq_hdr_name() {
         use self::StandardHeader::Vary;
 
-        let a = HeaderName { inner: Repr::Standard(Vary) };
+        let a = FieldName { inner: Repr::Standard(Vary) };
         let b = HdrName { inner: Repr::Standard(Vary) };
 
         assert_eq!(a, b);
 
-        let a = HeaderName { inner: Repr::Custom(Custom(ByteStr::from_static("vaary"))) };
+        let a = FieldName { inner: Repr::Custom(Custom(ByteStr::from_static("vaary"))) };
         assert_ne!(a, b);
 
         let b = HdrName { inner: Repr::Custom(MaybeLower {
@@ -1761,60 +1761,60 @@ mod tests {
 
         assert_eq!(a, b);
 
-        let a = HeaderName { inner: Repr::Standard(Vary) };
+        let a = FieldName { inner: Repr::Standard(Vary) };
         assert_ne!(a, b);
     }
 
     #[test]
     fn test_from_static_std() {
-        let a = HeaderName { inner: Repr::Standard(Vary) };
+        let a = FieldName { inner: Repr::Standard(Vary) };
 
-        let b = HeaderName::from_static("vary");
+        let b = FieldName::from_static("vary");
         assert_eq!(a, b);
 
-        let b = HeaderName::from_static("vaary");
+        let b = FieldName::from_static("vaary");
         assert_ne!(a, b);
     }
 
     #[test]
     #[should_panic]
     fn test_from_static_std_uppercase() {
-        HeaderName::from_static("Vary");
+        FieldName::from_static("Vary");
     }
 
     #[test]
     #[should_panic]
     fn test_from_static_std_symbol() {
-        HeaderName::from_static("vary{}");
+        FieldName::from_static("vary{}");
     }
 
     // MaybeLower { lower: true }
     #[test]
     fn test_from_static_custom_short() {
-        let a = HeaderName { inner: Repr::Custom(Custom(ByteStr::from_static("customheader"))) };
-        let b = HeaderName::from_static("customheader");
+        let a = FieldName { inner: Repr::Custom(Custom(ByteStr::from_static("customheader"))) };
+        let b = FieldName::from_static("customheader");
         assert_eq!(a, b);
     }
 
     #[test]
     #[should_panic]
     fn test_from_static_custom_short_uppercase() {
-        HeaderName::from_static("custom header");
+        FieldName::from_static("custom header");
     }
 
     #[test]
     #[should_panic]
     fn test_from_static_custom_short_symbol() {
-        HeaderName::from_static("CustomHeader");
+        FieldName::from_static("CustomHeader");
     }
 
     // MaybeLower { lower: false }
     #[test]
     fn test_from_static_custom_long() {
-        let a = HeaderName { inner: Repr::Custom(Custom(ByteStr::from_static(
+        let a = FieldName { inner: Repr::Custom(Custom(ByteStr::from_static(
             "longer-than-63--thisheaderislongerthansixtythreecharactersandthushandleddifferent"
         ))) };
-        let b = HeaderName::from_static(
+        let b = FieldName::from_static(
             "longer-than-63--thisheaderislongerthansixtythreecharactersandthushandleddifferent"
         );
         assert_eq!(a, b);
@@ -1823,7 +1823,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_from_static_custom_long_uppercase() {
-        HeaderName::from_static(
+        FieldName::from_static(
             "Longer-Than-63--ThisHeaderIsLongerThanSixtyThreeCharactersAndThusHandledDifferent"
         );
     }
@@ -1831,26 +1831,26 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_from_static_custom_long_symbol() {
-        HeaderName::from_static(
+        FieldName::from_static(
             "longer-than-63--thisheader{}{}{}{}islongerthansixtythreecharactersandthushandleddifferent"
         );
     }
 
     #[test]
     fn test_from_static_custom_single_char() {
-        let a = HeaderName { inner: Repr::Custom(Custom(ByteStr::from_static("a"))) };
-        let b = HeaderName::from_static("a");
+        let a = FieldName { inner: Repr::Custom(Custom(ByteStr::from_static("a"))) };
+        let b = FieldName::from_static("a");
         assert_eq!(a, b);
     }
 
     #[test]
     #[should_panic]
     fn test_from_static_empty() {
-        HeaderName::from_static("");
+        FieldName::from_static("");
     }
 
     #[test]
     fn test_all_tokens() {
-        HeaderName::from_static("!#$%&'*+-.^_`|~0123456789abcdefghijklmnopqrstuvwxyz");
+        FieldName::from_static("!#$%&'*+-.^_`|~0123456789abcdefghijklmnopqrstuvwxyz");
     }
 }

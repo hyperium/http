@@ -65,7 +65,7 @@ use std::any::Any;
 use std::convert::TryFrom;
 use std::fmt;
 
-use crate::header::{HeaderMap, HeaderName, HeaderValue};
+use crate::field::{FieldMap, FieldName, FieldValue};
 use crate::status::StatusCode;
 use crate::version::Version;
 use crate::{Extensions, Result};
@@ -193,7 +193,7 @@ pub struct Parts {
     pub version: Version,
 
     /// The response's headers
-    pub headers: HeaderMap<HeaderValue>,
+    pub headers: FieldMap<FieldValue>,
 
     /// The response's extensions
     pub extensions: Extensions,
@@ -346,7 +346,7 @@ impl<T> Response<T> {
     /// assert!(response.headers().is_empty());
     /// ```
     #[inline]
-    pub fn headers(&self) -> &HeaderMap<HeaderValue> {
+    pub fn headers(&self) -> &FieldMap<FieldValue> {
         &self.head.headers
     }
 
@@ -356,13 +356,13 @@ impl<T> Response<T> {
     ///
     /// ```
     /// # use http::*;
-    /// # use http::header::*;
+    /// # use http::field::*;
     /// let mut response: Response<()> = Response::default();
-    /// response.headers_mut().insert(HOST, HeaderValue::from_static("world"));
+    /// response.headers_mut().insert(HOST, FieldValue::from_static("world"));
     /// assert!(!response.headers().is_empty());
     /// ```
     #[inline]
-    pub fn headers_mut(&mut self) -> &mut HeaderMap<HeaderValue> {
+    pub fn headers_mut(&mut self) -> &mut FieldMap<FieldValue> {
         &mut self.head.headers
     }
 
@@ -386,7 +386,7 @@ impl<T> Response<T> {
     ///
     /// ```
     /// # use http::*;
-    /// # use http::header::*;
+    /// # use http::field::*;
     /// let mut response: Response<()> = Response::default();
     /// response.extensions_mut().insert("hello");
     /// assert_eq!(response.extensions().get(), Some(&"hello"));
@@ -506,7 +506,7 @@ impl Parts {
         Parts {
             status: StatusCode::default(),
             version: Version::default(),
-            headers: HeaderMap::default(),
+            headers: FieldMap::default(),
             extensions: Extensions::default(),
             _priv: (),
         }
@@ -599,14 +599,14 @@ impl Builder {
     /// Appends a header to this response builder.
     ///
     /// This function will append the provided key/value as a header to the
-    /// internal `HeaderMap` being constructed. Essentially this is equivalent
-    /// to calling `HeaderMap::append`.
+    /// internal `FieldMap` being constructed. Essentially this is equivalent
+    /// to calling `FieldMap::append`.
     ///
     /// # Examples
     ///
     /// ```
     /// # use http::*;
-    /// # use http::header::HeaderValue;
+    /// # use http::field::FieldValue;
     ///
     /// let response = Response::builder()
     ///     .header("Content-Type", "text/html")
@@ -617,14 +617,14 @@ impl Builder {
     /// ```
     pub fn header<K, V>(self, key: K, value: V) -> Builder
     where
-        HeaderName: TryFrom<K>,
-        <HeaderName as TryFrom<K>>::Error: Into<crate::Error>,
-        HeaderValue: TryFrom<V>,
-        <HeaderValue as TryFrom<V>>::Error: Into<crate::Error>,
+        FieldName: TryFrom<K>,
+        <FieldName as TryFrom<K>>::Error: Into<crate::Error>,
+        FieldValue: TryFrom<V>,
+        <FieldValue as TryFrom<V>>::Error: Into<crate::Error>,
     {
         self.and_then(move |mut head| {
-            let name = <HeaderName as TryFrom<K>>::try_from(key).map_err(Into::into)?;
-            let value = <HeaderValue as TryFrom<V>>::try_from(value).map_err(Into::into)?;
+            let name = <FieldName as TryFrom<K>>::try_from(key).map_err(Into::into)?;
+            let value = <FieldValue as TryFrom<V>>::try_from(value).map_err(Into::into)?;
             head.headers.append(name, value);
             Ok(head)
         })
@@ -638,7 +638,7 @@ impl Builder {
     ///
     /// ```
     /// # use http::Response;
-    /// # use http::header::HeaderValue;
+    /// # use http::field::FieldValue;
     /// let res = Response::builder()
     ///     .header("Accept", "text/html")
     ///     .header("X-Custom-Foo", "bar");
@@ -646,7 +646,7 @@ impl Builder {
     /// assert_eq!( headers["Accept"], "text/html" );
     /// assert_eq!( headers["X-Custom-Foo"], "bar" );
     /// ```
-    pub fn headers_ref(&self) -> Option<&HeaderMap<HeaderValue>> {
+    pub fn headers_ref(&self) -> Option<&FieldMap<FieldValue>> {
         self.inner.as_ref().ok().map(|h| &h.headers)
     }
 
@@ -657,19 +657,19 @@ impl Builder {
     ///
     /// ```
     /// # use http::*;
-    /// # use http::header::HeaderValue;
+    /// # use http::field::FieldValue;
     /// # use http::response::Builder;
     /// let mut res = Response::builder();
     /// {
     ///   let headers = res.headers_mut().unwrap();
-    ///   headers.insert("Accept", HeaderValue::from_static("text/html"));
-    ///   headers.insert("X-Custom-Foo", HeaderValue::from_static("bar"));
+    ///   headers.insert("Accept", FieldValue::from_static("text/html"));
+    ///   headers.insert("X-Custom-Foo", FieldValue::from_static("bar"));
     /// }
     /// let headers = res.headers_ref().unwrap();
     /// assert_eq!( headers["Accept"], "text/html" );
     /// assert_eq!( headers["X-Custom-Foo"], "bar" );
     /// ```
-    pub fn headers_mut(&mut self) -> Option<&mut HeaderMap<HeaderValue>> {
+    pub fn headers_mut(&mut self) -> Option<&mut FieldMap<FieldValue>> {
         self.inner.as_mut().ok().map(|h| &mut h.headers)
     }
 

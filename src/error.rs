@@ -2,7 +2,7 @@ use std::error;
 use std::fmt;
 use std::result;
 
-use crate::header;
+use crate::field;
 use crate::method;
 use crate::status;
 use crate::uri;
@@ -25,8 +25,8 @@ enum ErrorKind {
     Method(method::InvalidMethod),
     Uri(uri::InvalidUri),
     UriParts(uri::InvalidUriParts),
-    HeaderName(header::InvalidHeaderName),
-    HeaderValue(header::InvalidHeaderValue),
+    FieldName(field::InvalidFieldName),
+    FieldValue(field::InvalidFieldValue),
 }
 
 impl fmt::Debug for Error {
@@ -59,8 +59,8 @@ impl Error {
             Method(ref e) => e,
             Uri(ref e) => e,
             UriParts(ref e) => e,
-            HeaderName(ref e) => e,
-            HeaderValue(ref e) => e,
+            FieldName(ref e) => e,
+            FieldValue(ref e) => e,
         }
     }
 }
@@ -105,18 +105,18 @@ impl From<uri::InvalidUriParts> for Error {
     }
 }
 
-impl From<header::InvalidHeaderName> for Error {
-    fn from(err: header::InvalidHeaderName) -> Error {
+impl From<field::InvalidFieldName> for Error {
+    fn from(err: field::InvalidFieldName) -> Error {
         Error {
-            inner: ErrorKind::HeaderName(err),
+            inner: ErrorKind::FieldName(err),
         }
     }
 }
 
-impl From<header::InvalidHeaderValue> for Error {
-    fn from(err: header::InvalidHeaderValue) -> Error {
+impl From<field::InvalidFieldValue> for Error {
+    fn from(err: field::InvalidFieldValue) -> Error {
         Error {
-            inner: ErrorKind::HeaderValue(err),
+            inner: ErrorKind::FieldValue(err),
         }
     }
 }
@@ -136,11 +136,11 @@ mod tests {
         if let Err(e) = status::StatusCode::from_u16(6666) {
             let err: Error = e.into();
             let ie = err.get_ref();
-            assert!(!ie.is::<header::InvalidHeaderValue>());
+            assert!(!ie.is::<field::InvalidFieldValue>());
             assert!(ie.is::<status::InvalidStatusCode>());
             ie.downcast_ref::<status::InvalidStatusCode>().unwrap();
 
-            assert!(!err.is::<header::InvalidHeaderValue>());
+            assert!(!err.is::<field::InvalidFieldValue>());
             assert!(err.is::<status::InvalidStatusCode>());
         } else {
             panic!("Bad status allowed!");

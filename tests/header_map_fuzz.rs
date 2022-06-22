@@ -1,4 +1,4 @@
-use http::header::*;
+use http::field::*;
 use http::*;
 
 use quickcheck::{Arbitrary, Gen, QuickCheck, TestResult};
@@ -46,25 +46,25 @@ struct Step {
 #[derive(Debug, Clone)]
 enum Action {
     Insert {
-        name: HeaderName,         // Name to insert
-        val: HeaderValue,         // Value to insert
-        old: Option<HeaderValue>, // Old value
+        name: FieldName,         // Name to insert
+        val: FieldValue,         // Value to insert
+        old: Option<FieldValue>, // Old value
     },
     Append {
-        name: HeaderName,
-        val: HeaderValue,
+        name: FieldName,
+        val: FieldValue,
         ret: bool,
     },
     Remove {
-        name: HeaderName,         // Name to remove
-        val: Option<HeaderValue>, // Value to get
+        name: FieldName,         // Name to remove
+        val: Option<FieldValue>, // Value to get
     },
 }
 
-// An alternate implementation of HeaderMap backed by HashMap
+// An alternate implementation of FieldMap backed by HashMap
 #[derive(Debug, Clone, Default)]
 struct AltMap {
-    map: HashMap<HeaderName, Vec<HeaderValue>>,
+    map: HashMap<FieldName, Vec<FieldValue>>,
 }
 
 impl Fuzz {
@@ -95,7 +95,7 @@ impl Fuzz {
 
     fn run(self) {
         // Create a new header map
-        let mut map = HeaderMap::new();
+        let mut map = FieldMap::new();
 
         // Number of steps to perform
         let take = self.steps.len() - self.reduce;
@@ -188,7 +188,7 @@ impl AltMap {
     }
 
     /// Negative numbers weigh finding an existing header higher
-    fn gen_name(&self, weight: i32, rng: &mut StdRng) -> HeaderName {
+    fn gen_name(&self, weight: i32, rng: &mut StdRng) -> FieldName {
         let mut existing = rng.gen_ratio(1, weight.abs() as u32);
 
         if weight < 0 {
@@ -207,7 +207,7 @@ impl AltMap {
         }
     }
 
-    fn find_random_name(&self, rng: &mut StdRng) -> Option<HeaderName> {
+    fn find_random_name(&self, rng: &mut StdRng) -> Option<FieldName> {
         if self.map.is_empty() {
             None
         } else {
@@ -216,16 +216,16 @@ impl AltMap {
         }
     }
 
-    fn insert(&mut self, name: HeaderName, val: HeaderValue) -> Option<HeaderValue> {
+    fn insert(&mut self, name: FieldName, val: FieldValue) -> Option<FieldValue> {
         let old = self.map.insert(name, vec![val]);
         old.and_then(|v| v.into_iter().next())
     }
 
-    fn remove(&mut self, name: &HeaderName) -> Option<HeaderValue> {
+    fn remove(&mut self, name: &FieldName) -> Option<FieldValue> {
         self.map.remove(name).and_then(|v| v.into_iter().next())
     }
 
-    fn assert_identical(&self, other: &HeaderMap<HeaderValue>) {
+    fn assert_identical(&self, other: &FieldMap<FieldValue>) {
         assert_eq!(self.map.len(), other.keys_len());
 
         for (key, val) in &self.map {
@@ -241,7 +241,7 @@ impl AltMap {
 }
 
 impl Action {
-    fn apply(self, map: &mut HeaderMap<HeaderValue>) {
+    fn apply(self, map: &mut FieldMap<FieldValue>) {
         match self {
             Action::Insert { name, val, old } => {
                 let actual = map.insert(name, val);
@@ -261,100 +261,100 @@ impl Action {
     }
 }
 
-fn gen_header_name(g: &mut StdRng) -> HeaderName {
-    const STANDARD_HEADERS: &'static [HeaderName] = &[
-        header::ACCEPT,
-        header::ACCEPT_CHARSET,
-        header::ACCEPT_ENCODING,
-        header::ACCEPT_LANGUAGE,
-        header::ACCEPT_RANGES,
-        header::ACCESS_CONTROL_ALLOW_CREDENTIALS,
-        header::ACCESS_CONTROL_ALLOW_HEADERS,
-        header::ACCESS_CONTROL_ALLOW_METHODS,
-        header::ACCESS_CONTROL_ALLOW_ORIGIN,
-        header::ACCESS_CONTROL_EXPOSE_HEADERS,
-        header::ACCESS_CONTROL_MAX_AGE,
-        header::ACCESS_CONTROL_REQUEST_HEADERS,
-        header::ACCESS_CONTROL_REQUEST_METHOD,
-        header::AGE,
-        header::ALLOW,
-        header::ALT_SVC,
-        header::AUTHORIZATION,
-        header::CACHE_CONTROL,
-        header::CONNECTION,
-        header::CONTENT_DISPOSITION,
-        header::CONTENT_ENCODING,
-        header::CONTENT_LANGUAGE,
-        header::CONTENT_LENGTH,
-        header::CONTENT_LOCATION,
-        header::CONTENT_RANGE,
-        header::CONTENT_SECURITY_POLICY,
-        header::CONTENT_SECURITY_POLICY_REPORT_ONLY,
-        header::CONTENT_TYPE,
-        header::COOKIE,
-        header::DNT,
-        header::DATE,
-        header::ETAG,
-        header::EXPECT,
-        header::EXPIRES,
-        header::FORWARDED,
-        header::FROM,
-        header::HOST,
-        header::IF_MATCH,
-        header::IF_MODIFIED_SINCE,
-        header::IF_NONE_MATCH,
-        header::IF_RANGE,
-        header::IF_UNMODIFIED_SINCE,
-        header::LAST_MODIFIED,
-        header::LINK,
-        header::LOCATION,
-        header::MAX_FORWARDS,
-        header::ORIGIN,
-        header::PRAGMA,
-        header::PROXY_AUTHENTICATE,
-        header::PROXY_AUTHORIZATION,
-        header::PUBLIC_KEY_PINS,
-        header::PUBLIC_KEY_PINS_REPORT_ONLY,
-        header::RANGE,
-        header::REFERER,
-        header::REFERRER_POLICY,
-        header::REFRESH,
-        header::RETRY_AFTER,
-        header::SEC_WEBSOCKET_ACCEPT,
-        header::SEC_WEBSOCKET_EXTENSIONS,
-        header::SEC_WEBSOCKET_KEY,
-        header::SEC_WEBSOCKET_PROTOCOL,
-        header::SEC_WEBSOCKET_VERSION,
-        header::SERVER,
-        header::SET_COOKIE,
-        header::STRICT_TRANSPORT_SECURITY,
-        header::TE,
-        header::TRAILER,
-        header::TRANSFER_ENCODING,
-        header::UPGRADE,
-        header::UPGRADE_INSECURE_REQUESTS,
-        header::USER_AGENT,
-        header::VARY,
-        header::VIA,
-        header::WARNING,
-        header::WWW_AUTHENTICATE,
-        header::X_CONTENT_TYPE_OPTIONS,
-        header::X_DNS_PREFETCH_CONTROL,
-        header::X_FRAME_OPTIONS,
-        header::X_XSS_PROTECTION,
+fn gen_header_name(g: &mut StdRng) -> FieldName {
+    const STANDARD_HEADERS: &'static [FieldName] = &[
+        field::ACCEPT,
+        field::ACCEPT_CHARSET,
+        field::ACCEPT_ENCODING,
+        field::ACCEPT_LANGUAGE,
+        field::ACCEPT_RANGES,
+        field::ACCESS_CONTROL_ALLOW_CREDENTIALS,
+        field::ACCESS_CONTROL_ALLOW_HEADERS,
+        field::ACCESS_CONTROL_ALLOW_METHODS,
+        field::ACCESS_CONTROL_ALLOW_ORIGIN,
+        field::ACCESS_CONTROL_EXPOSE_HEADERS,
+        field::ACCESS_CONTROL_MAX_AGE,
+        field::ACCESS_CONTROL_REQUEST_HEADERS,
+        field::ACCESS_CONTROL_REQUEST_METHOD,
+        field::AGE,
+        field::ALLOW,
+        field::ALT_SVC,
+        field::AUTHORIZATION,
+        field::CACHE_CONTROL,
+        field::CONNECTION,
+        field::CONTENT_DISPOSITION,
+        field::CONTENT_ENCODING,
+        field::CONTENT_LANGUAGE,
+        field::CONTENT_LENGTH,
+        field::CONTENT_LOCATION,
+        field::CONTENT_RANGE,
+        field::CONTENT_SECURITY_POLICY,
+        field::CONTENT_SECURITY_POLICY_REPORT_ONLY,
+        field::CONTENT_TYPE,
+        field::COOKIE,
+        field::DNT,
+        field::DATE,
+        field::ETAG,
+        field::EXPECT,
+        field::EXPIRES,
+        field::FORWARDED,
+        field::FROM,
+        field::HOST,
+        field::IF_MATCH,
+        field::IF_MODIFIED_SINCE,
+        field::IF_NONE_MATCH,
+        field::IF_RANGE,
+        field::IF_UNMODIFIED_SINCE,
+        field::LAST_MODIFIED,
+        field::LINK,
+        field::LOCATION,
+        field::MAX_FORWARDS,
+        field::ORIGIN,
+        field::PRAGMA,
+        field::PROXY_AUTHENTICATE,
+        field::PROXY_AUTHORIZATION,
+        field::PUBLIC_KEY_PINS,
+        field::PUBLIC_KEY_PINS_REPORT_ONLY,
+        field::RANGE,
+        field::REFERER,
+        field::REFERRER_POLICY,
+        field::REFRESH,
+        field::RETRY_AFTER,
+        field::SEC_WEBSOCKET_ACCEPT,
+        field::SEC_WEBSOCKET_EXTENSIONS,
+        field::SEC_WEBSOCKET_KEY,
+        field::SEC_WEBSOCKET_PROTOCOL,
+        field::SEC_WEBSOCKET_VERSION,
+        field::SERVER,
+        field::SET_COOKIE,
+        field::STRICT_TRANSPORT_SECURITY,
+        field::TE,
+        field::TRAILER,
+        field::TRANSFER_ENCODING,
+        field::UPGRADE,
+        field::UPGRADE_INSECURE_REQUESTS,
+        field::USER_AGENT,
+        field::VARY,
+        field::VIA,
+        field::WARNING,
+        field::WWW_AUTHENTICATE,
+        field::X_CONTENT_TYPE_OPTIONS,
+        field::X_DNS_PREFETCH_CONTROL,
+        field::X_FRAME_OPTIONS,
+        field::X_XSS_PROTECTION,
     ];
 
     if g.gen_ratio(1, 2) {
         STANDARD_HEADERS.choose(g).unwrap().clone()
     } else {
         let value = gen_string(g, 1, 25);
-        HeaderName::from_bytes(value.as_bytes()).unwrap()
+        FieldName::from_bytes(value.as_bytes()).unwrap()
     }
 }
 
-fn gen_header_value(g: &mut StdRng) -> HeaderValue {
+fn gen_header_value(g: &mut StdRng) -> FieldValue {
     let value = gen_string(g, 0, 70);
-    HeaderValue::from_bytes(value.as_bytes()).unwrap()
+    FieldValue::from_bytes(value.as_bytes()).unwrap()
 }
 
 fn gen_string(g: &mut StdRng, min: usize, max: usize) -> String {
