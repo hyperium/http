@@ -332,11 +332,18 @@ impl PartialEq<Authority> for String {
 /// assert!(authority < "ghi.com");
 /// assert!(authority > "abc.com");
 /// ```
-impl PartialOrd for Authority {
-    fn partial_cmp(&self, other: &Authority) -> Option<cmp::Ordering> {
+impl Ord for Authority {
+    fn cmp(&self, other: &Authority) -> cmp::Ordering {
         let left = self.data.as_bytes().iter().map(|b| b.to_ascii_lowercase());
         let right = other.data.as_bytes().iter().map(|b| b.to_ascii_lowercase());
-        left.partial_cmp(right)
+        left.cmp(right)
+    }
+}
+
+impl PartialOrd for Authority {
+    #[inline]
+    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
+        Some(self.cmp(other))
     }
 }
 

@@ -395,10 +395,17 @@ impl PartialEq<PathAndQuery> for String {
     }
 }
 
+impl Ord for PathAndQuery {
+    #[inline]
+    fn cmp(&self, other: &PathAndQuery) -> cmp::Ordering {
+        self.as_str().cmp(other.as_str())
+    }
+}
+
 impl PartialOrd for PathAndQuery {
     #[inline]
-    fn partial_cmp(&self, other: &PathAndQuery) -> Option<cmp::Ordering> {
-        self.as_str().partial_cmp(other.as_str())
+    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
+        Some(self.cmp(other))
     }
 }
 

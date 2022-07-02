@@ -1,3 +1,4 @@
+use std::cmp;
 use std::convert::TryFrom;
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -21,7 +22,7 @@ pub(super) enum Scheme2<T = Box<ByteStr>> {
     Other(T),
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(super) enum Protocol {
     Http,
     Https,
@@ -121,6 +122,30 @@ impl AsRef<str> for Scheme {
     #[inline]
     fn as_ref(&self) -> &str {
         self.as_str()
+    }
+}
+
+/// Case-insensitive ordering
+impl Ord for Scheme {
+    fn cmp(&self, other: &Self) -> cmp::Ordering {
+        use Scheme2::Standard;
+        match (&self.inner, &other.inner) {
+            (&Standard(pl), &Standard(pr)) => {
+                pl.cmp(&pr)
+            }
+            _ => {
+                let l = self.as_str().chars().map(|b| b.to_ascii_lowercase());
+                let r = other.as_str().chars().map(|b| b.to_ascii_lowercase());
+                l.cmp(r)
+            }
+        }
+    }
+}
+
+impl PartialOrd for Scheme {
+    #[inline]
+    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
+        Some(self.cmp(other))
     }
 }
 

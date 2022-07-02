@@ -27,6 +27,7 @@ use std::convert::TryFrom;
 
 use bytes::Bytes;
 
+use std::cmp;
 use std::error::Error;
 use std::hash::{Hash, Hasher};
 use std::str::{self, FromStr};
@@ -1009,6 +1010,27 @@ impl<'a> PartialEq<Uri> for &'a str {
 }
 
 impl Eq for Uri {}
+
+/// Order by `(Authority, Scheme, PathAndQuery)`, delegating to the custom
+/// case-insensitive `Ord` for [`Authority`] and [`Scheme`], and `str`
+/// byte-wise `Ord` for [`PathAndQuery`].
+impl PartialOrd for Uri {
+    #[inline]
+    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+/// Order by `(Authority, Scheme, PathAndQuery)`, delegating to the custom
+/// case-insensitive `Ord` for [`Authority`] and [`Scheme`], and `str`
+/// byte-wise `Ord` for [`PathAndQuery`].
+impl Ord for Uri {
+    fn cmp(&self, r: &Self) -> cmp::Ordering {
+        /***first with***/ self.authority()     .cmp(&r.authority())
+            .then_with(||  self.scheme()        .cmp(&r.scheme()))
+            .then_with(||  self.path_and_query().cmp(&r.path_and_query()))
+    }
+}
 
 /// Returns a `Uri` representing `/`
 impl Default for Uri {
