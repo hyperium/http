@@ -52,14 +52,15 @@
 //! }
 //! ```
 
-use std::any::Any;
-use std::convert::{TryFrom};
-use std::fmt;
+use core::convert::TryFrom;
+use core::fmt;
 
 use crate::header::{HeaderMap, HeaderName, HeaderValue};
 use crate::method::Method;
 use crate::version::Version;
-use crate::{Extensions, Result, Uri};
+#[cfg(feature = "extensions")]
+use crate::Extensions;
+use crate::{Result, Uri};
 
 /// Represents an HTTP request.
 ///
@@ -177,6 +178,7 @@ pub struct Parts {
     pub headers: HeaderMap<HeaderValue>,
 
     /// The request's extensions
+    #[cfg(feature = "extensions")]
     pub extensions: Extensions,
 
     _priv: (),
@@ -231,7 +233,6 @@ impl Request<()> {
     where
         Uri: TryFrom<T>,
         <Uri as TryFrom<T>>::Error: Into<crate::Error>,
-
     {
         Builder::new().method(Method::GET).uri(uri)
     }
@@ -254,7 +255,6 @@ impl Request<()> {
     where
         Uri: TryFrom<T>,
         <Uri as TryFrom<T>>::Error: Into<crate::Error>,
-
     {
         Builder::new().method(Method::PUT).uri(uri)
     }
@@ -277,7 +277,6 @@ impl Request<()> {
     where
         Uri: TryFrom<T>,
         <Uri as TryFrom<T>>::Error: Into<crate::Error>,
-
     {
         Builder::new().method(Method::POST).uri(uri)
     }
@@ -300,7 +299,6 @@ impl Request<()> {
     where
         Uri: TryFrom<T>,
         <Uri as TryFrom<T>>::Error: Into<crate::Error>,
-
     {
         Builder::new().method(Method::DELETE).uri(uri)
     }
@@ -324,7 +322,6 @@ impl Request<()> {
     where
         Uri: TryFrom<T>,
         <Uri as TryFrom<T>>::Error: Into<crate::Error>,
-
     {
         Builder::new().method(Method::OPTIONS).uri(uri)
     }
@@ -347,7 +344,6 @@ impl Request<()> {
     where
         Uri: TryFrom<T>,
         <Uri as TryFrom<T>>::Error: Into<crate::Error>,
-
     {
         Builder::new().method(Method::HEAD).uri(uri)
     }
@@ -370,7 +366,6 @@ impl Request<()> {
     where
         Uri: TryFrom<T>,
         <Uri as TryFrom<T>>::Error: Into<crate::Error>,
-
     {
         Builder::new().method(Method::CONNECT).uri(uri)
     }
@@ -590,6 +585,7 @@ impl<T> Request<T> {
     /// assert!(request.extensions().get::<i32>().is_none());
     /// ```
     #[inline]
+    #[cfg(feature = "extensions")]
     pub fn extensions(&self) -> &Extensions {
         &self.head.extensions
     }
@@ -606,6 +602,7 @@ impl<T> Request<T> {
     /// assert_eq!(request.extensions().get(), Some(&"hello"));
     /// ```
     #[inline]
+    #[cfg(feature = "extensions")]
     pub fn extensions_mut(&mut self) -> &mut Extensions {
         &mut self.head.extensions
     }
@@ -722,6 +719,7 @@ impl Parts {
             uri: Uri::default(),
             version: Version::default(),
             headers: HeaderMap::default(),
+            #[cfg(feature = "extensions")]
             extensions: Extensions::default(),
             _priv: (),
         }
@@ -985,9 +983,10 @@ impl Builder {
     /// assert_eq!(req.extensions().get::<&'static str>(),
     ///            Some(&"My Extension"));
     /// ```
+    #[cfg(feature = "extensions")]
     pub fn extension<T>(self, extension: T) -> Builder
     where
-        T: Any + Send + Sync + 'static,
+        T: core::any::Any + Send + Sync + 'static,
     {
         self.and_then(move |mut head| {
             head.extensions.insert(extension);
@@ -1008,6 +1007,7 @@ impl Builder {
     /// assert_eq!(extensions.get::<&'static str>(), Some(&"My Extension"));
     /// assert_eq!(extensions.get::<u32>(), Some(&5u32));
     /// ```
+    #[cfg(feature = "extensions")]
     pub fn extensions_ref(&self) -> Option<&Extensions> {
         self.inner.as_ref().ok().map(|h| &h.extensions)
     }
@@ -1026,6 +1026,7 @@ impl Builder {
     /// extensions.insert(5u32);
     /// assert_eq!(extensions.get::<u32>(), Some(&5u32));
     /// ```
+    #[cfg(feature = "extensions")]
     pub fn extensions_mut(&mut self) -> Option<&mut Extensions> {
         self.inner.as_mut().ok().map(|h| &mut h.extensions)
     }
@@ -1051,19 +1052,14 @@ impl Builder {
     ///     .unwrap();
     /// ```
     pub fn body<T>(self, body: T) -> Result<Request<T>> {
-        self.inner.map(move |head| {
-            Request {
-                head,
-                body,
-            }
-        })
+        self.inner.map(move |head| Request { head, body })
     }
 
     // private
 
     fn and_then<F>(self, func: F) -> Self
     where
-        F: FnOnce(Parts) -> Result<Parts>
+        F: FnOnce(Parts) -> Result<Parts>,
     {
         Builder {
             inner: self.inner.and_then(func),

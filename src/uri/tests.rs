@@ -1,4 +1,8 @@
-use std::str::FromStr;
+use alloc::{
+    string::{String, ToString},
+    vec,
+};
+use core::str::FromStr;
 
 use super::{ErrorKind, InvalidUri, Port, Uri, URI_CHARS};
 

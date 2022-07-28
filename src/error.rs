@@ -1,6 +1,7 @@
+use core::fmt;
+use core::result;
+#[cfg(feature = "std")]
 use std::error;
-use std::fmt;
-use std::result;
 
 use crate::header;
 use crate::method;
@@ -31,19 +32,38 @@ enum ErrorKind {
 
 impl fmt::Debug for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use ErrorKind::*;
+        let e: &dyn fmt::Debug = match self.inner {
+            StatusCode(ref e) => e,
+            Method(ref e) => e,
+            Uri(ref e) => e,
+            UriParts(ref e) => e,
+            HeaderName(ref e) => e,
+            HeaderValue(ref e) => e,
+        };
         f.debug_tuple("http::Error")
             // Skip the noise of the ErrorKind enum
-            .field(&self.get_ref())
+            .field(e)
             .finish()
     }
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(self.get_ref(), f)
+        use ErrorKind::*;
+        let e: &dyn fmt::Display = match self.inner {
+            StatusCode(ref e) => e,
+            Method(ref e) => e,
+            Uri(ref e) => e,
+            UriParts(ref e) => e,
+            HeaderName(ref e) => e,
+            HeaderValue(ref e) => e,
+        };
+        fmt::Display::fmt(e, f)
     }
 }
 
+#[cfg(feature = "std")]
 impl Error {
     /// Return true if the underlying error has the same type as T.
     pub fn is<T: error::Error + 'static>(&self) -> bool {
@@ -65,6 +85,7 @@ impl Error {
     }
 }
 
+#[cfg(feature = "std")]
 impl error::Error for Error {
     // Return any available cause from the inner error. Note the inner error is
     // not itself the cause.
@@ -121,13 +142,13 @@ impl From<header::InvalidHeaderValue> for Error {
     }
 }
 
-impl From<std::convert::Infallible> for Error {
-    fn from(err: std::convert::Infallible) -> Error {
+impl From<core::convert::Infallible> for Error {
+    fn from(err: core::convert::Infallible) -> Error {
         match err {}
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
 

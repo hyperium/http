@@ -27,6 +27,14 @@ rust-version = "1.49.0"
 bytes = "1"
 fnv = "1.0.5"
 itoa = "1"
+ahash = { version = "0.7", default-features = false }
+hashbrown = { version = "0.12", optional = true }
+
+[features]
+default = ["std", "extensions"]
+std = []
+hashmap = ["hashbrown"]
+extensions = ["hashmap"]
 
 [dev-dependencies]
 indexmap = "<=1.8"

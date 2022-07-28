@@ -14,11 +14,10 @@
 //! assert!(StatusCode::OK.is_success());
 //! ```
 
-use std::convert::TryFrom;
-use std::num::NonZeroU16;
-use std::error::Error;
-use std::fmt;
-use std::str::FromStr;
+use core::convert::TryFrom;
+use core::fmt;
+use core::num::NonZeroU16;
+use core::str::FromStr;
 
 /// An HTTP status code (`status-code` in RFC 7230 et al.).
 ///
@@ -140,10 +139,14 @@ impl StatusCode {
         // ASCII-only, of length 900 * 3 = 2700 bytes
 
         #[cfg(debug_assertions)]
-        { &CODE_DIGITS[offset..offset+3] }
+        {
+            &CODE_DIGITS[offset..offset + 3]
+        }
 
         #[cfg(not(debug_assertions))]
-        unsafe { CODE_DIGITS.get_unchecked(offset..offset+3) }
+        unsafe {
+            CODE_DIGITS.get_unchecked(offset..offset + 3)
+        }
     }
 
     /// Get the standardised `reason-phrase` for this status code.
@@ -516,9 +519,7 @@ status_codes! {
 
 impl InvalidStatusCode {
     fn new() -> InvalidStatusCode {
-        InvalidStatusCode {
-            _priv: (),
-        }
+        InvalidStatusCode { _priv: () }
     }
 }
 
@@ -536,7 +537,8 @@ impl fmt::Display for InvalidStatusCode {
     }
 }
 
-impl Error for InvalidStatusCode {}
+#[cfg(feature = "std")]
+impl std::error::Error for InvalidStatusCode {}
 
 // A string of packed 3-ASCII-digit status code values for the supported range
 // of [100, 999] (900 codes, 2700 bytes).

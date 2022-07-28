@@ -1,4 +1,4 @@
-use std::fmt;
+use core::fmt;
 
 use super::{ErrorKind, InvalidUri};
 
@@ -112,6 +112,8 @@ impl<T> PartialEq<Port<T>> for u16 {
 
 #[cfg(test)]
 mod tests {
+    use alloc::string::String;
+
     use super::*;
 
     #[test]

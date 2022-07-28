@@ -61,14 +61,15 @@
 //! // ...
 //! ```
 
-use std::any::Any;
-use std::convert::TryFrom;
-use std::fmt;
+use core::convert::TryFrom;
+use core::fmt;
 
 use crate::header::{HeaderMap, HeaderName, HeaderValue};
 use crate::status::StatusCode;
 use crate::version::Version;
-use crate::{Extensions, Result};
+#[cfg(feature = "extensions")]
+use crate::Extensions;
+use crate::Result;
 
 /// Represents an HTTP response
 ///
@@ -196,6 +197,7 @@ pub struct Parts {
     pub headers: HeaderMap<HeaderValue>,
 
     /// The response's extensions
+    #[cfg(feature = "extensions")]
     pub extensions: Extensions,
 
     _priv: (),
@@ -376,6 +378,7 @@ impl<T> Response<T> {
     /// assert!(response.extensions().get::<i32>().is_none());
     /// ```
     #[inline]
+    #[cfg(feature = "extensions")]
     pub fn extensions(&self) -> &Extensions {
         &self.head.extensions
     }
@@ -392,6 +395,7 @@ impl<T> Response<T> {
     /// assert_eq!(response.extensions().get(), Some(&"hello"));
     /// ```
     #[inline]
+    #[cfg(feature = "extensions")]
     pub fn extensions_mut(&mut self) -> &mut Extensions {
         &mut self.head.extensions
     }
@@ -507,6 +511,7 @@ impl Parts {
             status: StatusCode::default(),
             version: Version::default(),
             headers: HeaderMap::default(),
+            #[cfg(feature = "extensions")]
             extensions: Extensions::default(),
             _priv: (),
         }
@@ -688,9 +693,10 @@ impl Builder {
     /// assert_eq!(response.extensions().get::<&'static str>(),
     ///            Some(&"My Extension"));
     /// ```
+    #[cfg(feature = "extensions")]
     pub fn extension<T>(self, extension: T) -> Builder
     where
-        T: Any + Send + Sync + 'static,
+        T: core::any::Any + Send + Sync + 'static,
     {
         self.and_then(move |mut head| {
             head.extensions.insert(extension);
@@ -711,6 +717,7 @@ impl Builder {
     /// assert_eq!(extensions.get::<&'static str>(), Some(&"My Extension"));
     /// assert_eq!(extensions.get::<u32>(), Some(&5u32));
     /// ```
+    #[cfg(feature = "extensions")]
     pub fn extensions_ref(&self) -> Option<&Extensions> {
         self.inner.as_ref().ok().map(|h| &h.extensions)
     }
@@ -729,6 +736,7 @@ impl Builder {
     /// extensions.insert(5u32);
     /// assert_eq!(extensions.get::<u32>(), Some(&5u32));
     /// ```
+    #[cfg(feature = "extensions")]
     pub fn extensions_mut(&mut self) -> Option<&mut Extensions> {
         self.inner.as_mut().ok().map(|h| &mut h.extensions)
     }
@@ -754,19 +762,14 @@ impl Builder {
     ///     .unwrap();
     /// ```
     pub fn body<T>(self, body: T) -> Result<Response<T>> {
-        self.inner.map(move |head| {
-            Response {
-                head,
-                body,
-            }
-        })
+        self.inner.map(move |head| Response { head, body })
     }
 
     // private
 
     fn and_then<F>(self, func: F) -> Self
     where
-        F: FnOnce(Parts) -> Result<Parts>
+        F: FnOnce(Parts) -> Result<Parts>,
     {
         Builder {
             inner: self.inner.and_then(func),

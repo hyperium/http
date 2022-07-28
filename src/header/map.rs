@@ -1,15 +1,17 @@
-use std::collections::HashMap;
-use std::collections::hash_map::RandomState;
-use std::convert::TryFrom;
-use std::hash::{BuildHasher, Hash, Hasher};
-use std::iter::{FromIterator, FusedIterator};
-use std::marker::PhantomData;
-use std::{fmt, mem, ops, ptr, vec};
+use ahash::RandomState;
+use alloc::vec;
+use alloc::{boxed::Box, vec::Vec};
+#[cfg(feature = "hashmap")]
+use core::convert::TryFrom;
+use core::hash::{BuildHasher, Hash, Hasher};
+use core::iter::{FromIterator, FusedIterator};
+use core::marker::PhantomData;
+use core::{fmt, mem, ops, ptr};
+#[cfg(feature = "hashmap")]
+use hashbrown::HashMap;
 
-use crate::Error;
-
-use super::HeaderValue;
 use super::name::{HdrName, HeaderName, InvalidHeaderName};
+use super::HeaderValue;
 
 pub use self::as_header_name::AsHeaderName;
 pub use self::into_header_name::IntoHeaderName;
@@ -114,7 +116,7 @@ pub struct IntoIter<T> {
 /// associated value.
 #[derive(Debug)]
 pub struct Keys<'a, T> {
-    inner: ::std::slice::Iter<'a, Bucket<T>>,
+    inner: ::core::slice::Iter<'a, Bucket<T>>,
 }
 
 /// `HeaderMap` value iterator.
@@ -207,7 +209,7 @@ pub struct ValueIterMut<'a, T> {
 #[derive(Debug)]
 pub struct ValueDrain<'a, T> {
     first: Option<T>,
-    next: Option<::std::vec::IntoIter<T>>,
+    next: Option<::alloc::vec::IntoIter<T>>,
     lt: PhantomData<&'a mut HeaderMap<T>>,
 }
 
@@ -961,7 +963,9 @@ impl<T> HeaderMap<T> {
         let entries = &mut self.entries[..] as *mut _;
         let extra_values = &mut self.extra_values as *mut _;
         let len = self.entries.len();
-        unsafe { self.entries.set_len(0); }
+        unsafe {
+            self.entries.set_len(0);
+        }
 
         Drain {
             idx: 0,
@@ -992,7 +996,7 @@ impl<T> HeaderMap<T> {
         } else {
             ValueIter {
                 map: self,
-                index: ::std::usize::MAX,
+                index: ::core::usize::MAX,
                 front: None,
                 back: None,
             }
@@ -1193,10 +1197,8 @@ impl<T> HeaderMap<T> {
         let raw_links = self.raw_links();
         let extra_values = &mut self.extra_values;
 
-        let next = links.map(|l| {
-            drain_all_extra_values(raw_links, extra_values, l.next)
-                .into_iter()
-        });
+        let next =
+            links.map(|l| drain_all_extra_values(raw_links, extra_values, l.next).into_iter());
 
         ValueDrain {
             first: Some(old),
@@ -1595,9 +1597,8 @@ impl<T> HeaderMap<T> {
 fn remove_extra_value<T>(
     mut raw_links: RawLinks<T>,
     extra_values: &mut Vec<ExtraValue<T>>,
-    idx: usize)
-    -> ExtraValue<T>
-{
+    idx: usize,
+) -> ExtraValue<T> {
     let prev;
     let next;
 
@@ -1618,8 +1619,7 @@ fn remove_extra_value<T>(
         (Link::Entry(prev), Link::Extra(next)) => {
             debug_assert!(raw_links[prev].is_some());
 
-            raw_links[prev].as_mut().unwrap()
-                .next = next;
+            raw_links[prev].as_mut().unwrap().next = next;
 
             debug_assert!(extra_values.len() > next);
             extra_values[next].prev = Link::Entry(prev);
@@ -1627,8 +1627,7 @@ fn remove_extra_value<T>(
         (Link::Extra(prev), Link::Entry(next)) => {
             debug_assert!(raw_links[next].is_some());
 
-            raw_links[next].as_mut().unwrap()
-                .tail = prev;
+            raw_links[next].as_mut().unwrap().tail = prev;
 
             debug_assert!(extra_values.len() > prev);
             extra_values[prev].next = Link::Entry(next);
@@ -1716,9 +1715,8 @@ fn remove_extra_value<T>(
 fn drain_all_extra_values<T>(
     raw_links: RawLinks<T>,
     extra_values: &mut Vec<ExtraValue<T>>,
-    mut head: usize)
-    -> Vec<T>
-{
+    mut head: usize,
+) -> Vec<T> {
     let mut vec = Vec::new();
     loop {
         let extra = remove_extra_value(raw_links, extra_values, head);
@@ -1826,28 +1824,34 @@ impl<T> FromIterator<(HeaderName, T)> for HeaderMap<T> {
 
 /// Try to convert a `HashMap` into a `HeaderMap`.
 ///
-/// # Examples
-///
-/// ```
-/// use std::collections::HashMap;
-/// use std::convert::TryInto;
-/// use http::HeaderMap;
-///
-/// let mut map = HashMap::new();
-/// map.insert("X-Custom-Header".to_string(), "my value".to_string());
-///
-/// let headers: HeaderMap = (&map).try_into().expect("valid headers");
-/// assert_eq!(headers["X-Custom-Header"], "my value");
-/// ```
+#[cfg_attr(
+    feature = "std",
+    doc = r##"
+# Examples
+
+```
+use std::collections::HashMap;
+use std::convert::TryInto;
+use http::HeaderMap;
+
+let mut map = HashMap::new();
+map.insert("X-Custom-Header".to_string(), "my value".to_string());
+
+let headers: HeaderMap = (&map).try_into().expect("valid headers");
+assert_eq!(headers["X-Custom-Header"], "my value");
+```
+"##
+)]
+#[cfg(feature = "hashmap")]
 impl<'a, K, V, T> TryFrom<&'a HashMap<K, V>> for HeaderMap<T>
-    where
-        K: Eq + Hash,
-        HeaderName: TryFrom<&'a K>,
-        <HeaderName as TryFrom<&'a K>>::Error: Into<crate::Error>,
-        T: TryFrom<&'a V>,
-        T::Error: Into<crate::Error>,
+where
+    K: Eq + Hash,
+    HeaderName: TryFrom<&'a K>,
+    <HeaderName as TryFrom<&'a K>>::Error: Into<crate::Error>,
+    T: TryFrom<&'a V>,
+    T::Error: Into<crate::Error>,
 {
-    type Error = Error;
+    type Error = crate::Error;
 
     fn try_from(c: &'a HashMap<K, V>) -> Result<Self, Self::Error> {
         c.into_iter()
@@ -2204,9 +2208,7 @@ impl<'a, T> Iterator for Drain<'a, T> {
             // Remove the extra value
 
             let raw_links = RawLinks(self.entries);
-            let extra = unsafe {
-                remove_extra_value(raw_links, &mut *self.extra_values, next)
-            };
+            let extra = unsafe { remove_extra_value(raw_links, &mut *self.extra_values, next) };
 
             match extra.next {
                 Link::Extra(idx) => self.next = Some(idx),
@@ -2969,10 +2971,9 @@ impl<'a, T> OccupiedEntry<'a, T> {
         let raw_links = self.map.raw_links();
         let extra_values = &mut self.map.extra_values;
 
-        let next = self.map.entries[self.index].links.map(|l| {
-            drain_all_extra_values(raw_links, extra_values, l.next)
-                .into_iter()
-        });
+        let next = self.map.entries[self.index]
+            .links
+            .map(|l| drain_all_extra_values(raw_links, extra_values, l.next).into_iter());
 
         let entry = self.map.remove_found(self.probe, self.index);
 
@@ -3086,7 +3087,7 @@ impl<'a, T> Iterator for ValueDrain<'a, T> {
             (&Some(_), &Some(ref extras)) => {
                 let (l, u) = extras.size_hint();
                 (l + 1, u.map(|u| u + 1))
-            },
+            }
             // Extras only
             (&None, &Some(ref extras)) => extras.size_hint(),
             // No more
@@ -3120,17 +3121,13 @@ impl<T> ops::Index<usize> for RawLinks<T> {
     type Output = Option<Links>;
 
     fn index(&self, idx: usize) -> &Self::Output {
-        unsafe {
-            &(*self.0)[idx].links
-        }
+        unsafe { &(*self.0)[idx].links }
     }
 }
 
 impl<T> ops::IndexMut<usize> for RawLinks<T> {
     fn index_mut(&mut self, idx: usize) -> &mut Self::Output {
-        unsafe {
-            &mut (*self.0)[idx].links
-        }
+        unsafe { &mut (*self.0)[idx].links }
     }
 }
 
@@ -3349,6 +3346,8 @@ mod into_header_name {
 }
 
 mod as_header_name {
+    use alloc::string::String;
+
     use super::{Entry, HdrName, HeaderMap, HeaderName, InvalidHeaderName};
 
     /// A marker trait used to identify values that can be used as search keys
