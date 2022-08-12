@@ -22,7 +22,7 @@ dx response.head.headers
 dx uri
 "#,
     expected_statements = r#"
-pattern:.*\.exe \(embedded NatVis .*debugger_visualizer-0\.natvis
+pattern:.*\.exe \(embedded NatVis .*-[0-9]+\.natvis
 
 request          [Type: http::request::Request<str>]
     [+0x000] head             : { method=Get, uri=https://www.rust-lang.org/ } [Type: http::request::Parts]
