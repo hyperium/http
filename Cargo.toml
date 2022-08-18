@@ -37,6 +37,13 @@ serde = "1.0"
 serde_json = "1.0"
 doc-comment = "0.3"
 criterion = "0.3.2"
+debugger_test = "0.1.0"
+debugger_test_parser = "0.1.0"
+
+[features]
+# UNSTABLE FEATURES (requires Rust nightly)
+# Enable to use the #[debugger_visualizer] attribute.
+debugger_visualizer = []
 
 [[bench]]
 name = "header_map"
@@ -62,3 +69,13 @@ path = "benches/method.rs"
 [[bench]]
 name = "uri"
 path = "benches/uri.rs"
+
+[[test]]
+name = "debugger_visualizer"
+path = "tests/debugger_visualizer.rs"
+# Do not run these tests by default. These tests need to
+# be run with the additional rustc flag `--test-threads=1`
+# since each test causes a debugger to attach to the current
+# test process. If multiple debuggers try to attach at the same
+# time, the test will fail.
+test = false

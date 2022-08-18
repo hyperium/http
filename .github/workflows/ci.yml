@@ -11,10 +11,12 @@ env:
 jobs:
 
   test:
-    name: Test ${{ matrix.rust }}
+    name: Test ${{ matrix.os }}-${{ matrix.rust }}
     #needs: [style]
     strategy:
       matrix:
+
+        os: [ubuntu-latest]
         rust:
           - stable
           - beta
@@ -26,8 +28,11 @@ jobs:
         include:
           - rust: nightly
             benches: true
+          # Add testing for the nightly toolchain on windows to test debugger_visualizer support.
+          - rust: nightly
+            os: windows-latest
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout
@@ -51,6 +56,17 @@ jobs:
         with:
           command: test
           args: --benches ${{ matrix.features }}
+
+    # The #[debugger_visualizer] attribute is currently gated behind an unstable feature flag.
+    # In order to test the visualizers for the http crate, they have to be tested on a nightly build.
+      - name: Run tests with debugger_visualizer feature
+        if: |
+          matrix.os == 'windows-latest' &&
+          matrix.rust == 'nightly'
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --test debugger_visualizer --features 'debugger_visualizer' -- --test-threads=1
 
   wasm:
     name: WASM
