@@ -22,9 +22,9 @@
   </Type>
 
   <Type Name="http::header::name::HeaderName">
-    <Intrinsic Name="inner_tag" Expression="inner.discriminant" />
-    <DisplayString Condition="inner_tag() == 0">{inner.variant0.__0,en}</DisplayString>
-    <DisplayString Condition="inner_tag() == 1">{inner.variant1.__0.__0.bytes.ptr,[inner.variant1.__0.__0.bytes.len]s8}</DisplayString>
+    <Intrinsic Name="inner_tag" Expression="inner.tag" />
+    <DisplayString Condition="inner_tag() == 0">{inner.variant0.value.__0,en}</DisplayString>
+    <DisplayString Condition="inner_tag() == 1">{inner.variant1.value.__0.__0.bytes.ptr,[inner.variant1.value.__0.__0.bytes.len]s8}</DisplayString>
   </Type>
 
   <Type Name="http::header::value::HeaderValue">
@@ -80,15 +80,15 @@
   </Type>
 
   <Type Name="http::uri::scheme::Scheme">
-    <Intrinsic Name="inner_tag" Expression="inner.discriminant" />
+    <Intrinsic Name="inner_tag" Expression="inner.tag" />
     <DisplayString Condition="inner_tag() == 0">{inner.variant0,en}</DisplayString>
-    <DisplayString Condition="inner_tag() == 1">{inner.variant1.__0,en}</DisplayString>
-    <DisplayString Condition="inner_tag() == 2">{inner.variant2.__0,en}</DisplayString>
+    <DisplayString Condition="inner_tag() == 1">{inner.variant1.value.__0,en}</DisplayString>
+    <DisplayString Condition="inner_tag() == 2">{inner.variant2.value.__0,en}</DisplayString>
   </Type>
 
   <Type Name="http::uri::Uri">
-    <Intrinsic Name="scheme_tag" Expression="scheme.inner.discriminant" />
-    <Intrinsic Name="protocol_tag" Expression="scheme.inner.variant1.__0" />
+    <Intrinsic Name="scheme_tag" Expression="scheme.inner.tag" />
+    <Intrinsic Name="protocol_tag" Expression="scheme.inner.variant1.value.__0" />
     <DisplayString Condition="scheme_tag() == 0">{authority}{path_and_query}</DisplayString>
     <DisplayString Condition="scheme_tag() == 1 &amp;&amp; protocol_tag() == 0">http://{authority}{path_and_query}</DisplayString>
     <DisplayString Condition="scheme_tag() == 1 &amp;&amp; protocol_tag() == 1">https://{authority}{path_and_query}</DisplayString>
