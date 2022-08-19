@@ -78,9 +78,16 @@ impl Authority {
 
         // Among other things, this loop checks that every byte in s up to the
         // first '/', '?', or '#' is a valid URI character (or in some contexts,
-        // a '%'). This means that each such byte is a valid single-byte UTF-8
-        // code point.
-        for (i, &b) in s.iter().enumerate() {
+        // a '%').
+        for (i, b) in str::from_utf8(s)
+            .map_err(|_| InvalidUri::from(ErrorKind::InvalidUriChar))?
+            .char_indices()
+        {
+            // If b is not an ascii char, just keep going.
+            if !b.is_ascii() {
+                continue;
+            }
+
             match URI_CHARS[b as usize] {
                 b'/' | b'?' | b'#' => {
                     end = i;
@@ -114,7 +121,7 @@ impl Authority {
                     colon_cnt = 0;
                     has_percent = false;
                 }
-                0 if b == b'%' => {
+                0 if b == '%' => {
                     // Per https://tools.ietf.org/html/rfc3986#section-3.2.1 and
                     // https://url.spec.whatwg.org/#authority-state
                     // the userinfo can have a percent-encoded username and password,
@@ -658,8 +665,7 @@ mod tests {
         let err = Authority::try_from([0xc0u8].as_ref()).unwrap_err();
         assert_eq!(err.0, ErrorKind::InvalidUriChar);
 
-        let err = Authority::from_shared(Bytes::from_static([0xc0u8].as_ref()))
-            .unwrap_err();
+        let err = Authority::from_shared(Bytes::from_static([0xc0u8].as_ref())).unwrap_err();
         assert_eq!(err.0, ErrorKind::InvalidUriChar);
     }
 

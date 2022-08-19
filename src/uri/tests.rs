@@ -255,6 +255,18 @@ test_parse! {
 }
 
 test_parse! {
+    test_uri_parse_idna,
+    "https://www.fc-højvang.dk/",
+    [],
+
+    scheme = part!("https"),
+    authority = part!("www.fc-højvang.dk"),
+    path = "/",
+    query = None,
+    port = None,
+}
+
+test_parse! {
     test_userinfo1,
     "http://a:b@127.0.0.1:1234/",
     [],
