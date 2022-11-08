@@ -714,6 +714,14 @@ standard_headers! {
     /// whole path.
     (Origin, ORIGIN, b"origin");
 
+    /// Allows selectively enabling and disabling use of various browser features
+    /// and APIs.
+    ///
+    /// Permissions Policy is a web platform API which gives a website the
+    /// ability to allow or block the use of browser features in it's own
+    /// frame or in iframes that it embeds.
+    (PermissionsPolicy, PERMISSIONS_POLICY, b"permissions-policy");
+
     /// HTTP/1.0 header usually used for backwards compatibility.
     ///
     /// The Pragma HTTP/1.0 general header is an implementation-specific header
