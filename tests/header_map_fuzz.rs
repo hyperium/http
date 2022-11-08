@@ -310,6 +310,7 @@ fn gen_header_name(g: &mut StdRng) -> HeaderName {
         header::LOCATION,
         header::MAX_FORWARDS,
         header::ORIGIN,
+        header::PERMISSIONS_POLICY,
         header::PRAGMA,
         header::PROXY_AUTHENTICATE,
         header::PROXY_AUTHORIZATION,

@@ -565,6 +565,7 @@ const STD: &'static [HeaderName] = &[
     LOCATION,
     MAX_FORWARDS,
     ORIGIN,
+    PERMISSIONS_POLICY,
     PRAGMA,
     PROXY_AUTHENTICATE,
     PROXY_AUTHORIZATION,
