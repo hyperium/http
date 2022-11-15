@@ -1,9 +1,8 @@
-use std::any::{Any, TypeId};
-use std::collections::HashMap;
+use anymap::{CloneAny, Map};
 use std::fmt;
-use std::hash::{BuildHasherDefault, Hasher};
+use std::hash::Hasher;
 
-type AnyMap = HashMap<TypeId, Box<dyn Any + Send + Sync>, BuildHasherDefault<IdHasher>>;
+type AnyMap = Map<dyn CloneAny + Send + Sync>;
 
 // With TypeIds as keys, there's no need to hash them. They are already hashes
 // themselves, coming from the compiler. The IdHasher just holds the u64 of
@@ -31,7 +30,7 @@ impl Hasher for IdHasher {
 ///
 /// `Extensions` can be used by `Request` and `Response` to store
 /// extra data derived from the underlying protocol.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Extensions {
     // If extensions are never used, no need to carry around an empty HashMap.
     // That's 3 words. Instead, this is only 1 word.
@@ -59,16 +58,10 @@ impl Extensions {
     /// assert!(ext.insert(4u8).is_none());
     /// assert_eq!(ext.insert(9i32), Some(5i32));
     /// ```
-    pub fn insert<T: Send + Sync + 'static>(&mut self, val: T) -> Option<T> {
+    pub fn insert<T: Clone + Send + Sync + 'static>(&mut self, val: T) -> Option<T> {
         self.map
-            .get_or_insert_with(|| Box::new(HashMap::default()))
-            .insert(TypeId::of::<T>(), Box::new(val))
-            .and_then(|boxed| {
-                (boxed as Box<dyn Any + 'static>)
-                    .downcast()
-                    .ok()
-                    .map(|boxed| *boxed)
-            })
+            .get_or_insert_with(|| Box::new(AnyMap::new()))
+            .insert(val)
     }
 
     /// Get a reference to a type previously inserted on this `Extensions`.
@@ -83,11 +76,8 @@ impl Extensions {
     ///
     /// assert_eq!(ext.get::<i32>(), Some(&5i32));
     /// ```
-    pub fn get<T: Send + Sync + 'static>(&self) -> Option<&T> {
-        self.map
-            .as_ref()
-            .and_then(|map| map.get(&TypeId::of::<T>()))
-            .and_then(|boxed| (&**boxed as &(dyn Any + 'static)).downcast_ref())
+    pub fn get<T: Clone + Send + Sync + 'static>(&self) -> Option<&T> {
+        self.map.as_ref().and_then(|map| map.get::<T>())
     }
 
     /// Get a mutable reference to a type previously inserted on this `Extensions`.
@@ -102,11 +92,8 @@ impl Extensions {
     ///
     /// assert_eq!(ext.get::<String>().unwrap(), "Hello World");
     /// ```
-    pub fn get_mut<T: Send + Sync + 'static>(&mut self) -> Option<&mut T> {
-        self.map
-            .as_mut()
-            .and_then(|map| map.get_mut(&TypeId::of::<T>()))
-            .and_then(|boxed| (&mut **boxed as &mut (dyn Any + 'static)).downcast_mut())
+    pub fn get_mut<T: Clone + Send + Sync + 'static>(&mut self) -> Option<&mut T> {
+        self.map.as_mut().and_then(|map| map.get_mut::<T>())
     }
 
     /// Remove a type from this `Extensions`.
@@ -122,16 +109,8 @@ impl Extensions {
     /// assert_eq!(ext.remove::<i32>(), Some(5i32));
     /// assert!(ext.get::<i32>().is_none());
     /// ```
-    pub fn remove<T: Send + Sync + 'static>(&mut self) -> Option<T> {
-        self.map
-            .as_mut()
-            .and_then(|map| map.remove(&TypeId::of::<T>()))
-            .and_then(|boxed| {
-                (boxed as Box<dyn Any + 'static>)
-                    .downcast()
-                    .ok()
-                    .map(|boxed| *boxed)
-            })
+    pub fn remove<T: Clone + Send + Sync + 'static>(&mut self) -> Option<T> {
+        self.map.as_mut().and_then(|map| map.remove::<T>())
     }
 
     /// Clear the `Extensions` of all inserted extensions.
@@ -166,9 +145,7 @@ impl Extensions {
     /// ```
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.map
-            .as_ref()
-            .map_or(true, |map| map.is_empty())
+        self.map.as_ref().map_or(true, |map| map.is_empty())
     }
 
     /// Get the numer of extensions available.
@@ -184,28 +161,26 @@ impl Extensions {
     /// ```
     #[inline]
     pub fn len(&self) -> usize {
-        self.map
-            .as_ref()
-            .map_or(0, |map| map.len())
+        self.map.as_ref().map_or(0, |map| map.len())
     }
 
     /// Extends `self` with another `Extensions`.
     ///
     /// If an instance of a specific type exists in both, the one in `self` is overwritten with the
     /// one from `other`.
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```
     /// # use http::Extensions;
     /// let mut ext_a = Extensions::new();
     /// ext_a.insert(8u8);
     /// ext_a.insert(16u16);
-    /// 
+    ///
     /// let mut ext_b = Extensions::new();
     /// ext_b.insert(4u8);
     /// ext_b.insert("hello");
-    /// 
+    ///
     /// ext_a.extend(ext_b);
     /// assert_eq!(ext_a.len(), 3);
     /// assert_eq!(ext_a.get::<u8>(), Some(&4u8));
@@ -229,9 +204,41 @@ impl fmt::Debug for Extensions {
     }
 }
 
+/// A newtype that enables non clonable items to be added
+/// to the extension map.
+#[derive(Debug)]
+pub struct NotCloneExtension<T>(Option<T>);
+
+impl<T> NotCloneExtension<T> {
+    /// Create a new `NotClone` with `T`.
+    pub fn new(inner: T) -> Self {
+        Self(Some(inner))
+    }
+
+    /// Get an immutable reference to `T`.
+    ///
+    /// Returns None, if this is a clone of the original type.
+    pub fn get(&self) -> Option<&T> {
+        self.0.as_ref()
+    }
+
+    /// Get a mutable reference to `T`.
+    ///
+    /// Returns None, if this is a clone of the original type.
+    pub fn get_mut(&mut self) -> Option<&mut T> {
+        self.0.as_mut()
+    }
+}
+
+impl<T> Clone for NotCloneExtension<T> {
+    fn clone(&self) -> Self {
+        Self(None)
+    }
+}
+
 #[test]
 fn test_extensions() {
-    #[derive(Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq)]
     struct MyType(i32);
 
     let mut extensions = Extensions::new();

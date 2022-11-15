@@ -28,6 +28,8 @@ bytes = "1"
 fnv = "1.0.5"
 itoa = "1"
 
+anymap = "1.0.0-beta.2"
+
 [dev-dependencies]
 indexmap = "<=1.8"
 quickcheck = "0.9.0"
@@ -62,3 +64,6 @@ path = "benches/method.rs"
 [[bench]]
 name = "uri"
 path = "benches/uri.rs"
+
+[patch.crates-io]
+anymap = { git = "https://github.com/LucioFranco/anymap" }
