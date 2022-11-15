@@ -36,7 +36,11 @@ seahash = "3.0.5"
 serde = "1.0"
 serde_json = "1.0"
 doc-comment = "0.3"
-criterion = { version = "0.4", default-features = false }
+criterion = { version = "0.3", default-features = false }
+plotters = "=0.3.0"
+plotters-backend = "=0.3.0"
+plotters-bitmap = "=0.3.0"
+plotters-svg = "=0.3.0"
 
 [[bench]]
 name = "header_map"
