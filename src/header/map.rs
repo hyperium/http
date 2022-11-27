@@ -1813,6 +1813,12 @@ impl<T> IntoIterator for HeaderMap<T> {
     }
 }
 
+impl<T, const N: usize> From<[(HeaderName, T); N]> for HeaderMap<T> {
+    fn from(arr: [(HeaderName, T); N]) -> Self {
+        Self::from_iter(arr)
+    }
+}
+
 impl<T> FromIterator<(HeaderName, T)> for HeaderMap<T> {
     fn from_iter<I>(iter: I) -> Self
     where
