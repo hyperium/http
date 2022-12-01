@@ -19,6 +19,7 @@ fn header_map_fuzz() {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct Fuzz {
     // The magic seed that makes the test case reproducible
     seed: [u8; 32],
