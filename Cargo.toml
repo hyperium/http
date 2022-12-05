@@ -23,6 +23,15 @@ edition = "2018"
 # When updating this value, don't forget to also adjust the GitHub Actions config.
 rust-version = "1.49.0"
 
+[workspace]
+members = [
+  ".",
+]
+exclude = [
+  "fuzz",
+  "benches"
+]
+
 [dependencies]
 bytes = "1"
 fnv = "1.0.5"
@@ -36,29 +45,3 @@ seahash = "3.0.5"
 serde = "1.0"
 serde_json = "1.0"
 doc-comment = "0.3"
-criterion = "0.3.2"
-
-[[bench]]
-name = "header_map"
-path = "benches/header_map/mod.rs"
-
-[[bench]]
-name = "header_name"
-path = "benches/header_name.rs"
-
-[[bench]]
-name = "header_name2"
-path = "benches/header_name2.rs"
-harness = false
-
-[[bench]]
-name = "header_value"
-path = "benches/header_value.rs"
-
-[[bench]]
-name = "method"
-path = "benches/method.rs"
-
-[[bench]]
-name = "uri"
-path = "benches/uri.rs"

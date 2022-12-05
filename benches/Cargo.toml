@@ -1,0 +1,43 @@
+[package]
+name = "benches"
+version = "0.0.0"
+edition = "2018"
+publish = false
+
+[dependencies]
+bytes = "1"
+fnv = "1.0.5"
+itoa = "1"
+http = { path = ".." }
+indexmap = "<=1.8"
+quickcheck = "0.9.0"
+rand = "0.7.0"
+seahash = "3.0.5"
+serde = "1.0"
+serde_json = "1.0"
+criterion = "0.3.2"
+
+[[bench]]
+name = "header_map"
+path = "src/header_map/mod.rs"
+
+[[bench]]
+name = "header_name"
+path = "src/header_name.rs"
+
+[[bench]]
+name = "header_name2"
+path = "src/header_name2.rs"
+harness = false
+
+[[bench]]
+name = "header_value"
+path = "src/header_value.rs"
+
+[[bench]]
+name = "method"
+path = "src/method.rs"
+
+[[bench]]
+name = "uri"
+path = "src/uri.rs"
