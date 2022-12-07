@@ -1,10 +1,10 @@
 use bytes::{Bytes, BytesMut};
 
-use std::convert::TryFrom;
-use std::error::Error;
-use std::fmt::Write;
-use std::str::FromStr;
-use std::{cmp, fmt, mem, str};
+use alloc::{string::String, vec::Vec};
+use core::convert::TryFrom;
+use core::fmt::Write;
+use core::str::FromStr;
+use core::{cmp, fmt, mem, str};
 
 use crate::header::name::HeaderName;
 
@@ -203,7 +203,6 @@ impl HeaderValue {
                 }
             }
         } else {
-
             if_downcast_into!(T, Bytes, src, {
                 return HeaderValue {
                     inner: src,
@@ -220,10 +219,13 @@ impl HeaderValue {
     }
 
     fn from_shared(src: Bytes) -> Result<HeaderValue, InvalidHeaderValue> {
-        HeaderValue::try_from_generic(src, std::convert::identity)
+        HeaderValue::try_from_generic(src, core::convert::identity)
     }
 
-    fn try_from_generic<T: AsRef<[u8]>, F: FnOnce(T) -> Bytes>(src: T, into: F) -> Result<HeaderValue, InvalidHeaderValue> {
+    fn try_from_generic<T: AsRef<[u8]>, F: FnOnce(T) -> Bytes>(
+        src: T,
+        into: F,
+    ) -> Result<HeaderValue, InvalidHeaderValue> {
         for &b in src.as_ref() {
             if !is_valid(b) {
                 return Err(InvalidHeaderValue { _priv: () });
@@ -438,11 +440,13 @@ macro_rules! from_integers {
 
         #[test]
         fn $name() {
+            use alloc::string::ToString;
+
             let n: $t = 55;
             let val = HeaderValue::from(n);
             assert_eq!(val, &n.to_string());
 
-            let n = ::std::$t::MAX;
+            let n = ::core::$t::MAX;
             let val = HeaderValue::from(n);
             assert_eq!(val, &n.to_string());
         }
@@ -603,7 +607,8 @@ impl fmt::Display for InvalidHeaderValue {
     }
 }
 
-impl Error for InvalidHeaderValue {}
+#[cfg(feature = "std")]
+impl std::error::Error for InvalidHeaderValue {}
 
 impl fmt::Display for ToStrError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -611,7 +616,8 @@ impl fmt::Display for ToStrError {
     }
 }
 
-impl Error for ToStrError {}
+#[cfg(feature = "std")]
+impl std::error::Error for ToStrError {}
 
 // ===== PartialEq / PartialOrd =====
 
@@ -772,11 +778,13 @@ impl<'a> PartialOrd<HeaderValue> for &'a str {
 
 #[test]
 fn test_try_from() {
-    HeaderValue::try_from(vec![127]).unwrap_err();
+    HeaderValue::try_from(alloc::vec![127]).unwrap_err();
 }
 
 #[test]
 fn test_debug() {
+    use alloc::format;
+
     let cases = &[
         ("hello", "\"hello\""),
         ("hello \"world\"", "\"hello \\\"world\\\"\""),

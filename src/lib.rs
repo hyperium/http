@@ -1,3 +1,4 @@
+#![no_std]
 #![doc(html_root_url = "https://docs.rs/http/0.2.8")]
 
 //! A general purpose library of common HTTP types
@@ -157,8 +158,11 @@
 //! assert_eq!(uri.path(), "/index.html");
 //! assert_eq!(uri.query(), None);
 //! ```
-
 #![deny(warnings, missing_docs, missing_debug_implementations)]
+
+extern crate alloc;
+#[cfg(feature = "std")]
+extern crate std;
 
 #[cfg(test)]
 #[macro_use]
@@ -180,9 +184,11 @@ pub mod version;
 
 mod byte_str;
 mod error;
+#[cfg(feature = "extensions")]
 mod extensions;
 
 pub use crate::error::{Error, Result};
+#[cfg(feature = "extensions")]
 pub use crate::extensions::Extensions;
 #[doc(no_inline)]
 pub use crate::header::{HeaderMap, HeaderName, HeaderValue};

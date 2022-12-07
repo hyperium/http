@@ -23,14 +23,15 @@
 //! ```
 
 use crate::byte_str::ByteStr;
-use std::convert::TryFrom;
+use core::convert::TryFrom;
 
+use alloc::{boxed::Box, string::String, vec::Vec};
 use bytes::Bytes;
 
-use std::error::Error;
-use std::hash::{Hash, Hasher};
-use std::str::{self, FromStr};
-use std::{fmt, u16, u8};
+// use std::error::Error;
+use core::hash::{Hash, Hasher};
+use core::str::{self, FromStr};
+use core::{fmt, u16, u8};
 
 use self::scheme::Scheme2;
 
@@ -149,6 +150,7 @@ const MAX_LEN: usize = (u16::MAX - 1) as usize;
 // of this table is that all entries above 127 are invalid. This makes all of the
 // valid entries a valid single-byte UTF-8 code point. This means that a slice
 // of such valid entries is valid UTF-8.
+#[rustfmt::skip]
 const URI_CHARS: [u8; 256] = [
     //  0      1      2      3      4      5      6      7      8      9
         0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //   x
@@ -1084,7 +1086,8 @@ impl fmt::Display for InvalidUri {
     }
 }
 
-impl Error for InvalidUri {}
+#[cfg(feature = "std")]
+impl std::error::Error for InvalidUri {}
 
 impl fmt::Display for InvalidUriParts {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1092,7 +1095,8 @@ impl fmt::Display for InvalidUriParts {
     }
 }
 
-impl Error for InvalidUriParts {}
+#[cfg(feature = "std")]
+impl std::error::Error for InvalidUriParts {}
 
 impl Hash for Uri {
     fn hash<H>(&self, state: &mut H)

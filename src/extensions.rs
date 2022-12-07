@@ -1,7 +1,9 @@
-use std::any::{Any, TypeId};
-use std::collections::HashMap;
-use std::fmt;
-use std::hash::{BuildHasherDefault, Hasher};
+use core::any::{Any, TypeId};
+use core::fmt;
+use core::hash::{BuildHasherDefault, Hasher};
+use hashbrown::HashMap;
+
+use alloc::boxed::Box;
 
 type AnyMap = HashMap<TypeId, Box<dyn Any + Send + Sync>, BuildHasherDefault<IdHasher>>;
 
@@ -166,9 +168,7 @@ impl Extensions {
     /// ```
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.map
-            .as_ref()
-            .map_or(true, |map| map.is_empty())
+        self.map.as_ref().map_or(true, |map| map.is_empty())
     }
 
     /// Get the numer of extensions available.
@@ -184,28 +184,26 @@ impl Extensions {
     /// ```
     #[inline]
     pub fn len(&self) -> usize {
-        self.map
-            .as_ref()
-            .map_or(0, |map| map.len())
+        self.map.as_ref().map_or(0, |map| map.len())
     }
 
     /// Extends `self` with another `Extensions`.
     ///
     /// If an instance of a specific type exists in both, the one in `self` is overwritten with the
     /// one from `other`.
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```
     /// # use http::Extensions;
     /// let mut ext_a = Extensions::new();
     /// ext_a.insert(8u8);
     /// ext_a.insert(16u16);
-    /// 
+    ///
     /// let mut ext_b = Extensions::new();
     /// ext_b.insert(4u8);
     /// ext_b.insert("hello");
-    /// 
+    ///
     /// ext_a.extend(ext_b);
     /// assert_eq!(ext_a.len(), 3);
     /// assert_eq!(ext_a.get::<u8>(), Some(&4u8));

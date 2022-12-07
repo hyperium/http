@@ -1,4 +1,4 @@
-use std::convert::{TryFrom, TryInto};
+use core::convert::{TryFrom, TryInto};
 
 use super::{Authority, Parts, PathAndQuery, Scheme};
 use crate::Uri;
@@ -137,7 +137,6 @@ impl Builder {
     where
         F: FnOnce(Parts) -> Result<Parts, crate::Error>,
     {
-
         Builder {
             parts: self.parts.and_then(func),
         }
@@ -155,6 +154,8 @@ impl Default for Builder {
 
 #[cfg(test)]
 mod tests {
+    use alloc::format;
+
     use super::*;
 
     #[test]

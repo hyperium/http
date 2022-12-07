@@ -1,8 +1,9 @@
-use std::convert::TryFrom;
-use std::hash::{Hash, Hasher};
-use std::str::FromStr;
-use std::{cmp, fmt, str};
+use core::convert::TryFrom;
+use core::hash::{Hash, Hasher};
+use core::str::FromStr;
+use core::{cmp, fmt, str};
 
+use alloc::{string::String, vec::Vec};
 use bytes::Bytes;
 
 use super::{ErrorKind, InvalidUri, Port, URI_CHARS};
@@ -527,6 +528,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::string::ToString;
 
     #[test]
     fn parse_empty_string_is_error() {
@@ -658,8 +660,7 @@ mod tests {
         let err = Authority::try_from([0xc0u8].as_ref()).unwrap_err();
         assert_eq!(err.0, ErrorKind::InvalidUriChar);
 
-        let err = Authority::from_shared(Bytes::from_static([0xc0u8].as_ref()))
-            .unwrap_err();
+        let err = Authority::from_shared(Bytes::from_static([0xc0u8].as_ref())).unwrap_err();
         assert_eq!(err.0, ErrorKind::InvalidUriChar);
     }
 

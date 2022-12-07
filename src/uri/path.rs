@@ -1,7 +1,8 @@
-use std::convert::TryFrom;
-use std::str::FromStr;
-use std::{cmp, fmt, str};
+use core::convert::TryFrom;
+use core::str::FromStr;
+use core::{cmp, fmt, str};
 
+use alloc::{string::String, vec::Vec};
 use bytes::Bytes;
 
 use super::{ErrorKind, InvalidUri};
@@ -14,7 +15,7 @@ pub struct PathAndQuery {
     pub(super) query: u16,
 }
 
-const NONE: u16 = ::std::u16::MAX;
+const NONE: u16 = ::core::u16::MAX;
 
 impl PathAndQuery {
     // Not public while `bytes` is unstable.
@@ -43,13 +44,7 @@ impl PathAndQuery {
                     // This is the range of bytes that don't need to be
                     // percent-encoded in the path. If it should have been
                     // percent-encoded, then error.
-                    0x21 |
-                    0x24..=0x3B |
-                    0x3D |
-                    0x40..=0x5F |
-                    0x61..=0x7A |
-                    0x7C |
-                    0x7E => {},
+                    0x21 | 0x24..=0x3B | 0x3D | 0x40..=0x5F | 0x61..=0x7A | 0x7C | 0x7E => {}
 
                     // These are code points that are supposed to be
                     // percent-encoded in the path but there are clients
@@ -60,8 +55,7 @@ impl PathAndQuery {
                     // For reference, those are code points that are used
                     // to send requests with JSON directly embedded in
                     // the URI path. Yes, those things happen for real.
-                    b'"' |
-                    b'{' | b'}' => {},
+                    b'"' | b'{' | b'}' => {}
 
                     _ => return Err(ErrorKind::InvalidUriChar.into()),
                 }
@@ -76,10 +70,7 @@ impl PathAndQuery {
                         // See https://url.spec.whatwg.org/#query-state
                         //
                         // Allowed: 0x21 / 0x24 - 0x3B / 0x3D / 0x3F - 0x7E
-                        0x21 |
-                        0x24..=0x3B |
-                        0x3D |
-                        0x3F..=0x7E => {},
+                        0x21 | 0x24..=0x3B | 0x3D | 0x3F..=0x7E => {}
 
                         b'#' => {
                             fragment = Some(i);
@@ -446,6 +437,8 @@ impl PartialOrd<PathAndQuery> for String {
 
 #[cfg(test)]
 mod tests {
+    use alloc::{format, string::ToString};
+
     use super::*;
 
     #[test]
@@ -549,7 +542,10 @@ mod tests {
 
     #[test]
     fn json_is_fine() {
-        assert_eq!(r#"/{"bread":"baguette"}"#, pq(r#"/{"bread":"baguette"}"#).path());
+        assert_eq!(
+            r#"/{"bread":"baguette"}"#,
+            pq(r#"/{"bread":"baguette"}"#).path()
+        );
     }
 
     fn pq(s: &str) -> PathAndQuery {
