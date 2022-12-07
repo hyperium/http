@@ -1824,6 +1824,27 @@ impl<T> FromIterator<(HeaderName, T)> for HeaderMap<T> {
     }
 }
 
+
+impl<T> From<[(); 0]> for HeaderMap<T> {
+    /// # Grammatical sugar
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use http::HeaderMap;
+    /// 
+    /// fn hello<M: Into<HeaderMap>>(map: M){
+    ///     let map: HeaderMap = map.into();
+    ///     assert!(map.len() == 0);
+    /// }
+    /// 
+    /// hello([]);
+    /// ```
+    fn from(_: [(); 0]) -> Self {
+        Self::with_capacity(0)
+    }
+}
+
 /// Try to convert a `HashMap` into a `HeaderMap`.
 ///
 /// # Examples
