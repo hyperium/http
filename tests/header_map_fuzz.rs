@@ -282,6 +282,8 @@ fn gen_header_name(g: &mut StdRng) -> HeaderName {
         header::ALT_SVC,
         header::AUTHORIZATION,
         header::CACHE_CONTROL,
+        header::CACHE_STATUS,
+        header::CDN_CACHE_CONTROL,
         header::CONNECTION,
         header::CONTENT_DISPOSITION,
         header::CONTENT_ENCODING,
