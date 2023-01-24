@@ -368,7 +368,7 @@ impl AsRef<[u8]> for HeaderValue {
 impl fmt::Debug for HeaderValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.is_sensitive {
-            f.write_str("Sensitive")
+            f.write_str("\"Sensitive\"")
         } else {
             f.write_str("\"")?;
             let mut from = 0;
@@ -791,5 +791,5 @@ fn test_debug() {
 
     let mut sensitive = HeaderValue::from_static("password");
     sensitive.set_sensitive(true);
-    assert_eq!("Sensitive", format!("{:?}", sensitive));
+    assert_eq!("\"Sensitive\"", format!("{:?}", sensitive));
 }
