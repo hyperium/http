@@ -15,8 +15,11 @@
 //! let http11 = Version::HTTP_11;
 //! let http2 = Version::HTTP_2;
 //! assert!(http11 != http2);
+//! let http2 = Version::HTTP_2;
+//! println!("{}", http2);
+//! let http22 = http2.to_string();
+//! println!("{}", http22)
 //!
-//! println!("{:?}", http2);
 //! ```
 
 use std::fmt;
@@ -73,3 +76,20 @@ impl fmt::Debug for Version {
         })
     }
 }
+
+impl fmt::Display for Version {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use self::Http::*;
+        f.write_str(match self.0 {
+            Http09 => "HTTP/0.9",
+            Http10 => "HTTP/1.0",
+            Http11 => "HTTP/1.1",
+            H2 => "HTTP/2.0",
+            H3 => "HTTP/3.0",
+            __NonExhaustive => unreachable!(),
+        })
+    }
+}
+
+
+
