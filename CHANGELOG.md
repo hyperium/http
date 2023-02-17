@@ -1,6 +1,8 @@
-# Unreleased
+# 0.2.9 (February 17, 2023)
 
 * Add `HeaderName` constants for `cache-status` and `cdn-cache-control`.
+* Implement `Hash` for `PathAndQuery`.
+* Re-export `HeaderName` at crate root.
 
 # 0.2.8 (June 6, 2022)
 
