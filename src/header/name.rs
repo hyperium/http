@@ -1249,7 +1249,7 @@ impl HeaderName {
     /// ```
     #[allow(unconditional_panic)] // required for the panic circumvention
     pub const fn from_static(src: &'static str) -> HeaderName {
-        from_static_check_valid(src, HEADER_CHARS_H2)
+        HeaderName::from_static_check_valid(src, &HEADER_CHARS_H2)
     }
 
     /// Converts a static string to a HTTP version 1x header name.
@@ -1267,7 +1267,7 @@ impl HeaderName {
     /// going to look cryptic, but should at least point at your header value:
     #[allow(unconditional_panic)] // required for the panic circumvention
     pub const fn from_static_for_http_1x(src: &'static str) -> HeaderName {
-        from_static_check_valid(src, HEADER_CHARS)
+        HeaderName::from_static_check_valid(src, &HEADER_CHARS)
     }
 
     const fn from_static_check_valid(src: &'static str, table: &[u8; 256]) -> HeaderName {
