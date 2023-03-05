@@ -1249,6 +1249,28 @@ impl HeaderName {
     /// ```
     #[allow(unconditional_panic)] // required for the panic circumvention
     pub const fn from_static(src: &'static str) -> HeaderName {
+        from_static_check_valid(src, HEADER_CHARS_H2)
+    }
+
+    /// Converts a static string to a HTTP version 1x header name.
+    ///
+    /// This function allows the static string to contain a mix of lowercase
+    /// and uppercase characters, numerals and symbols, as per the HTTP/1.1
+    /// specification and header names internal representation within this library.
+    ///
+    /// # Panics
+    ///
+    /// This function panics when the static string is a invalid header.
+    ///
+    /// Until [Allow panicking in constants](https://github.com/rust-lang/rfcs/pull/2345)
+    /// makes its way into stable, the panic message at compile-time is
+    /// going to look cryptic, but should at least point at your header value:
+    #[allow(unconditional_panic)] // required for the panic circumvention
+    pub const fn from_static_for_http_1x(src: &'static str) -> HeaderName {
+        from_static_check_valid(src, HEADER_CHARS)
+    }
+
+    const fn from_static_check_valid(src: &'static str, table: &[u8; 256]) -> HeaderName {
         let name_bytes = src.as_bytes();
         if let Some(standard) = StandardHeader::from_bytes(name_bytes) {
             return HeaderName{
@@ -1261,7 +1283,7 @@ impl HeaderName {
             loop {
                 if i >= name_bytes.len() {
                     break false;
-                } else if HEADER_CHARS_H2[name_bytes[i] as usize] == 0 {
+                } else if table[name_bytes[i] as usize] == 0 {
                     break true;
                 }
                 i += 1;
