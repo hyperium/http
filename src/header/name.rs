@@ -1252,11 +1252,11 @@ impl HeaderName {
         HeaderName::from_static_check_valid(src, &HEADER_CHARS_H2)
     }
 
-    /// Converts a static string to a HTTP version 1x header name.
+    /// Converts a static string to a header name.
     ///
     /// This function allows the static string to contain a mix of lowercase
-    /// and uppercase characters, numerals and symbols, as per the HTTP/1.1
-    /// specification and header names internal representation within this library.
+    /// and uppercase characters, numerals and symbols, as was permitted by HTTP
+    /// specifications prior to version 2.0.
     ///
     /// # Panics
     ///
@@ -1266,7 +1266,7 @@ impl HeaderName {
     /// makes its way into stable, the panic message at compile-time is
     /// going to look cryptic, but should at least point at your header value:
     #[allow(unconditional_panic)] // required for the panic circumvention
-    pub const fn from_static_for_http_1x(src: &'static str) -> HeaderName {
+    pub const fn from_static_preserve_case(src: &'static str) -> HeaderName {
         HeaderName::from_static_check_valid(src, &HEADER_CHARS)
     }
 
