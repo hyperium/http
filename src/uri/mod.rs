@@ -244,10 +244,8 @@ impl Uri {
             if src.path_and_query.is_none() {
                 return Err(ErrorKind::PathAndQueryMissing.into());
             }
-        } else {
-            if src.authority.is_some() && src.path_and_query.is_some() {
-                return Err(ErrorKind::SchemeMissing.into());
-            }
+        } else if src.authority.is_some() && src.path_and_query.is_some() {
+            return Err(ErrorKind::SchemeMissing.into());
         }
 
         let scheme = match src.scheme {
@@ -268,9 +266,9 @@ impl Uri {
         };
 
         Ok(Uri {
-            scheme: scheme,
-            authority: authority,
-            path_and_query: path_and_query,
+            scheme,
+            authority,
+            path_and_query,
         })
     }
 
@@ -321,7 +319,7 @@ impl Uri {
 
                     return Ok(Uri {
                         scheme: Scheme::empty(),
-                        authority: authority,
+                        authority,
                         path_and_query: PathAndQuery::empty(),
                     });
                 }
@@ -650,7 +648,7 @@ impl Uri {
     /// assert_eq!(uri.port_u16(), Some(80));
     /// ```
     pub fn port_u16(&self) -> Option<u16> {
-        self.port().and_then(|p| Some(p.as_u16()))
+        self.port().map(|p| p.as_u16())
     }
 
     /// Get the query string of this `Uri`, starting after the `?`.
@@ -742,7 +740,7 @@ impl TryFrom<String> for Uri {
     }
 }
 
-impl<'a> TryFrom<Vec<u8>> for Uri {
+impl TryFrom<Vec<u8>> for Uri {
     type Error = InvalidUri;
 
     #[inline]
@@ -812,9 +810,9 @@ impl From<Uri> for Parts {
         };
 
         Parts {
-            scheme: scheme,
-            authority: authority,
-            path_and_query: path_and_query,
+            scheme,
+            authority,
+            path_and_query,
             _priv: (),
         }
     }
@@ -858,7 +856,7 @@ fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUri> {
 
         return Ok(Uri {
             scheme: scheme.into(),
-            authority: authority,
+            authority,
             path_and_query: PathAndQuery::empty(),
         });
     }
@@ -875,7 +873,7 @@ fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUri> {
 
     Ok(Uri {
         scheme: scheme.into(),
-        authority: authority,
+        authority,
         path_and_query: PathAndQuery::from_shared(s)?,
     })
 }
@@ -965,8 +963,8 @@ impl PartialEq<str> for Uri {
         }
 
         if let Some(query) = self.query() {
-            if other.len() == 0 {
-                return query.len() == 0;
+            if other.is_empty() {
+                return query.is_empty();
             }
 
             if other[0] != b'?' {

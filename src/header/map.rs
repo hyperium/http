@@ -224,7 +224,7 @@ enum Cursor {
 /// limit enables using `u16` to represent all offsets, which takes 2 bytes
 /// instead of 8 on 64 bit processors.
 ///
-/// Setting this limit is especially benificial for `indices`, making it more
+/// Setting this limit is especially beneficial for `indices`, making it more
 /// cache friendly. More hash codes can fit in a cache line.
 ///
 /// You may notice that `u16` may represent more than 32,768 values. This is
@@ -640,9 +640,9 @@ impl<T> HeaderMap<T> {
         if cap > self.indices.len() {
             let cap = cap.next_power_of_two();
             assert!(cap <= MAX_SIZE, "header map reserve over max capacity");
-            assert!(cap != 0, "header map reserve overflowed");
+            assert_ne!(cap, 0, "header map reserve overflowed");
 
-            if self.entries.len() == 0 {
+            if self.entries.is_empty() {
                 self.mask = cap as Size - 1;
                 self.indices = vec![Pos::none(); cap].into_boxed_slice();
                 self.entries = Vec::with_capacity(usable_capacity(cap));
@@ -994,7 +994,7 @@ impl<T> HeaderMap<T> {
         } else {
             ValueIter {
                 map: self,
-                index: ::std::usize::MAX,
+                index: usize::MAX,
                 front: None,
                 back: None,
             }
@@ -1083,22 +1083,22 @@ impl<T> HeaderMap<T> {
             danger,
             Entry::Vacant(VacantEntry {
                 map: self,
-                hash: hash,
+                hash,
                 key: key.into(),
-                probe: probe,
-                danger: danger,
+                probe,
+                danger,
             }),
             Entry::Occupied(OccupiedEntry {
                 map: self,
                 index: pos,
-                probe: probe,
+                probe,
             }),
             Entry::Vacant(VacantEntry {
                 map: self,
-                hash: hash,
+                hash,
                 key: key.into(),
-                probe: probe,
-                danger: danger,
+                probe,
+                danger,
             })
         )
     }
@@ -1200,7 +1200,7 @@ impl<T> HeaderMap<T> {
 
         ValueDrain {
             first: Some(old),
-            next: next,
+            next,
             lt: PhantomData,
         }
     }
@@ -1453,9 +1453,9 @@ impl<T> HeaderMap<T> {
         assert!(self.entries.len() < MAX_SIZE, "header map at capacity");
 
         self.entries.push(Bucket {
-            hash: hash,
-            key: key,
-            value: value,
+            hash,
+            key,
+            value,
             links: None,
         });
     }
@@ -1700,8 +1700,8 @@ fn remove_extra_value<T>(
 
     debug_assert!({
         for v in &*extra_values {
-            assert!(v.next != Link::Extra(old_idx));
-            assert!(v.prev != Link::Extra(old_idx));
+            assert_ne!(v.next, Link::Extra(old_idx));
+            assert_ne!(v.prev, Link::Extra(old_idx));
         }
 
         true
@@ -1983,7 +1983,7 @@ impl<T> Default for HeaderMap<T> {
     }
 }
 
-impl<'a, K, T> ops::Index<K> for HeaderMap<T>
+impl<K, T> ops::Index<K> for HeaderMap<T>
 where
     K: AsHeaderName,
 {
@@ -2033,7 +2033,7 @@ fn append_value<T>(
         Some(links) => {
             let idx = extra.len();
             extra.push(ExtraValue {
-                value: value,
+                value,
                 prev: Link::Extra(links.tail),
                 next: Link::Entry(entry_idx),
             });
@@ -2045,7 +2045,7 @@ fn append_value<T>(
         None => {
             let idx = extra.len();
             extra.push(ExtraValue {
-                value: value,
+                value,
                 prev: Link::Entry(entry_idx),
                 next: Link::Entry(entry_idx),
             });
@@ -2408,7 +2408,7 @@ impl<'a, T> VacantEntry<'a, T> {
         // Ensure that there is space in the map
         let index =
             self.map
-                .insert_phase_two(self.key, value.into(), self.hash, self.probe, self.danger);
+                .insert_phase_two(self.key, value, self.hash, self.probe, self.danger);
 
         &mut self.map.entries[index].value
     }
@@ -2435,11 +2435,11 @@ impl<'a, T> VacantEntry<'a, T> {
         // Ensure that there is space in the map
         let index =
             self.map
-                .insert_phase_two(self.key, value.into(), self.hash, self.probe, self.danger);
+                .insert_phase_two(self.key, value, self.hash, self.probe, self.danger);
 
         OccupiedEntry {
             map: self.map,
-            index: index,
+            index,
             probe: self.probe,
         }
     }
@@ -2845,7 +2845,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// assert_eq!("earth", map["host"]);
     /// ```
     pub fn insert(&mut self, value: T) -> T {
-        self.map.insert_occupied(self.index, value.into())
+        self.map.insert_occupied(self.index, value)
     }
 
     /// Sets the value of the entry.
@@ -2871,7 +2871,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// assert_eq!("earth", map["host"]);
     /// ```
     pub fn insert_mult(&mut self, value: T) -> ValueDrain<'_, T> {
-        self.map.insert_occupied_mult(self.index, value.into())
+        self.map.insert_occupied_mult(self.index, value)
     }
 
     /// Insert the value into the entry.
@@ -2898,7 +2898,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     pub fn append(&mut self, value: T) {
         let idx = self.index;
         let entry = &mut self.map.entries[idx];
-        append_value(idx, entry, &mut self.map.extra_values, value.into());
+        append_value(idx, entry, &mut self.map.extra_values, value);
     }
 
     /// Remove the entry from the map.
@@ -3131,7 +3131,7 @@ impl Pos {
         debug_assert!(index < MAX_SIZE);
         Pos {
             index: index as Size,
-            hash: hash,
+            hash,
         }
     }
 
@@ -3165,10 +3165,7 @@ impl Pos {
 
 impl Danger {
     fn is_red(&self) -> bool {
-        match *self {
-            Danger::Red(_) => true,
-            _ => false,
-        }
+        matches!(self, Danger::Red(_))
     }
 
     fn to_red(&mut self) {
@@ -3177,10 +3174,7 @@ impl Danger {
     }
 
     fn is_yellow(&self) -> bool {
-        match *self {
-            Danger::Yellow => true,
-            _ => false,
-        }
+        matches!(self, Danger::Yellow)
     }
 
     fn to_yellow(&mut self) {
@@ -3395,7 +3389,7 @@ mod as_header_name {
         }
 
         fn as_str(&self) -> &str {
-            <HeaderName>::as_str(*self)
+            <HeaderName>::as_str(self)
         }
     }
 
@@ -3449,7 +3443,7 @@ mod as_header_name {
         }
 
         fn as_str(&self) -> &str {
-            *self
+            self
         }
     }
 

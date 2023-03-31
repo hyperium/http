@@ -185,10 +185,7 @@ impl Hash for Scheme {
 
 impl<T> Scheme2<T> {
     pub(super) fn is_none(&self) -> bool {
-        match *self {
-            Scheme2::None => true,
-            _ => false,
-        }
+        matches!(self, Scheme2::None)
     }
 }
 

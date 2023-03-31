@@ -234,7 +234,7 @@ impl Authority {
     pub fn port(&self) -> Option<Port<&str>> {
         let bytes = self.as_str();
         bytes
-            .rfind(":")
+            .rfind(':')
             .and_then(|i| Port::from_str(&bytes[i + 1..]).ok())
     }
 
@@ -249,7 +249,7 @@ impl Authority {
     /// assert_eq!(authority.port_u16(), Some(80));
     /// ```
     pub fn port_u16(&self) -> Option<u16> {
-        self.port().and_then(|p| Some(p.as_u16()))
+        self.port().map(|p| p.as_u16())
     }
 
     /// Return a str representation of the authority
@@ -430,7 +430,7 @@ impl<'a> TryFrom<&'a [u8]> for Authority {
 
         // Preconditon on create_authority: copy_from_slice() copies all of
         // bytes from the [u8] parameter into a new Bytes
-        create_authority(s, |s| Bytes::copy_from_slice(s))
+        create_authority(s, Bytes::copy_from_slice)
     }
 }
 

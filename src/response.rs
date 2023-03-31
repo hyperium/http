@@ -251,7 +251,7 @@ impl<T> Response<T> {
     pub fn new(body: T) -> Response<T> {
         Response {
             head: Parts::new(),
-            body: body,
+            body,
         }
     }
 
@@ -274,7 +274,7 @@ impl<T> Response<T> {
     pub fn from_parts(parts: Parts, body: T) -> Response<T> {
         Response {
             head: parts,
-            body: body,
+            body,
         }
     }
 
