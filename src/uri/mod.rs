@@ -103,6 +103,7 @@ pub struct Uri {
 ///
 /// This struct is used to provide to and retrieve from a URI.
 #[derive(Debug, Default)]
+#[non_exhaustive]
 pub struct Parts {
     /// The scheme component of a URI
     pub scheme: Option<Scheme>,
@@ -112,9 +113,6 @@ pub struct Parts {
 
     /// The origin-form component of a URI
     pub path_and_query: Option<PathAndQuery>,
-
-    /// Allow extending in the future
-    _priv: (),
 }
 
 /// An error resulting from a failed attempt to construct a URI.
@@ -813,7 +811,6 @@ impl From<Uri> for Parts {
             scheme,
             authority,
             path_and_query,
-            _priv: (),
         }
     }
 }
