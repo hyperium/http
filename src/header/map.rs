@@ -1154,7 +1154,7 @@ impl<T> HeaderMap<T> {
             danger,
             // Vacant
             {
-                drop(danger); // Make lint happy
+                let _ = danger; // Make lint happy
                 let index = self.entries.len();
                 self.insert_entry(hash, key.into(), value);
                 self.indices[probe] = Pos::new(index, hash);
@@ -1255,7 +1255,7 @@ impl<T> HeaderMap<T> {
             danger,
             // Vacant
             {
-                drop(danger);
+                let _ = danger;
                 let index = self.entries.len();
                 self.insert_entry(hash, key.into(), value);
                 self.indices[probe] = Pos::new(index, hash);
@@ -1406,7 +1406,7 @@ impl<T> HeaderMap<T> {
 
         // backward shift deletion in self.indices
         // after probe, shift all non-ideally placed indices backward
-        if self.entries.len() > 0 {
+        if !self.entries.is_empty() {
             let mut last_probe = probe;
             let mut probe = probe + 1;
 
@@ -1846,7 +1846,7 @@ where
     type Error = Error;
 
     fn try_from(c: &'a HashMap<K, V>) -> Result<Self, Self::Error> {
-        c.into_iter()
+        c.iter()
             .map(|(k, v)| -> crate::Result<(HeaderName, T)> {
                 let name = TryFrom::try_from(k).map_err(Into::into)?;
                 let value = TryFrom::try_from(v).map_err(Into::into)?;
@@ -3076,12 +3076,12 @@ impl<'a, T> Iterator for ValueDrain<'a, T> {
             // Exactly 1
             (&Some(_), &None) => (1, Some(1)),
             // 1 + extras
-            (&Some(_), &Some(ref extras)) => {
+            (&Some(_), Some(extras)) => {
                 let (l, u) = extras.size_hint();
                 (l + 1, u.map(|u| u + 1))
             }
             // Extras only
-            (&None, &Some(ref extras)) => extras.size_hint(),
+            (&None, Some(extras)) => extras.size_hint(),
             // No more
             (&None, &None) => (0, Some(0)),
         }
@@ -3092,7 +3092,7 @@ impl<'a, T> FusedIterator for ValueDrain<'a, T> {}
 
 impl<'a, T> Drop for ValueDrain<'a, T> {
     fn drop(&mut self) {
-        while let Some(_) = self.next() {}
+        for _ in self.by_ref() {}
     }
 }
 
@@ -3178,11 +3178,8 @@ impl Danger {
     }
 
     fn to_yellow(&mut self) {
-        match *self {
-            Danger::Green => {
-                *self = Danger::Yellow;
-            }
-            _ => {}
+        if matches!(self, Danger::Green) {
+            *self = Danger::Yellow;
         }
     }
 

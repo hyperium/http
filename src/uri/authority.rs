@@ -482,7 +482,7 @@ impl fmt::Display for Authority {
 
 fn host(auth: &str) -> &str {
     let host_port = auth
-        .rsplitn(2, '@')
+        .rsplit('@')
         .next()
         .expect("split always has at least 1 item");
 
