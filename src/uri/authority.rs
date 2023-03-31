@@ -658,8 +658,7 @@ mod tests {
         let err = Authority::try_from([0xc0u8].as_ref()).unwrap_err();
         assert_eq!(err.0, ErrorKind::InvalidUriChar);
 
-        let err = Authority::from_shared(Bytes::from_static([0xc0u8].as_ref()))
-            .unwrap_err();
+        let err = Authority::from_shared(Bytes::from_static([0xc0u8].as_ref())).unwrap_err();
         assert_eq!(err.0, ErrorKind::InvalidUriChar);
     }
 

@@ -555,7 +555,10 @@ mod tests {
 
     #[test]
     fn json_is_fine() {
-        assert_eq!(r#"/{"bread":"baguette"}"#, pq(r#"/{"bread":"baguette"}"#).path());
+        assert_eq!(
+            r#"/{"bread":"baguette"}"#,
+            pq(r#"/{"bread":"baguette"}"#).path()
+        );
     }
 
     fn pq(s: &str) -> PathAndQuery {

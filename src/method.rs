@@ -15,13 +15,13 @@
 //! assert_eq!(Method::POST.as_str(), "POST");
 //! ```
 
+use self::extension::{AllocatedExtension, InlineExtension};
 use self::Inner::*;
-use self::extension::{InlineExtension, AllocatedExtension};
 
 use std::convert::AsRef;
+use std::convert::TryFrom;
 use std::error::Error;
 use std::str::FromStr;
-use std::convert::TryFrom;
 use std::{fmt, str};
 
 /// The Request Method (VERB)
@@ -66,7 +66,6 @@ enum Inner {
     // Otherwise, allocate it
     ExtensionAllocated(AllocatedExtension),
 }
-
 
 impl Method {
     /// GET
@@ -339,7 +338,7 @@ mod extension {
             let InlineExtension(ref data, len) = self;
             // Safety: the invariant of InlineExtension ensures that the first
             // len bytes of data contain valid UTF-8.
-            unsafe {str::from_utf8_unchecked(&data[..*len as usize])}
+            unsafe { str::from_utf8_unchecked(&data[..*len as usize]) }
         }
     }
 
@@ -357,7 +356,7 @@ mod extension {
         pub fn as_str(&self) -> &str {
             // Safety: the invariant of AllocatedExtension ensures that self.0
             // contains valid UTF-8.
-            unsafe {str::from_utf8_unchecked(&self.0)}
+            unsafe { str::from_utf8_unchecked(&self.0) }
         }
     }
 

@@ -203,7 +203,6 @@ impl HeaderValue {
                 }
             }
         } else {
-
             if_downcast_into!(T, Bytes, src, {
                 return HeaderValue {
                     inner: src,
@@ -223,7 +222,10 @@ impl HeaderValue {
         HeaderValue::try_from_generic(src, std::convert::identity)
     }
 
-    fn try_from_generic<T: AsRef<[u8]>, F: FnOnce(T) -> Bytes>(src: T, into: F) -> Result<HeaderValue, InvalidHeaderValue> {
+    fn try_from_generic<T: AsRef<[u8]>, F: FnOnce(T) -> Bytes>(
+        src: T,
+        into: F,
+    ) -> Result<HeaderValue, InvalidHeaderValue> {
         for &b in src.as_ref() {
             if !is_valid(b) {
                 return Err(InvalidHeaderValue { _priv: () });

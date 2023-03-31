@@ -754,19 +754,14 @@ impl Builder {
     ///     .unwrap();
     /// ```
     pub fn body<T>(self, body: T) -> Result<Response<T>> {
-        self.inner.map(move |head| {
-            Response {
-                head,
-                body,
-            }
-        })
+        self.inner.map(move |head| Response { head, body })
     }
 
     // private
 
     fn and_then<F>(self, func: F) -> Self
     where
-        F: FnOnce(Parts) -> Result<Parts>
+        F: FnOnce(Parts) -> Result<Parts>,
     {
         Builder {
             inner: self.inner.and_then(func),
