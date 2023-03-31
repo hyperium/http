@@ -147,10 +147,7 @@ impl Method {
     /// See [the spec](https://tools.ietf.org/html/rfc7231#section-4.2.1)
     /// for more words.
     pub fn is_safe(&self) -> bool {
-        match self.0 {
-            Get | Head | Options | Trace => true,
-            _ => false,
-        }
+        matches!(self.0, Get | Head | Options | Trace)
     }
 
     /// Whether a method is considered "idempotent", meaning the request has

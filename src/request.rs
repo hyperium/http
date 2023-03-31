@@ -449,10 +449,7 @@ impl<T> Request<T> {
     /// ```
     #[inline]
     pub fn from_parts(parts: Parts, body: T) -> Request<T> {
-        Request {
-            head: parts,
-            body,
-        }
+        Request { head: parts, body }
     }
 
     /// Returns a reference to the associated HTTP method.

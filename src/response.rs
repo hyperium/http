@@ -271,10 +271,7 @@ impl<T> Response<T> {
     /// ```
     #[inline]
     pub fn from_parts(parts: Parts, body: T) -> Response<T> {
-        Response {
-            head: parts,
-            body,
-        }
+        Response { head: parts, body }
     }
 
     /// Returns the `StatusCode`.
