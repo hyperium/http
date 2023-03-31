@@ -1651,13 +1651,13 @@ const SCRATCH_BUF_OVERFLOW: usize = SCRATCH_BUF_SIZE + 1;
 fn uninit_u8_array() -> [MaybeUninit<u8>; SCRATCH_BUF_SIZE] {
     let arr = MaybeUninit::<[MaybeUninit<u8>; SCRATCH_BUF_SIZE]>::uninit();
     // Safety: assume_init() is claiming that an array of MaybeUninit<>
-    // has been initilized, but MaybeUninit<>'s do not require initilizaton.
+    // has been initialized, but MaybeUninit<>'s do not require initialization.
     unsafe { arr.assume_init() }
 }
 
-// Assuming all the elements are initilized, get a slice of them.
+// Assuming all the elements are initialized, get a slice of them.
 //
-// Safety: All elements of `slice` must be initilized to prevent
+// Safety: All elements of `slice` must be initialized to prevent
 // undefined behavior.
 unsafe fn slice_assume_init<T>(slice: &[MaybeUninit<T>]) -> &[T] {
     &*(slice as *const [MaybeUninit<T>] as *const [T])

@@ -14,7 +14,7 @@ use crate::header::name::HeaderName;
 /// HTTP spec allows for a header value to contain opaque bytes as well. In this
 /// case, the header field value is not able to be represented as a string.
 ///
-/// To handle this, the `HeaderValue` is useable as a type and can be compared
+/// To handle this, the `HeaderValue` is usable as a type and can be compared
 /// with strings and implements `Debug`. A `to_str` fn is provided that returns
 /// an `Err` if the header value contains non visible ascii characters.
 #[derive(Clone, Hash)]

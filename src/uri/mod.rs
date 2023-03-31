@@ -956,7 +956,7 @@ impl PartialEq<str> for Uri {
 
         if other.len() < path.len() || path.as_bytes() != &other[..path.len()] {
             if absolute && path == "/" {
-                // PathAndQuery can be ommitted, fall through
+                // PathAndQuery can be omitted, fall through
             } else {
                 return false;
             }
