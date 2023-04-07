@@ -18,6 +18,7 @@ const NONE: u16 = ::std::u16::MAX;
 
 impl PathAndQuery {
     // Not public while `bytes` is unstable.
+    #[rustfmt::skip]
     pub(super) fn from_shared(mut src: Bytes) -> Result<Self, InvalidUri> {
         let mut query = NONE;
         let mut fragment = None;
@@ -29,7 +30,6 @@ impl PathAndQuery {
             // path ...
             for (i, &b) in &mut iter {
                 // See https://url.spec.whatwg.org/#path-state
-                #[rustfmt::skip]
                 match b {
                     b'?' => {
                         debug_assert_eq!(query, NONE);
@@ -71,7 +71,6 @@ impl PathAndQuery {
             // query ...
             if query != NONE {
                 for (i, &b) in iter {
-                    #[rustfmt::skip]
                     match b {
                         // While queries *should* be percent-encoded, most
                         // bytes are actually allowed...
