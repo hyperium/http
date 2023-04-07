@@ -29,6 +29,7 @@ impl PathAndQuery {
             // path ...
             for (i, &b) in &mut iter {
                 // See https://url.spec.whatwg.org/#path-state
+                #[rustfmt::skip]
                 match b {
                     b'?' => {
                         debug_assert_eq!(query, NONE);
@@ -70,6 +71,7 @@ impl PathAndQuery {
             // query ...
             if query != NONE {
                 for (i, &b) in iter {
+                    #[rustfmt::skip]
                     match b {
                         // While queries *should* be percent-encoded, most
                         // bytes are actually allowed...

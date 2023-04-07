@@ -372,6 +372,7 @@ mod extension {
     // Note that this definition means that any &[u8] that consists solely of valid
     // characters is also valid UTF-8 because the valid method characters are a
     // subset of the valid 1 byte UTF-8 encoding.
+    #[rustfmt::skip]
     const METHOD_CHARS: [u8; 256] = [
         //  0      1      2      3      4      5      6      7      8      9
         b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', //   x

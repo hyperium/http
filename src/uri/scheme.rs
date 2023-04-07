@@ -201,6 +201,7 @@ const MAX_SCHEME_LEN: usize = 64;
 // important characteristic of this table is that all entries above 127 are
 // invalid. This makes all of the valid entries a valid single-byte UTF-8 code
 // point. This means that a slice of such valid entries is valid UTF-8.
+#[rustfmt::skip]
 const SCHEME_CHARS: [u8; 256] = [
     //  0      1      2      3      4      5      6      7      8      9
         0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //   x

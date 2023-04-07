@@ -1002,6 +1002,7 @@ standard_headers! {
 /// ```
 // HEADER_CHARS maps every byte that is 128 or larger to 0 so everything that is
 // mapped by HEADER_CHARS, maps to a valid single-byte UTF-8 codepoint.
+#[rustfmt::skip]
 const HEADER_CHARS: [u8; 256] = [
     //  0      1      2      3      4      5      6      7      8      9
         0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //   x
@@ -1035,6 +1036,7 @@ const HEADER_CHARS: [u8; 256] = [
 /// Valid header name characters for HTTP/2.0 and HTTP/3.0
 // HEADER_CHARS_H2 maps every byte that is 128 or larger to 0 so everything that is
 // mapped by HEADER_CHARS_H2, maps to a valid single-byte UTF-8 codepoint.
+#[rustfmt::skip]
 const HEADER_CHARS_H2: [u8; 256] = [
     //  0      1      2      3      4      5      6      7      8      9
         0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //   x
