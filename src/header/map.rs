@@ -26,6 +26,7 @@ pub use self::into_header_name::IntoHeaderName;
 ///
 /// ```
 /// # use http::HeaderMap;
+/// # use http::HeaderValue;
 /// # use http::header::{CONTENT_LENGTH, HOST, LOCATION};
 /// let mut headers = HeaderMap::new();
 ///
