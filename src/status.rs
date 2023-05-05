@@ -459,6 +459,10 @@ status_codes! {
     /// [[RFC4918](https://tools.ietf.org/html/rfc4918)]
     (424, FAILED_DEPENDENCY, "Failed Dependency");
 
+    /// 425 Too Early
+    /// [[RFC8470](https://datatracker.ietf.org/doc/html/rfc8470#section-5.2)]
+    (425, TOO_EARLY, "Too Early");
+
     /// 426 Upgrade Required
     /// [[RFC7231, Section 6.5.15](https://tools.ietf.org/html/rfc7231#section-6.5.15)]
     (426, UPGRADE_REQUIRED, "Upgrade Required");
