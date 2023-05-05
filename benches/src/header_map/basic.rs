@@ -551,6 +551,7 @@ const STD: &'static [HeaderName] = &[
     COOKIE,
     DNT,
     DATE,
+    EARLY_DATA,
     ETAG,
     EXPECT,
     EXPIRES,

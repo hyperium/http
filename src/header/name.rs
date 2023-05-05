@@ -485,6 +485,9 @@ standard_headers! {
     /// Contains the date and time at which the message was originated.
     (Date, DATE, b"date");
 
+    /// Indicates that the request has been conveyed in early data and that a client understands the 425 (Too Early) status code.
+    (EarlyData, EARLY_DATA, b"early-data");
+
     /// Identifier for a specific version of a resource.
     ///
     /// This header allows caches to be more efficient, and saves bandwidth, as

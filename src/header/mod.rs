@@ -116,6 +116,7 @@ pub use self::name::{
     COOKIE,
     DNT,
     DATE,
+    EARLY_DATA,
     ETAG,
     EXPECT,
     EXPIRES,
