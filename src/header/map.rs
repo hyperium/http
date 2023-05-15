@@ -1152,7 +1152,7 @@ impl<T> HeaderMap<T> {
             danger,
             // Vacant
             {
-                drop(danger); // Make lint happy
+                let _ = danger; // Make lint happy
                 let index = self.entries.len();
                 self.insert_entry(hash, key.into(), value);
                 self.indices[probe] = Pos::new(index, hash);
@@ -1255,7 +1255,7 @@ impl<T> HeaderMap<T> {
             danger,
             // Vacant
             {
-                drop(danger);
+                let _ = danger;
                 let index = self.entries.len();
                 self.insert_entry(hash, key.into(), value);
                 self.indices[probe] = Pos::new(index, hash);
