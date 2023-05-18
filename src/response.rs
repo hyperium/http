@@ -221,7 +221,7 @@ impl Response<()> {
     /// ```
     /// # use http::*;
     /// let response = Response::builder()
-    ///     .status(200)
+    ///     .status(StatusCode::OK)
     ///     .header("X-Custom-Foo", "Bar")
     ///     .body(())
     ///     .unwrap();
@@ -526,8 +526,7 @@ impl fmt::Debug for Parts {
 }
 
 impl Builder {
-    /// Creates a new default instance of `Builder` to construct either a
-    /// `Head` or a `Response`.
+    /// Creates a new default instance of `Builder` to construct a `Response`.
     ///
     /// # Examples
     ///
@@ -535,8 +534,8 @@ impl Builder {
     /// # use http::*;
     ///
     /// let response = response::Builder::new()
-    ///     .status(200)
-    ///     .body(())
+    ///     .status(StatusCode::OK)
+    ///     .body("hello world")
     ///     .unwrap();
     /// ```
     #[inline]
@@ -549,7 +548,7 @@ impl Builder {
     /// This function will configure the HTTP status code of the `Response` that
     /// will be returned from `Builder::build`.
     ///
-    /// By default this is `200`.
+    /// By default this is [`StatusCode::OK`].
     ///
     /// # Examples
     ///
@@ -557,7 +556,7 @@ impl Builder {
     /// # use http::*;
     ///
     /// let response = Response::builder()
-    ///     .status(200)
+    ///     .status(StatusCode::NO_CONTENT)
     ///     .body(())
     ///     .unwrap();
     /// ```

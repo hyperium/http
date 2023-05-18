@@ -1,25 +1,67 @@
 use http::*;
+use std::convert::{TryFrom, TryInto};
 
 #[test]
 fn from_bytes() {
     for ok in &[
-        "100", "101", "199", "200", "250", "299", "321", "399", "499", "599", "600", "999"
+        "100", "101", "199", "200", "250", "299",
+        "321", "399", "499", "599", "600", "999"
     ] {
         assert!(StatusCode::from_bytes(ok.as_bytes()).is_ok());
     }
 
     for not_ok in &[
-        "0", "00", "10", "40", "99", "000", "010", "099", "1000", "1999",
+        "-100", "-10", "", "0", "00", "000",
+        "10", "40", "99", "010","099",
+        "1000", "1999"
     ] {
         assert!(StatusCode::from_bytes(not_ok.as_bytes()).is_err());
     }
+
+    let giant = Box::new([b'9'; 1*1024*1024]);
+    assert!(StatusCode::from_bytes(&giant[..]).is_err());
 }
 
 #[test]
-fn equates_with_u16() {
+fn conversions() {
+    let min = StatusCode::CONTINUE;
+    assert_eq!(min.try_into(), Ok(100u16));
+    assert_eq!(min.try_into(), Ok(100u32));
+    assert_eq!(min.try_into(), Ok(100usize));
+    assert_eq!(min.try_into(), Ok(100u64));
+    assert_eq!(min.try_into(), Ok(100i32));
+
+    let max = StatusCode::try_from(999).unwrap();
+    assert_eq!(u16::from(max), 999);
+    assert_eq!(u32::from(max), 999);
+    assert_eq!(u64::from(max), 999);
+    assert_eq!(usize::from(max), 999);
+    assert_eq!(i16::from(max), 999);
+    assert_eq!(i32::from(max), 999);
+    assert_eq!(i64::from(max), 999);
+    assert_eq!(isize::from(max), 999);
+}
+
+#[test]
+fn partial_eq_ne() {
     let status = StatusCode::from_u16(200u16).unwrap();
     assert_eq!(200u16, status);
     assert_eq!(status, 200u16);
+
+    assert_eq!(200i16, status);
+    assert_eq!(status, 200i16);
+
+    assert_eq!(200u32, status);
+    assert_eq!(status, 200u32);
+
+    assert_eq!(200u64, status);
+    assert_eq!(status, 200u64);
+
+    assert_ne!(status, 201u16);
+    assert_ne!(status, 201u32);
+    assert_ne!(status, 0u16);
+    assert_ne!(status, -3000i16);
+    assert_ne!(status, -10000i32);
 }
 
 #[test]
