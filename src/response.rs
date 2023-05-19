@@ -546,9 +546,6 @@ impl Builder {
 
     /// Set the HTTP status for this response.
     ///
-    /// This function will configure the HTTP status code of the `Response` that
-    /// will be returned from `Builder::build`.
-    ///
     /// By default this is `200`.
     ///
     /// # Examples
@@ -573,9 +570,6 @@ impl Builder {
     }
 
     /// Set the HTTP version for this response.
-    ///
-    /// This function will configure the HTTP version of the `Response` that
-    /// will be returned from `Builder::build`.
     ///
     /// By default this is HTTP/1.1
     ///

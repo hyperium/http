@@ -761,9 +761,6 @@ impl Builder {
 
     /// Set the HTTP method for this request.
     ///
-    /// This function will configure the HTTP method of the `Request` that will
-    /// be returned from `Builder::build`.
-    ///
     /// By default this is `GET`.
     ///
     /// # Examples
@@ -809,9 +806,6 @@ impl Builder {
 
     /// Set the URI for this request.
     ///
-    /// This function will configure the URI of the `Request` that will
-    /// be returned from `Builder::build`.
-    ///
     /// By default this is `/`.
     ///
     /// # Examples
@@ -855,9 +849,6 @@ impl Builder {
     }
 
     /// Set the HTTP version for this request.
-    ///
-    /// This function will configure the HTTP version of the `Request` that
-    /// will be returned from `Builder::build`.
     ///
     /// By default this is HTTP/1.1
     ///
