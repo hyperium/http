@@ -496,12 +496,12 @@ mod from_header_name_tests {
 
         assert_eq!(
             map.get(name::UPGRADE).unwrap(),
-            HeaderValue::from_bytes(b"SEC-WEBSOCKET-PROTOCOL").unwrap()
+            HeaderValue::from_bytes(b"Sec-Websocket-Protocol").unwrap()
         );
 
         assert_eq!(
             map.get(name::ACCEPT).unwrap(),
-            HeaderValue::from_bytes(b"HELLO-WORLD").unwrap()
+            HeaderValue::from_bytes(b"hello-world").unwrap()
         );
     }
 }
@@ -575,7 +575,7 @@ mod try_from_header_name_tests {
     fn it_converts_using_try_from() {
         assert_eq!(
             HeaderValue::try_from(name::UPGRADE).unwrap(),
-            HeaderValue::from_bytes(b"UPGRADE").unwrap()
+            HeaderValue::from_bytes(b"Upgrade").unwrap()
         );
     }
 }
