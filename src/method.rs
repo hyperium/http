@@ -355,7 +355,7 @@ mod extension {
         }
 
         pub fn as_str(&self) -> &str {
-            // Safety: the invariant of AllocatedExtension ensures that self.0
+            // SAFETY: the invariant of AllocatedExtension ensures that self.0
             // contains valid UTF-8.
             unsafe {str::from_utf8_unchecked(&self.0)}
         }
@@ -468,6 +468,6 @@ mod test {
         assert_eq!(Method::from_str("wOw!!").unwrap(), "wOw!!");
 
         let long_method = "This_is_a_very_long_method.It_is_valid_but_unlikely.";
-        assert_eq!(Method::from_str(&long_method).unwrap(), long_method);
+        assert_eq!(Method::from_str(long_method).unwrap(), long_method);
     }
 }

@@ -439,7 +439,7 @@ impl<T> Request<T> {
     pub fn new(body: T) -> Request<T> {
         Request {
             head: Parts::new(),
-            body: body,
+            body,
         }
     }
 
@@ -459,7 +459,7 @@ impl<T> Request<T> {
     pub fn from_parts(parts: Parts, body: T) -> Request<T> {
         Request {
             head: parts,
-            body: body,
+            body,
         }
     }
 

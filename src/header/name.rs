@@ -1256,7 +1256,7 @@ impl HeaderName {
             };
         }
 
-        if name_bytes.len() == 0 || name_bytes.len() > super::MAX_HEADER_NAME_LEN || {
+        if name_bytes.is_empty() || name_bytes.len() > super::MAX_HEADER_NAME_LEN || {
             let mut i = 0;
             loop {
                 if i >= name_bytes.len() {
@@ -1283,7 +1283,7 @@ impl HeaderName {
     pub fn as_str(&self) -> &str {
         match self.inner {
             Repr::Standard(v) => v.as_str(),
-            Repr::Custom(ref v) => &*v.0,
+            Repr::Custom(ref v) => &v.0,
         }
     }
 
@@ -1516,8 +1516,8 @@ impl<'a> HdrName<'a> {
         HdrName {
             // Invariant (on MaybeLower): follows from the precondition
             inner: Repr::Custom(MaybeLower {
-                buf: buf,
-                lower: lower,
+                buf,
+                lower,
             }),
         }
     }
@@ -1552,7 +1552,7 @@ impl<'a> From<HdrName<'a>> for HeaderName {
             },
             Repr::Custom(maybe_lower) => {
                 if maybe_lower.lower {
-                    let buf = Bytes::copy_from_slice(&maybe_lower.buf[..]);
+                    let buf = Bytes::copy_from_slice(maybe_lower.buf);
                     // Safety: the invariant on MaybeLower ensures buf is valid UTF-8.
                     let byte_str = unsafe { ByteStr::from_utf8_unchecked(buf) };
 

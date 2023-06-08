@@ -642,7 +642,7 @@ impl<T> HeaderMap<T> {
             assert!(cap <= MAX_SIZE, "header map reserve over max capacity");
             assert!(cap != 0, "header map reserve overflowed");
 
-            if self.entries.len() == 0 {
+            if self.entries.is_empty() {
                 self.mask = cap as Size - 1;
                 self.indices = vec![Pos::none(); cap].into_boxed_slice();
                 self.entries = Vec::with_capacity(usable_capacity(cap));
@@ -1082,22 +1082,22 @@ impl<T> HeaderMap<T> {
             danger,
             Entry::Vacant(VacantEntry {
                 map: self,
-                hash: hash,
+                hash,
                 key: key.into(),
-                probe: probe,
-                danger: danger,
+                probe,
+                danger,
             }),
             Entry::Occupied(OccupiedEntry {
                 map: self,
                 index: pos,
-                probe: probe,
+                probe,
             }),
             Entry::Vacant(VacantEntry {
                 map: self,
-                hash: hash,
+                hash,
                 key: key.into(),
-                probe: probe,
-                danger: danger,
+                probe,
+                danger,
             })
         )
     }
@@ -1201,7 +1201,7 @@ impl<T> HeaderMap<T> {
 
         ValueDrain {
             first: Some(old),
-            next: next,
+            next,
             lt: PhantomData,
         }
     }
@@ -1407,7 +1407,7 @@ impl<T> HeaderMap<T> {
 
         // backward shift deletion in self.indices
         // after probe, shift all non-ideally placed indices backward
-        if self.entries.len() > 0 {
+        if !self.entries.is_empty() {
             let mut last_probe = probe;
             let mut probe = probe + 1;
 
@@ -1454,9 +1454,9 @@ impl<T> HeaderMap<T> {
         assert!(self.entries.len() < MAX_SIZE, "header map at capacity");
 
         self.entries.push(Bucket {
-            hash: hash,
-            key: key,
-            value: value,
+            hash,
+            key,
+            value,
             links: None,
         });
     }
@@ -1851,7 +1851,7 @@ impl<'a, K, V, T> TryFrom<&'a HashMap<K, V>> for HeaderMap<T>
     type Error = Error;
 
     fn try_from(c: &'a HashMap<K, V>) -> Result<Self, Self::Error> {
-        c.into_iter()
+        c.iter()
             .map(|(k, v)| -> crate::Result<(HeaderName, T)> {
                 let name = TryFrom::try_from(k).map_err(Into::into)?;
                 let value = TryFrom::try_from(v).map_err(Into::into)?;
@@ -2038,7 +2038,7 @@ fn append_value<T>(
         Some(links) => {
             let idx = extra.len();
             extra.push(ExtraValue {
-                value: value,
+                value,
                 prev: Link::Extra(links.tail),
                 next: Link::Entry(entry_idx),
             });
@@ -2050,7 +2050,7 @@ fn append_value<T>(
         None => {
             let idx = extra.len();
             extra.push(ExtraValue {
-                value: value,
+                value,
                 prev: Link::Entry(entry_idx),
                 next: Link::Entry(entry_idx),
             });
@@ -2422,7 +2422,7 @@ impl<'a, T> VacantEntry<'a, T> {
         // Ensure that there is space in the map
         let index =
             self.map
-                .insert_phase_two(self.key, value.into(), self.hash, self.probe, self.danger);
+                .insert_phase_two(self.key, value, self.hash, self.probe, self.danger);
 
         &mut self.map.entries[index].value
     }
@@ -2449,11 +2449,11 @@ impl<'a, T> VacantEntry<'a, T> {
         // Ensure that there is space in the map
         let index =
             self.map
-                .insert_phase_two(self.key, value.into(), self.hash, self.probe, self.danger);
+                .insert_phase_two(self.key, value, self.hash, self.probe, self.danger);
 
         OccupiedEntry {
             map: self.map,
-            index: index,
+            index,
             probe: self.probe,
         }
     }
@@ -2863,7 +2863,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// assert_eq!("earth", map["host"]);
     /// ```
     pub fn insert(&mut self, value: T) -> T {
-        self.map.insert_occupied(self.index, value.into())
+        self.map.insert_occupied(self.index, value)
     }
 
     /// Sets the value of the entry.
@@ -2889,7 +2889,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// assert_eq!("earth", map["host"]);
     /// ```
     pub fn insert_mult(&mut self, value: T) -> ValueDrain<'_, T> {
-        self.map.insert_occupied_mult(self.index, value.into())
+        self.map.insert_occupied_mult(self.index, value)
     }
 
     /// Insert the value into the entry.
@@ -2916,7 +2916,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     pub fn append(&mut self, value: T) {
         let idx = self.index;
         let entry = &mut self.map.entries[idx];
-        append_value(idx, entry, &mut self.map.extra_values, value.into());
+        append_value(idx, entry, &mut self.map.extra_values, value);
     }
 
     /// Remove the entry from the map.
@@ -3095,12 +3095,12 @@ impl<'a, T> Iterator for ValueDrain<'a, T> {
             // Exactly 1
             (&Some(_), &None) => (1, Some(1)),
             // 1 + extras
-            (&Some(_), &Some(ref extras)) => {
+            (&Some(_), Some(extras)) => {
                 let (l, u) = extras.size_hint();
                 (l + 1, u.map(|u| u + 1))
             },
             // Extras only
-            (&None, &Some(ref extras)) => extras.size_hint(),
+            (&None, Some(extras)) => extras.size_hint(),
             // No more
             (&None, &None) => (0, Some(0)),
         }
@@ -3111,7 +3111,7 @@ impl<'a, T> FusedIterator for ValueDrain<'a, T> {}
 
 impl<'a, T> Drop for ValueDrain<'a, T> {
     fn drop(&mut self) {
-        while let Some(_) = self.next() {}
+        for _ in self.by_ref() {}
     }
 }
 
@@ -3154,7 +3154,7 @@ impl Pos {
         debug_assert!(index < MAX_SIZE);
         Pos {
             index: index as Size,
-            hash: hash,
+            hash,
         }
     }
 
@@ -3418,7 +3418,7 @@ mod as_header_name {
         }
 
         fn as_str(&self) -> &str {
-            <HeaderName>::as_str(*self)
+            <HeaderName>::as_str(self)
         }
     }
 
@@ -3472,7 +3472,7 @@ mod as_header_name {
         }
 
         fn as_str(&self) -> &str {
-            *self
+            self
         }
     }
 

@@ -132,7 +132,7 @@ impl PartialEq for Scheme {
         match (&self.inner, &other.inner) {
             (&Standard(Http), &Standard(Http)) => true,
             (&Standard(Https), &Standard(Https)) => true,
-            (&Other(ref a), &Other(ref b)) => a.eq_ignore_ascii_case(b),
+            (Other(a), Other(b)) => a.eq_ignore_ascii_case(b),
             (&None, _) | (_, &None) => unreachable!(),
             _ => false,
         }
@@ -358,6 +358,6 @@ mod test {
     }
 
     fn scheme(s: &str) -> Scheme {
-        s.parse().expect(&format!("Invalid scheme: {}", s))
+        s.parse().unwrap_or_else(|_| panic!("Invalid scheme: {}", s))
     }
 }
