@@ -97,7 +97,7 @@ impl Authority {
                     start_bracket = true;
                 }
                 b']' => {
-                    if end_bracket {
+                    if (!start_bracket) || end_bracket {
                         return Err(ErrorKind::InvalidAuthority.into());
                     }
                     end_bracket = true;
@@ -658,14 +658,17 @@ mod tests {
         let err = Authority::try_from([0xc0u8].as_ref()).unwrap_err();
         assert_eq!(err.0, ErrorKind::InvalidUriChar);
 
-        let err = Authority::from_shared(Bytes::from_static([0xc0u8].as_ref()))
-            .unwrap_err();
+        let err = Authority::from_shared(Bytes::from_static([0xc0u8].as_ref())).unwrap_err();
         assert_eq!(err.0, ErrorKind::InvalidUriChar);
     }
 
     #[test]
     fn rejects_invalid_use_of_brackets() {
         let err = Authority::parse_non_empty(b"[]@[").unwrap_err();
+        assert_eq!(err.0, ErrorKind::InvalidAuthority);
+
+        // reject tie-fighter
+        let err = Authority::parse_non_empty(b"]o[").unwrap_err();
         assert_eq!(err.0, ErrorKind::InvalidAuthority);
     }
 }
