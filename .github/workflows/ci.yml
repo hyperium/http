@@ -41,6 +41,17 @@ jobs:
         if: matrix.benches
         run: cargo test --benches ${{ matrix.features }}
 
+          
+  clippy_check:
+    runs-on: ubuntu-latest
+    # Make sure CI fails on all warnings, including Clippy lints
+    env:
+      RUSTFLAGS: "-Dwarnings"
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run Clippy
+        run: cargo clippy --all-targets --all-features
+
   msrv:
     name: Check MSRV
     runs-on: ubuntu-latest

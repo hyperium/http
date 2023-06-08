@@ -143,6 +143,8 @@ impl StatusCode {
         { &CODE_DIGITS[offset..offset+3] }
 
         #[cfg(not(debug_assertions))]
+        // SAFETY: we assume `StatusCode` is constructed in a way that self.0 (the numerical status
+        // code is >= 100 and also <= 1000, which makes any possible offset here valid.
         unsafe { CODE_DIGITS.get_unchecked(offset..offset+3) }
     }
 
@@ -304,7 +306,9 @@ macro_rules! status_codes {
         impl StatusCode {
         $(
             $(#[$docs])*
-            pub const $konst: StatusCode = StatusCode(unsafe { NonZeroU16::new_unchecked($num) });
+            pub const $konst: StatusCode = StatusCode(
+                // SAFETY: only called with constants
+                unsafe { NonZeroU16::new_unchecked($num) });
         )+
 
         }

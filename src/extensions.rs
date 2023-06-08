@@ -60,6 +60,7 @@ impl Extensions {
     /// assert_eq!(ext.insert(9i32), Some(5i32));
     /// ```
     pub fn insert<T: Send + Sync + 'static>(&mut self, val: T) -> Option<T> {
+        #[allow(clippy::box_default)]
         self.map
             .get_or_insert_with(|| Box::new(HashMap::default()))
             .insert(TypeId::of::<T>(), Box::new(val))

@@ -837,6 +837,7 @@ fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUri> {
             let _ = scheme.split_off(n);
 
             // Allocate the ByteStr
+            // SAFETY: previously verified by `Scheme2::parse`
             let val = unsafe { ByteStr::from_utf8_unchecked(scheme) };
 
             Scheme2::Other(Box::new(val))
@@ -853,6 +854,7 @@ fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUri> {
         }
 
         let authority = Authority {
+            // SAFETY: previously verified by `Authority::parse`
             data: unsafe { ByteStr::from_utf8_unchecked(s) },
         };
 
@@ -870,6 +872,7 @@ fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUri> {
 
     let authority = s.split_to(authority_end);
     let authority = Authority {
+        // SAFETY: previously verified by `Authority::parse`
         data: unsafe { ByteStr::from_utf8_unchecked(authority) },
     };
 

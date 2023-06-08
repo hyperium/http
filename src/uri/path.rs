@@ -97,6 +97,7 @@ impl PathAndQuery {
         }
 
         Ok(PathAndQuery {
+            // Safety: previous iteration ensures that src is also valid utf-8
             data: unsafe { ByteStr::from_utf8_unchecked(src) },
             query: query,
         })

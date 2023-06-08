@@ -87,8 +87,8 @@ macro_rules! standard_headers {
             #[inline]
             fn as_str(&self) -> &'static str {
                 match *self {
-                    // Safety: test_parse_standard_headers ensures these &[u8]s are &str-safe.
                     $(
+                    // SAFETY: test_parse_standard_headers ensures these &[u8]s are &str-safe.
                     StandardHeader::$konst => unsafe { std::str::from_utf8_unchecked( $name_bytes ) },
                     )+
                 }
@@ -1267,6 +1267,7 @@ impl HeaderName {
                 i += 1;
             }
         } {
+            #[allow(clippy::no_effect)]
             ([] as [u8; 0])[0]; // Invalid header name
         }
 
