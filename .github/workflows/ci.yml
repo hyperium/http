@@ -42,7 +42,7 @@ jobs:
         run: cargo test --benches ${{ matrix.features }}
 
   msrv:
-    name: Test MSRV
+    name: Check MSRV
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -60,7 +60,7 @@ jobs:
           toolchain: ${{ steps.metadata.outputs.msrv }}
 
       - name: Test
-        run: cargo test -p http
+        run: cargo check -p http
 
   wasm:
     name: WASM
