@@ -642,7 +642,7 @@ impl<T> HeaderMap<T> {
             assert!(cap <= MAX_SIZE, "header map reserve over max capacity");
             assert!(cap != 0, "header map reserve overflowed");
 
-            if self.entries.len() == 0 {
+            if self.entries.is_empty() {
                 self.mask = cap as Size - 1;
                 self.indices = vec![Pos::none(); cap].into_boxed_slice();
                 self.entries = Vec::with_capacity(usable_capacity(cap));
@@ -961,6 +961,7 @@ impl<T> HeaderMap<T> {
         let entries = &mut self.entries[..] as *mut _;
         let extra_values = &mut self.extra_values as *mut _;
         let len = self.entries.len();
+        // SAFETY: see comment above
         unsafe { self.entries.set_len(0); }
 
         Drain {
@@ -1081,22 +1082,22 @@ impl<T> HeaderMap<T> {
             danger,
             Entry::Vacant(VacantEntry {
                 map: self,
-                hash: hash,
+                hash,
                 key: key.into(),
-                probe: probe,
-                danger: danger,
+                probe,
+                danger,
             }),
             Entry::Occupied(OccupiedEntry {
                 map: self,
                 index: pos,
-                probe: probe,
+                probe,
             }),
             Entry::Vacant(VacantEntry {
                 map: self,
-                hash: hash,
+                hash,
                 key: key.into(),
-                probe: probe,
-                danger: danger,
+                probe,
+                danger,
             })
         )
     }
@@ -1200,7 +1201,7 @@ impl<T> HeaderMap<T> {
 
         ValueDrain {
             first: Some(old),
-            next: next,
+            next,
             lt: PhantomData,
         }
     }
@@ -1406,7 +1407,7 @@ impl<T> HeaderMap<T> {
 
         // backward shift deletion in self.indices
         // after probe, shift all non-ideally placed indices backward
-        if self.entries.len() > 0 {
+        if !self.entries.is_empty() {
             let mut last_probe = probe;
             let mut probe = probe + 1;
 
@@ -1453,9 +1454,9 @@ impl<T> HeaderMap<T> {
         assert!(self.entries.len() < MAX_SIZE, "header map at capacity");
 
         self.entries.push(Bucket {
-            hash: hash,
-            key: key,
-            value: value,
+            hash,
+            key,
+            value,
             links: None,
         });
     }
@@ -1850,7 +1851,7 @@ impl<'a, K, V, T> TryFrom<&'a HashMap<K, V>> for HeaderMap<T>
     type Error = Error;
 
     fn try_from(c: &'a HashMap<K, V>) -> Result<Self, Self::Error> {
-        c.into_iter()
+        c.iter()
             .map(|(k, v)| -> crate::Result<(HeaderName, T)> {
                 let name = TryFrom::try_from(k).map_err(Into::into)?;
                 let value = TryFrom::try_from(v).map_err(Into::into)?;
@@ -2037,7 +2038,7 @@ fn append_value<T>(
         Some(links) => {
             let idx = extra.len();
             extra.push(ExtraValue {
-                value: value,
+                value,
                 prev: Link::Extra(links.tail),
                 next: Link::Entry(entry_idx),
             });
@@ -2049,7 +2050,7 @@ fn append_value<T>(
         None => {
             let idx = extra.len();
             extra.push(ExtraValue {
-                value: value,
+                value,
                 prev: Link::Entry(entry_idx),
                 next: Link::Entry(entry_idx),
             });
@@ -2070,6 +2071,7 @@ impl<'a, T> Iterator for Iter<'a, T> {
     fn next(&mut self) -> Option<Self::Item> {
         self.inner
             .next_unsafe()
+            // SAFETY: Iter invariant: only valid pointers
             .map(|(key, ptr)| (key, unsafe { &*ptr }))
     }
 
@@ -2090,6 +2092,7 @@ impl<'a, T> IterMut<'a, T> {
         use self::Cursor::*;
 
         if self.cursor.is_none() {
+            // SAFETY: invariant dereferencing the self.map pointer is always safe
             if (self.entry + 1) >= unsafe { &*self.map }.entries.len() {
                 return None;
             }
@@ -2098,6 +2101,7 @@ impl<'a, T> IterMut<'a, T> {
             self.cursor = Some(Cursor::Head);
         }
 
+        // SAFETY: invariant dereferencing the self.map pointer is always safe
         let entry = unsafe { &(*self.map).entries[self.entry] };
 
         match self.cursor.unwrap() {
@@ -2106,6 +2110,7 @@ impl<'a, T> IterMut<'a, T> {
                 Some((&entry.key, &entry.value as *const _ as *mut _))
             }
             Values(idx) => {
+                // SAFETY: invariant dereferencing the self.map pointer is always safe
                 let extra = unsafe { &(*self.map).extra_values[idx] };
 
                 match extra.next {
@@ -2128,6 +2133,7 @@ impl<'a, T> Iterator for IterMut<'a, T> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
+        // SAFETY: invariant dereferencing the self.map pointer is always safe
         let map = unsafe { &*self.map };
         debug_assert!(map.entries.len() >= self.entry);
 
@@ -2204,9 +2210,8 @@ impl<'a, T> Iterator for Drain<'a, T> {
             // Remove the extra value
 
             let raw_links = RawLinks(self.entries);
-            let extra = unsafe {
-                remove_extra_value(raw_links, &mut *self.extra_values, next)
-            };
+            // SAFETY: dereferencing self.extra_values valid as long as self is alive.
+            let extra = remove_extra_value(raw_links, unsafe { &mut *self.extra_values } , next);
 
             match extra.next {
                 Link::Extra(idx) => self.next = Some(idx),
@@ -2224,6 +2229,8 @@ impl<'a, T> Iterator for Drain<'a, T> {
 
         self.idx += 1;
 
+        // SAFETY: pointer operation always valid, as `self` cannot outlive the HeaderMap it is
+        // referencing.
         unsafe {
             let entry = &(*self.entries)[idx];
 
@@ -2243,6 +2250,7 @@ impl<'a, T> Iterator for Drain<'a, T> {
         // For instance, extending a new `HeaderMap` wouldn't need to
         // reserve the upper-bound in `entries`, only the lower-bound.
         let lower = self.len - self.idx;
+        // SAFETY: dereferencing self.extra_values valid as long as self is alive.
         let upper = unsafe { (*self.extra_values).len() } + lower;
         (lower, Some(upper))
     }
@@ -2414,7 +2422,7 @@ impl<'a, T> VacantEntry<'a, T> {
         // Ensure that there is space in the map
         let index =
             self.map
-                .insert_phase_two(self.key, value.into(), self.hash, self.probe, self.danger);
+                .insert_phase_two(self.key, value, self.hash, self.probe, self.danger);
 
         &mut self.map.entries[index].value
     }
@@ -2441,11 +2449,11 @@ impl<'a, T> VacantEntry<'a, T> {
         // Ensure that there is space in the map
         let index =
             self.map
-                .insert_phase_two(self.key, value.into(), self.hash, self.probe, self.danger);
+                .insert_phase_two(self.key, value, self.hash, self.probe, self.danger);
 
         OccupiedEntry {
             map: self.map,
-            index: index,
+            index,
             probe: self.probe,
         }
     }
@@ -2606,6 +2614,7 @@ impl<'a, T: 'a> Iterator for ValueIterMut<'a, T> {
     fn next(&mut self) -> Option<Self::Item> {
         use self::Cursor::*;
 
+        // SAFETY: dereferencing self.map valid as long as self is alive.
         let entry = unsafe { &mut (*self.map).entries[self.index] };
 
         match self.front {
@@ -2626,6 +2635,7 @@ impl<'a, T: 'a> Iterator for ValueIterMut<'a, T> {
                 Some(&mut entry.value)
             }
             Some(Values(idx)) => {
+                // SAFETY: dereferencing self.map valid as long as self is alive.
                 let extra = unsafe { &mut (*self.map).extra_values[idx] };
 
                 if self.front == self.back {
@@ -2649,6 +2659,7 @@ impl<'a, T: 'a> DoubleEndedIterator for ValueIterMut<'a, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
         use self::Cursor::*;
 
+        // SAFETY: dereferencing self.map valid as long as self is alive.
         let entry = unsafe { &mut (*self.map).entries[self.index] };
 
         match self.back {
@@ -2658,6 +2669,7 @@ impl<'a, T: 'a> DoubleEndedIterator for ValueIterMut<'a, T> {
                 Some(&mut entry.value)
             }
             Some(Values(idx)) => {
+                // SAFETY: dereferencing self.map valid as long as self is alive.
                 let extra = unsafe { &mut (*self.map).extra_values[idx] };
 
                 if self.front == self.back {
@@ -2726,7 +2738,7 @@ impl<T> Drop for IntoIter<T> {
         // Ensure the iterator is consumed
         for _ in self.by_ref() {}
 
-        // All the values have already been yielded out.
+        // SAFETY: All the values have already been yielded out, once dropped.
         unsafe {
             self.extra_values.set_len(0);
         }
@@ -2851,7 +2863,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// assert_eq!("earth", map["host"]);
     /// ```
     pub fn insert(&mut self, value: T) -> T {
-        self.map.insert_occupied(self.index, value.into())
+        self.map.insert_occupied(self.index, value)
     }
 
     /// Sets the value of the entry.
@@ -2877,7 +2889,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// assert_eq!("earth", map["host"]);
     /// ```
     pub fn insert_mult(&mut self, value: T) -> ValueDrain<'_, T> {
-        self.map.insert_occupied_mult(self.index, value.into())
+        self.map.insert_occupied_mult(self.index, value)
     }
 
     /// Insert the value into the entry.
@@ -2904,7 +2916,7 @@ impl<'a, T> OccupiedEntry<'a, T> {
     pub fn append(&mut self, value: T) {
         let idx = self.index;
         let entry = &mut self.map.entries[idx];
-        append_value(idx, entry, &mut self.map.extra_values, value.into());
+        append_value(idx, entry, &mut self.map.extra_values, value);
     }
 
     /// Remove the entry from the map.
@@ -3083,12 +3095,12 @@ impl<'a, T> Iterator for ValueDrain<'a, T> {
             // Exactly 1
             (&Some(_), &None) => (1, Some(1)),
             // 1 + extras
-            (&Some(_), &Some(ref extras)) => {
+            (&Some(_), Some(extras)) => {
                 let (l, u) = extras.size_hint();
                 (l + 1, u.map(|u| u + 1))
             },
             // Extras only
-            (&None, &Some(ref extras)) => extras.size_hint(),
+            (&None, Some(extras)) => extras.size_hint(),
             // No more
             (&None, &None) => (0, Some(0)),
         }
@@ -3099,7 +3111,7 @@ impl<'a, T> FusedIterator for ValueDrain<'a, T> {}
 
 impl<'a, T> Drop for ValueDrain<'a, T> {
     fn drop(&mut self) {
-        while let Some(_) = self.next() {}
+        for _ in self.by_ref() {}
     }
 }
 
@@ -3142,7 +3154,7 @@ impl Pos {
         debug_assert!(index < MAX_SIZE);
         Pos {
             index: index as Size,
-            hash: hash,
+            hash,
         }
     }
 
@@ -3406,7 +3418,7 @@ mod as_header_name {
         }
 
         fn as_str(&self) -> &str {
-            <HeaderName>::as_str(*self)
+            <HeaderName>::as_str(self)
         }
     }
 
@@ -3460,7 +3472,7 @@ mod as_header_name {
         }
 
         fn as_str(&self) -> &str {
-            *self
+            self
         }
     }
 

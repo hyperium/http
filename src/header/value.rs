@@ -85,6 +85,7 @@ impl HeaderValue {
         let mut i = 0;
         while i < bytes.len() {
             if !is_visible_ascii(bytes[i]) {
+                #[allow(clippy::no_effect)]
                 ([] as [u8; 0])[0]; // Invalid header value
             }
             i += 1;
@@ -191,6 +192,10 @@ impl HeaderValue {
     ///
     /// This function does NOT validate that illegal bytes are not contained
     /// within the buffer.
+    ///
+    /// ## Safety
+    ///
+    /// The caller must ensure that `src` contains only legal utf-8.
     pub unsafe fn from_maybe_shared_unchecked<T>(src: T) -> HeaderValue
     where
         T: AsRef<[u8]> + 'static,

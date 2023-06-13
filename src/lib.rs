@@ -159,6 +159,10 @@
 //! ```
 
 #![deny(warnings, missing_docs, missing_debug_implementations)]
+#![deny(
+    clippy::missing_safety_doc,
+    clippy::undocumented_unsafe_blocks
+)]
 
 #[cfg(test)]
 #[macro_use]

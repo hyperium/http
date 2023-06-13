@@ -20,7 +20,7 @@ A set of types for representing HTTP requests and responses.
 keywords = ["http"]
 categories = ["web-programming"]
 edition = "2018"
-# When updating this value, don't forget to also adjust the GitHub Actions config.
+# When updating this value, don't forget to also adjust the clippy config.
 rust-version = "1.49.0"
 
 [workspace]
