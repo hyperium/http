@@ -27,6 +27,7 @@ enum ErrorKind {
     UriParts(uri::InvalidUriParts),
     HeaderName(header::InvalidHeaderName),
     HeaderValue(header::InvalidHeaderValue),
+    MaxSizeReached(MaxSizeReached),
 }
 
 impl fmt::Debug for Error {
@@ -61,6 +62,7 @@ impl Error {
             UriParts(ref e) => e,
             HeaderName(ref e) => e,
             HeaderValue(ref e) => e,
+            MaxSizeReached(ref e) => e,
         }
     }
 }
@@ -70,6 +72,14 @@ impl error::Error for Error {
     // not itself the cause.
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         self.get_ref().source()
+    }
+}
+
+impl From<MaxSizeReached> for Error {
+    fn from(err: MaxSizeReached) -> Error {
+        Error {
+            inner: ErrorKind::MaxSizeReached(err),
+        }
     }
 }
 
@@ -126,6 +136,35 @@ impl From<std::convert::Infallible> for Error {
         match err {}
     }
 }
+
+/// Error returned when max capacity of `HeaderMap` is exceeded
+pub struct MaxSizeReached {
+    _priv: (),
+}
+
+impl MaxSizeReached {
+    /// Create new `MaxSizeReached` instance
+    pub fn new() -> MaxSizeReached {
+        MaxSizeReached { _priv: () }
+    }
+}
+
+impl fmt::Debug for MaxSizeReached {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("MaxSizeReached")
+            // skip _priv noise
+            .finish()
+    }
+}
+
+impl fmt::Display for MaxSizeReached {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("max size reached")
+    }
+}
+
+impl std::error::Error for MaxSizeReached {}
+
 
 #[cfg(test)]
 mod tests {

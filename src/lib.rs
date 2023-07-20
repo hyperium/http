@@ -182,7 +182,7 @@ mod byte_str;
 mod error;
 mod extensions;
 
-pub use crate::error::{Error, Result};
+pub use crate::error::{Error, Result, MaxSizeReached};
 pub use crate::extensions::Extensions;
 #[doc(no_inline)]
 pub use crate::header::{HeaderMap, HeaderName, HeaderValue};
