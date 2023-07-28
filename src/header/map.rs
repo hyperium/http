@@ -4,10 +4,9 @@ use std::convert::TryFrom;
 use std::hash::{BuildHasher, Hash, Hasher};
 use std::iter::{FromIterator, FusedIterator};
 use std::marker::PhantomData;
-use std::{fmt, mem, ops, ptr, vec};
+use std::{error, fmt, mem, ops, ptr, vec};
 
 use crate::Error;
-use crate::error::MaxSizeReached;
 
 use super::HeaderValue;
 use super::name::{HdrName, HeaderName};
@@ -313,6 +312,27 @@ enum Danger {
     Red(RandomState),
 }
 
+/// Error returned when max capacity of `HeaderMap` is exceeded
+pub struct MaxSizeReached {
+    _priv: (),
+}
+
+impl fmt::Debug for MaxSizeReached {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("MaxSizeReached")
+            // skip _priv noise
+            .finish()
+    }
+}
+
+impl fmt::Display for MaxSizeReached {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("max size reached")
+    }
+}
+
+impl error::Error for MaxSizeReached {}
+
 // Constants related to detecting DOS attacks.
 //
 // Displacement is the number of entries that get shifted when inserting a new
@@ -505,7 +525,7 @@ impl<T> HeaderMap<T> {
         } else {
             let raw_cap = to_raw_capacity(capacity).next_power_of_two();
             if raw_cap > MAX_SIZE {
-                return Err(MaxSizeReached::new());
+                return Err(MaxSizeReached { _priv: () });
             }
             debug_assert!(raw_cap > 0);
 
@@ -697,12 +717,12 @@ impl<T> HeaderMap<T> {
             .entries
             .len()
             .checked_add(additional)
-            .ok_or_else(|| MaxSizeReached::new())?;
+            .ok_or_else(|| MaxSizeReached { _priv: () })?;
 
         if cap > self.indices.len() {
-            let cap = cap.checked_next_power_of_two().ok_or_else(|| MaxSizeReached::new())?;
+            let cap = cap.checked_next_power_of_two().ok_or_else(|| MaxSizeReached { _priv: () })?;
             if cap > MAX_SIZE {
-                return Err(MaxSizeReached::new());
+                return Err(MaxSizeReached { _priv: () });
             }
 
             if self.entries.len() == 0 {
@@ -1606,7 +1626,7 @@ impl<T> HeaderMap<T> {
     #[inline]
     fn try_insert_entry(&mut self, hash: HashValue, key: HeaderName, value: T) -> Result<(), MaxSizeReached> {
         if self.entries.len() >= MAX_SIZE {
-           return Err(MaxSizeReached::new());
+           return Err(MaxSizeReached { _priv: () });
         }
 
         self.entries.push(Bucket {
@@ -1709,7 +1729,7 @@ impl<T> HeaderMap<T> {
     #[inline]
     fn try_grow(&mut self, new_raw_cap: usize) -> Result<(), MaxSizeReached> {
         if new_raw_cap > MAX_SIZE {
-            return Err(MaxSizeReached::new());
+            return Err(MaxSizeReached { _priv: () });
         }
 
         // find first ideally placed element -- start of cluster
@@ -3554,7 +3574,7 @@ where
  */
 
 mod into_header_name {
-    use crate::error::MaxSizeReached;
+    use crate::header::map::MaxSizeReached;
     use super::{Entry, HdrName, HeaderMap, HeaderName};
 
     /// A marker trait used to identify values that can be used as insert keys

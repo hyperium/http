@@ -3,6 +3,7 @@ use std::fmt;
 use std::result;
 
 use crate::header;
+use crate::header::MaxSizeReached;
 use crate::method;
 use crate::status;
 use crate::uri;
@@ -136,35 +137,6 @@ impl From<std::convert::Infallible> for Error {
         match err {}
     }
 }
-
-/// Error returned when max capacity of `HeaderMap` is exceeded
-pub struct MaxSizeReached {
-    _priv: (),
-}
-
-impl MaxSizeReached {
-    /// Create new `MaxSizeReached` instance
-    pub fn new() -> MaxSizeReached {
-        MaxSizeReached { _priv: () }
-    }
-}
-
-impl fmt::Debug for MaxSizeReached {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("MaxSizeReached")
-            // skip _priv noise
-            .finish()
-    }
-}
-
-impl fmt::Display for MaxSizeReached {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("max size reached")
-    }
-}
-
-impl std::error::Error for MaxSizeReached {}
-
 
 #[cfg(test)]
 mod tests {
