@@ -2466,10 +2466,10 @@ impl<'a, T> Entry<'a, T> {
     /// ];
     ///
     /// for &header in headers {
-    ///     let counter = map.try_entry(header
+    ///     let counter = map.try_entry(header)
     ///         .unwrap()
     ///         .or_try_insert(0)
-    ///         .unwrap());
+    ///         .unwrap();
     ///     *counter += 1;
     /// }
     ///
@@ -2502,10 +2502,10 @@ impl<'a, T> Entry<'a, T> {
     /// ];
     ///
     /// for &header in headers {
-    ///     let counter = map.try_entry(header
+    ///     let counter = map.try_entry(header)
     ///         .unwrap()
     ///         .or_try_insert(0)
-    ///         .unwrap());
+    ///         .unwrap();
     ///     *counter += 1;
     /// }
     ///
