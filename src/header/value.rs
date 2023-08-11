@@ -234,10 +234,6 @@ impl HeaderValue {
         HeaderValue::from_shared_unchecked(src)
     }
 
-    fn from_shared(src: Bytes) -> Result<HeaderValue, InvalidHeaderValue> {
-        HeaderValue::try_from_generic(src, std::convert::identity)
-    }
-
     fn try_from_generic<T: AsRef<[u8]>, F: FnOnce(T) -> Bytes>(
         src: T,
         into: F,
@@ -596,7 +592,7 @@ impl TryFrom<Bytes> for HeaderValue {
 
     #[inline]
     fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
-        HeaderValue::from_shared(bytes)
+        HeaderValue::try_from_generic(bytes, std::convert::identity)
     }
 }
 

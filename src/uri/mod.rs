@@ -286,56 +286,6 @@ impl Uri {
         Uri::try_from(src.as_ref())
     }
 
-    fn from_shared(s: Bytes) -> Result<Uri, InvalidUri> {
-        use self::ErrorKind::*;
-
-        if s.len() > MAX_LEN {
-            return Err(TooLong.into());
-        }
-
-        match s.len() {
-            0 => {
-                return Err(Empty.into());
-            }
-            1 => match s[0] {
-                b'/' => {
-                    return Ok(Uri {
-                        scheme: Scheme::empty(),
-                        authority: Authority::empty(),
-                        path_and_query: PathAndQuery::slash(),
-                    });
-                }
-                b'*' => {
-                    return Ok(Uri {
-                        scheme: Scheme::empty(),
-                        authority: Authority::empty(),
-                        path_and_query: PathAndQuery::star(),
-                    });
-                }
-                _ => {
-                    let authority = Authority::try_from(s)?;
-
-                    return Ok(Uri {
-                        scheme: Scheme::empty(),
-                        authority,
-                        path_and_query: PathAndQuery::empty(),
-                    });
-                }
-            },
-            _ => {}
-        }
-
-        if s[0] == b'/' {
-            return Ok(Uri {
-                scheme: Scheme::empty(),
-                authority: Authority::empty(),
-                path_and_query: PathAndQuery::try_from(s)?,
-            });
-        }
-
-        parse_full(s)
-    }
-
     /// Convert a `Uri` from a static string.
     ///
     /// This function will not perform any copying, however the string is
@@ -726,7 +676,53 @@ impl TryFrom<Bytes> for Uri {
     /// # }
     /// ```
     fn try_from(t: Bytes) -> Result<Uri, Self::Error> {
-        Uri::from_shared(t)
+        use self::ErrorKind::*;
+
+        if t.len() > MAX_LEN {
+            return Err(TooLong.into());
+        }
+
+        match t.len() {
+            0 => {
+                return Err(Empty.into());
+            }
+            1 => match t[0] {
+                b'/' => {
+                    return Ok(Uri {
+                        scheme: Scheme::empty(),
+                        authority: Authority::empty(),
+                        path_and_query: PathAndQuery::slash(),
+                    });
+                }
+                b'*' => {
+                    return Ok(Uri {
+                        scheme: Scheme::empty(),
+                        authority: Authority::empty(),
+                        path_and_query: PathAndQuery::star(),
+                    });
+                }
+                _ => {
+                    let authority = Authority::try_from(t)?;
+
+                    return Ok(Uri {
+                        scheme: Scheme::empty(),
+                        authority,
+                        path_and_query: PathAndQuery::empty(),
+                    });
+                }
+            },
+            _ => {}
+        }
+
+        if t[0] == b'/' {
+            return Ok(Uri {
+                scheme: Scheme::empty(),
+                authority: Authority::empty(),
+                path_and_query: PathAndQuery::try_from(t)?,
+            });
+        }
+
+        parse_full(t)
     }
 }
 

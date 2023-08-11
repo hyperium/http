@@ -21,12 +21,6 @@ impl Authority {
         }
     }
 
-    fn from_shared(s: Bytes) -> Result<Self, InvalidUri> {
-        // Precondition on create_authority: trivially satisfied by the
-        // identity closure
-        create_authority(s, |s| s)
-    }
-
     /// Attempt to convert an `Authority` from a static string.
     ///
     /// This function will not perform any copying, and the string will be
@@ -282,7 +276,9 @@ impl TryFrom<Bytes> for Authority {
     /// # }
     /// ```
     fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
-        Authority::from_shared(bytes)
+        // Precondition on create_authority: trivially satisfied by the
+        // identity closure
+        create_authority(bytes, |s| s)
     }
 }
 
