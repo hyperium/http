@@ -377,6 +377,12 @@ impl hash::Hash for PathAndQuery {
     }
 }
 
+impl From<PathAndQuery> for Bytes {
+    fn from(value: PathAndQuery) -> Self {
+        value.data.into()
+    }
+}
+
 // ===== PartialEq / PartialOrd =====
 
 impl PartialEq for PathAndQuery {
