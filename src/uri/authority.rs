@@ -737,6 +737,15 @@ mod tests {
     }
 
     #[test]
+    fn allows_from_simplest_ipv4() {
+        let localhost0 = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
+
+        let auth1: Authority = Authority::from_sockaddr(localhost0).unwrap();
+        assert_eq!(auth1.port(), None);
+        assert_eq!(auth1.host(), "127.0.0.1");
+    }
+
+    #[test]
     fn allows_from_simple_ipv4() {
         let localhost8080 = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080);
 
@@ -753,6 +762,19 @@ mod tests {
         let auth1: Authority = Authority::from_sockaddr(example8080).unwrap();
         assert_eq!(auth1.port().unwrap(), 8080);
         assert_eq!(auth1.host(), "[2001:db8::1]");
+    }
+
+    #[test]
+    fn allows_from_scoped_ipv6() {
+        let example0scope2 = SocketAddrV6::new(Ipv6Addr::new(0x2001, 0x0db8, 0,0,
+                                                             0,0,0,1),
+                                               0, /* port number */
+                                               0,    /* flowid */
+                                               2     /* scopeid */);
+        let auth1: Authority = Authority::from_sockaddr(std::net::SocketAddr::V6(example0scope2)).unwrap();
+        assert_eq!(auth1.port(), None);
+        assert_eq!(auth1.host(), "[2001:db8::1%2]");
+
     }
 
     #[test]
