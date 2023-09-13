@@ -2,6 +2,7 @@ use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 use std::{cmp, fmt, str};
+use std::net::{SocketAddr};
 
 use bytes::Bytes;
 
@@ -48,6 +49,50 @@ impl Authority {
     pub fn from_static(src: &'static str) -> Self {
         Authority::from_shared(Bytes::from_static(src.as_bytes()))
             .expect("static str is not valid authority")
+    }
+
+    /// Attempt to create an `Authority` from SockAddr
+    ///
+    /// This function will convert the IP address, scope and port number found
+    /// in a SockAddr into an appropriately formatted URI authority.
+    ///
+    /// This includes formatting the IPv4 or IPv6 into a string, adding the scope for IPv6 addresses,
+    /// enclosing it in [], and then adding any port number present.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::uri::Authority;
+    /// let sa = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
+    /// let authority = Authority::from_sockaddr(sa);
+    /// assert_eq!(authority.host(), "localhost");
+    /// ```
+    pub fn from_sockaddr(sa: SocketAddr) -> Result<Self, InvalidUri> {
+        let x: ByteStr = match sa {
+                SocketAddr::V4(v4) => {
+                    if v4.port() != 0 {
+                        (v4.ip().to_string() + ":" + &v4.port().to_string()).into()
+                    } else {
+                        v4.ip().to_string().into()
+                    }
+                },
+                SocketAddr::V6(v6) => {
+                    let base = if v6.scope_id() != 0 {
+                        "[".to_owned() + &v6.ip().to_string() + "%" + &v6.scope_id().to_string() + "]"
+                    } else {
+                        "[".to_owned() + &v6.ip().to_string() + "]"
+                    };
+                    if v6.port() != 0  {
+                        (base + ":" + &v6.port().to_string()).into()
+                    } else {
+                        base.into()
+                    }
+                }
+        };
+
+        Ok(Authority {
+            data: x
+        })
     }
 
     /// Attempt to convert a `Bytes` buffer to a `Authority`.
@@ -531,6 +576,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddrV6};
 
     #[test]
     fn parse_empty_string_is_error() {
@@ -688,5 +734,37 @@ mod tests {
         // reject tie-fighter
         let err = Authority::parse_non_empty(b"]o[").unwrap_err();
         assert_eq!(err.0, ErrorKind::InvalidAuthority);
+    }
+
+    #[test]
+    fn allows_from_simple_ipv4() {
+        let localhost8080 = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080);
+
+        let auth1: Authority = Authority::from_sockaddr(localhost8080).unwrap();
+        assert_eq!(auth1.port().unwrap(), 8080);
+        assert_eq!(auth1.host(), "127.0.0.1");
+    }
+
+    #[test]
+    fn allows_from_simple_ipv6() {
+        let example8080 = SocketAddr::new(IpAddr::V6(Ipv6Addr::new(0x2001, 0x0db8, 0,0,
+                                                                     0,0,0,1)), 8080);
+
+        let auth1: Authority = Authority::from_sockaddr(example8080).unwrap();
+        assert_eq!(auth1.port().unwrap(), 8080);
+        assert_eq!(auth1.host(), "[2001:db8::1]");
+    }
+
+    #[test]
+    fn allows_from_complex_ipv6() {
+        let example8080scope1 = SocketAddrV6::new(Ipv6Addr::new(0x2001, 0x0db8, 0,0,
+                                                                0,0,0,1),
+                                                  8080, /* port number */
+                                                  0,    /* flowid */
+                                                  1     /* scopeid */);
+
+        let auth1: Authority = Authority::from_sockaddr(std::net::SocketAddr::V6(example8080scope1)).unwrap();
+        assert_eq!(auth1.port().unwrap(), 8080);
+        assert_eq!(auth1.host(), "[2001:db8::1%1]");
     }
 }
