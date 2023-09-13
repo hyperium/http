@@ -547,6 +547,14 @@ mod tests {
     }
 
     #[test]
+    fn equal_to_self_of_same_authority_with_port() {
+        let authority1: Authority = "example.com:80".parse().unwrap();
+        let authority2: Authority = "EXAMPLE.COM:80".parse().unwrap();
+        assert_eq!(authority1, authority2);
+        assert_eq!(authority2, authority1);
+    }
+
+    #[test]
     fn not_equal_to_self_of_different_authority() {
         let authority1: Authority = "example.com".parse().unwrap();
         let authority2: Authority = "test.com".parse().unwrap();
