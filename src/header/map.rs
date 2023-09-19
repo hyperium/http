@@ -472,7 +472,9 @@ impl<T> HeaderMap<T> {
                 danger: Danger::Green,
             }
         } else {
-            let raw_cap = to_raw_capacity(capacity).next_power_of_two();
+            let raw_cap = to_raw_capacity(capacity)
+                .checked_next_power_of_two()
+                .expect("requested capacity overflows on checked_next_power_of_two");
             assert!(raw_cap <= MAX_SIZE, "requested capacity too large");
             debug_assert!(raw_cap > 0);
 
@@ -3218,7 +3220,8 @@ fn usable_capacity(cap: usize) -> usize {
 
 #[inline]
 fn to_raw_capacity(n: usize) -> usize {
-    n + n / 3
+    n.checked_add(n / 3)
+        .expect("overflow while converting to raw capacity")
 }
 
 #[inline]
