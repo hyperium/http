@@ -224,7 +224,7 @@ enum Cursor {
 /// limit enables using `u16` to represent all offsets, which takes 2 bytes
 /// instead of 8 on 64 bit processors.
 ///
-/// Setting this limit is especially benificial for `indices`, making it more
+/// Setting this limit is especially beneficial for `indices`, making it more
 /// cache friendly. More hash codes can fit in a cache line.
 ///
 /// You may notice that `u16` may represent more than 32,768 values. This is
