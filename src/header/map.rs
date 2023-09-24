@@ -452,6 +452,10 @@ impl<T> HeaderMap<T> {
     /// allocations before `capacity` headers are stored in the map.
     ///
     /// More capacity than requested may be allocated.
+    /// 
+    /// # Panics
+    /// 
+    /// Requested capacity too large: would overflow `usize`.
     ///
     /// # Examples
     ///
