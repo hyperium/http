@@ -526,8 +526,7 @@ impl fmt::Debug for Parts {
 }
 
 impl Builder {
-    /// Creates a new default instance of `Builder` to construct either a
-    /// `Head` or a `Response`.
+    /// Creates a new default instance of `Builder` to construct a `Response`.
     ///
     /// # Examples
     ///
