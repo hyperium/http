@@ -76,7 +76,7 @@ mod value;
 
 pub use self::map::{
     AsHeaderName, Drain, Entry, GetAll, HeaderMap, IntoHeaderName, IntoIter, Iter, IterMut, Keys,
-    OccupiedEntry, VacantEntry, ValueDrain, ValueIter, ValueIterMut, Values, ValuesMut,
+    OccupiedEntry, VacantEntry, ValueDrain, ValueIter, ValueIterMut, Values, ValuesMut, MaxSizeReached
 };
 pub use self::name::{HeaderName, InvalidHeaderName};
 pub use self::value::{HeaderValue, InvalidHeaderValue, ToStrError};
