@@ -224,10 +224,8 @@ impl HeaderValue {
     }
 
     fn try_from_generic<T: AsRef<[u8]>, F: FnOnce(T) -> Bytes>(src: T, into: F) -> Result<HeaderValue, InvalidHeaderValue> {
-        for &b in src.as_ref() {
-            if !is_valid(b) {
-                return Err(InvalidHeaderValue { _priv: () });
-            }
+        if !is_valid(src.as_ref()) {
+            return Err(InvalidHeaderValue { _priv: () });
         }
         Ok(HeaderValue {
             inner: into(src),
@@ -584,9 +582,22 @@ const fn is_visible_ascii(b: u8) -> bool {
     b >= 32 && b < 127 || b == b'\t'
 }
 
+/// Returns true if the header value is valid.
+/// https://fetch.spec.whatwg.org/#concept-header-value
 #[inline]
-fn is_valid(b: u8) -> bool {
-    b >= 32 && b != 127 || b == b'\t'
+fn is_valid(value: &[u8]) -> bool {
+    if value.starts_with(&[b' ']) ||
+       value.starts_with(&[b'\t']) ||
+       value.ends_with(&[b' ']) ||
+       value.ends_with(&[b'\t']) {
+        return false;
+    }
+    for &b in value {
+        if b == b'\0' || b == b'\n' || b == b'\r' {
+            return false;
+        }
+    }
+    return true;
 }
 
 impl fmt::Debug for InvalidHeaderValue {
@@ -772,7 +783,20 @@ impl<'a> PartialOrd<HeaderValue> for &'a str {
 
 #[test]
 fn test_try_from() {
-    HeaderValue::try_from(vec![127]).unwrap_err();
+    let cases = &[
+        "\n",
+        " test",
+        "\ttest",
+        "test ",
+        "test\t",
+        "test\0test",
+        "test\ntest",
+        "test\rtest",
+    ];
+
+    for value in cases {
+        HeaderValue::from_bytes(value.as_bytes()).unwrap_err();
+    }
 }
 
 #[test]
