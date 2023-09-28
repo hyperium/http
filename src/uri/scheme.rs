@@ -265,6 +265,7 @@ impl Scheme2<usize> {
         }
     }
 
+    // Postcondition: On Ok(Scheme2::Other(n)) return, s[0..n+3] is valid UTF-8
     pub(super) fn parse(s: &[u8]) -> Result<Scheme2<usize>, InvalidUri> {
         if s.len() >= 7 {
             // Check for HTTP
@@ -282,6 +283,9 @@ impl Scheme2<usize> {
         }
 
         if s.len() > 3 {
+            // The only Ok(Scheme2::Option(n)) return from this function is an
+            // early exit from this loop. This loop checks each byte in s against
+            // SCHEME_CHARS until until one of the early exit conditions.
             for i in 0..s.len() {
                 let b = s[i];
 
@@ -302,10 +306,15 @@ impl Scheme2<usize> {
                         }
 
                         // Return scheme
+                        // Postcondition: Every byte in s[0..i] has matched the
+                        // _ arm so is valid UTF-8. s[i..i+3] matches "://" which
+                        // is also valid UTF-8. Thus s[0..i+3] is valid UTF-8.
                         return Ok(Scheme2::Other(i));
                     }
                     // Invald scheme character, abort
                     0 => break,
+                    // Valid scheme character: imples that b is a valid, single
+                    // byte UTF-8 codepoint.
                     _ => {}
                 }
             }

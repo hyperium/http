@@ -820,12 +820,14 @@ impl From<Uri> for Parts {
     }
 }
 
+// parse_full() parses a Uri that includes more than just a path. It
+// expects that at least one of the scheme or authority will be present
+// as well.
 fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUri> {
     // Parse the scheme
     let scheme = match Scheme2::parse(&s[..])? {
         Scheme2::None => Scheme2::None,
         Scheme2::Standard(p) => {
-            // TODO: use truncate
             let _ = s.split_to(p.len() + 3);
             Scheme2::Standard(p)
         }
@@ -833,10 +835,12 @@ fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUri> {
             // Grab the protocol
             let mut scheme = s.split_to(n + 3);
 
-            // Strip ://, TODO: truncate
-            let _ = scheme.split_off(n);
+            // Strip ://
+            scheme.truncate(n);
 
             // Allocate the ByteStr
+            // Safety: the postcondition on Scheme2::parse() means that
+            // s[0..n+3] is valid UTF-8. scheme is a subslice of s[0..n+3].
             let val = unsafe { ByteStr::from_utf8_unchecked(scheme) };
 
             Scheme2::Other(Box::new(val))
@@ -848,28 +852,23 @@ fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUri> {
     let authority_end = Authority::parse(&s[..])?;
 
     if scheme.is_none() {
+        // Path is not allowed if there is no scheme.
         if authority_end != s.len() {
             return Err(ErrorKind::InvalidFormat.into());
         }
-
-        let authority = Authority {
-            data: unsafe { ByteStr::from_utf8_unchecked(s) },
-        };
-
-        return Ok(Uri {
-            scheme: scheme.into(),
-            authority: authority,
-            path_and_query: PathAndQuery::empty(),
-        });
-    }
-
-    // Authority is required when absolute
-    if authority_end == 0 {
-        return Err(ErrorKind::InvalidFormat.into());
+    } else {
+        // Authority is required when absolute
+        if authority_end == 0 {
+            return Err(ErrorKind::InvalidFormat.into());
+        }
     }
 
     let authority = s.split_to(authority_end);
     let authority = Authority {
+        // Safety: The postcondition on Authority::parse() means that
+        // s[0..authority_end] is valid UTF-8 after that call. The call
+        // to s.split_to() means that authority here is what s[0..authority_end]
+        // was after the call to Authority::parse().
         data: unsafe { ByteStr::from_utf8_unchecked(authority) },
     };
 
