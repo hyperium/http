@@ -276,3 +276,132 @@ mod serde1 {
         Err(Error::custom("extensions is not empty"))
     }
 }
+
+#[cfg(all(test, feature = "serde1"))]
+mod serde1_tests {
+
+    use std::fmt::Debug;
+
+    use super::{
+        HeaderMap, HeaderName, HeaderValue, Method, Request, Response, StatusCode, Uri, Version,
+    };
+
+    use serde::{Deserialize, Serialize};
+    use serde_json::{json, Value};
+
+    fn serde_json_roundtrip<T>(val: T, json: Value)
+    where
+        T: Serialize + for<'a> Deserialize<'a> + PartialEq + Debug,
+    {
+        let value = serde_json::to_value(&val).expect("serialized");
+        assert_eq!(value, json);
+        let deserialized: T = serde_json::from_value(value).expect("deserialized");
+        assert_eq!(deserialized, val);
+    }
+
+    #[test]
+    fn test_roundtrip() {
+        serde_json_roundtrip(Method::default(), Value::String("GET".to_string()));
+        serde_json_roundtrip(Version::default(), json!("HTTP/1.1"));
+        serde_json_roundtrip(Uri::default(), json!("/"));
+        serde_json_roundtrip(HeaderMap::<HeaderValue>::default(), json!({}));
+        serde_json_roundtrip(HeaderName::from_static("hello"), json!("hello"));
+        serde_json_roundtrip(HeaderValue::from_static("hello"), json!("hello"));
+        serde_json_roundtrip(StatusCode::default(), json!(200_i32));
+    }
+
+    fn serde_json_invalid<T>(json: Value, msg: &str)
+    where
+        T: for<'a> Deserialize<'a>,
+    {
+        let res = serde_json::from_value::<T>(json);
+        assert!(res.is_err());
+        assert_eq!(res.err().unwrap().to_string(), msg);
+    }
+
+    macro_rules! serde_json_res_req_invalid {
+        ($ty:ty, $msg:expr) => {{
+            let mut val = <$ty>::default();
+            val.extensions_mut().insert(true);
+
+            let result = serde_json::to_value(&val);
+            assert!(result.is_err());
+            assert_eq!(result.err().unwrap().to_string(), $msg);
+        }};
+    }
+
+    #[test]
+    fn test_invalid() {
+        serde_json_invalid::<Method>(json!(""), "invalid HTTP method");
+        serde_json_invalid::<Version>(
+            json!("HTTP/0.0"),
+            "invalid value: string \"HTTP/0.0\", expected a version string",
+        );
+        serde_json_invalid::<Uri>(json!(""), "empty string");
+
+        let invalid_str = unsafe { std::str::from_utf8_unchecked(&[127]) };
+        serde_json_invalid::<HeaderName>(json!(invalid_str), "invalid HTTP header name");
+        serde_json_invalid::<HeaderValue>(json!(invalid_str), "failed to parse header value");
+        serde_json_invalid::<StatusCode>(json!(1000), "invalid status code");
+
+        serde_json_res_req_invalid!(Response::<()>, "extensions is not empty");
+        serde_json_res_req_invalid!(Request::<()>, "extensions is not empty");
+    }
+
+    macro_rules! serde_json_req_res_roundtrip {
+        ($ty:ty, $val:expr, $json:expr) => {{
+            let value = serde_json::to_value(&$val).expect("serialized");
+            assert_eq!(value, $json);
+            let deserialized: $ty = serde_json::from_value(value).expect("deserialized");
+            assert_eq!(deserialized.version(), $val.version());
+            assert_eq!(deserialized.headers(), $val.headers());
+
+            assert!(deserialized.extensions().is_empty());
+
+            assert_eq!(deserialized.body(), $val.body());
+            deserialized
+        }};
+    }
+
+    #[test]
+    fn test_request_roundtrip() {
+        let request = Request::<()>::default();
+
+        let deserialized = serde_json_req_res_roundtrip!(
+            Request<()>,
+            request,
+            json!({
+                "body": Value::Null,
+                "head": {
+                    "headers": {},
+                    "method": "GET",
+                    "uri": "/",
+                    "version": "HTTP/1.1"
+                }
+            })
+        );
+
+        assert_eq!(deserialized.method(), request.method());
+        assert_eq!(deserialized.uri(), request.uri());
+    }
+
+    #[test]
+    fn test_response_roundtrip() {
+        let response = Response::<()>::default();
+
+        let deserialized = serde_json_req_res_roundtrip!(
+            Response<()>,
+            response,
+            json!({
+                "body": Value::Null,
+                "head": {
+                    "headers": {},
+                    "status": 200,
+                    "version": "HTTP/1.1"
+                }
+            })
+        );
+
+        assert_eq!(deserialized.status(), response.status());
+    }
+}
