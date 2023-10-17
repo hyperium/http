@@ -36,6 +36,7 @@ jobs:
 
       - name: Test
         run: cargo test
+        run: cargo test --all-features
 
       - name: Test all benches
         if: matrix.benches
