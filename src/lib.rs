@@ -209,3 +209,70 @@ mod sealed {
     /// downstream crates.
     pub trait Sealed {}
 }
+
+#[cfg(feature = "serde1")]
+mod serde1 {
+    use std::{fmt, str::FromStr};
+
+    use serde::{de, Deserialize, Serialize, Serializer};
+
+    use super::{Extensions, HeaderName, Method, Version};
+
+    macro_rules! serialize_as_str {
+        ($ty:ty) => {
+            impl Serialize for $ty {
+                fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                where
+                    S: serde::Serializer,
+                {
+                    serializer.serialize_str(self.as_str())
+                }
+            }
+        };
+    }
+
+    serialize_as_str!(Method);
+    serialize_as_str!(HeaderName);
+    serialize_as_str!(Version);
+
+    macro_rules! deserialize_from_str {
+        ($visitor:ident, $ty:ty, $msg:expr) => {
+            struct $visitor;
+
+            impl<'de> de::Visitor<'de> for $visitor {
+                type Value = $ty;
+
+                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                    formatter.write_str($msg)
+                }
+
+                fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+                where
+                    E: de::Error,
+                {
+                    <$ty>::from_str(v).map_err(E::custom)
+                }
+            }
+
+            impl<'de> Deserialize<'de> for $ty {
+                fn deserialize<D>(deserializer: D) -> Result<$ty, D::Error>
+                where
+                    D: de::Deserializer<'de>,
+                {
+                    deserializer.deserialize_str($visitor)
+                }
+            }
+        };
+    }
+
+    deserialize_from_str!(HeaderNameVisitor, HeaderName, "a header name string");
+    deserialize_from_str!(MethodVisitor, Method, "a method string");
+
+    pub fn fail_serialize_extensions<S>(_: &Extensions, _: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        use serde::ser::Error;
+        Err(Error::custom("extensions is not empty"))
+    }
+}

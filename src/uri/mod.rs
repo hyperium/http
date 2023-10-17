@@ -1116,3 +1116,54 @@ impl Hash for Uri {
         }
     }
 }
+
+#[cfg(feature = "serde1")]
+mod serde1 {
+    use std::{convert::TryInto, fmt};
+
+    use serde::{de, Deserialize, Serialize};
+
+    use super::Uri;
+
+    impl Serialize for Uri {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer,
+        {
+            serializer.collect_str(self)
+        }
+    }
+
+    struct UriVisitor;
+
+    impl<'de> de::Visitor<'de> for UriVisitor {
+        type Value = Uri;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("a uri string")
+        }
+
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            v.parse().map_err(E::custom)
+        }
+
+        fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            v.try_into().map_err(E::custom)
+        }
+    }
+
+    impl<'de> Deserialize<'de> for Uri {
+        fn deserialize<D>(deserializer: D) -> Result<Uri, D::Error>
+        where
+            D: de::Deserializer<'de>,
+        {
+            deserializer.deserialize_string(UriVisitor)
+        }
+    }
+}

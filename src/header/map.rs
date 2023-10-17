@@ -3494,3 +3494,72 @@ fn skip_duplicates_during_key_iteration() {
     map.append("a", HeaderValue::from_static("b"));
     assert_eq!(map.keys().count(), map.keys_len());
 }
+
+#[cfg(feature = "serde1")]
+mod serde1 {
+    use std::{fmt, marker::PhantomData};
+
+    use serde::{de, ser, Deserialize, Serialize};
+
+    use super::{HeaderMap, HeaderName, HeaderValue};
+
+    impl<T> Serialize for HeaderMap<T>
+    where
+        T: Serialize,
+    {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: ser::Serializer,
+        {
+            serializer.collect_map(self.iter())
+        }
+    }
+
+    struct HeaderMapVisitor<T = HeaderValue> {
+        marker: PhantomData<fn() -> HeaderMap<T>>,
+    }
+
+    impl<T> HeaderMapVisitor<T> {
+        fn new() -> Self {
+            HeaderMapVisitor {
+                marker: PhantomData,
+            }
+        }
+    }
+
+    impl<'de, T> de::Visitor<'de> for HeaderMapVisitor<T>
+    where
+        T: Deserialize<'de>,
+    {
+        type Value = HeaderMap<T>;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("a header map")
+        }
+
+        fn visit_map<M>(self, mut access: M) -> Result<Self::Value, M::Error>
+        where
+            M: de::MapAccess<'de>,
+        {
+            let mut map = HeaderMap::with_capacity(access.size_hint().unwrap_or(0));
+
+            while let Some((key, value)) = access.next_entry::<HeaderName, T>()? {
+                map.insert(key, value);
+            }
+
+            Ok(map)
+        }
+    }
+
+    impl<'de, T> Deserialize<'de> for HeaderMap<T>
+    where
+        T: Deserialize<'de>,
+    {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: de::Deserializer<'de>,
+        {
+            deserializer.deserialize_map(HeaderMapVisitor::new())
+        }
+    }
+}

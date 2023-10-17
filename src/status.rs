@@ -42,6 +42,11 @@ use std::str::FromStr;
 /// assert!(StatusCode::OK.is_success());
 /// ```
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(
+    feature = "serde1",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(try_from = "u16")
+)]
 pub struct StatusCode(NonZeroU16);
 
 /// A possible error value when converting a `StatusCode` from a `u16` or `&str`

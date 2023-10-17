@@ -793,3 +793,77 @@ fn test_debug() {
     sensitive.set_sensitive(true);
     assert_eq!("Sensitive", format!("{:?}", sensitive));
 }
+
+#[cfg(feature = "serde1")]
+mod serde1 {
+    use std::{convert::TryInto, fmt};
+
+    use serde::{de, Deserialize, Serialize, Serializer};
+
+    use super::HeaderValue;
+
+    impl Serialize for HeaderValue {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            if serializer.is_human_readable() {
+                use serde::ser::Error;
+                serializer.serialize_str(self.to_str().map_err(Error::custom)?)
+            } else {
+                serializer.serialize_bytes(self.as_ref())
+            }
+        }
+    }
+
+    struct HeaderValueVisitor;
+
+    impl<'de> de::Visitor<'de> for HeaderValueVisitor {
+        type Value = HeaderValue;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("a header value")
+        }
+
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            v.parse().map_err(E::custom)
+        }
+
+        fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            v.try_into().map_err(E::custom)
+        }
+
+        fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            Self::Value::from_bytes(v).map_err(E::custom)
+        }
+
+        fn visit_byte_buf<E>(self, v: Vec<u8>) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            v.try_into().map_err(E::custom)
+        }
+    }
+
+    impl<'de> Deserialize<'de> for HeaderValue {
+        fn deserialize<D>(deserializer: D) -> Result<HeaderValue, D::Error>
+        where
+            D: de::Deserializer<'de>,
+        {
+            if deserializer.is_human_readable() {
+                deserializer.deserialize_string(HeaderValueVisitor)
+            } else {
+                deserializer.deserialize_byte_buf(HeaderValueVisitor)
+            }
+        }
+    }
+}

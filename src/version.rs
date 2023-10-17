@@ -40,6 +40,18 @@ impl Version {
 
     /// `HTTP/3.0`
     pub const HTTP_3: Version = Version(Http::H3);
+
+    pub(crate) fn as_str(&self) -> &'static str {
+        use self::Http::*;
+        match self.0 {
+            Http09 => "HTTP/0.9",
+            Http10 => "HTTP/1.0",
+            Http11 => "HTTP/1.1",
+            H2 => "HTTP/2.0",
+            H3 => "HTTP/3.0",
+            __NonExhaustive => unreachable!(),
+        }
+    }
 }
 
 #[derive(PartialEq, PartialOrd, Copy, Clone, Eq, Ord, Hash)]
@@ -61,15 +73,49 @@ impl Default for Version {
 
 impl fmt::Debug for Version {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use self::Http::*;
+        f.write_str(self.as_str())
+    }
+}
 
-        f.write_str(match self.0 {
-            Http09 => "HTTP/0.9",
-            Http10 => "HTTP/1.0",
-            Http11 => "HTTP/1.1",
-            H2 => "HTTP/2.0",
-            H3 => "HTTP/3.0",
-            __NonExhaustive => unreachable!(),
-        })
+#[cfg(feature = "serde1")]
+mod serde1 {
+    use std::fmt;
+
+    use serde::{de, Deserialize};
+
+    use super::{Http, Version};
+
+    struct VersionVisitor;
+
+    impl<'de> de::Visitor<'de> for VersionVisitor {
+        type Value = Version;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("a version string")
+        }
+
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            let http = match v {
+                "HTTP/0.9" => Http::Http09,
+                "HTTP/1.0" => Http::Http10,
+                "HTTP/1.1" => Http::Http11,
+                "HTTP/2.0" => Http::H2,
+                "HTTP/3.0" => Http::H3,
+                _ => return Err(E::invalid_value(de::Unexpected::Str(v), &self)),
+            };
+            Ok(Version(http))
+        }
+    }
+
+    impl<'de> Deserialize<'de> for Version {
+        fn deserialize<D>(deserializer: D) -> Result<Version, D::Error>
+        where
+            D: de::Deserializer<'de>,
+        {
+            deserializer.deserialize_str(VersionVisitor)
+        }
     }
 }

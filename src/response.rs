@@ -176,6 +176,7 @@ use crate::{Extensions, Result};
 /// #
 /// # fn main() {}
 /// ```
+#[cfg_attr(feature = "serde1", derive(serde::Serialize, serde::Deserialize))]
 pub struct Response<T> {
     head: Parts,
     body: T,
@@ -185,6 +186,7 @@ pub struct Response<T> {
 ///
 /// The HTTP response head consists of a status, version, and a set of
 /// header fields.
+#[cfg_attr(feature = "serde1", derive(serde::Serialize, serde::Deserialize))]
 pub struct Parts {
     /// The response's status
     pub status: StatusCode,
@@ -196,8 +198,17 @@ pub struct Parts {
     pub headers: HeaderMap<HeaderValue>,
 
     /// The response's extensions
+    #[cfg_attr(
+        feature = "serde1",
+        serde(
+            skip_deserializing,
+            skip_serializing_if = "Extensions::is_empty",
+            serialize_with = "super::serde1::fail_serialize_extensions"
+        )
+    )]
     pub extensions: Extensions,
 
+    #[cfg_attr(feature = "serde1", serde(skip))]
     _priv: (),
 }
 
