@@ -60,6 +60,17 @@ fn main() {
 }
 ```
 
+## Serde
+
+Serde's `Serialize` and `Deserialize` traits are implemented for many types
+behind the `serde1` feature flag. Note that using this feature will increase
+the MSRV to 1.56.
+
+```toml
+[dependencies]
+http = { version = "0.2", features = ["serde1"] }
+```
+
 # Supported Rust Versions
 
 This project follows the [Tokio MSRV][msrv] and is currently set to `1.49`.
