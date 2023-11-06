@@ -15,9 +15,9 @@
 //! ```
 
 use std::convert::TryFrom;
-use std::num::NonZeroU16;
 use std::error::Error;
 use std::fmt;
+use std::num::NonZeroU16;
 use std::str::FromStr;
 
 /// An HTTP status code (`status-code` in RFC 7230 et al.).
@@ -71,7 +71,7 @@ impl StatusCode {
     /// ```
     #[inline]
     pub fn from_u16(src: u16) -> Result<StatusCode, InvalidStatusCode> {
-        if src < 100 || src >= 1000 {
+        if !(100..1000).contains(&src) {
             return Err(InvalidStatusCode::new());
         }
 
@@ -140,10 +140,14 @@ impl StatusCode {
         // ASCII-only, of length 900 * 3 = 2700 bytes
 
         #[cfg(debug_assertions)]
-        { &CODE_DIGITS[offset..offset+3] }
+        {
+            &CODE_DIGITS[offset..offset + 3]
+        }
 
         #[cfg(not(debug_assertions))]
-        unsafe { CODE_DIGITS.get_unchecked(offset..offset+3) }
+        unsafe {
+            CODE_DIGITS.get_unchecked(offset..offset + 3)
+        }
     }
 
     /// Get the standardised `reason-phrase` for this status code.
@@ -263,7 +267,7 @@ impl FromStr for StatusCode {
 impl<'a> From<&'a StatusCode> for StatusCode {
     #[inline]
     fn from(t: &'a StatusCode) -> Self {
-        t.clone()
+        *t
     }
 }
 
@@ -516,9 +520,7 @@ status_codes! {
 
 impl InvalidStatusCode {
     fn new() -> InvalidStatusCode {
-        InvalidStatusCode {
-            _priv: (),
-        }
+        InvalidStatusCode { _priv: () }
     }
 }
 
@@ -540,7 +542,7 @@ impl Error for InvalidStatusCode {}
 
 // A string of packed 3-ASCII-digit status code values for the supported range
 // of [100, 999] (900 codes, 2700 bytes).
-const CODE_DIGITS: &'static str = "\
+const CODE_DIGITS: &str = "\
 100101102103104105106107108109110111112113114115116117118119\
 120121122123124125126127128129130131132133134135136137138139\
 140141142143144145146147148149150151152153154155156157158159\

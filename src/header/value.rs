@@ -14,7 +14,7 @@ use crate::header::name::HeaderName;
 /// HTTP spec allows for a header value to contain opaque bytes as well. In this
 /// case, the header field value is not able to be represented as a string.
 ///
-/// To handle this, the `HeaderValue` is useable as a type and can be compared
+/// To handle this, the `HeaderValue` is usable as a type and can be compared
 /// with strings and implements `Debug`. A `to_str` fn is provided that returns
 /// an `Err` if the header value contains non visible ascii characters.
 #[derive(Clone, Hash)]
@@ -203,7 +203,6 @@ impl HeaderValue {
                 }
             }
         } else {
-
             if_downcast_into!(T, Bytes, src, {
                 return HeaderValue {
                     inner: src,
@@ -223,7 +222,10 @@ impl HeaderValue {
         HeaderValue::try_from_generic(src, std::convert::identity)
     }
 
-    fn try_from_generic<T: AsRef<[u8]>, F: FnOnce(T) -> Bytes>(src: T, into: F) -> Result<HeaderValue, InvalidHeaderValue> {
+    fn try_from_generic<T: AsRef<[u8]>, F: FnOnce(T) -> Bytes>(
+        src: T,
+        into: F,
+    ) -> Result<HeaderValue, InvalidHeaderValue> {
         for &b in src.as_ref() {
             if !is_valid(b) {
                 return Err(InvalidHeaderValue { _priv: () });
@@ -697,7 +699,7 @@ impl PartialOrd<HeaderValue> for [u8] {
 impl PartialEq<String> for HeaderValue {
     #[inline]
     fn eq(&self, other: &String) -> bool {
-        *self == &other[..]
+        *self == other[..]
     }
 }
 

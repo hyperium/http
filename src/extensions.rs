@@ -61,7 +61,7 @@ impl Extensions {
     /// ```
     pub fn insert<T: Send + Sync + 'static>(&mut self, val: T) -> Option<T> {
         self.map
-            .get_or_insert_with(|| Box::new(HashMap::default()))
+            .get_or_insert_with(Default::default)
             .insert(TypeId::of::<T>(), Box::new(val))
             .and_then(|boxed| {
                 (boxed as Box<dyn Any + 'static>)
@@ -166,9 +166,7 @@ impl Extensions {
     /// ```
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.map
-            .as_ref()
-            .map_or(true, |map| map.is_empty())
+        self.map.as_ref().map_or(true, |map| map.is_empty())
     }
 
     /// Get the numer of extensions available.
@@ -184,28 +182,26 @@ impl Extensions {
     /// ```
     #[inline]
     pub fn len(&self) -> usize {
-        self.map
-            .as_ref()
-            .map_or(0, |map| map.len())
+        self.map.as_ref().map_or(0, |map| map.len())
     }
 
     /// Extends `self` with another `Extensions`.
     ///
     /// If an instance of a specific type exists in both, the one in `self` is overwritten with the
     /// one from `other`.
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```
     /// # use http::Extensions;
     /// let mut ext_a = Extensions::new();
     /// ext_a.insert(8u8);
     /// ext_a.insert(16u16);
-    /// 
+    ///
     /// let mut ext_b = Extensions::new();
     /// ext_b.insert(4u8);
     /// ext_b.insert("hello");
-    /// 
+    ///
     /// ext_a.extend(ext_b);
     /// assert_eq!(ext_a.len(), 3);
     /// assert_eq!(ext_a.get::<u8>(), Some(&4u8));

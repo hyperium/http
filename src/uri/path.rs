@@ -18,6 +18,7 @@ const NONE: u16 = ::std::u16::MAX;
 
 impl PathAndQuery {
     // Not public while `bytes` is unstable.
+    #[rustfmt::skip]
     pub(super) fn from_shared(mut src: Bytes) -> Result<Self, InvalidUri> {
         let mut query = NONE;
         let mut fragment = None;
@@ -98,7 +99,7 @@ impl PathAndQuery {
 
         Ok(PathAndQuery {
             data: unsafe { ByteStr::from_utf8_unchecked(src) },
-            query: query,
+            query,
         })
     }
 
@@ -291,7 +292,7 @@ impl<'a> TryFrom<&'a str> for PathAndQuery {
     }
 }
 
-impl<'a> TryFrom<Vec<u8>> for PathAndQuery {
+impl TryFrom<Vec<u8>> for PathAndQuery {
     type Error = InvalidUri;
     #[inline]
     fn try_from(vec: Vec<u8>) -> Result<Self, Self::Error> {
@@ -555,7 +556,10 @@ mod tests {
 
     #[test]
     fn json_is_fine() {
-        assert_eq!(r#"/{"bread":"baguette"}"#, pq(r#"/{"bread":"baguette"}"#).path());
+        assert_eq!(
+            r#"/{"bread":"baguette"}"#,
+            pq(r#"/{"bread":"baguette"}"#).path()
+        );
     }
 
     fn pq(s: &str) -> PathAndQuery {

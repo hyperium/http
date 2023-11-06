@@ -53,7 +53,7 @@
 //! ```
 
 use std::any::Any;
-use std::convert::{TryFrom};
+use std::convert::TryFrom;
 use std::fmt;
 
 use crate::header::{HeaderMap, HeaderName, HeaderValue};
@@ -163,6 +163,7 @@ pub struct Request<T> {
 ///
 /// The HTTP request head consists of a method, uri, version, and a set of
 /// header fields.
+#[non_exhaustive]
 pub struct Parts {
     /// The request's method
     pub method: Method,
@@ -178,8 +179,6 @@ pub struct Parts {
 
     /// The request's extensions
     pub extensions: Extensions,
-
-    _priv: (),
 }
 
 /// An HTTP request builder
@@ -231,7 +230,6 @@ impl Request<()> {
     where
         Uri: TryFrom<T>,
         <Uri as TryFrom<T>>::Error: Into<crate::Error>,
-
     {
         Builder::new().method(Method::GET).uri(uri)
     }
@@ -254,7 +252,6 @@ impl Request<()> {
     where
         Uri: TryFrom<T>,
         <Uri as TryFrom<T>>::Error: Into<crate::Error>,
-
     {
         Builder::new().method(Method::PUT).uri(uri)
     }
@@ -277,7 +274,6 @@ impl Request<()> {
     where
         Uri: TryFrom<T>,
         <Uri as TryFrom<T>>::Error: Into<crate::Error>,
-
     {
         Builder::new().method(Method::POST).uri(uri)
     }
@@ -300,7 +296,6 @@ impl Request<()> {
     where
         Uri: TryFrom<T>,
         <Uri as TryFrom<T>>::Error: Into<crate::Error>,
-
     {
         Builder::new().method(Method::DELETE).uri(uri)
     }
@@ -324,7 +319,6 @@ impl Request<()> {
     where
         Uri: TryFrom<T>,
         <Uri as TryFrom<T>>::Error: Into<crate::Error>,
-
     {
         Builder::new().method(Method::OPTIONS).uri(uri)
     }
@@ -347,7 +341,6 @@ impl Request<()> {
     where
         Uri: TryFrom<T>,
         <Uri as TryFrom<T>>::Error: Into<crate::Error>,
-
     {
         Builder::new().method(Method::HEAD).uri(uri)
     }
@@ -370,7 +363,6 @@ impl Request<()> {
     where
         Uri: TryFrom<T>,
         <Uri as TryFrom<T>>::Error: Into<crate::Error>,
-
     {
         Builder::new().method(Method::CONNECT).uri(uri)
     }
@@ -439,7 +431,7 @@ impl<T> Request<T> {
     pub fn new(body: T) -> Request<T> {
         Request {
             head: Parts::new(),
-            body: body,
+            body,
         }
     }
 
@@ -457,10 +449,7 @@ impl<T> Request<T> {
     /// ```
     #[inline]
     pub fn from_parts(parts: Parts, body: T) -> Request<T> {
-        Request {
-            head: parts,
-            body: body,
-        }
+        Request { head: parts, body }
     }
 
     /// Returns a reference to the associated HTTP method.
@@ -723,7 +712,6 @@ impl Parts {
             version: Version::default(),
             headers: HeaderMap::default(),
             extensions: Extensions::default(),
-            _priv: (),
         }
     }
 }
@@ -736,7 +724,6 @@ impl fmt::Debug for Parts {
             .field("version", &self.version)
             .field("headers", &self.headers)
             // omits Extensions because not useful
-            // omits _priv because not useful
             .finish()
     }
 }
@@ -1042,19 +1029,14 @@ impl Builder {
     ///     .unwrap();
     /// ```
     pub fn body<T>(self, body: T) -> Result<Request<T>> {
-        self.inner.map(move |head| {
-            Request {
-                head,
-                body,
-            }
-        })
+        self.inner.map(move |head| Request { head, body })
     }
 
     // private
 
     fn and_then<F>(self, func: F) -> Self
     where
-        F: FnOnce(Parts) -> Result<Parts>
+        F: FnOnce(Parts) -> Result<Parts>,
     {
         Builder {
             inner: self.inner.and_then(func),

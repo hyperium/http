@@ -185,6 +185,7 @@ pub struct Response<T> {
 ///
 /// The HTTP response head consists of a status, version, and a set of
 /// header fields.
+#[non_exhaustive]
 pub struct Parts {
     /// The response's status
     pub status: StatusCode,
@@ -197,8 +198,6 @@ pub struct Parts {
 
     /// The response's extensions
     pub extensions: Extensions,
-
-    _priv: (),
 }
 
 /// An HTTP response builder
@@ -251,7 +250,7 @@ impl<T> Response<T> {
     pub fn new(body: T) -> Response<T> {
         Response {
             head: Parts::new(),
-            body: body,
+            body,
         }
     }
 
@@ -272,10 +271,7 @@ impl<T> Response<T> {
     /// ```
     #[inline]
     pub fn from_parts(parts: Parts, body: T) -> Response<T> {
-        Response {
-            head: parts,
-            body: body,
-        }
+        Response { head: parts, body }
     }
 
     /// Returns the `StatusCode`.
@@ -508,7 +504,6 @@ impl Parts {
             version: Version::default(),
             headers: HeaderMap::default(),
             extensions: Extensions::default(),
-            _priv: (),
         }
     }
 }
@@ -520,7 +515,6 @@ impl fmt::Debug for Parts {
             .field("version", &self.version)
             .field("headers", &self.headers)
             // omits Extensions because not useful
-            // omits _priv because not useful
             .finish()
     }
 }
@@ -748,19 +742,14 @@ impl Builder {
     ///     .unwrap();
     /// ```
     pub fn body<T>(self, body: T) -> Result<Response<T>> {
-        self.inner.map(move |head| {
-            Response {
-                head,
-                body,
-            }
-        })
+        self.inner.map(move |head| Response { head, body })
     }
 
     // private
 
     fn and_then<F>(self, func: F) -> Self
     where
-        F: FnOnce(Parts) -> Result<Parts>
+        F: FnOnce(Parts) -> Result<Parts>,
     {
         Builder {
             inner: self.inner.and_then(func),
