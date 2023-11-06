@@ -463,7 +463,7 @@ mod test {
     }
 
     #[test]
-    fn test_extention_method() {
+    fn test_extension_method() {
         assert_eq!(Method::from_str("WOW").unwrap(), "WOW");
         assert_eq!(Method::from_str("wOw!!").unwrap(), "wOw!!");
 
