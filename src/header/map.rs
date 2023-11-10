@@ -452,6 +452,10 @@ impl<T> HeaderMap<T> {
     /// allocations before `capacity` headers are stored in the map.
     ///
     /// More capacity than requested may be allocated.
+    /// 
+    /// # Panics
+    /// 
+    /// Requested capacity too large: would overflow `usize`.
     ///
     /// # Examples
     ///
@@ -472,7 +476,13 @@ impl<T> HeaderMap<T> {
                 danger: Danger::Green,
             }
         } else {
-            let raw_cap = to_raw_capacity(capacity).next_power_of_two();
+            let raw_cap = match to_raw_capacity(capacity).checked_next_power_of_two() {
+                Some(c) => c,
+                None => panic!(
+                    "requested capacity {} too large: next power of two would overflow `usize`",
+                    capacity
+                ),
+            };
             assert!(raw_cap <= MAX_SIZE, "requested capacity too large");
             debug_assert!(raw_cap > 0);
 
@@ -3218,7 +3228,13 @@ fn usable_capacity(cap: usize) -> usize {
 
 #[inline]
 fn to_raw_capacity(n: usize) -> usize {
-    n + n / 3
+    match n.checked_add(n / 3) {
+        Some(n) => n,
+        None => panic!(
+            "requested capacity {} too large: overflow while converting to raw capacity",
+            n
+        ),
+    }
 }
 
 #[inline]
