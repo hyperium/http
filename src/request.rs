@@ -154,6 +154,7 @@ use crate::{Extensions, Result, Uri};
 /// #
 /// # fn main() {}
 /// ```
+#[derive(Clone)]
 pub struct Request<T> {
     head: Parts,
     body: T,
@@ -163,6 +164,7 @@ pub struct Request<T> {
 ///
 /// The HTTP request head consists of a method, uri, version, and a set of
 /// header fields.
+#[derive(Clone)]
 pub struct Parts {
     /// The request's method
     pub method: Method,
@@ -978,7 +980,7 @@ impl Builder {
     /// ```
     pub fn extension<T>(self, extension: T) -> Builder
     where
-        T: Any + Send + Sync + 'static,
+        T: Clone + Any + Send + Sync + 'static,
     {
         self.and_then(move |mut head| {
             head.extensions.insert(extension);
