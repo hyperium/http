@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::hash::{BuildHasherDefault, Hasher};
 
-type AnyMap = HashMap<TypeId, Box<dyn Any + Send + Sync>, BuildHasherDefault<IdHasher>>;
+type AnyMap = HashMap<TypeId, Box<dyn AnyClone + Send + Sync>, BuildHasherDefault<IdHasher>>;
 
 // With TypeIds as keys, there's no need to hash them. They are already hashes
 // themselves, coming from the compiler. The IdHasher just holds the u64 of
@@ -31,7 +31,7 @@ impl Hasher for IdHasher {
 ///
 /// `Extensions` can be used by `Request` and `Response` to store
 /// extra data derived from the underlying protocol.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct Extensions {
     // If extensions are never used, no need to carry around an empty HashMap.
     // That's 3 words. Instead, this is only 1 word.
@@ -59,12 +59,12 @@ impl Extensions {
     /// assert!(ext.insert(4u8).is_none());
     /// assert_eq!(ext.insert(9i32), Some(5i32));
     /// ```
-    pub fn insert<T: Send + Sync + 'static>(&mut self, val: T) -> Option<T> {
+    pub fn insert<T: Clone + Send + Sync + 'static>(&mut self, val: T) -> Option<T> {
         self.map
             .get_or_insert_with(|| Box::new(HashMap::default()))
             .insert(TypeId::of::<T>(), Box::new(val))
             .and_then(|boxed| {
-                (boxed as Box<dyn Any + 'static>)
+                boxed.into_any()
                     .downcast()
                     .ok()
                     .map(|boxed| *boxed)
@@ -87,7 +87,7 @@ impl Extensions {
         self.map
             .as_ref()
             .and_then(|map| map.get(&TypeId::of::<T>()))
-            .and_then(|boxed| (&**boxed as &(dyn Any + 'static)).downcast_ref())
+            .and_then(|boxed| (&**boxed).as_any().downcast_ref())
     }
 
     /// Get a mutable reference to a type previously inserted on this `Extensions`.
@@ -106,7 +106,7 @@ impl Extensions {
         self.map
             .as_mut()
             .and_then(|map| map.get_mut(&TypeId::of::<T>()))
-            .and_then(|boxed| (&mut **boxed as &mut (dyn Any + 'static)).downcast_mut())
+            .and_then(|boxed| (&mut **boxed).as_any_mut().downcast_mut())
     }
 
     /// Remove a type from this `Extensions`.
@@ -127,7 +127,7 @@ impl Extensions {
             .as_mut()
             .and_then(|map| map.remove(&TypeId::of::<T>()))
             .and_then(|boxed| {
-                (boxed as Box<dyn Any + 'static>)
+                boxed.into_any()
                     .downcast()
                     .ok()
                     .map(|boxed| *boxed)
@@ -229,9 +229,42 @@ impl fmt::Debug for Extensions {
     }
 }
 
+trait AnyClone: Any {
+    fn clone_box(&self) -> Box<dyn AnyClone + Send + Sync>;
+    fn as_any(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+    fn into_any(self: Box<Self>) -> Box<dyn Any>;
+}
+
+impl<T: Clone + Send + Sync + 'static> AnyClone for T {
+    fn clone_box(&self) -> Box<dyn AnyClone + Send + Sync> {
+        Box::new(self.clone())
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        self
+    }
+}
+
+impl Clone for Box<dyn AnyClone + Send + Sync> {
+    fn clone(&self) -> Self {
+        (**self).clone_box()
+    }
+}
+
+
+
 #[test]
 fn test_extensions() {
-    #[derive(Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq)]
     struct MyType(i32);
 
     let mut extensions = Extensions::new();
@@ -242,8 +275,14 @@ fn test_extensions() {
     assert_eq!(extensions.get(), Some(&5i32));
     assert_eq!(extensions.get_mut(), Some(&mut 5i32));
 
+    let ext2 = extensions.clone();
+
     assert_eq!(extensions.remove::<i32>(), Some(5i32));
     assert!(extensions.get::<i32>().is_none());
+
+    // clone still has it
+    assert_eq!(ext2.get(), Some(&5i32));
+    assert_eq!(ext2.get(), Some(&MyType(10)));
 
     assert_eq!(extensions.get::<bool>(), None);
     assert_eq!(extensions.get(), Some(&MyType(10)));
