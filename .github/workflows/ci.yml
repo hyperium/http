@@ -80,6 +80,16 @@ jobs:
       - name: Check
         run: cargo check --target wasm32-unknown-unknown
 
+  minimal-versions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@cargo-hack
+      - uses: taiki-e/install-action@cargo-minimal-versions
+      - run: cargo minimal-versions check
+
   miri:
     name: Miri
     runs-on: ubuntu-latest
