@@ -70,18 +70,19 @@ impl StatusCode {
     /// assert!(err.is_err());
     /// ```
     #[inline]
-    pub fn from_u16(src: u16) -> Result<StatusCode, InvalidStatusCode> {
+    pub const fn from_u16(src: u16) -> Result<StatusCode, InvalidStatusCode> {
         if src < 100 || src >= 1000 {
             return Err(InvalidStatusCode::new());
         }
 
-        NonZeroU16::new(src)
-            .map(StatusCode)
-            .ok_or_else(InvalidStatusCode::new)
+        match NonZeroU16::new(src) {
+            Some(code) => Ok(StatusCode(code)),
+            None => Err(InvalidStatusCode::new()),
+        }
     }
 
     /// Converts a &[u8] to a status code
-    pub fn from_bytes(src: &[u8]) -> Result<StatusCode, InvalidStatusCode> {
+    pub const fn from_bytes(src: &[u8]) -> Result<StatusCode, InvalidStatusCode> {
         if src.len() != 3 {
             return Err(InvalidStatusCode::new());
         }
@@ -95,9 +96,11 @@ impl StatusCode {
         }
 
         let status = (a * 100) + (b * 10) + c;
-        NonZeroU16::new(status)
-            .map(StatusCode)
-            .ok_or_else(InvalidStatusCode::new)
+
+        match NonZeroU16::new(status) {
+            Some(code) => Ok(StatusCode(code)),
+            None => Err(InvalidStatusCode::new()),
+        }
     }
 
     /// Returns the `u16` corresponding to this `StatusCode`.
@@ -116,8 +119,8 @@ impl StatusCode {
     /// assert_eq!(status.as_u16(), 200);
     /// ```
     #[inline]
-    pub fn as_u16(&self) -> u16 {
-        (*self).into()
+    pub const fn as_u16(&self) -> u16 {
+        self.0.get()
     }
 
     /// Returns a &str representation of the `StatusCode`
@@ -164,37 +167,37 @@ impl StatusCode {
     /// let status = http::StatusCode::OK;
     /// assert_eq!(status.canonical_reason(), Some("OK"));
     /// ```
-    pub fn canonical_reason(&self) -> Option<&'static str> {
+    pub const fn canonical_reason(&self) -> Option<&'static str> {
         canonical_reason(self.0.get())
     }
 
     /// Check if status is within 100-199.
     #[inline]
-    pub fn is_informational(&self) -> bool {
+    pub const fn is_informational(&self) -> bool {
         200 > self.0.get() && self.0.get() >= 100
     }
 
     /// Check if status is within 200-299.
     #[inline]
-    pub fn is_success(&self) -> bool {
+    pub const fn is_success(&self) -> bool {
         300 > self.0.get() && self.0.get() >= 200
     }
 
     /// Check if status is within 300-399.
     #[inline]
-    pub fn is_redirection(&self) -> bool {
+    pub const fn is_redirection(&self) -> bool {
         400 > self.0.get() && self.0.get() >= 300
     }
 
     /// Check if status is within 400-499.
     #[inline]
-    pub fn is_client_error(&self) -> bool {
+    pub const fn is_client_error(&self) -> bool {
         500 > self.0.get() && self.0.get() >= 400
     }
 
     /// Check if status is within 500-599.
     #[inline]
-    pub fn is_server_error(&self) -> bool {
+    pub const fn is_server_error(&self) -> bool {
         600 > self.0.get() && self.0.get() >= 500
     }
 }
@@ -309,7 +312,7 @@ macro_rules! status_codes {
 
         }
 
-        fn canonical_reason(num: u16) -> Option<&'static str> {
+        const fn canonical_reason(num: u16) -> Option<&'static str> {
             match num {
                 $(
                 $num => Some($phrase),
@@ -515,7 +518,7 @@ status_codes! {
 }
 
 impl InvalidStatusCode {
-    fn new() -> InvalidStatusCode {
+    const fn new() -> InvalidStatusCode {
         InvalidStatusCode {
             _priv: (),
         }
