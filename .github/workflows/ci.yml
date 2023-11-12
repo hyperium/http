@@ -79,3 +79,19 @@ jobs:
 
       - name: Check
         run: cargo check --target wasm32-unknown-unknown
+
+  miri:
+    name: Miri
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: miri
+
+      - name: Test
+        run: MIRIFLAGS="-Zmiri-disable-isolation -Zmiri-ignore-leaks" cargo miri test
