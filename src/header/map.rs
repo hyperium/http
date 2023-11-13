@@ -82,7 +82,9 @@ pub struct HeaderMap<T = HeaderValue> {
 /// more than once if it has more than one associated value.
 #[derive(Debug)]
 pub struct Iter<'a, T> {
-    inner: IterMut<'a, T>,
+    map: &'a HeaderMap<T>,
+    entry: usize,
+    cursor: Option<Cursor>,
 }
 
 /// `HeaderMap` mutable entry iterator
@@ -811,12 +813,9 @@ impl<T> HeaderMap<T> {
     /// ```
     pub fn iter(&self) -> Iter<'_, T> {
         Iter {
-            inner: IterMut {
-                map: self as *const _ as *mut _,
-                entry: 0,
-                cursor: self.entries.first().map(|_| Cursor::Head),
-                lt: PhantomData,
-            },
+            map: self,
+            entry: 0,
+            cursor: self.entries.first().map(|_| Cursor::Head),
         }
     }
 
@@ -2078,13 +2077,47 @@ impl<'a, T> Iterator for Iter<'a, T> {
     type Item = (&'a HeaderName, &'a T);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner
-            .next_unsafe()
-            .map(|(key, ptr)| (key, unsafe { &*ptr }))
+        use self::Cursor::*;
+
+        if self.cursor.is_none() {
+            if (self.entry + 1) >= self.map.entries.len() {
+                return None;
+            }
+
+            self.entry += 1;
+            self.cursor = Some(Cursor::Head);
+        }
+
+        let entry = &self.map.entries[self.entry];
+
+        match self.cursor.unwrap() {
+            Head => {
+                self.cursor = entry.links.map(|l| Values(l.next));
+                Some((&entry.key, &entry.value))
+            }
+            Values(idx) => {
+                let extra = &self.map.extra_values[idx];
+
+                match extra.next {
+                    Link::Entry(_) => self.cursor = None,
+                    Link::Extra(i) => self.cursor = Some(Values(i)),
+                }
+
+                Some((&entry.key, &extra.value))
+            }
+        }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        self.inner.size_hint()
+        let map = self.map;
+        debug_assert!(map.entries.len() >= self.entry);
+
+        let lower = map.entries.len() - self.entry;
+        // We could pessimistically guess at the upper bound, saying
+        // that its lower + map.extra_values.len(). That could be
+        // way over though, such as if we're near the end, and have
+        // already gone through several extra values...
+        (lower, None)
     }
 }
 
