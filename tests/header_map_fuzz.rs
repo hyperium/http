@@ -8,6 +8,7 @@ use rand::{Rng, SeedableRng};
 
 use std::collections::HashMap;
 
+#[cfg(not(miri))]
 #[test]
 fn header_map_fuzz() {
     fn prop(fuzz: Fuzz) -> TestResult {
