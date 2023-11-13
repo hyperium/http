@@ -34,6 +34,10 @@ exclude = [
   "benches"
 ]
 
+[features]
+default = ["std"]
+std = []
+
 [dependencies]
 bytes = "1"
 fnv = "1.0.5"
