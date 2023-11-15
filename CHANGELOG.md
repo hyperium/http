@@ -1,3 +1,10 @@
+# 1.0.0 (November 15, 2023)
+
+- Implement `Clone` for `Request`, `Response`, and `Extensions`. This breaking change requires
+  that all extensions now implement `Clone`.
+- Add a default-on `std` feature. Disabling it currently is not supported.
+- Fix MIRI warnings in `HeaderMap::iter()`.
+
 # 0.2.10 (November 10, 2023)
 
 * Fix parsing of `Authority` to handle square brackets in incorrect order.
