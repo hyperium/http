@@ -162,7 +162,6 @@
 #[cfg(not(feature = "std"))]
 compile_error!("`std` feature currently required, support for `no_std` may be added later");
 
-
 #[cfg(test)]
 #[macro_use]
 extern crate doc_comment;

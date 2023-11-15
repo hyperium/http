@@ -53,7 +53,7 @@
 //! ```
 
 use std::any::Any;
-use std::convert::{TryFrom};
+use std::convert::TryFrom;
 use std::fmt;
 
 use crate::header::{HeaderMap, HeaderName, HeaderValue};
@@ -233,7 +233,6 @@ impl Request<()> {
     where
         Uri: TryFrom<T>,
         <Uri as TryFrom<T>>::Error: Into<crate::Error>,
-
     {
         Builder::new().method(Method::GET).uri(uri)
     }
@@ -256,7 +255,6 @@ impl Request<()> {
     where
         Uri: TryFrom<T>,
         <Uri as TryFrom<T>>::Error: Into<crate::Error>,
-
     {
         Builder::new().method(Method::PUT).uri(uri)
     }
@@ -279,7 +277,6 @@ impl Request<()> {
     where
         Uri: TryFrom<T>,
         <Uri as TryFrom<T>>::Error: Into<crate::Error>,
-
     {
         Builder::new().method(Method::POST).uri(uri)
     }
@@ -302,7 +299,6 @@ impl Request<()> {
     where
         Uri: TryFrom<T>,
         <Uri as TryFrom<T>>::Error: Into<crate::Error>,
-
     {
         Builder::new().method(Method::DELETE).uri(uri)
     }
@@ -326,7 +322,6 @@ impl Request<()> {
     where
         Uri: TryFrom<T>,
         <Uri as TryFrom<T>>::Error: Into<crate::Error>,
-
     {
         Builder::new().method(Method::OPTIONS).uri(uri)
     }
@@ -349,7 +344,6 @@ impl Request<()> {
     where
         Uri: TryFrom<T>,
         <Uri as TryFrom<T>>::Error: Into<crate::Error>,
-
     {
         Builder::new().method(Method::HEAD).uri(uri)
     }
@@ -372,7 +366,6 @@ impl Request<()> {
     where
         Uri: TryFrom<T>,
         <Uri as TryFrom<T>>::Error: Into<crate::Error>,
-
     {
         Builder::new().method(Method::CONNECT).uri(uri)
     }
@@ -1044,19 +1037,14 @@ impl Builder {
     ///     .unwrap();
     /// ```
     pub fn body<T>(self, body: T) -> Result<Request<T>> {
-        self.inner.map(move |head| {
-            Request {
-                head,
-                body,
-            }
-        })
+        self.inner.map(move |head| Request { head, body })
     }
 
     // private
 
     fn and_then<F>(self, func: F) -> Self
     where
-        F: FnOnce(Parts) -> Result<Parts>
+        F: FnOnce(Parts) -> Result<Parts>,
     {
         Builder {
             inner: self.inner.and_then(func),

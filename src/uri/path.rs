@@ -43,13 +43,14 @@ impl PathAndQuery {
                     // This is the range of bytes that don't need to be
                     // percent-encoded in the path. If it should have been
                     // percent-encoded, then error.
+                    #[rustfmt::skip]
                     0x21 |
                     0x24..=0x3B |
                     0x3D |
                     0x40..=0x5F |
                     0x61..=0x7A |
                     0x7C |
-                    0x7E => {},
+                    0x7E => {}
 
                     // These are code points that are supposed to be
                     // percent-encoded in the path but there are clients
@@ -60,8 +61,9 @@ impl PathAndQuery {
                     // For reference, those are code points that are used
                     // to send requests with JSON directly embedded in
                     // the URI path. Yes, those things happen for real.
+                    #[rustfmt::skip]
                     b'"' |
-                    b'{' | b'}' => {},
+                    b'{' | b'}' => {}
 
                     _ => return Err(ErrorKind::InvalidUriChar.into()),
                 }
@@ -76,10 +78,11 @@ impl PathAndQuery {
                         // See https://url.spec.whatwg.org/#query-state
                         //
                         // Allowed: 0x21 / 0x24 - 0x3B / 0x3D / 0x3F - 0x7E
+                        #[rustfmt::skip]
                         0x21 |
                         0x24..=0x3B |
                         0x3D |
-                        0x3F..=0x7E => {},
+                        0x3F..=0x7E => {}
 
                         b'#' => {
                             fragment = Some(i);
@@ -555,7 +558,10 @@ mod tests {
 
     #[test]
     fn json_is_fine() {
-        assert_eq!(r#"/{"bread":"baguette"}"#, pq(r#"/{"bread":"baguette"}"#).path());
+        assert_eq!(
+            r#"/{"bread":"baguette"}"#,
+            pq(r#"/{"bread":"baguette"}"#).path()
+        );
     }
 
     fn pq(s: &str) -> PathAndQuery {
