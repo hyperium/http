@@ -302,59 +302,75 @@ macro_rules! status_codes {
     (
         $(
             $(#[$docs:meta])*
-            ($num:expr, $konst:ident, $phrase:expr);
+            ($num:expr, $name:ident $(aka $alias:ident)*, $phrase:literal);
         )+
     ) => {
         impl StatusCode {
         $(
             $(#[$docs])*
-            pub const $konst: StatusCode = StatusCode(unsafe { NonZeroU16::new_unchecked($num) });
+            pub const $name: StatusCode = StatusCode(unsafe { NonZeroU16::new_unchecked($num) });
+            $(
+                status_codes! {
+                    @alias $alias = $name;
+                    concat!("Alias of [`", stringify!($name),
+                            "`](`Self::", stringify!($name), "`).")
+                }
+            )*
         )+
 
         }
 
         fn canonical_reason(num: u16) -> Option<&'static str> {
             match num {
+                // Make sure none of the numbers are < 100 or > 999.
+                0..=99 | 1000..=u16::MAX => None,
                 $(
                 $num => Some($phrase),
                 )+
                 _ => None
             }
         }
+    };
+
+    // Work around rustc 1.49 not supporting #[doc = concat!(...)].  With newer
+    // rustc this can be inlined.
+    (@alias $alias:ident = $name:ident; $doc:expr) => {
+        #[doc = $doc]
+        pub const $alias: StatusCode = StatusCode::$name;
     }
 }
 
 status_codes! {
     /// 100 Continue
-    /// [[RFC7231, Section 6.2.1](https://tools.ietf.org/html/rfc7231#section-6.2.1)]
+    /// [[RFC9110, Section 15.2.1](https://www.rfc-editor.org/rfc/rfc9110#name-100-continue)]
     (100, CONTINUE, "Continue");
     /// 101 Switching Protocols
-    /// [[RFC7231, Section 6.2.2](https://tools.ietf.org/html/rfc7231#section-6.2.2)]
+    /// [[RFC9110, Section 15.2.2](https://www.rfc-editor.org/rfc/rfc9110#name-101-switching-protocols)]
     (101, SWITCHING_PROTOCOLS, "Switching Protocols");
     /// 102 Processing
     /// [[RFC2518](https://tools.ietf.org/html/rfc2518)]
     (102, PROCESSING, "Processing");
 
     /// 200 OK
-    /// [[RFC7231, Section 6.3.1](https://tools.ietf.org/html/rfc7231#section-6.3.1)]
+    /// [[RFC9110, Section 15.3.1](https://www.rfc-editor.org/rfc/rfc9110#name-200-ok)]
     (200, OK, "OK");
     /// 201 Created
-    /// [[RFC7231, Section 6.3.2](https://tools.ietf.org/html/rfc7231#section-6.3.2)]
+    /// [[RFC9110, Section 15.3.2](https://www.rfc-editor.org/rfc/rfc9110#name-201-created)]
     (201, CREATED, "Created");
     /// 202 Accepted
-    /// [[RFC7231, Section 6.3.3](https://tools.ietf.org/html/rfc7231#section-6.3.3)]
+    /// [[RFC9110, Section 15.3.3](https://www.rfc-editor.org/rfc/rfc9110#name-202-accepted)]
     (202, ACCEPTED, "Accepted");
     /// 203 Non-Authoritative Information
-    /// [[RFC7231, Section 6.3.4](https://tools.ietf.org/html/rfc7231#section-6.3.4)]
-    (203, NON_AUTHORITATIVE_INFORMATION, "Non Authoritative Information");
+    /// [[RFC9110, Section 15.3.4](https://www.rfc-editor.org/rfc/rfc9110#name-203-non-authoritative-infor)]
+    (203, NON_AUTHORITATIVE_INFORMATION, "Non-Authoritative Information");
     /// 204 No Content
-    /// [[RFC7231, Section 6.3.5](https://tools.ietf.org/html/rfc7231#section-6.3.5)]
+    /// [[RFC9110, Section 15.3.5](https://www.rfc-editor.org/rfc/rfc9110#name-204-no-content)]
     (204, NO_CONTENT, "No Content");
     /// 205 Reset Content
-    /// [[RFC7231, Section 6.3.6](https://tools.ietf.org/html/rfc7231#section-6.3.6)]
+    /// [[RFC9110, Section 15.3.6](https://www.rfc-editor.org/rfc/rfc9110#name-205-reset-content)]
     (205, RESET_CONTENT, "Reset Content");
     /// 206 Partial Content
-    /// [[RFC7233, Section 4.1](https://tools.ietf.org/html/rfc7233#section-4.1)]
+    /// [[RFC9110, Section 15.3.7](https://www.rfc-editor.org/rfc/rfc9110#name-206-partial-content)]
     (206, PARTIAL_CONTENT, "Partial Content");
     /// 207 Multi-Status
     /// [[RFC4918](https://tools.ietf.org/html/rfc4918)]
@@ -368,103 +384,106 @@ status_codes! {
     (226, IM_USED, "IM Used");
 
     /// 300 Multiple Choices
-    /// [[RFC7231, Section 6.4.1](https://tools.ietf.org/html/rfc7231#section-6.4.1)]
+    /// [[RFC9110, Section 15.4.1](https://www.rfc-editor.org/rfc/rfc9110#name-300-multiple-choices)]
     (300, MULTIPLE_CHOICES, "Multiple Choices");
     /// 301 Moved Permanently
-    /// [[RFC7231, Section 6.4.2](https://tools.ietf.org/html/rfc7231#section-6.4.2)]
+    /// [[RFC9110, Section 15.4.2](https://www.rfc-editor.org/rfc/rfc9110#name-301-moved-permanently)]
     (301, MOVED_PERMANENTLY, "Moved Permanently");
     /// 302 Found
-    /// [[RFC7231, Section 6.4.3](https://tools.ietf.org/html/rfc7231#section-6.4.3)]
+    /// [[RFC9110, Section 15.4.3](https://www.rfc-editor.org/rfc/rfc9110#name-302-found)]
     (302, FOUND, "Found");
     /// 303 See Other
-    /// [[RFC7231, Section 6.4.4](https://tools.ietf.org/html/rfc7231#section-6.4.4)]
+    /// [[RFC9110, Section 15.4.4](https://www.rfc-editor.org/rfc/rfc9110#name-303-see-other)]
     (303, SEE_OTHER, "See Other");
     /// 304 Not Modified
-    /// [[RFC7232, Section 4.1](https://tools.ietf.org/html/rfc7232#section-4.1)]
+    /// [[RFC9110, Section 15.4.5](https://www.rfc-editor.org/rfc/rfc9110#name-304-not-modified)]
     (304, NOT_MODIFIED, "Not Modified");
     /// 305 Use Proxy
-    /// [[RFC7231, Section 6.4.5](https://tools.ietf.org/html/rfc7231#section-6.4.5)]
+    /// [[RFC9110, Section 15.4.6](https://www.rfc-editor.org/rfc/rfc9110#name-305-use-proxy)]
     (305, USE_PROXY, "Use Proxy");
     /// 307 Temporary Redirect
-    /// [[RFC7231, Section 6.4.7](https://tools.ietf.org/html/rfc7231#section-6.4.7)]
+    /// [[RFC9110, Section 15.4.8](https://www.rfc-editor.org/rfc/rfc9110#name-307-temporary-redirect)]
     (307, TEMPORARY_REDIRECT, "Temporary Redirect");
     /// 308 Permanent Redirect
-    /// [[RFC7238](https://tools.ietf.org/html/rfc7238)]
+    /// [[RFC9110, Section 15.4.9](https://www.rfc-editor.org/rfc/rfc9110#name-308-permanent-redirect)]
     (308, PERMANENT_REDIRECT, "Permanent Redirect");
 
     /// 400 Bad Request
-    /// [[RFC7231, Section 6.5.1](https://tools.ietf.org/html/rfc7231#section-6.5.1)]
+    /// [[RFC9110, Section 15.5.1](https://www.rfc-editor.org/rfc/rfc9110#name-400-bad-request)]
     (400, BAD_REQUEST, "Bad Request");
     /// 401 Unauthorized
-    /// [[RFC7235, Section 3.1](https://tools.ietf.org/html/rfc7235#section-3.1)]
+    /// [[RFC9110, Section 15.5.2](https://www.rfc-editor.org/rfc/rfc9110#name-401-unauthorized)]
     (401, UNAUTHORIZED, "Unauthorized");
     /// 402 Payment Required
-    /// [[RFC7231, Section 6.5.2](https://tools.ietf.org/html/rfc7231#section-6.5.2)]
+    /// [[RFC9110, Section 15.5.3](https://www.rfc-editor.org/rfc/rfc9110#name-402-payment-required)]
     (402, PAYMENT_REQUIRED, "Payment Required");
     /// 403 Forbidden
-    /// [[RFC7231, Section 6.5.3](https://tools.ietf.org/html/rfc7231#section-6.5.3)]
+    /// [[RFC9110, Section 15.5.4](https://www.rfc-editor.org/rfc/rfc9110#name-403-forbidden)]
     (403, FORBIDDEN, "Forbidden");
     /// 404 Not Found
-    /// [[RFC7231, Section 6.5.4](https://tools.ietf.org/html/rfc7231#section-6.5.4)]
+    /// [[RFC9110, Section 15.5.5](https://www.rfc-editor.org/rfc/rfc9110#name-404-not-found)]
     (404, NOT_FOUND, "Not Found");
     /// 405 Method Not Allowed
-    /// [[RFC7231, Section 6.5.5](https://tools.ietf.org/html/rfc7231#section-6.5.5)]
+    /// [[RFC9110, Section 15.5.6](https://www.rfc-editor.org/rfc/rfc9110#name-405-method-not-allowed)]
     (405, METHOD_NOT_ALLOWED, "Method Not Allowed");
     /// 406 Not Acceptable
-    /// [[RFC7231, Section 6.5.6](https://tools.ietf.org/html/rfc7231#section-6.5.6)]
+    /// [[RFC9110, Section 15.5.7](https://www.rfc-editor.org/rfc/rfc9110#name-406-not-acceptable)]
     (406, NOT_ACCEPTABLE, "Not Acceptable");
     /// 407 Proxy Authentication Required
-    /// [[RFC7235, Section 3.2](https://tools.ietf.org/html/rfc7235#section-3.2)]
+    /// [[RFC9110, Section 15.5.8](https://www.rfc-editor.org/rfc/rfc9110#name-407-proxy-authentication-re)]
     (407, PROXY_AUTHENTICATION_REQUIRED, "Proxy Authentication Required");
     /// 408 Request Timeout
-    /// [[RFC7231, Section 6.5.7](https://tools.ietf.org/html/rfc7231#section-6.5.7)]
+    /// [[RFC9110, Section 15.5.9](https://www.rfc-editor.org/rfc/rfc9110#name-408-request-timeout)]
     (408, REQUEST_TIMEOUT, "Request Timeout");
     /// 409 Conflict
-    /// [[RFC7231, Section 6.5.8](https://tools.ietf.org/html/rfc7231#section-6.5.8)]
+    /// [[RFC9110, Section 15.5.10](https://www.rfc-editor.org/rfc/rfc9110#name-409-conflict)]
     (409, CONFLICT, "Conflict");
     /// 410 Gone
-    /// [[RFC7231, Section 6.5.9](https://tools.ietf.org/html/rfc7231#section-6.5.9)]
+    /// [[RFC9110, Section 15.5.11](https://www.rfc-editor.org/rfc/rfc9110#name-410-gone)]
     (410, GONE, "Gone");
     /// 411 Length Required
-    /// [[RFC7231, Section 6.5.10](https://tools.ietf.org/html/rfc7231#section-6.5.10)]
+    /// [[RFC9110, Section 15.5.12](https://www.rfc-editor.org/rfc/rfc9110#name-411-length-required)]
     (411, LENGTH_REQUIRED, "Length Required");
     /// 412 Precondition Failed
-    /// [[RFC7232, Section 4.2](https://tools.ietf.org/html/rfc7232#section-4.2)]
+    /// [[RFC9110, Section 15.5.13](https://www.rfc-editor.org/rfc/rfc9110#name-412-precondition-failed)]
     (412, PRECONDITION_FAILED, "Precondition Failed");
-    /// 413 Payload Too Large
-    /// [[RFC7231, Section 6.5.11](https://tools.ietf.org/html/rfc7231#section-6.5.11)]
-    (413, PAYLOAD_TOO_LARGE, "Payload Too Large");
+    /// 413 Content Too Large
+    /// [[RFC9110, Section 15.5.14](https://www.rfc-editor.org/rfc/rfc9110#name-413-content-too-large)]
+    ///
+    /// Prior to RFC9110 phrase for this status was ‘Payload Too Large’.
+    (413, CONTENT_TOO_LARGE aka PAYLOAD_TOO_LARGE, "Content Too Large");
     /// 414 URI Too Long
-    /// [[RFC7231, Section 6.5.12](https://tools.ietf.org/html/rfc7231#section-6.5.12)]
+    /// [[RFC9110, Section 15.5.15](https://www.rfc-editor.org/rfc/rfc9110#name-414-uri-too-long)]
     (414, URI_TOO_LONG, "URI Too Long");
     /// 415 Unsupported Media Type
-    /// [[RFC7231, Section 6.5.13](https://tools.ietf.org/html/rfc7231#section-6.5.13)]
+    /// [[RFC9110, Section 15.5.16](https://www.rfc-editor.org/rfc/rfc9110#name-415-unsupported-media-type)]
     (415, UNSUPPORTED_MEDIA_TYPE, "Unsupported Media Type");
     /// 416 Range Not Satisfiable
-    /// [[RFC7233, Section 4.4](https://tools.ietf.org/html/rfc7233#section-4.4)]
+    /// [[RFC9110, Section 15.5.17](https://www.rfc-editor.org/rfc/rfc9110#name-416-range-not-satisfiable)]
     (416, RANGE_NOT_SATISFIABLE, "Range Not Satisfiable");
     /// 417 Expectation Failed
-    /// [[RFC7231, Section 6.5.14](https://tools.ietf.org/html/rfc7231#section-6.5.14)]
+    /// [[RFC9110, Section 15.5.18](https://www.rfc-editor.org/rfc/rfc9110#name-417-expectation-failed)]
     (417, EXPECTATION_FAILED, "Expectation Failed");
     /// 418 I'm a teapot
     /// [curiously not registered by IANA but [RFC2324](https://tools.ietf.org/html/rfc2324)]
     (418, IM_A_TEAPOT, "I'm a teapot");
 
     /// 421 Misdirected Request
-    /// [RFC7540, Section 9.1.2](http://tools.ietf.org/html/rfc7540#section-9.1.2)
+    /// [[RFC9110, Section 15.5.20](https://www.rfc-editor.org/rfc/rfc9110#name-421-misdirected-request)]
     (421, MISDIRECTED_REQUEST, "Misdirected Request");
-    /// 422 Unprocessable Entity
-    /// [[RFC4918](https://tools.ietf.org/html/rfc4918)]
-    (422, UNPROCESSABLE_ENTITY, "Unprocessable Entity");
+    /// 422 Unprocessable Content
+    /// [[RFC9110, Section 15.5.21](https://www.rfc-editor.org/rfc/rfc9110#name-422-unprocessable-content)]
+    ///
+    /// Prior to RFC9110 phrase for this status was ‘Unprocessable Entity’.
+    (422, UNPROCESSABLE_CONTENT aka UNPROCESSABLE_ENTITY, "Unprocessable Content");
     /// 423 Locked
     /// [[RFC4918](https://tools.ietf.org/html/rfc4918)]
     (423, LOCKED, "Locked");
     /// 424 Failed Dependency
     /// [[RFC4918](https://tools.ietf.org/html/rfc4918)]
     (424, FAILED_DEPENDENCY, "Failed Dependency");
-
     /// 426 Upgrade Required
-    /// [[RFC7231, Section 6.5.15](https://tools.ietf.org/html/rfc7231#section-6.5.15)]
+    /// [[RFC9110, Section 15.5.22](https://www.rfc-editor.org/rfc/rfc9110#name-426-upgrade-required)]
     (426, UPGRADE_REQUIRED, "Upgrade Required");
 
     /// 428 Precondition Required
@@ -483,22 +502,22 @@ status_codes! {
     (451, UNAVAILABLE_FOR_LEGAL_REASONS, "Unavailable For Legal Reasons");
 
     /// 500 Internal Server Error
-    /// [[RFC7231, Section 6.6.1](https://tools.ietf.org/html/rfc7231#section-6.6.1)]
+    /// [[RFC9110, Section 15.6.1](https://www.rfc-editor.org/rfc/rfc9110#name-500-internal-server-error)]
     (500, INTERNAL_SERVER_ERROR, "Internal Server Error");
     /// 501 Not Implemented
-    /// [[RFC7231, Section 6.6.2](https://tools.ietf.org/html/rfc7231#section-6.6.2)]
+    /// [[RFC9110, Section 15.6.2](https://www.rfc-editor.org/rfc/rfc9110#name-501-not-implemented)]
     (501, NOT_IMPLEMENTED, "Not Implemented");
     /// 502 Bad Gateway
-    /// [[RFC7231, Section 6.6.3](https://tools.ietf.org/html/rfc7231#section-6.6.3)]
+    /// [[RFC9110, Section 15.6.3](https://www.rfc-editor.org/rfc/rfc9110#name-502-bad-gateway)]
     (502, BAD_GATEWAY, "Bad Gateway");
     /// 503 Service Unavailable
-    /// [[RFC7231, Section 6.6.4](https://tools.ietf.org/html/rfc7231#section-6.6.4)]
+    /// [[RFC9110, Section 15.6.4](https://www.rfc-editor.org/rfc/rfc9110#name-503-service-unavailable)]
     (503, SERVICE_UNAVAILABLE, "Service Unavailable");
     /// 504 Gateway Timeout
-    /// [[RFC7231, Section 6.6.5](https://tools.ietf.org/html/rfc7231#section-6.6.5)]
+    /// [[RFC9110, Section 15.6.5](https://www.rfc-editor.org/rfc/rfc9110#name-504-gateway-timeout)]
     (504, GATEWAY_TIMEOUT, "Gateway Timeout");
     /// 505 HTTP Version Not Supported
-    /// [[RFC7231, Section 6.6.6](https://tools.ietf.org/html/rfc7231#section-6.6.6)]
+    /// [[RFC9110, Section 15.6.6](https://www.rfc-editor.org/rfc/rfc9110#name-505-http-version-not-suppor)]
     (505, HTTP_VERSION_NOT_SUPPORTED, "HTTP Version Not Supported");
     /// 506 Variant Also Negotiates
     /// [[RFC2295](https://tools.ietf.org/html/rfc2295)]
