@@ -29,18 +29,18 @@ use std::str::FromStr;
 ///
 /// [`HeaderMap`]: struct.HeaderMap.html
 /// [`header`]: index.html
-#[derive(Clone, Eq, PartialEq, Hash)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct HeaderName {
     inner: Repr<Custom>,
 }
 
 // Almost a full `HeaderName`
-#[derive(Debug, Hash)]
+#[derive(Debug)]
 pub struct HdrName<'a> {
     inner: Repr<MaybeLower<'a>>,
 }
 
-#[derive(Debug, Clone, Eq, Hash)]
+#[derive(Debug, Clone, Eq)]
 enum Repr<T: PartialEq<StaticRepresentation> + PartialEq> {
     Static(StaticRepresentation),
     Runtime(T),
@@ -1777,6 +1777,13 @@ impl<'a> Hash for MaybeLower<'a> {
     }
 }
 
+impl Hash for HeaderName {
+    #[inline]
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.inner.hash(state)
+    }
+}
+
 impl FastHash for HeaderName {
     #[inline]
     fn fast_hash(&self) -> u64 {
@@ -1788,6 +1795,13 @@ impl FastHash for &HeaderName {
     #[inline]
     fn fast_hash(&self) -> u64 {
         (*self).fast_hash()
+    }
+}
+
+impl<'a> Hash for HdrName<'a> {
+    #[inline]
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.inner.hash(state)
     }
 }
 
@@ -1823,6 +1837,18 @@ impl FastHash for StaticRepresentation {
         match self {
             Custom(c) => c.fast_hash(),
             Standard(s) => s.fast_hash(),
+        }
+    }
+}
+
+impl<T: PartialEq + FastHash + PartialEq<StaticRepresentation>> Hash for Repr<T> {
+    #[inline]
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        use Repr::*;
+
+        match self {
+            Static(s) => s.hash(state),
+            Runtime(r) => r.hash(state),
         }
     }
 }
@@ -1874,6 +1900,8 @@ unsafe fn slice_assume_init<T>(slice: &[MaybeUninit<T>]) -> &[T] {
 
 #[cfg(test)]
 mod tests {
+    use fnv::FnvHasher;
+
     use self::StandardHeader::Vary;
     use super::*;
 
@@ -2053,13 +2081,13 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_from_static_custom_short_uppercase() {
-        HeaderName::from_static("custom header");
+        HeaderName::from_static("CustomHeader");
     }
 
     #[test]
     #[should_panic]
     fn test_from_static_custom_short_symbol() {
-        HeaderName::from_static("CustomHeader");
+        HeaderName::from_static("custom header");
     }
 
     // MaybeLower { lower: false }
@@ -2110,5 +2138,39 @@ mod tests {
     #[test]
     fn test_all_tokens() {
         HeaderName::from_static("!#$%&'*+-.^_`|~0123456789abcdefghijklmnopqrstuvwxyz");
+    }
+
+    fn hash_header<T: Hash>(header: &T) -> u64 {
+        let mut h = FnvHasher::default();
+        header.hash(&mut h);
+        h.finish()
+    }
+
+    #[test]
+    fn test_eq_hash_holds() {
+        let a = HeaderName {
+            inner: Repr::Runtime(Custom(ByteStr::from_static("some-header"))),
+        };
+        let b = HeaderName::from_static("some-header");
+
+        assert_eq!(a, b);
+        assert_eq!(a.fast_hash(), b.fast_hash());
+
+        assert_eq!(hash_header(&a), hash_header(&b));
+    }
+
+    #[test]
+    fn test_eq_hash_holds_for_hdrname() {
+        let a = HeaderName::from_static("some-header");
+        let b = HdrName {
+            inner: Repr::Runtime(MaybeLower {
+                lower: false,
+                buf: b"Some-HeaDer",
+            }),
+        };
+
+        assert_eq!(a, b);
+        assert_eq!(a.fast_hash(), b.fast_hash());
+        assert_eq!(hash_header(&a), hash_header(&b));
     }
 }
