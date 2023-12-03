@@ -40,21 +40,102 @@ pub struct HdrName<'a> {
     inner: Repr<MaybeLower<'a>>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
-enum Repr<T> {
-    Standard(StandardHeader),
-    Custom(T),
+#[derive(Debug, Clone, Eq, Hash)]
+enum Repr<T: PartialEq<StaticRepresentation> + PartialEq> {
+    Static(StaticRepresentation),
+    Runtime(T),
+}
+
+impl<T: PartialEq<T> + PartialEq<StaticRepresentation>> PartialEq<Repr<T>> for Repr<T> {
+    fn eq(&self, other: &Repr<T>) -> bool {
+        use Repr::*;
+
+        match (self, other) {
+            (Static(a), Static(b)) => a == b,
+            (Static(a), Runtime(b)) => b == a,
+            (Runtime(a), Static(b)) => a == b,
+            (Runtime(a), Runtime(b)) => a == b,
+        }
+    }
+}
+
+pub trait FastHash: Hash {
+    fn fast_hash(&self) -> u64;
 }
 
 // Used to hijack the Hash impl
 #[derive(Debug, Clone, Eq, PartialEq)]
 struct Custom(ByteStr);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 // Invariant: If lower then buf is valid UTF-8.
 struct MaybeLower<'a> {
-    buf: &'a [u8],
     lower: bool,
+    buf: &'a [u8],
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+struct StaticHeader {
+    compile_time_hash: u64,
+    name: &'static str,
+}
+
+impl Hash for StaticHeader {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write(self.name.as_bytes())
+    }
+}
+
+impl FastHash for StaticHeader {
+    fn fast_hash(&self) -> u64 {
+        self.compile_time_hash
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+enum StaticRepresentation {
+    Custom(StaticHeader),
+    Standard(StandardHeader),
+}
+
+impl PartialEq<Custom> for StaticRepresentation {
+    fn eq(&self, other: &Custom) -> bool {
+        use StaticRepresentation::*;
+
+        match self {
+            Standard(_) => false,
+            Custom(a) => a.name.as_bytes() == other.0.as_bytes(),
+        }
+    }
+}
+
+impl PartialEq<StaticRepresentation> for Custom {
+    fn eq(&self, other: &StaticRepresentation) -> bool {
+        other == self
+    }
+}
+
+impl<'a> PartialEq<MaybeLower<'a>> for StaticRepresentation {
+    fn eq(&self, other: &MaybeLower<'a>) -> bool {
+        use StaticRepresentation::*;
+
+        match self {
+            Standard(_) => false,
+            Custom(a) => {
+                if other.lower {
+                    a.name.as_bytes() == other.buf
+                } else {
+                    eq_ignore_ascii_case(a.name.as_bytes(), other.buf)
+                }
+            }
+        }
+    }
+}
+
+impl<'a> PartialEq<StaticRepresentation> for MaybeLower<'a> {
+    fn eq(&self, other: &StaticRepresentation) -> bool {
+        other == self
+    }
 }
 
 /// A possible error when converting a `HeaderName` from another type.
@@ -79,7 +160,7 @@ macro_rules! standard_headers {
         $(
             $(#[$docs])*
             pub const $upcase: HeaderName = HeaderName {
-                inner: Repr::Standard(StandardHeader::$konst),
+                inner: Repr::Static(StaticRepresentation::Standard(StandardHeader::$konst)),
             };
         )+
 
@@ -1100,7 +1181,7 @@ fn parse_hdr<'a>(
 impl<'a> From<StandardHeader> for HdrName<'a> {
     fn from(hdr: StandardHeader) -> HdrName<'a> {
         HdrName {
-            inner: Repr::Standard(hdr),
+            inner: Repr::Static(StaticRepresentation::Standard(hdr)),
         }
     }
 }
@@ -1113,14 +1194,15 @@ impl HeaderName {
         let mut buf = uninit_u8_array();
         // Precondition: HEADER_CHARS is a valid table for parse_hdr().
         match parse_hdr(src, &mut buf, &HEADER_CHARS)?.inner {
-            Repr::Standard(std) => Ok(std.into()),
-            Repr::Custom(MaybeLower { buf, lower: true }) => {
+            Repr::Static(s) => Ok(s.into()),
+            //Repr::Standard(std) => Ok(std.into()),
+            Repr::Runtime(MaybeLower { buf, lower: true }) => {
                 let buf = Bytes::copy_from_slice(buf);
                 // Safety: the invariant on MaybeLower ensures buf is valid UTF-8.
                 let val = unsafe { ByteStr::from_utf8_unchecked(buf) };
                 Ok(Custom(val).into())
             }
-            Repr::Custom(MaybeLower { buf, lower: false }) => {
+            Repr::Runtime(MaybeLower { buf, lower: false }) => {
                 use bytes::BufMut;
                 let mut dst = BytesMut::with_capacity(buf.len());
 
@@ -1167,14 +1249,15 @@ impl HeaderName {
         let mut buf = uninit_u8_array();
         // Precondition: HEADER_CHARS_H2 is a valid table for parse_hdr()
         match parse_hdr(src, &mut buf, &HEADER_CHARS_H2)?.inner {
-            Repr::Standard(std) => Ok(std.into()),
-            Repr::Custom(MaybeLower { buf, lower: true }) => {
+            Repr::Static(s) => Ok(s.into()),
+            //Repr::Standard(std) => Ok(std.into()),
+            Repr::Runtime(MaybeLower { buf, lower: true }) => {
                 let buf = Bytes::copy_from_slice(buf);
                 // Safety: the invariant on MaybeLower ensures buf is valid UTF-8.
                 let val = unsafe { ByteStr::from_utf8_unchecked(buf) };
                 Ok(Custom(val).into())
             }
-            Repr::Custom(MaybeLower { buf, lower: false }) => {
+            Repr::Runtime(MaybeLower { buf, lower: false }) => {
                 for &b in buf.iter() {
                     // HEADER_CHARS maps all bytes that are not valid single-byte
                     // UTF-8 to 0 so this check returns an error for invalid UTF-8.
@@ -1254,7 +1337,7 @@ impl HeaderName {
         let name_bytes = src.as_bytes();
         if let Some(standard) = StandardHeader::from_bytes(name_bytes) {
             return HeaderName {
-                inner: Repr::Standard(standard),
+                inner: Repr::Static(StaticRepresentation::Standard(standard)),
             };
         }
 
@@ -1273,7 +1356,10 @@ impl HeaderName {
         }
 
         HeaderName {
-            inner: Repr::Custom(Custom(ByteStr::from_static(src))),
+            inner: Repr::Static(StaticRepresentation::Custom(StaticHeader {
+                compile_time_hash: 1 as u64,
+                name: src,
+            })),
         }
     }
 
@@ -1283,8 +1369,11 @@ impl HeaderName {
     #[inline]
     pub fn as_str(&self) -> &str {
         match self.inner {
-            Repr::Standard(v) => v.as_str(),
-            Repr::Custom(ref v) => &*v.0,
+            Repr::Static(ref s) => match s {
+                StaticRepresentation::Standard(std) => std.as_str(),
+                StaticRepresentation::Custom(custom) => custom.name,
+            },
+            Repr::Runtime(ref r) => &*r.0,
         }
     }
 
@@ -1343,15 +1432,27 @@ impl<'a> From<&'a HeaderName> for HeaderName {
     }
 }
 
+impl From<StaticRepresentation> for HeaderName {
+    fn from(s: StaticRepresentation) -> HeaderName {
+        HeaderName {
+            inner: Repr::Static(s),
+        }
+    }
+}
+
 #[doc(hidden)]
-impl<T> From<Repr<T>> for Bytes
+impl<T: PartialEq + PartialEq<StaticRepresentation>> From<Repr<T>> for Bytes
 where
     T: Into<Bytes>,
 {
     fn from(repr: Repr<T>) -> Bytes {
         match repr {
-            Repr::Standard(header) => Bytes::from_static(header.as_str().as_bytes()),
-            Repr::Custom(header) => header.into(),
+            Repr::Static(s) => match s {
+                StaticRepresentation::Standard(std) => Bytes::from_static(std.as_str().as_bytes()),
+                StaticRepresentation::Custom(custom) => Bytes::from_static(custom.name.as_bytes()),
+            },
+            //Repr::Standard(header) => Bytes::from_static(header.as_str().as_bytes()),
+            Repr::Runtime(header) => header.into(),
         }
     }
 }
@@ -1409,7 +1510,16 @@ impl TryFrom<Vec<u8>> for HeaderName {
 impl From<StandardHeader> for HeaderName {
     fn from(src: StandardHeader) -> HeaderName {
         HeaderName {
-            inner: Repr::Standard(src),
+            inner: Repr::Static(StaticRepresentation::Standard(src)),
+        }
+    }
+}
+
+#[doc(hidden)]
+impl From<StaticHeader> for HeaderName {
+    fn from(src: StaticHeader) -> HeaderName {
+        HeaderName {
+            inner: Repr::Static(StaticRepresentation::Custom(src)),
         }
     }
 }
@@ -1418,7 +1528,7 @@ impl From<StandardHeader> for HeaderName {
 impl From<Custom> for HeaderName {
     fn from(src: Custom) -> HeaderName {
         HeaderName {
-            inner: Repr::Custom(src),
+            inner: Repr::Runtime(src),
         }
     }
 }
@@ -1516,7 +1626,7 @@ impl<'a> HdrName<'a> {
     fn custom(buf: &'a [u8], lower: bool) -> HdrName<'a> {
         HdrName {
             // Invariant (on MaybeLower): follows from the precondition
-            inner: Repr::Custom(MaybeLower {
+            inner: Repr::Runtime(MaybeLower {
                 buf: buf,
                 lower: lower,
             }),
@@ -1549,17 +1659,17 @@ impl<'a> HdrName<'a> {
 impl<'a> From<HdrName<'a>> for HeaderName {
     fn from(src: HdrName<'a>) -> HeaderName {
         match src.inner {
-            Repr::Standard(s) => HeaderName {
-                inner: Repr::Standard(s),
+            Repr::Static(s) => HeaderName {
+                inner: Repr::Static(s),
             },
-            Repr::Custom(maybe_lower) => {
+            Repr::Runtime(maybe_lower) => {
                 if maybe_lower.lower {
                     let buf = Bytes::copy_from_slice(&maybe_lower.buf[..]);
                     // Safety: the invariant on MaybeLower ensures buf is valid UTF-8.
                     let byte_str = unsafe { ByteStr::from_utf8_unchecked(buf) };
 
                     HeaderName {
-                        inner: Repr::Custom(Custom(byte_str)),
+                        inner: Repr::Runtime(Custom(byte_str)),
                     }
                 } else {
                     use bytes::BufMut;
@@ -1577,7 +1687,7 @@ impl<'a> From<HdrName<'a>> for HeaderName {
                     let buf = unsafe { ByteStr::from_utf8_unchecked(dst.freeze()) };
 
                     HeaderName {
-                        inner: Repr::Custom(Custom(buf)),
+                        inner: Repr::Runtime(Custom(buf)),
                     }
                 }
             }
@@ -1589,21 +1699,30 @@ impl<'a> From<HdrName<'a>> for HeaderName {
 impl<'a> PartialEq<HdrName<'a>> for HeaderName {
     #[inline]
     fn eq(&self, other: &HdrName<'a>) -> bool {
-        match self.inner {
-            Repr::Standard(a) => match other.inner {
-                Repr::Standard(b) => a == b,
-                _ => false,
-            },
-            Repr::Custom(Custom(ref a)) => match other.inner {
-                Repr::Custom(ref b) => {
-                    if b.lower {
-                        a.as_bytes() == b.buf
-                    } else {
-                        eq_ignore_ascii_case(a.as_bytes(), b.buf)
-                    }
+        match (&self.inner, &other.inner) {
+            (Repr::Static(ref a), Repr::Static(ref b)) => a == b,
+            (Repr::Static(ref a), Repr::Runtime(ref b)) => a == b,
+            (Repr::Runtime(ref a), Repr::Static(ref b)) => a == b,
+            (Repr::Runtime(Custom(ref a)), Repr::Runtime(ref b)) => {
+                if b.lower {
+                    a.as_bytes() == b.buf
+                } else {
+                    eq_ignore_ascii_case(a.as_bytes(), b.buf)
                 }
-                _ => false,
-            },
+            } /*Repr::Standard(a) => match other.inner {
+                  Repr::Standard(b) => a == b,
+                  _ => false,
+              },
+              Repr::Custom(Custom(ref a)) => match other.inner {
+                  Repr::Custom(ref b) => {
+                      if b.lower {
+                          a.as_bytes() == b.buf
+                      } else {
+                          eq_ignore_ascii_case(a.as_bytes(), b.buf)
+                      }
+                  }
+                  _ => false,
+              },*/
         }
     }
 }
@@ -1628,6 +1747,58 @@ impl<'a> Hash for MaybeLower<'a> {
             for &b in self.buf {
                 hasher.write(&[HEADER_CHARS[b as usize]]);
             }
+        }
+    }
+}
+
+impl FastHash for HeaderName {
+    fn fast_hash(&self) -> u64 {
+        self.inner.fast_hash()
+    }
+}
+
+impl FastHash for &HeaderName {
+    fn fast_hash(&self) -> u64 {
+        (*self).fast_hash()
+    }
+}
+
+impl<'a> FastHash for HdrName<'a> {
+    fn fast_hash(&self) -> u64 {
+        self.inner.fast_hash()
+    }
+}
+
+impl FastHash for Custom {
+    fn fast_hash(&self) -> u64 {
+        1 as u64 // TODO
+    }
+}
+
+impl FastHash for StaticRepresentation {
+    fn fast_hash(&self) -> u64 {
+        use StaticRepresentation::*;
+
+        match self {
+            Custom(c) => c.fast_hash(),
+            Standard(_s) => 1 as u64, // TODO : s.fast_hash(),
+        }
+    }
+}
+
+impl<'a> FastHash for MaybeLower<'a> {
+    fn fast_hash(&self) -> u64 {
+        1 as u64 // TODO
+    }
+}
+
+impl<T: PartialEq + FastHash + PartialEq<StaticRepresentation>> FastHash for Repr<T> {
+    fn fast_hash(&self) -> u64 {
+        use Repr::*;
+
+        match self {
+            Static(s) => s.fast_hash(),
+            Runtime(r) => r.fast_hash(),
         }
     }
 }
@@ -1724,13 +1895,16 @@ mod tests {
         use self::StandardHeader::Vary;
 
         let name = HeaderName::from(HdrName {
-            inner: Repr::Standard(Vary),
+            inner: Repr::Static(StaticRepresentation::Standard(Vary)),
         });
 
-        assert_eq!(name.inner, Repr::Standard(Vary));
+        assert_eq!(
+            name.inner,
+            Repr::Static(StaticRepresentation::Standard(Vary))
+        );
 
         let name = HeaderName::from(HdrName {
-            inner: Repr::Custom(MaybeLower {
+            inner: Repr::Runtime(MaybeLower {
                 buf: b"hello-world",
                 lower: true,
             }),
@@ -1738,11 +1912,11 @@ mod tests {
 
         assert_eq!(
             name.inner,
-            Repr::Custom(Custom(ByteStr::from_static("hello-world")))
+            Repr::Runtime(Custom(ByteStr::from_static("hello-world")))
         );
 
         let name = HeaderName::from(HdrName {
-            inner: Repr::Custom(MaybeLower {
+            inner: Repr::Runtime(MaybeLower {
                 buf: b"Hello-World",
                 lower: false,
             }),
@@ -1750,7 +1924,7 @@ mod tests {
 
         assert_eq!(
             name.inner,
-            Repr::Custom(Custom(ByteStr::from_static("hello-world")))
+            Repr::Runtime(Custom(ByteStr::from_static("hello-world")))
         );
     }
 
@@ -1759,21 +1933,21 @@ mod tests {
         use self::StandardHeader::Vary;
 
         let a = HeaderName {
-            inner: Repr::Standard(Vary),
+            inner: Repr::Static(StaticRepresentation::Standard(Vary)),
         };
         let b = HdrName {
-            inner: Repr::Standard(Vary),
+            inner: Repr::Static(StaticRepresentation::Standard(Vary)),
         };
 
         assert_eq!(a, b);
 
         let a = HeaderName {
-            inner: Repr::Custom(Custom(ByteStr::from_static("vaary"))),
+            inner: Repr::Runtime(Custom(ByteStr::from_static("vaary"))),
         };
         assert_ne!(a, b);
 
         let b = HdrName {
-            inner: Repr::Custom(MaybeLower {
+            inner: Repr::Runtime(MaybeLower {
                 buf: b"vaary",
                 lower: true,
             }),
@@ -1782,7 +1956,7 @@ mod tests {
         assert_eq!(a, b);
 
         let b = HdrName {
-            inner: Repr::Custom(MaybeLower {
+            inner: Repr::Runtime(MaybeLower {
                 buf: b"vaary",
                 lower: false,
             }),
@@ -1791,7 +1965,7 @@ mod tests {
         assert_eq!(a, b);
 
         let b = HdrName {
-            inner: Repr::Custom(MaybeLower {
+            inner: Repr::Runtime(MaybeLower {
                 buf: b"VAARY",
                 lower: false,
             }),
@@ -1800,7 +1974,7 @@ mod tests {
         assert_eq!(a, b);
 
         let a = HeaderName {
-            inner: Repr::Standard(Vary),
+            inner: Repr::Static(StaticRepresentation::Standard(Vary)),
         };
         assert_ne!(a, b);
     }
@@ -1808,7 +1982,7 @@ mod tests {
     #[test]
     fn test_from_static_std() {
         let a = HeaderName {
-            inner: Repr::Standard(Vary),
+            inner: Repr::Static(StaticRepresentation::Standard(Vary)),
         };
 
         let b = HeaderName::from_static("vary");
@@ -1834,7 +2008,7 @@ mod tests {
     #[test]
     fn test_from_static_custom_short() {
         let a = HeaderName {
-            inner: Repr::Custom(Custom(ByteStr::from_static("customheader"))),
+            inner: Repr::Runtime(Custom(ByteStr::from_static("customheader"))),
         };
         let b = HeaderName::from_static("customheader");
         assert_eq!(a, b);
@@ -1856,7 +2030,7 @@ mod tests {
     #[test]
     fn test_from_static_custom_long() {
         let a = HeaderName {
-            inner: Repr::Custom(Custom(ByteStr::from_static(
+            inner: Repr::Runtime(Custom(ByteStr::from_static(
                 "longer-than-63--thisheaderislongerthansixtythreecharactersandthushandleddifferent",
             ))),
         };
@@ -1885,7 +2059,7 @@ mod tests {
     #[test]
     fn test_from_static_custom_single_char() {
         let a = HeaderName {
-            inner: Repr::Custom(Custom(ByteStr::from_static("a"))),
+            inner: Repr::Runtime(Custom(ByteStr::from_static("a"))),
         };
         let b = HeaderName::from_static("a");
         assert_eq!(a, b);
