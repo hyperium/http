@@ -60,7 +60,14 @@ impl<T: PartialEq<T> + PartialEq<StaticRepresentation>> PartialEq<Repr<T>> for R
 }
 
 pub trait FastHash: Hash {
-    fn fast_hash(&self) -> u64;
+    #[inline]
+    fn fast_hash(&self) -> u64 {
+        use fnv::FnvHasher;
+
+        let mut h = FnvHasher::default();
+        self.hash(&mut h);
+        h.finish()
+    }
 }
 
 // Used to hijack the Hash impl
@@ -92,13 +99,14 @@ impl FastHash for StaticHeader {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 enum StaticRepresentation {
     Custom(StaticHeader),
     Standard(StandardHeader),
 }
 
 impl PartialEq<Custom> for StaticRepresentation {
+    #[inline]
     fn eq(&self, other: &Custom) -> bool {
         use StaticRepresentation::*;
 
@@ -110,12 +118,14 @@ impl PartialEq<Custom> for StaticRepresentation {
 }
 
 impl PartialEq<StaticRepresentation> for Custom {
+    #[inline]
     fn eq(&self, other: &StaticRepresentation) -> bool {
         other == self
     }
 }
 
 impl<'a> PartialEq<MaybeLower<'a>> for StaticRepresentation {
+    #[inline]
     fn eq(&self, other: &MaybeLower<'a>) -> bool {
         use StaticRepresentation::*;
 
@@ -133,6 +143,7 @@ impl<'a> PartialEq<MaybeLower<'a>> for StaticRepresentation {
 }
 
 impl<'a> PartialEq<StaticRepresentation> for MaybeLower<'a> {
+    #[inline]
     fn eq(&self, other: &StaticRepresentation) -> bool {
         other == self
     }
@@ -1148,6 +1159,21 @@ const HEADER_CHARS_H2: [u8; 256] = [
         0,     0,     0,     0,     0,     0                              // 25x
 ];
 
+#[inline]
+const fn const_fnv(bytes: &[u8]) -> u64 {
+    let mut hash: u64 = 0xcbf29ce484222325;
+    let mut i = 0;
+    let size = bytes.len();
+
+    while i < size {
+        hash ^= bytes[i] as u64;
+        hash = hash.wrapping_mul(0x100000001b3 as u64);
+        i += 1;
+    }
+
+    hash
+}
+
 fn parse_hdr<'a>(
     data: &'a [u8],
     b: &'a mut [MaybeUninit<u8>; SCRATCH_BUF_SIZE],
@@ -1357,7 +1383,7 @@ impl HeaderName {
 
         HeaderName {
             inner: Repr::Static(StaticRepresentation::Custom(StaticHeader {
-                compile_time_hash: 1 as u64,
+                compile_time_hash: const_fnv(src.as_bytes()),
                 name: src,
             })),
         }
@@ -1752,47 +1778,57 @@ impl<'a> Hash for MaybeLower<'a> {
 }
 
 impl FastHash for HeaderName {
+    #[inline]
     fn fast_hash(&self) -> u64 {
         self.inner.fast_hash()
     }
 }
 
 impl FastHash for &HeaderName {
+    #[inline]
     fn fast_hash(&self) -> u64 {
         (*self).fast_hash()
     }
 }
 
 impl<'a> FastHash for HdrName<'a> {
+    #[inline]
     fn fast_hash(&self) -> u64 {
         self.inner.fast_hash()
     }
 }
 
-impl FastHash for Custom {
-    fn fast_hash(&self) -> u64 {
-        1 as u64 // TODO
+impl FastHash for Custom {}
+impl<'a> FastHash for MaybeLower<'a> {}
+
+impl FastHash for StandardHeader {}
+
+impl Hash for StaticRepresentation {
+    #[inline]
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        use StaticRepresentation::*;
+
+        match self {
+            Custom(c) => c.hash(state),
+            Standard(std) => std.hash(state),
+        }
     }
 }
 
 impl FastHash for StaticRepresentation {
+    #[inline]
     fn fast_hash(&self) -> u64 {
         use StaticRepresentation::*;
 
         match self {
             Custom(c) => c.fast_hash(),
-            Standard(_s) => 1 as u64, // TODO : s.fast_hash(),
+            Standard(s) => s.fast_hash(),
         }
     }
 }
 
-impl<'a> FastHash for MaybeLower<'a> {
-    fn fast_hash(&self) -> u64 {
-        1 as u64 // TODO
-    }
-}
-
 impl<T: PartialEq + FastHash + PartialEq<StaticRepresentation>> FastHash for Repr<T> {
+    #[inline]
     fn fast_hash(&self) -> u64 {
         use Repr::*;
 
