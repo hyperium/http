@@ -451,7 +451,7 @@ status_codes! {
     (418, IM_A_TEAPOT, "I'm a teapot");
 
     /// 421 Misdirected Request
-    /// [RFC7540, Section 9.1.2](http://tools.ietf.org/html/rfc7540#section-9.1.2)
+    /// [RFC7540, Section 9.1.2](https://tools.ietf.org/html/rfc7540#section-9.1.2)
     (421, MISDIRECTED_REQUEST, "Misdirected Request");
     /// 422 Unprocessable Entity
     /// [[RFC4918](https://tools.ietf.org/html/rfc4918)]
@@ -479,7 +479,7 @@ status_codes! {
     (431, REQUEST_HEADER_FIELDS_TOO_LARGE, "Request Header Fields Too Large");
 
     /// 451 Unavailable For Legal Reasons
-    /// [[RFC7725](http://tools.ietf.org/html/rfc7725)]
+    /// [[RFC7725](https://tools.ietf.org/html/rfc7725)]
     (451, UNAVAILABLE_FOR_LEGAL_REASONS, "Unavailable For Legal Reasons");
 
     /// 500 Internal Server Error
