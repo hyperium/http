@@ -104,6 +104,62 @@ impl Extensions {
             .and_then(|boxed| (&mut **boxed).as_any_mut().downcast_mut())
     }
 
+    /// Get a mutable reference to a type, inserting `value` if not already present on this
+    /// `Extensions`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http::Extensions;
+    /// let mut ext = Extensions::new();
+    /// *ext.get_or_insert(1i32) += 2;
+    ///
+    /// assert_eq!(*ext.get::<i32>().unwrap(), 3);
+    /// ```
+    pub fn get_or_insert<T: Clone + Send + Sync + 'static>(&mut self, value: T) -> &mut T {
+        self.get_or_insert_with(|| value)
+    }
+
+    /// Get a mutable reference to a type, inserting the value created by `f` if not already present
+    /// on this `Extensions`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http::Extensions;
+    /// let mut ext = Extensions::new();
+    /// *ext.get_or_insert_with(|| 1i32) += 2;
+    ///
+    /// assert_eq!(*ext.get::<i32>().unwrap(), 3);
+    /// ```
+    pub fn get_or_insert_with<T: Clone + Send + Sync + 'static, F: FnOnce() -> T>(
+        &mut self,
+        f: F,
+    ) -> &mut T {
+        let out = self
+            .map
+            .get_or_insert_with(|| Box::new(HashMap::default()))
+            .entry(TypeId::of::<T>())
+            .or_insert_with(|| Box::new(f()));
+        (&mut **out).as_any_mut().downcast_mut().unwrap()
+    }
+
+    /// Get a mutable reference to a type, inserting the type's default value if not already present
+    /// on this `Extensions`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http::Extensions;
+    /// let mut ext = Extensions::new();
+    /// *ext.get_or_insert_default::<i32>() += 2;
+    ///
+    /// assert_eq!(*ext.get::<i32>().unwrap(), 2);
+    /// ```
+    pub fn get_or_insert_default<T: Default + Clone + Send + Sync + 'static>(&mut self) -> &mut T {
+        self.get_or_insert_with(T::default)
+    }
+
     /// Remove a type from this `Extensions`.
     ///
     /// If a extension of this type existed, it will be returned.
