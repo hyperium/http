@@ -19,6 +19,7 @@ jobs:
       - wasm
       - minimal-versions
       - miri
+      - semver
     steps:
       - run: exit 0
 
@@ -132,3 +133,13 @@ jobs:
 
       - name: Test
         run: MIRIFLAGS="-Zmiri-disable-isolation -Zmiri-ignore-leaks" cargo miri test
+
+  semver:
+    name: semver
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check semver
+        uses: obi1kenobi/cargo-semver-checks-action@v2
+        with:
+          release-type: minor
