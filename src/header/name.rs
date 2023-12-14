@@ -1536,6 +1536,7 @@ impl TryFrom<Vec<u8>> for HeaderName {
 
 #[doc(hidden)]
 impl From<StandardHeader> for HeaderName {
+    #[inline]
     fn from(src: StandardHeader) -> HeaderName {
         HeaderName {
             inner: Repr::Static(StaticRepresentation::Standard(src)),
@@ -1545,6 +1546,7 @@ impl From<StandardHeader> for HeaderName {
 
 #[doc(hidden)]
 impl From<StaticHeader> for HeaderName {
+    #[inline]
     fn from(src: StaticHeader) -> HeaderName {
         HeaderName {
             inner: Repr::Static(StaticRepresentation::Custom(src)),
@@ -1554,6 +1556,7 @@ impl From<StaticHeader> for HeaderName {
 
 #[doc(hidden)]
 impl From<Custom> for HeaderName {
+    #[inline]
     fn from(src: Custom) -> HeaderName {
         HeaderName {
             inner: Repr::Runtime(src),
