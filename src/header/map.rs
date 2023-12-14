@@ -3274,8 +3274,6 @@ fn hash_elem_using<K: ?Sized>(danger: &Danger, k: &K) -> HashValue
 where
     K: FastHash,
 {
-    //use fnv::FnvHasher;
-
     const MASK: u64 = (MAX_SIZE as u64) - 1;
 
     let hash = match *danger {
@@ -3286,12 +3284,7 @@ where
             h.finish()
         }
         // Fast hash
-        _ => {
-            k.fast_hash()
-            /*let mut h = FnvHasher::default();
-            k.hash(&mut h);
-            h.finish()*/
-        }
+        _ => k.fast_hash()
     };
 
     HashValue((hash & MASK) as u16)

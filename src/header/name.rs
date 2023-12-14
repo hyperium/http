@@ -47,6 +47,7 @@ enum Repr<T: PartialEq<StaticRepresentation> + PartialEq> {
 }
 
 impl<T: PartialEq<T> + PartialEq<StaticRepresentation>> PartialEq<Repr<T>> for Repr<T> {
+    #[inline]
     fn eq(&self, other: &Repr<T>) -> bool {
         use Repr::*;
 
@@ -88,12 +89,14 @@ struct StaticHeader {
 }
 
 impl Hash for StaticHeader {
+    #[inline]
     fn hash<H: Hasher>(&self, state: &mut H) {
         state.write(self.name.as_bytes())
     }
 }
 
 impl FastHash for StaticHeader {
+    #[inline]
     fn fast_hash(&self) -> u64 {
         self.compile_time_hash
     }
@@ -1221,7 +1224,6 @@ impl HeaderName {
         // Precondition: HEADER_CHARS is a valid table for parse_hdr().
         match parse_hdr(src, &mut buf, &HEADER_CHARS)?.inner {
             Repr::Static(s) => Ok(s.into()),
-            //Repr::Standard(std) => Ok(std.into()),
             Repr::Runtime(MaybeLower { buf, lower: true }) => {
                 let buf = Bytes::copy_from_slice(buf);
                 // Safety: the invariant on MaybeLower ensures buf is valid UTF-8.
@@ -1276,7 +1278,6 @@ impl HeaderName {
         // Precondition: HEADER_CHARS_H2 is a valid table for parse_hdr()
         match parse_hdr(src, &mut buf, &HEADER_CHARS_H2)?.inner {
             Repr::Static(s) => Ok(s.into()),
-            //Repr::Standard(std) => Ok(std.into()),
             Repr::Runtime(MaybeLower { buf, lower: true }) => {
                 let buf = Bytes::copy_from_slice(buf);
                 // Safety: the invariant on MaybeLower ensures buf is valid UTF-8.
@@ -1459,6 +1460,7 @@ impl<'a> From<&'a HeaderName> for HeaderName {
 }
 
 impl From<StaticRepresentation> for HeaderName {
+    #[inline]
     fn from(s: StaticRepresentation) -> HeaderName {
         HeaderName {
             inner: Repr::Static(s),
@@ -1471,13 +1473,13 @@ impl<T: PartialEq + PartialEq<StaticRepresentation>> From<Repr<T>> for Bytes
 where
     T: Into<Bytes>,
 {
+    #[inline]
     fn from(repr: Repr<T>) -> Bytes {
         match repr {
             Repr::Static(s) => match s {
                 StaticRepresentation::Standard(std) => Bytes::from_static(std.as_str().as_bytes()),
                 StaticRepresentation::Custom(custom) => Bytes::from_static(custom.name.as_bytes()),
             },
-            //Repr::Standard(header) => Bytes::from_static(header.as_str().as_bytes()),
             Repr::Runtime(header) => header.into(),
         }
     }
@@ -1735,20 +1737,7 @@ impl<'a> PartialEq<HdrName<'a>> for HeaderName {
                 } else {
                     eq_ignore_ascii_case(a.as_bytes(), b.buf)
                 }
-            } /*Repr::Standard(a) => match other.inner {
-                  Repr::Standard(b) => a == b,
-                  _ => false,
-              },
-              Repr::Custom(Custom(ref a)) => match other.inner {
-                  Repr::Custom(ref b) => {
-                      if b.lower {
-                          a.as_bytes() == b.buf
-                      } else {
-                          eq_ignore_ascii_case(a.as_bytes(), b.buf)
-                      }
-                  }
-                  _ => false,
-              },*/
+            }
         }
     }
 }
