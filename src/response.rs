@@ -237,7 +237,7 @@ impl Response<()> {
 impl<T> Response<T> {
     /// Creates a new blank `Response` with the body
     ///
-    /// The component ports of this response will be set to their default, e.g.
+    /// The component parts of this response will be set to their default, e.g.
     /// the ok status, no headers, etc.
     ///
     /// # Examples
