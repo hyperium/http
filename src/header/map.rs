@@ -3387,6 +3387,8 @@ mod into_header_name {
 }
 
 mod as_header_name {
+    use std::borrow::Cow;
+
     use super::{Entry, HdrName, HeaderMap, HeaderName, InvalidHeaderName};
 
     /// A marker trait used to identify values that can be used as search keys
@@ -3503,6 +3505,27 @@ mod as_header_name {
     }
 
     impl<'a> AsHeaderName for &'a String {}
+
+    impl<'a> Sealed for Cow<'a, str> {
+        #[doc(hidden)]
+        #[inline]
+        fn try_entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<'_, T>, InvalidHeaderName> {
+            self.as_str().try_entry(map)
+        }
+
+        #[doc(hidden)]
+        #[inline]
+        fn find<T>(&self, map: &HeaderMap<T>) -> Option<(usize, usize)> {
+            Sealed::find(&self.as_str(), map)
+        }
+
+        #[doc(hidden)]
+        fn as_str(&self) -> &str {
+            self
+        }
+    }
+
+    impl<'a> AsHeaderName for Cow<'a, str> {}
 }
 
 #[test]

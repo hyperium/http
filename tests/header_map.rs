@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use http::header::*;
 use http::*;
 
@@ -258,6 +260,8 @@ fn as_header_name() {
     let s = String::from("host");
     assert_eq!(m.get(&s), expected);
     assert_eq!(m.get(s.as_str()), expected);
+    assert_eq!(m.get(Cow::Borrowed(s.as_str())), expected);
+    assert_eq!(m.get(Cow::Owned(s)), expected);
 }
 
 #[test]
