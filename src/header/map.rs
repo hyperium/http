@@ -2196,6 +2196,18 @@ impl<'a, T> Iterator for Keys<'a, T> {
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.inner.size_hint()
     }
+
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        self.inner.nth(n).map(|b| &b.key)
+    }
+
+    fn count(self) -> usize {
+        self.inner.count()
+    }
+
+    fn last(self) -> Option<Self::Item> {
+        self.inner.last().map(|b| &b.key)
+    }
 }
 
 impl<'a, T> ExactSizeIterator for Keys<'a, T> {}
