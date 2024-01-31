@@ -152,6 +152,14 @@ impl Default for Builder {
     }
 }
 
+impl From<Uri> for Builder {
+    fn from(uri: Uri) -> Self {
+        Self {
+            parts: Ok(uri.into_parts()),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -192,5 +200,12 @@ mod tests {
             assert_eq!(uri.path(), "/foo");
             assert_eq!(uri.query(), Some(expected_query.as_str()));
         }
+    }
+
+    #[test]
+    fn build_from_uri() {
+        let original_uri = Uri::default();
+        let uri = Builder::from(original_uri.clone()).build().unwrap();
+        assert_eq!(original_uri, uri);
     }
 }
