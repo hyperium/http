@@ -273,10 +273,8 @@ impl Uri {
         })
     }
 
-    /// Attempt to convert a `Bytes` buffer to a `Uri`.
-    ///
-    /// This will try to prevent a copy if the type passed is the type used
-    /// internally, and will copy the data if it is not.
+    #[deprecated = "Use TryFrom::<Bytes>::try_from instead"]
+    #[doc(hidden)]
     pub fn from_maybe_shared<T>(src: T) -> Result<Self, InvalidUri>
     where
         T: AsRef<[u8]> + 'static,

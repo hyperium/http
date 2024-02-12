@@ -180,10 +180,8 @@ impl HeaderValue {
         HeaderValue::try_from_generic(src, Bytes::copy_from_slice)
     }
 
-    /// Attempt to convert a `Bytes` buffer to a `HeaderValue`.
-    ///
-    /// This will try to prevent a copy if the type passed is the type used
-    /// internally, and will copy the data if it is not.
+    #[deprecated = "Use TryFrom::<Bytes>::try_from instead"]
+    #[doc(hidden)]
     pub fn from_maybe_shared<T>(src: T) -> Result<HeaderValue, InvalidHeaderValue>
     where
         T: AsRef<[u8]> + 'static,
@@ -222,17 +220,8 @@ impl HeaderValue {
         }
     }
 
-    /// Convert a `Bytes` directly into a `HeaderValue` without validating.
-    ///
-    /// This function does NOT validate that illegal bytes are not contained
-    /// within the buffer.
-    ///
-    /// ## Panics
-    /// In a debug build this will panic if `src` is not valid UTF-8.
-    ///
-    /// ## Safety
-    /// `src` must contain valid UTF-8. In a release build it is undefined
-    /// behaviour to call this with `src` that is not valid UTF-8.
+    #[deprecated = "Use from_shared_unchecked instead"]
+    #[doc(hidden)]
     pub unsafe fn from_maybe_shared_unchecked<T>(src: T) -> HeaderValue
     where
         T: AsRef<[u8]> + 'static,
