@@ -205,9 +205,3 @@ fn _assert_types() {
     assert_sync::<Request<()>>();
     assert_sync::<Response<()>>();
 }
-
-mod sealed {
-    /// Private trait to this crate to prevent traits from being implemented in
-    /// downstream crates.
-    pub trait Sealed {}
-}
