@@ -76,12 +76,12 @@ impl Fuzz {
 
         let mut steps = vec![];
         let mut expect = AltMap::default();
-        let num = rng.gen_range(5, 500);
+        let num = rng.gen_range(5..500);
 
         let weight = Weight {
-            insert: rng.gen_range(1, 10),
-            remove: rng.gen_range(1, 10),
-            append: rng.gen_range(1, 10),
+            insert: rng.gen_range(1..10),
+            remove: rng.gen_range(1..10),
+            append: rng.gen_range(1..10),
         };
 
         while steps.len() < num {
@@ -111,8 +111,8 @@ impl Fuzz {
 }
 
 impl Arbitrary for Fuzz {
-    fn arbitrary<G: Gen>(g: &mut G) -> Self {
-        Fuzz::new(Rng::gen(g))
+    fn arbitrary(_: &mut Gen) -> Self {
+        Self::new(rand::thread_rng().gen())
     }
 }
 
@@ -130,7 +130,7 @@ impl AltMap {
     fn gen_action(&mut self, weight: &Weight, rng: &mut StdRng) -> Action {
         let sum = weight.insert + weight.remove + weight.append;
 
-        let mut num = rng.gen_range(0, sum);
+        let mut num = rng.gen_range(0..sum);
 
         if num < weight.insert {
             return self.gen_insert(rng);
@@ -213,7 +213,7 @@ impl AltMap {
         if self.map.is_empty() {
             None
         } else {
-            let n = rng.gen_range(0, self.map.len());
+            let n = rng.gen_range(0..self.map.len());
             self.map.keys().nth(n).map(Clone::clone)
         }
     }
