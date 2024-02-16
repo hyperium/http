@@ -3,6 +3,7 @@ use bytes::{Bytes, BytesMut};
 use std::convert::TryFrom;
 use std::error::Error;
 use std::fmt::Write;
+use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 use std::{cmp, fmt, mem, str};
 
@@ -17,7 +18,7 @@ use crate::header::name::HeaderName;
 /// To handle this, the `HeaderValue` is useable as a type and can be compared
 /// with strings and implements `Debug`. A `to_str` fn is provided that returns
 /// an `Err` if the header value contains non visible ascii characters.
-#[derive(Clone, Hash)]
+#[derive(Clone)]
 pub struct HeaderValue {
     inner: Bytes,
     is_sensitive: bool,
@@ -616,6 +617,12 @@ impl fmt::Display for ToStrError {
 impl Error for ToStrError {}
 
 // ===== PartialEq / PartialOrd =====
+
+impl Hash for HeaderValue {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.inner.hash(state);
+    }
+}
 
 impl PartialEq for HeaderValue {
     #[inline]
