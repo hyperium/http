@@ -1333,7 +1333,7 @@ impl<T> HeaderMap<T> {
 
         if danger || num_displaced >= DISPLACEMENT_THRESHOLD {
             // Increase danger level
-            self.danger.to_yellow();
+            self.danger.set_yellow();
         }
 
         index
@@ -1524,7 +1524,7 @@ impl<T> HeaderMap<T> {
 
             if load_factor >= LOAD_FACTOR_THRESHOLD {
                 // Transition back to green danger level
-                self.danger.to_green();
+                self.danger.set_green();
 
                 // Double the capacity
                 let new_cap = self.indices.len() * 2;
@@ -1532,7 +1532,7 @@ impl<T> HeaderMap<T> {
                 // Grow the capacity
                 self.grow(new_cap);
             } else {
-                self.danger.to_red();
+                self.danger.set_red();
 
                 // Rebuild hash table
                 for index in self.indices.iter_mut() {
@@ -3223,7 +3223,7 @@ impl Danger {
         matches!(*self, Danger::Red(_))
     }
 
-    fn to_red(&mut self) {
+    fn set_red(&mut self) {
         debug_assert!(self.is_yellow());
         *self = Danger::Red(RandomState::new());
     }
@@ -3232,13 +3232,13 @@ impl Danger {
         matches!(*self, Danger::Yellow)
     }
 
-    fn to_yellow(&mut self) {
+    fn set_yellow(&mut self) {
         if let Danger::Green = *self {
             *self = Danger::Yellow;
         }
     }
 
-    fn to_green(&mut self) {
+    fn set_green(&mut self) {
         debug_assert!(self.is_yellow());
         *self = Danger::Green;
     }
