@@ -198,6 +198,13 @@ impl HeaderValue {
     ///
     /// This function does NOT validate that illegal bytes are not contained
     /// within the buffer.
+    ///
+    /// ## Panics
+    /// In a debug build this will panic if `src` is not valid UTF-8.
+    ///
+    /// ## Safety
+    /// `src` must contain valid UTF-8. In a release build it is undefined
+    /// behaviour to call this with `src` that is not valid UTF-8.
     pub unsafe fn from_maybe_shared_unchecked<T>(src: T) -> HeaderValue
     where
         T: AsRef<[u8]> + 'static,
