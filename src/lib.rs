@@ -195,13 +195,19 @@ pub use crate::status::StatusCode;
 pub use crate::uri::Uri;
 pub use crate::version::Version;
 
-fn _assert_types() {
-    fn assert_send<T: Send>() {}
-    fn assert_sync<T: Sync>() {}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    assert_send::<Request<()>>();
-    assert_send::<Response<()>>();
+    fn assert_send_sync<T: Send + Sync>() {}
 
-    assert_sync::<Request<()>>();
-    assert_sync::<Response<()>>();
+    #[test]
+    fn request_satisfies_send_sync() {
+        assert_send_sync::<Request<()>>();
+    }
+
+    #[test]
+    fn response_satisfies_send_sync() {
+        assert_send_sync::<Response<()>>();
+    }
 }
