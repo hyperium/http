@@ -1258,7 +1258,7 @@ impl HeaderName {
             };
         }
 
-        if name_bytes.len() == 0 || name_bytes.len() > super::MAX_HEADER_NAME_LEN || {
+        if name_bytes.is_empty() || name_bytes.len() > super::MAX_HEADER_NAME_LEN || {
             let mut i = 0;
             loop {
                 if i >= name_bytes.len() {

@@ -71,7 +71,7 @@ impl StatusCode {
     /// ```
     #[inline]
     pub fn from_u16(src: u16) -> Result<StatusCode, InvalidStatusCode> {
-        if src < 100 || src >= 1000 {
+        if !(100..1000).contains(&src) {
             return Err(InvalidStatusCode::new());
         }
 

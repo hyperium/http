@@ -654,7 +654,7 @@ impl<T> HeaderMap<T> {
             assert!(cap <= MAX_SIZE, "header map reserve over max capacity");
             assert!(cap != 0, "header map reserve overflowed");
 
-            if self.entries.len() == 0 {
+            if self.entries.is_empty() {
                 self.mask = cap as Size - 1;
                 self.indices = vec![Pos::none(); cap].into_boxed_slice();
                 self.entries = Vec::with_capacity(usable_capacity(cap));
@@ -1415,7 +1415,7 @@ impl<T> HeaderMap<T> {
 
         // backward shift deletion in self.indices
         // after probe, shift all non-ideally placed indices backward
-        if self.entries.len() > 0 {
+        if !self.entries.is_empty() {
             let mut last_probe = probe;
             let mut probe = probe + 1;
 
@@ -3147,7 +3147,7 @@ impl<'a, T> FusedIterator for ValueDrain<'a, T> {}
 
 impl<'a, T> Drop for ValueDrain<'a, T> {
     fn drop(&mut self) {
-        while let Some(_) = self.next() {}
+        for _ in self.by_ref() {}
     }
 }
 
@@ -3220,10 +3220,7 @@ impl Pos {
 
 impl Danger {
     fn is_red(&self) -> bool {
-        match *self {
-            Danger::Red(_) => true,
-            _ => false,
-        }
+        matches!(*self, Danger::Red(_))
     }
 
     fn to_red(&mut self) {
@@ -3232,18 +3229,12 @@ impl Danger {
     }
 
     fn is_yellow(&self) -> bool {
-        match *self {
-            Danger::Yellow => true,
-            _ => false,
-        }
+        matches!(*self, Danger::Yellow)
     }
 
     fn to_yellow(&mut self) {
-        match *self {
-            Danger::Green => {
-                *self = Danger::Yellow;
-            }
-            _ => {}
+        if let Danger::Green = *self {
+            *self = Danger::Yellow;
         }
     }
 
