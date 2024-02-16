@@ -172,16 +172,14 @@ impl HeaderValue {
         HeaderValue::try_from_generic(src, Bytes::copy_from_slice)
     }
 
-    /// Attempt to convert a `Bytes` buffer to a `HeaderValue`.
-    ///
-    /// This will try to prevent a copy if the type passed is the type used
-    /// internally, and will copy the data if it is not.
+    #[deprecated = "Use TryFrom::<Bytes>::try_from instead"]
+    #[doc(hidden)]
     pub fn from_maybe_shared<T>(src: T) -> Result<HeaderValue, InvalidHeaderValue>
     where
         T: AsRef<[u8]> + 'static,
     {
         if_downcast_into!(T, Bytes, src, {
-            return HeaderValue::from_shared(src);
+            return HeaderValue::try_from(src);
         });
 
         HeaderValue::from_bytes(src.as_ref())
@@ -191,35 +189,34 @@ impl HeaderValue {
     ///
     /// This function does NOT validate that illegal bytes are not contained
     /// within the buffer.
-    pub unsafe fn from_maybe_shared_unchecked<T>(src: T) -> HeaderValue
-    where
-        T: AsRef<[u8]> + 'static,
-    {
+    pub unsafe fn from_shared_unchecked(bytes: Bytes) -> HeaderValue {
         if cfg!(debug_assertions) {
-            match HeaderValue::from_maybe_shared(src) {
+            match HeaderValue::try_from(bytes) {
                 Ok(val) => val,
                 Err(_err) => {
-                    panic!("HeaderValue::from_maybe_shared_unchecked() with invalid bytes");
+                    panic!("HeaderValue::from_shared_unchecked() with invalid bytes");
                 }
             }
         } else {
-            if_downcast_into!(T, Bytes, src, {
-                return HeaderValue {
-                    inner: src,
-                    is_sensitive: false,
-                };
-            });
-
-            let src = Bytes::copy_from_slice(src.as_ref());
             HeaderValue {
-                inner: src,
+                inner: bytes,
                 is_sensitive: false,
             }
         }
     }
 
-    fn from_shared(src: Bytes) -> Result<HeaderValue, InvalidHeaderValue> {
-        HeaderValue::try_from_generic(src, std::convert::identity)
+    #[deprecated = "Use from_shared_unchecked instead"]
+    #[doc(hidden)]
+    pub unsafe fn from_maybe_shared_unchecked<T>(src: T) -> HeaderValue
+    where
+        T: AsRef<[u8]> + 'static,
+    {
+        if_downcast_into!(T, Bytes, src, {
+            return HeaderValue::from_shared_unchecked(src);
+        });
+
+        let src = Bytes::copy_from_slice(src.as_ref());
+        HeaderValue::from_shared_unchecked(src)
     }
 
     fn try_from_generic<T: AsRef<[u8]>, F: FnOnce(T) -> Bytes>(
@@ -399,7 +396,7 @@ impl From<HeaderName> for HeaderValue {
     #[inline]
     fn from(h: HeaderName) -> HeaderValue {
         HeaderValue {
-            inner: h.into_bytes(),
+            inner: h.into(),
             is_sensitive: false,
         }
     }
@@ -517,6 +514,13 @@ impl FromStr for HeaderValue {
     }
 }
 
+impl From<HeaderValue> for Bytes {
+    #[inline]
+    fn from(value: HeaderValue) -> Bytes {
+        value.inner
+    }
+}
+
 impl<'a> From<&'a HeaderValue> for HeaderValue {
     #[inline]
     fn from(t: &'a HeaderValue) -> Self {
@@ -555,7 +559,7 @@ impl TryFrom<String> for HeaderValue {
 
     #[inline]
     fn try_from(t: String) -> Result<Self, Self::Error> {
-        HeaderValue::from_shared(t.into())
+        HeaderValue::try_from(Bytes::from(t))
     }
 }
 
@@ -564,7 +568,16 @@ impl TryFrom<Vec<u8>> for HeaderValue {
 
     #[inline]
     fn try_from(vec: Vec<u8>) -> Result<Self, Self::Error> {
-        HeaderValue::from_shared(vec.into())
+        HeaderValue::try_from(Bytes::from(vec))
+    }
+}
+
+impl TryFrom<Bytes> for HeaderValue {
+    type Error = InvalidHeaderValue;
+
+    #[inline]
+    fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
+        HeaderValue::try_from_generic(bytes, std::convert::identity)
     }
 }
 

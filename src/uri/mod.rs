@@ -275,70 +275,17 @@ impl Uri {
         })
     }
 
-    /// Attempt to convert a `Bytes` buffer to a `Uri`.
-    ///
-    /// This will try to prevent a copy if the type passed is the type used
-    /// internally, and will copy the data if it is not.
+    #[deprecated = "Use TryFrom::<Bytes>::try_from instead"]
+    #[doc(hidden)]
     pub fn from_maybe_shared<T>(src: T) -> Result<Self, InvalidUri>
     where
         T: AsRef<[u8]> + 'static,
     {
         if_downcast_into!(T, Bytes, src, {
-            return Uri::from_shared(src);
+            return Uri::try_from(src);
         });
 
         Uri::try_from(src.as_ref())
-    }
-
-    // Not public while `bytes` is unstable.
-    fn from_shared(s: Bytes) -> Result<Uri, InvalidUri> {
-        use self::ErrorKind::*;
-
-        if s.len() > MAX_LEN {
-            return Err(TooLong.into());
-        }
-
-        match s.len() {
-            0 => {
-                return Err(Empty.into());
-            }
-            1 => match s[0] {
-                b'/' => {
-                    return Ok(Uri {
-                        scheme: Scheme::empty(),
-                        authority: Authority::empty(),
-                        path_and_query: PathAndQuery::slash(),
-                    });
-                }
-                b'*' => {
-                    return Ok(Uri {
-                        scheme: Scheme::empty(),
-                        authority: Authority::empty(),
-                        path_and_query: PathAndQuery::star(),
-                    });
-                }
-                _ => {
-                    let authority = Authority::from_shared(s)?;
-
-                    return Ok(Uri {
-                        scheme: Scheme::empty(),
-                        authority: authority,
-                        path_and_query: PathAndQuery::empty(),
-                    });
-                }
-            },
-            _ => {}
-        }
-
-        if s[0] == b'/' {
-            return Ok(Uri {
-                scheme: Scheme::empty(),
-                authority: Authority::empty(),
-                path_and_query: PathAndQuery::from_shared(s)?,
-            });
-        }
-
-        parse_full(s)
     }
 
     /// Convert a `Uri` from a static string.
@@ -361,7 +308,7 @@ impl Uri {
     /// ```
     pub fn from_static(src: &'static str) -> Self {
         let s = Bytes::from_static(src.as_bytes());
-        match Uri::from_shared(s) {
+        match Uri::try_from(s) {
             Ok(uri) => uri,
             Err(e) => panic!("static str is not valid URI: {}", e),
         }
@@ -707,12 +654,86 @@ impl Uri {
     }
 }
 
+impl TryFrom<Bytes> for Uri {
+    type Error = InvalidUri;
+
+    /// Attempt to convert a `Uri` from `Bytes`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # extern crate http;
+    /// # use http::uri::*;
+    /// extern crate bytes;
+    ///
+    /// use std::convert::TryFrom;
+    /// use bytes::Bytes;
+    ///
+    /// # pub fn main() {
+    /// let bytes = Bytes::from("http://example.com/foo");
+    /// let uri = Uri::try_from(bytes).unwrap();
+    ///
+    /// assert_eq!(uri.host().unwrap(), "example.com");
+    /// assert_eq!(uri.path(), "/foo");
+    /// # }
+    /// ```
+    fn try_from(t: Bytes) -> Result<Uri, Self::Error> {
+        use self::ErrorKind::*;
+
+        if t.len() > MAX_LEN {
+            return Err(TooLong.into());
+        }
+
+        match t.len() {
+            0 => {
+                return Err(Empty.into());
+            }
+            1 => match t[0] {
+                b'/' => {
+                    return Ok(Uri {
+                        scheme: Scheme::empty(),
+                        authority: Authority::empty(),
+                        path_and_query: PathAndQuery::slash(),
+                    });
+                }
+                b'*' => {
+                    return Ok(Uri {
+                        scheme: Scheme::empty(),
+                        authority: Authority::empty(),
+                        path_and_query: PathAndQuery::star(),
+                    });
+                }
+                _ => {
+                    let authority = Authority::try_from(t)?;
+
+                    return Ok(Uri {
+                        scheme: Scheme::empty(),
+                        authority: authority,
+                        path_and_query: PathAndQuery::empty(),
+                    });
+                }
+            },
+            _ => {}
+        }
+
+        if t[0] == b'/' {
+            return Ok(Uri {
+                scheme: Scheme::empty(),
+                authority: Authority::empty(),
+                path_and_query: PathAndQuery::try_from(t)?,
+            });
+        }
+
+        parse_full(t)
+    }
+}
+
 impl<'a> TryFrom<&'a [u8]> for Uri {
     type Error = InvalidUri;
 
     #[inline]
     fn try_from(t: &'a [u8]) -> Result<Self, Self::Error> {
-        Uri::from_shared(Bytes::copy_from_slice(t))
+        Uri::try_from(Bytes::copy_from_slice(t))
     }
 }
 
@@ -739,7 +760,7 @@ impl TryFrom<String> for Uri {
 
     #[inline]
     fn try_from(t: String) -> Result<Self, Self::Error> {
-        Uri::from_shared(Bytes::from(t))
+        Uri::try_from(Bytes::from(t))
     }
 }
 
@@ -748,7 +769,7 @@ impl<'a> TryFrom<Vec<u8>> for Uri {
 
     #[inline]
     fn try_from(vec: Vec<u8>) -> Result<Self, Self::Error> {
-        Uri::from_shared(Bytes::from(vec))
+        Uri::try_from(Bytes::from(vec))
     }
 }
 
@@ -877,7 +898,7 @@ fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUri> {
     Ok(Uri {
         scheme: scheme.into(),
         authority: authority,
-        path_and_query: PathAndQuery::from_shared(s)?,
+        path_and_query: PathAndQuery::try_from(s)?,
     })
 }
 
