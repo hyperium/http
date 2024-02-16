@@ -1551,7 +1551,7 @@ impl<'a> From<HdrName<'a>> for HeaderName {
             },
             Repr::Custom(maybe_lower) => {
                 if maybe_lower.lower {
-                    let buf = Bytes::copy_from_slice(&maybe_lower.buf[..]);
+                    let buf = Bytes::copy_from_slice(maybe_lower.buf);
                     // Safety: the invariant on MaybeLower ensures buf is valid UTF-8.
                     let byte_str = unsafe { ByteStr::from_utf8_unchecked(buf) };
 
