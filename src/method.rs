@@ -465,6 +465,6 @@ mod test {
         assert_eq!(Method::from_str("wOw!!").unwrap(), "wOw!!");
 
         let long_method = "This_is_a_very_long_method.It_is_valid_but_unlikely.";
-        assert_eq!(Method::from_str(&long_method).unwrap(), long_method);
+        assert_eq!(Method::from_str(long_method).unwrap(), long_method);
     }
 }
