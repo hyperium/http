@@ -434,7 +434,7 @@ impl<'a> TryFrom<&'a [u8]> for Authority {
 
         // Preconditon on create_authority: copy_from_slice() copies all of
         // bytes from the [u8] parameter into a new Bytes
-        create_authority(s, |s| Bytes::copy_from_slice(s))
+        create_authority(s, Bytes::copy_from_slice)
     }
 }
 
