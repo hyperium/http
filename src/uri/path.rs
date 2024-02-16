@@ -101,7 +101,7 @@ impl PathAndQuery {
 
         Ok(PathAndQuery {
             data: unsafe { ByteStr::from_utf8_unchecked(src) },
-            query: query,
+            query,
         })
     }
 

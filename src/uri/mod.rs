@@ -269,9 +269,9 @@ impl Uri {
         };
 
         Ok(Uri {
-            scheme: scheme,
-            authority: authority,
-            path_and_query: path_and_query,
+            scheme,
+            authority,
+            path_and_query,
         })
     }
 
@@ -322,7 +322,7 @@ impl Uri {
 
                     return Ok(Uri {
                         scheme: Scheme::empty(),
-                        authority: authority,
+                        authority,
                         path_and_query: PathAndQuery::empty(),
                     });
                 }
@@ -813,9 +813,9 @@ impl From<Uri> for Parts {
         };
 
         Parts {
-            scheme: scheme,
-            authority: authority,
-            path_and_query: path_and_query,
+            scheme,
+            authority,
+            path_and_query,
             _priv: (),
         }
     }
@@ -859,7 +859,7 @@ fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUri> {
 
         return Ok(Uri {
             scheme: scheme.into(),
-            authority: authority,
+            authority,
             path_and_query: PathAndQuery::empty(),
         });
     }
@@ -876,7 +876,7 @@ fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUri> {
 
     Ok(Uri {
         scheme: scheme.into(),
-        authority: authority,
+        authority,
         path_and_query: PathAndQuery::from_shared(s)?,
     })
 }

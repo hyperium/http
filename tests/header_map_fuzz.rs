@@ -89,8 +89,8 @@ impl Fuzz {
         }
 
         Fuzz {
-            seed: seed,
-            steps: steps,
+            seed,
+            steps,
             reduce: 0,
         }
     }
@@ -121,7 +121,7 @@ impl AltMap {
         let action = self.gen_action(weight, rng);
 
         Step {
-            action: action,
+            action,
             expect: self.clone(),
         }
     }
@@ -156,21 +156,14 @@ impl AltMap {
         let val = gen_header_value(rng);
         let old = self.insert(name.clone(), val.clone());
 
-        Action::Insert {
-            name: name,
-            val: val,
-            old: old,
-        }
+        Action::Insert { name, val, old }
     }
 
     fn gen_remove(&mut self, rng: &mut StdRng) -> Action {
         let name = self.gen_name(-4, rng);
         let val = self.remove(&name);
 
-        Action::Remove {
-            name: name,
-            val: val,
-        }
+        Action::Remove { name, val }
     }
 
     fn gen_append(&mut self, rng: &mut StdRng) -> Action {
@@ -182,11 +175,7 @@ impl AltMap {
         let ret = !vals.is_empty();
         vals.push(val.clone());
 
-        Action::Append {
-            name: name,
-            val: val,
-            ret: ret,
-        }
+        Action::Append { name, val, ret }
     }
 
     /// Negative numbers weigh finding an existing header higher
