@@ -129,6 +129,7 @@ impl HeaderValue {
     /// assert!(val.is_err());
     /// ```
     #[inline]
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(src: &str) -> Result<HeaderValue, InvalidHeaderValue> {
         HeaderValue::try_from_generic(src, |s| Bytes::copy_from_slice(s.as_bytes()))
     }
