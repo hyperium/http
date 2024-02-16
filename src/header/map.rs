@@ -3447,7 +3447,7 @@ mod as_header_name {
         }
 
         fn as_str(&self) -> &str {
-            <HeaderName>::as_str(*self)
+            <HeaderName>::as_str(self)
         }
     }
 
@@ -3501,7 +3501,7 @@ mod as_header_name {
         }
 
         fn as_str(&self) -> &str {
-            *self
+            self
         }
     }
 
