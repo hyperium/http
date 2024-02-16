@@ -1992,7 +1992,7 @@ impl<T> Default for HeaderMap<T> {
     }
 }
 
-impl<'a, K, T> ops::Index<K> for HeaderMap<T>
+impl<K, T> ops::Index<K> for HeaderMap<T>
 where
     K: AsHeaderName,
 {
@@ -2461,9 +2461,9 @@ impl<'a, T> VacantEntry<'a, T> {
     /// ```
     pub fn insert(self, value: T) -> &'a mut T {
         // Ensure that there is space in the map
-        let index =
-            self.map
-                .insert_phase_two(self.key, value, self.hash, self.probe, self.danger);
+        let index = self
+            .map
+            .insert_phase_two(self.key, value, self.hash, self.probe, self.danger);
 
         &mut self.map.entries[index].value
     }
@@ -2488,9 +2488,9 @@ impl<'a, T> VacantEntry<'a, T> {
     /// ```
     pub fn insert_entry(self, value: T) -> OccupiedEntry<'a, T> {
         // Ensure that there is space in the map
-        let index =
-            self.map
-                .insert_phase_two(self.key, value, self.hash, self.probe, self.danger);
+        let index = self
+            .map
+            .insert_phase_two(self.key, value, self.hash, self.probe, self.danger);
 
         OccupiedEntry {
             map: self.map,

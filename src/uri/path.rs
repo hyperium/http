@@ -294,7 +294,7 @@ impl<'a> TryFrom<&'a str> for PathAndQuery {
     }
 }
 
-impl<'a> TryFrom<Vec<u8>> for PathAndQuery {
+impl TryFrom<Vec<u8>> for PathAndQuery {
     type Error = InvalidUri;
     #[inline]
     fn try_from(vec: Vec<u8>) -> Result<Self, Self::Error> {
