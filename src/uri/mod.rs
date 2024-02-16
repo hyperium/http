@@ -649,7 +649,7 @@ impl Uri {
     /// assert_eq!(uri.port_u16(), Some(80));
     /// ```
     pub fn port_u16(&self) -> Option<u16> {
-        self.port().and_then(|p| Some(p.as_u16()))
+        self.port().map(|p| p.as_u16())
     }
 
     /// Get the query string of this `Uri`, starting after the `?`.
