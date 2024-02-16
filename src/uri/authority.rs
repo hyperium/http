@@ -253,7 +253,7 @@ impl Authority {
     /// assert_eq!(authority.port_u16(), Some(80));
     /// ```
     pub fn port_u16(&self) -> Option<u16> {
-        self.port().and_then(|p| Some(p.as_u16()))
+        self.port().map(|p| p.as_u16())
     }
 
     /// Return a str representation of the authority
@@ -486,7 +486,7 @@ impl fmt::Display for Authority {
 
 fn host(auth: &str) -> &str {
     let host_port = auth
-        .rsplitn(2, '@')
+        .rsplit('@')
         .next()
         .expect("split always has at least 1 item");
 
