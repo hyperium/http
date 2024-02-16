@@ -741,7 +741,7 @@ impl TryFrom<String> for Uri {
     }
 }
 
-impl<'a> TryFrom<Vec<u8>> for Uri {
+impl TryFrom<Vec<u8>> for Uri {
     type Error = InvalidUri;
 
     #[inline]
