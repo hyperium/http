@@ -43,7 +43,7 @@ impl ByteStr {
             }
         }
         // Invariant: assumed by the safety requirements of this function.
-        ByteStr { bytes: bytes }
+        ByteStr { bytes }
     }
 }
 
