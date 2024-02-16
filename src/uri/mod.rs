@@ -245,10 +245,8 @@ impl Uri {
             if src.path_and_query.is_none() {
                 return Err(ErrorKind::PathAndQueryMissing.into());
             }
-        } else {
-            if src.authority.is_some() && src.path_and_query.is_some() {
-                return Err(ErrorKind::SchemeMissing.into());
-            }
+        } else if src.authority.is_some() && src.path_and_query.is_some() {
+            return Err(ErrorKind::SchemeMissing.into());
         }
 
         let scheme = match src.scheme {
@@ -966,8 +964,8 @@ impl PartialEq<str> for Uri {
         }
 
         if let Some(query) = self.query() {
-            if other.len() == 0 {
-                return query.len() == 0;
+            if other.is_empty() {
+                return query.is_empty();
             }
 
             if other[0] != b'?' {
