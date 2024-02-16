@@ -82,7 +82,7 @@ impl Extensions {
         self.map
             .as_ref()
             .and_then(|map| map.get(&TypeId::of::<T>()))
-            .and_then(|boxed| (&**boxed).as_any().downcast_ref())
+            .and_then(|boxed| (**boxed).as_any().downcast_ref())
     }
 
     /// Get a mutable reference to a type previously inserted on this `Extensions`.
@@ -101,7 +101,7 @@ impl Extensions {
         self.map
             .as_mut()
             .and_then(|map| map.get_mut(&TypeId::of::<T>()))
-            .and_then(|boxed| (&mut **boxed).as_any_mut().downcast_mut())
+            .and_then(|boxed| (**boxed).as_any_mut().downcast_mut())
     }
 
     /// Get a mutable reference to a type, inserting `value` if not already present on this
@@ -141,7 +141,7 @@ impl Extensions {
             .get_or_insert_with(|| Box::new(HashMap::default()))
             .entry(TypeId::of::<T>())
             .or_insert_with(|| Box::new(f()));
-        (&mut **out).as_any_mut().downcast_mut().unwrap()
+        (**out).as_any_mut().downcast_mut().unwrap()
     }
 
     /// Get a mutable reference to a type, inserting the type's default value if not already present

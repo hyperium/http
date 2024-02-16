@@ -3131,12 +3131,12 @@ impl<'a, T> Iterator for ValueDrain<'a, T> {
             // Exactly 1
             (&Some(_), &None) => (1, Some(1)),
             // 1 + extras
-            (&Some(_), &Some(ref extras)) => {
+            (&Some(_), Some(extras)) => {
                 let (l, u) = extras.size_hint();
                 (l + 1, u.map(|u| u + 1))
             }
             // Extras only
-            (&None, &Some(ref extras)) => extras.size_hint(),
+            (&None, Some(extras)) => extras.size_hint(),
             // No more
             (&None, &None) => (0, Some(0)),
         }
