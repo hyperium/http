@@ -8,7 +8,7 @@ use std::{fmt, mem, ops, ptr, vec};
 
 use crate::Error;
 
-use super::name::{HdrName, HeaderName, InvalidHeaderName};
+use super::name::{FastHash, HdrName, HeaderName, InvalidHeaderName};
 use super::HeaderValue;
 
 pub use self::as_header_name::AsHeaderName;
@@ -1077,7 +1077,7 @@ impl<T> HeaderMap<T> {
 
     fn entry2<K>(&mut self, key: K) -> Entry<'_, T>
     where
-        K: Hash + Into<HeaderName>,
+        K: FastHash + Into<HeaderName>,
         HeaderName: PartialEq<K>,
     {
         // Ensure that there is space in the map
@@ -1149,7 +1149,7 @@ impl<T> HeaderMap<T> {
     #[inline]
     fn insert2<K>(&mut self, key: K, value: T) -> Option<T>
     where
-        K: Hash + Into<HeaderName>,
+        K: FastHash + Into<HeaderName>,
         HeaderName: PartialEq<K>,
     {
         self.reserve_one();
@@ -1250,7 +1250,7 @@ impl<T> HeaderMap<T> {
     #[inline]
     fn append2<K>(&mut self, key: K, value: T) -> bool
     where
-        K: Hash + Into<HeaderName>,
+        K: FastHash + Into<HeaderName>,
         HeaderName: PartialEq<K>,
     {
         self.reserve_one();
@@ -1287,7 +1287,7 @@ impl<T> HeaderMap<T> {
     #[inline]
     fn find<K: ?Sized>(&self, key: &K) -> Option<(usize, usize)>
     where
-        K: Hash + Into<HeaderName>,
+        K: FastHash + Into<HeaderName>,
         HeaderName: PartialEq<K>,
     {
         if self.entries.is_empty() {
@@ -3284,10 +3284,8 @@ fn probe_distance(mask: Size, hash: HashValue, current: usize) -> usize {
 
 fn hash_elem_using<K: ?Sized>(danger: &Danger, k: &K) -> HashValue
 where
-    K: Hash,
+    K: FastHash,
 {
-    use fnv::FnvHasher;
-
     const MASK: u64 = (MAX_SIZE as u64) - 1;
 
     let hash = match *danger {
@@ -3298,11 +3296,7 @@ where
             h.finish()
         }
         // Fast hash
-        _ => {
-            let mut h = FnvHasher::default();
-            k.hash(&mut h);
-            h.finish()
-        }
+        _ => k.fast_hash()
     };
 
     HashValue((hash & MASK) as u16)
