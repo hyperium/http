@@ -908,7 +908,7 @@ impl Builder {
         self.and_then(move |mut head| {
             let name = <HeaderName as TryFrom<K>>::try_from(key).map_err(Into::into)?;
             let value = <HeaderValue as TryFrom<V>>::try_from(value).map_err(Into::into)?;
-            head.headers.append(name, value);
+            head.headers.try_append(name, value)?;
             Ok(head)
         })
     }
