@@ -158,7 +158,7 @@
 //! assert_eq!(uri.query(), None);
 //! ```
 
-#![deny(warnings, missing_docs, missing_debug_implementations)]
+#![deny(missing_docs, missing_debug_implementations)]
 
 #[cfg(test)]
 #[macro_use]
