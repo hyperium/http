@@ -1338,7 +1338,7 @@ impl fmt::Display for HeaderName {
 }
 
 impl InvalidHeaderName {
-    fn new() -> InvalidHeaderName {
+    pub(super) fn new() -> InvalidHeaderName {
         InvalidHeaderName { _priv: () }
     }
 }
