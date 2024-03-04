@@ -1,3 +1,8 @@
+# 0.2.12 (March 4, 2024)
+
+* Add methods to allow trying to allocate in the `HeaderMap`, returning an error if oversize instead of panicking.
+* Fix `HeaderName::from_lowercase` that could allow NUL bytes in some cases.
+
 # 0.2.11 (November 13, 2023)
 
 * Fix MIRI error in `header::Iter`.
