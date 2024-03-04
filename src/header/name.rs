@@ -1174,9 +1174,9 @@ impl HeaderName {
             }
             Repr::Custom(MaybeLower { buf, lower: false }) => {
                 for &b in buf.iter() {
-                    // HEADER_CHARS maps all bytes that are not valid single-byte
+                    // HEADER_CHARS_H2 maps all bytes that are not valid single-byte
                     // UTF-8 to 0 so this check returns an error for invalid UTF-8.
-                    if b != HEADER_CHARS[b as usize] {
+                    if HEADER_CHARS_H2[b as usize] == 0 {
                         return Err(InvalidHeaderName::new());
                     }
                 }
@@ -1864,5 +1864,17 @@ mod tests {
     #[test]
     fn test_all_tokens() {
         HeaderName::from_static("!#$%&'*+-.^_`|~0123456789abcdefghijklmnopqrstuvwxyz");
+    }
+
+    #[test]
+    fn test_from_lowercase() {
+        HeaderName::from_lowercase(&[0; 10]).unwrap_err();
+        HeaderName::from_lowercase(&[b'A'; 10]).unwrap_err();
+        HeaderName::from_lowercase(&[0x1; 10]).unwrap_err();
+        HeaderName::from_lowercase(&[0xFF; 10]).unwrap_err();
+        //HeaderName::from_lowercase(&[0; 100]).unwrap_err();
+        HeaderName::from_lowercase(&[b'A'; 100]).unwrap_err();
+        HeaderName::from_lowercase(&[0x1; 100]).unwrap_err();
+        HeaderName::from_lowercase(&[0xFF; 100]).unwrap_err();
     }
 }
