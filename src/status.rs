@@ -1,6 +1,6 @@
 //! HTTP status codes
 //!
-//! This module contains HTTP-status code related structs an errors. The main
+//! This module contains HTTP-status code related structs and errors. The main
 //! type in this module is `StatusCode` which is not intended to be used through
 //! this module but rather the `http::StatusCode` type.
 //!
