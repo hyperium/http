@@ -332,7 +332,7 @@ status_codes! {
     /// [[RFC9110, Section 15.2.2](https://datatracker.ietf.org/doc/html/rfc9110#section-15.2.2)]
     (101, SWITCHING_PROTOCOLS, "Switching Protocols");
     /// 102 Processing
-    /// [[RFC2518](https://datatracker.ietf.org/doc/html/rfc2518)]
+    /// [[RFC2518, Section 10.1](https://datatracker.ietf.org/doc/html/rfc2518#section-10.1)]
     (102, PROCESSING, "Processing");
 
     /// 200 OK
@@ -357,14 +357,14 @@ status_codes! {
     /// [[RFC9110, Section 15.3.7](https://datatracker.ietf.org/doc/html/rfc9110#section-15.3.7)]
     (206, PARTIAL_CONTENT, "Partial Content");
     /// 207 Multi-Status
-    /// [[RFC4918](https://datatracker.ietf.org/doc/html/rfc4918)]
+    /// [[RFC4918, Section 11.1](https://datatracker.ietf.org/doc/html/rfc4918#section-11.1)]
     (207, MULTI_STATUS, "Multi-Status");
     /// 208 Already Reported
-    /// [[RFC5842](https://datatracker.ietf.org/doc/html/rfc5842)]
+    /// [[RFC5842, Section 7.1](https://datatracker.ietf.org/doc/html/rfc5842#section-7.1)]
     (208, ALREADY_REPORTED, "Already Reported");
 
     /// 226 IM Used
-    /// [[RFC3229](https://datatracker.ietf.org/doc/html/rfc3229)]
+    /// [[RFC3229, Section 10.4.1](https://datatracker.ietf.org/doc/html/rfc3229#section-10.4.1)]
     (226, IM_USED, "IM Used");
 
     /// 300 Multiple Choices
@@ -447,7 +447,7 @@ status_codes! {
     /// [[RFC9110, Section 15.5.18](https://datatracker.ietf.org/doc/html/rfc9110#section-15.5.18)]
     (417, EXPECTATION_FAILED, "Expectation Failed");
     /// 418 I'm a teapot
-    /// [curiously not registered by IANA but [RFC2324](https://datatracker.ietf.org/doc/html/rfc2324)]
+    /// [curiously not registered by IANA but [RFC2324, Section 2.3.2](https://datatracker.ietf.org/doc/html/rfc2324#section-2.3.2)]
     (418, IM_A_TEAPOT, "I'm a teapot");
 
     /// 421 Misdirected Request
@@ -457,10 +457,10 @@ status_codes! {
     /// [[RFC9110, Section 15.5.21](https://datatracker.ietf.org/doc/html/rfc9110#section-15.5.21)]
     (422, UNPROCESSABLE_ENTITY, "Unprocessable Entity");
     /// 423 Locked
-    /// [[RFC4918](https://datatracker.ietf.org/doc/html/rfc4918)]
+    /// [[RFC4918, Section 11.3](https://datatracker.ietf.org/doc/html/rfc4918#section-11.3)]
     (423, LOCKED, "Locked");
     /// 424 Failed Dependency
-    /// [[RFC4918](https://datatracker.ietf.org/doc/html/rfc4918)]
+    /// [[RFC4918, Section 11.4](https://tools.ietf.org/html/rfc4918#section-11.4)]
     (424, FAILED_DEPENDENCY, "Failed Dependency");
 
     /// 426 Upgrade Required
@@ -468,18 +468,18 @@ status_codes! {
     (426, UPGRADE_REQUIRED, "Upgrade Required");
 
     /// 428 Precondition Required
-    /// [[RFC6585](https://datatracker.ietf.org/doc/html/rfc6585)]
+    /// [[RFC6585, Section 3](https://datatracker.ietf.org/doc/html/rfc6585#section-3)]
     (428, PRECONDITION_REQUIRED, "Precondition Required");
     /// 429 Too Many Requests
-    /// [[RFC6585](https://datatracker.ietf.org/doc/html/rfc6585)]
+    /// [[RFC6585, Section 4](https://datatracker.ietf.org/doc/html/rfc6585#section-4)]
     (429, TOO_MANY_REQUESTS, "Too Many Requests");
 
     /// 431 Request Header Fields Too Large
-    /// [[RFC6585](https://datatracker.ietf.org/doc/html/rfc6585)]
+    /// [[RFC6585, Section 5](https://datatracker.ietf.org/doc/html/rfc6585#section-5)]
     (431, REQUEST_HEADER_FIELDS_TOO_LARGE, "Request Header Fields Too Large");
 
     /// 451 Unavailable For Legal Reasons
-    /// [[RFC7725](https://datatracker.ietf.org/doc/html/rfc7725)]
+    /// [[RFC7725, Section 3](https://tools.ietf.org/html/rfc7725#section-3)]
     (451, UNAVAILABLE_FOR_LEGAL_REASONS, "Unavailable For Legal Reasons");
 
     /// 500 Internal Server Error
@@ -501,20 +501,20 @@ status_codes! {
     /// [[RFC9110, Section 15.6.6](https://datatracker.ietf.org/doc/html/rfc9110#section-15.6.6)]
     (505, HTTP_VERSION_NOT_SUPPORTED, "HTTP Version Not Supported");
     /// 506 Variant Also Negotiates
-    /// [[RFC2295](https://datatracker.ietf.org/doc/html/rfc2295)]
+    /// [[RFC2295, Section 8.1](https://datatracker.ietf.org/doc/html/rfc2295#section-8.1)]
     (506, VARIANT_ALSO_NEGOTIATES, "Variant Also Negotiates");
     /// 507 Insufficient Storage
-    /// [[RFC4918](https://datatracker.ietf.org/doc/html/rfc4918)]
+    /// [[RFC4918, Section 11.5](https://datatracker.ietf.org/doc/html/rfc4918#section-11.5)]
     (507, INSUFFICIENT_STORAGE, "Insufficient Storage");
     /// 508 Loop Detected
-    /// [[RFC5842](https://datatracker.ietf.org/doc/html/rfc5842)]
+    /// [[RFC5842, Section 7.2](https://datatracker.ietf.org/doc/html/rfc5842#section-7.2)]
     (508, LOOP_DETECTED, "Loop Detected");
 
     /// 510 Not Extended
-    /// [[RFC2774](https://datatracker.ietf.org/doc/html/rfc2774)]
+    /// [[RFC2774, Section 7](https://datatracker.ietf.org/doc/html/rfc2774#section-7)]
     (510, NOT_EXTENDED, "Not Extended");
     /// 511 Network Authentication Required
-    /// [[RFC6585](https://datatracker.ietf.org/doc/html/rfc6585)]
+    /// [[RFC6585, Section 6](https://datatracker.ietf.org/doc/html/rfc6585#section-6)]
     (511, NETWORK_AUTHENTICATION_REQUIRED, "Network Authentication Required");
 }
 
