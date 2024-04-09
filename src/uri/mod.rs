@@ -633,7 +633,7 @@ impl Uri {
     ///
     /// assert!(uri.port().is_none());
     /// ```
-    pub fn port(&self) -> Option<Port<&str>> {
+    pub fn port(&self) -> Option<Port> {
         self.authority().and_then(|a| a.port())
     }
 
