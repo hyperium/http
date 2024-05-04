@@ -1066,7 +1066,7 @@ impl<T> HeaderMap<T> {
         } else {
             ValueIter {
                 map: self,
-                index: ::std::usize::MAX,
+                index: usize::MAX,
                 front: None,
                 back: None,
             }
