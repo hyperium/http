@@ -705,12 +705,12 @@ impl<T> HeaderMap<T> {
             .entries
             .len()
             .checked_add(additional)
-            .ok_or_else(|| MaxSizeReached::new())?;
+            .ok_or_else(MaxSizeReached::new)?;
 
         if cap > self.indices.len() {
             let cap = cap
                 .checked_next_power_of_two()
-                .ok_or_else(|| MaxSizeReached::new())?;
+                .ok_or_else(MaxSizeReached::new)?;
             if cap > MAX_SIZE {
                 return Err(MaxSizeReached::new());
             }
