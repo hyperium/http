@@ -91,7 +91,7 @@ impl HeaderValue {
                 // https://blog.rust-lang.org/2021/12/02/Rust-1.57.0.html#panic-in-const-contexts
                 //
                 // See the panics section of this method's document for details.
-                #[allow(clippy::no_effect)]
+                #[allow(clippy::no_effect, clippy::out_of_bounds_indexing)]
                 ([] as [u8; 0])[0]; // Invalid header value
             }
             i += 1;
