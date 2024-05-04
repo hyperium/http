@@ -1449,9 +1449,9 @@ impl<T> HeaderMap<T> {
     }
 
     #[inline]
-    fn find<K: ?Sized>(&self, key: &K) -> Option<(usize, usize)>
+    fn find<K>(&self, key: &K) -> Option<(usize, usize)>
     where
-        K: Hash + Into<HeaderName>,
+        K: Hash + Into<HeaderName> + ?Sized,
         HeaderName: PartialEq<K>,
     {
         if self.entries.is_empty() {
@@ -3603,9 +3603,9 @@ fn probe_distance(mask: Size, hash: HashValue, current: usize) -> usize {
     current.wrapping_sub(desired_pos(mask, hash)) & mask as usize
 }
 
-fn hash_elem_using<K: ?Sized>(danger: &Danger, k: &K) -> HashValue
+fn hash_elem_using<K>(danger: &Danger, k: &K) -> HashValue
 where
-    K: Hash,
+    K: Hash + ?Sized,
 {
     use fnv::FnvHasher;
 
