@@ -3838,7 +3838,7 @@ mod as_header_name {
     impl Sealed for String {
         #[inline]
         fn try_entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<'_, T>, TryEntryError> {
-            Ok(self.as_str().try_entry(map)?)
+            self.as_str().try_entry(map)
         }
 
         #[inline]
