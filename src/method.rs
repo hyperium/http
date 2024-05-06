@@ -134,6 +134,29 @@ impl Method {
         }
     }
 
+    /// Convert static bytes into a `Method`.
+    ///
+    /// # Panics
+    ///
+    /// If the input bytes are not a valid method name or if the method name is over 15 bytes.
+    pub const fn from_static(src: &'static [u8]) -> Method {
+        match src {
+            b"OPTIONS" => Method::OPTIONS,
+            b"GET" => Method::GET,
+            b"POST" => Method::POST,
+            b"PUT" => Method::PUT,
+            b"DELETE" => Method::DELETE,
+            b"HEAD" => Method::HEAD,
+            b"TRACE" => Method::TRACE,
+            b"CONNECT" => Method::CONNECT,
+            b"PATCH" => Method::PATCH,
+            _ => {
+                let inline = InlineExtension::from_static(src);
+                Method(ExtensionInline(inline))
+            }
+        }
+    }
+
     fn extension_inline(src: &[u8]) -> Result<Method, InvalidMethod> {
         let inline = InlineExtension::new(src)?;
 
@@ -330,6 +353,34 @@ mod extension {
             Ok(InlineExtension(data, src.len() as u8))
         }
 
+        /// Convert static bytes into an `InlineExtension`.
+        ///
+        /// # Panics
+        ///
+        /// If the input bytes are not a valid method name or if the method name is over 15 bytes.
+        pub const fn from_static(src: &'static [u8]) -> InlineExtension {
+            let mut i = 0;
+            let mut dst = [0u8;15];
+            if src.len() > 15 {
+                // panicking in const requires Rust 1.57.0
+                #[allow(unconditional_panic)]
+                ([] as [u8; 0])[0];
+            }
+            while i < src.len() {
+                let byte = src[i] ;
+                let v = METHOD_CHARS[byte as usize];
+                if v == 0 {
+                    // panicking in const requires Rust 1.57.0
+                    #[allow(unconditional_panic)]
+                    ([] as [u8; 0])[0];
+                }
+                dst[i] = byte;
+                i += 1;
+            }
+
+            InlineExtension(dst, i as u8)
+        }
+
         pub fn as_str(&self) -> &str {
             let InlineExtension(ref data, len) = self;
             // Safety: the invariant of InlineExtension ensures that the first
@@ -434,6 +485,26 @@ mod test {
 
         assert_eq!(&Method::GET, Method::GET);
         assert_eq!(Method::GET, &Method::GET);
+    }
+
+    #[test]
+    fn test_from_static() {
+        assert_eq!(Method::from_static(b"PROPFIND"), Method::from_bytes(b"PROPFIND").unwrap());
+        assert_eq!(Method::from_static(b"GET"), Method::from_bytes(b"GET").unwrap());
+        assert_eq!(Method::from_static(b"GET"), Method::GET);
+        assert_eq!(Method::from_static(b"123456789012345").to_string(), "123456789012345".to_string());
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_from_static_too_long() {
+        Method::from_static(b"1234567890123456");
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_from_static_bad() {
+        Method::from_static(b"\0");
     }
 
     #[test]
