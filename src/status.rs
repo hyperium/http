@@ -18,6 +18,7 @@ use std::convert::TryFrom;
 use std::error::Error;
 use std::fmt;
 use std::num::NonZeroU16;
+use std::ops::Deref;
 use std::str::FromStr;
 
 /// An HTTP status code (`status-code` in RFC 9110 et al.).
@@ -232,6 +233,14 @@ impl Default for StatusCode {
     #[inline]
     fn default() -> StatusCode {
         StatusCode::OK
+    }
+}
+
+impl Deref for StatusCode {
+    type Target = NonZeroU16;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

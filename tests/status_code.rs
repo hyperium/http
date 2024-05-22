@@ -1,4 +1,5 @@
 use http::*;
+use std::num::NonZeroU16;
 
 #[test]
 fn from_bytes() {
@@ -76,7 +77,14 @@ fn is_server_error() {
     assert!(!status_code(600).is_server_error());
 }
 
+#[test]
+fn deref() {
+    let status_code = StatusCode::OK;
+    assert_eq!(*status_code, NonZeroU16::new(200).unwrap());
+}
+
 /// Helper method for readability
 fn status_code(status_code: u16) -> StatusCode {
     StatusCode::from_u16(status_code).unwrap()
 }
+
