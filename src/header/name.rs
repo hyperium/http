@@ -1654,10 +1654,7 @@ const SCRATCH_BUF_SIZE: usize = 64;
 const SCRATCH_BUF_OVERFLOW: usize = SCRATCH_BUF_SIZE + 1;
 
 fn uninit_u8_array() -> [MaybeUninit<u8>; SCRATCH_BUF_SIZE] {
-    let arr = MaybeUninit::<[MaybeUninit<u8>; SCRATCH_BUF_SIZE]>::uninit();
-    // Safety: assume_init() is claiming that an array of MaybeUninit<>
-    // has been initilized, but MaybeUninit<>'s do not require initilizaton.
-    unsafe { arr.assume_init() }
+    [MaybeUninit::<u8>::uninit(); SCRATCH_BUF_SIZE]
 }
 
 // Assuming all the elements are initilized, get a slice of them.
