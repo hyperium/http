@@ -521,7 +521,7 @@ impl<T> HeaderMap<T> {
             Ok(HeaderMap {
                 mask: (raw_cap - 1) as Size,
                 indices: vec![Pos::none(); raw_cap].into_boxed_slice(),
-                entries: Vec::with_capacity(raw_cap),
+                entries: Vec::with_capacity(usable_capacity(raw_cap)),
                 extra_values: Vec::new(),
                 danger: Danger::Green,
             })
