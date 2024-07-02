@@ -466,17 +466,19 @@ mod test {
         let long_method = "This_is_a_very_long_method.It_is_valid_but_unlikely.";
         assert_eq!(Method::from_str(long_method).unwrap(), long_method);
 
-        // if these two assert_eq! fail, the output message may not be helpful, because type info
-        // of Method.Inner is not printed
         let longest_inline_method = [b'A'; InlineExtension::MAX];
         assert_eq!(
             Method::from_bytes(&longest_inline_method).unwrap(),
-            Method(ExtensionInline(InlineExtension::new(&longest_inline_method).unwrap()))
+            Method(ExtensionInline(
+                InlineExtension::new(&longest_inline_method).unwrap()
+            ))
         );
         let shortest_allocated_method = [b'A'; InlineExtension::MAX + 1];
         assert_eq!(
             Method::from_bytes(&shortest_allocated_method).unwrap(),
-            Method(ExtensionAllocated(AllocatedExtension::new(&shortest_allocated_method).unwrap()))
+            Method(ExtensionAllocated(
+                AllocatedExtension::new(&shortest_allocated_method).unwrap()
+            ))
         );
     }
 }
