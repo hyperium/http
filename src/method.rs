@@ -356,7 +356,7 @@ mod extension {
         }
     }
 
-    // From the HTTP spec section 5.1.1, the HTTP method is case-sensitive and can
+    // From the RFC 9110 HTTP Semantics, section 9.1, the HTTP method is case-sensitive and can
     // contain the following characters:
     //
     // ```
@@ -366,7 +366,7 @@ mod extension {
     //     "^" / "_" / "`" / "|" / "~" / DIGIT / ALPHA
     // ```
     //
-    // https://www.w3.org/Protocols/HTTP/1.1/draft-ietf-http-v11-spec-01#Method
+    // https://datatracker.ietf.org/doc/html/rfc9110#section-9.1
     //
     // Note that this definition means that any &[u8] that consists solely of valid
     // characters is also valid UTF-8 because the valid method characters are a
