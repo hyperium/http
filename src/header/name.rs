@@ -676,7 +676,10 @@ standard_headers! {
     /// document.
     (IfUnmodifiedSince, IF_UNMODIFIED_SINCE, b"if-unmodified-since");
 
-    /// Content-Types that are acceptable for the response.
+    /// The Last-Modified header contains the date and time when the origin believes
+    /// the resource was last modified.
+    ///
+    /// The value is a valid Date/Time string defined in [RFC9910](https://datatracker.ietf.org/doc/html/rfc9110#section-5.6.7)
     (LastModified, LAST_MODIFIED, b"last-modified");
 
     /// Allows the server to point an interested client to another resource
