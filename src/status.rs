@@ -75,9 +75,9 @@ impl StatusCode {
             return Err(InvalidStatusCode::new());
         }
 
-        NonZeroU16::new(src)
-            .map(StatusCode)
-            .ok_or_else(InvalidStatusCode::new)
+        // SAFETY: We just checked that src is non-zero
+        let code = unsafe { NonZeroU16::new_unchecked(src) };
+        Ok(StatusCode(code))
     }
 
     /// Converts a &[u8] to a status code
