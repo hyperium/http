@@ -116,8 +116,8 @@ impl StatusCode {
     /// assert_eq!(status.as_u16(), 200);
     /// ```
     #[inline]
-    pub fn as_u16(&self) -> u16 {
-        (*self).into()
+    pub const fn as_u16(&self) -> u16 {
+        (*self).0.get()
     }
 
     /// Returns a &str representation of the `StatusCode`
