@@ -335,6 +335,10 @@ status_codes! {
     /// [[RFC2518, Section 10.1](https://datatracker.ietf.org/doc/html/rfc2518#section-10.1)]
     (102, PROCESSING, "Processing");
 
+    /// 103 Early Hints
+    /// [[RFC8297, Section 2](https://datatracker.ietf.org/doc/html/rfc8297#section-2)]
+    (103, EARLY_HINTS, "Early Hints");
+
     /// 200 OK
     /// [[RFC9110, Section 15.3.1](https://datatracker.ietf.org/doc/html/rfc9110#section-15.3.1)]
     (200, OK, "OK");
@@ -462,7 +466,9 @@ status_codes! {
     /// 424 Failed Dependency
     /// [[RFC4918, Section 11.4](https://tools.ietf.org/html/rfc4918#section-11.4)]
     (424, FAILED_DEPENDENCY, "Failed Dependency");
-
+    /// 425 Too Early
+    /// [[RFC8470, Section 5.2](https://datatracker.ietf.org/doc/html/rfc8470#section-5.2)]
+    (425, TOO_EARLY, "Too Early");
     /// 426 Upgrade Required
     /// [[RFC9110, Section 15.5.22](https://datatracker.ietf.org/doc/html/rfc9110#section-15.5.22)]
     (426, UPGRADE_REQUIRED, "Upgrade Required");
