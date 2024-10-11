@@ -287,6 +287,7 @@ fn gen_header_name(g: &mut StdRng) -> HeaderName {
         header::COOKIE,
         header::DNT,
         header::DATE,
+        header::EARLY_DATA,
         header::ETAG,
         header::EXPECT,
         header::EXPIRES,
