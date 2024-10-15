@@ -339,6 +339,57 @@ impl Uri {
         parse_full(s)
     }
 
+    /// Similar to [`from_shared`] but does not accept `{`, `}` and `"`
+    fn from_shared_strict(s: Bytes) -> Result<Uri, InvalidUri> {
+        use self::ErrorKind::*;
+
+        if s.len() > MAX_LEN {
+            return Err(TooLong.into());
+        }
+
+        match s.len() {
+            0 => {
+                return Err(Empty.into());
+            }
+            1 => match s[0] {
+                b'/' => {
+                    return Ok(Uri {
+                        scheme: Scheme::empty(),
+                        authority: Authority::empty(),
+                        path_and_query: PathAndQuery::slash(),
+                    });
+                }
+                b'*' => {
+                    return Ok(Uri {
+                        scheme: Scheme::empty(),
+                        authority: Authority::empty(),
+                        path_and_query: PathAndQuery::star(),
+                    });
+                }
+                _ => {
+                    let authority = Authority::from_shared(s)?;
+
+                    return Ok(Uri {
+                        scheme: Scheme::empty(),
+                        authority,
+                        path_and_query: PathAndQuery::empty(),
+                    });
+                }
+            },
+            _ => {}
+        }
+
+        if s[0] == b'/' {
+            return Ok(Uri {
+                scheme: Scheme::empty(),
+                authority: Authority::empty(),
+                path_and_query: PathAndQuery::from_shared_strict(s)?,
+            });
+        }
+
+        parse_full(s)
+    }
+
     /// Convert a `Uri` from a static string.
     ///
     /// This function will not perform any copying, however the string is
@@ -360,6 +411,15 @@ impl Uri {
     pub fn from_static(src: &'static str) -> Self {
         let s = Bytes::from_static(src.as_bytes());
         match Uri::from_shared(s) {
+            Ok(uri) => uri,
+            Err(e) => panic!("static str is not valid URI: {}", e),
+        }
+    }
+
+    /// Similar to [`from_static`] but marks `{` `}` and `"` as invalid.
+    pub fn from_static_strict(src: &'static str) -> Self {
+        let s = Bytes::from_static(src.as_bytes());
+        match Uri::from_shared_strict(s) {
             Ok(uri) => uri,
             Err(e) => panic!("static str is not valid URI: {}", e),
         }
