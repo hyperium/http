@@ -3,12 +3,12 @@ use std::fmt;
 use super::{ErrorKind, InvalidUri};
 
 /// The port component of a URI.
-pub struct Port<T> {
+pub struct Port {
     port: u16,
-    repr: T,
+    repr: String,
 }
 
-impl<T> Port<T> {
+impl Port {
     /// Returns the port number as a `u16`.
     ///
     /// # Examples
@@ -27,18 +27,18 @@ impl<T> Port<T> {
     }
 }
 
-impl<T> Port<T>
-where
-    T: AsRef<str>,
-{
+impl Port {
     /// Converts a `str` to a port number.
     ///
     /// The supplied `str` must be a valid u16.
-    pub(crate) fn from_str(bytes: T) -> Result<Self, InvalidUri> {
+    pub(crate) fn from_str(bytes: impl AsRef<str>) -> Result<Self, InvalidUri> {
         bytes
             .as_ref()
             .parse::<u16>()
-            .map(|port| Port { port, repr: bytes })
+            .map(|port| Port {
+                port,
+                repr: bytes.as_ref().to_string(),
+            })
             .map_err(|_| ErrorKind::InvalidPort.into())
     }
 
@@ -60,16 +60,13 @@ where
     }
 }
 
-impl<T> fmt::Debug for Port<T>
-where
-    T: fmt::Debug,
-{
+impl fmt::Debug for Port {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("Port").field(&self.port).finish()
     }
 }
 
-impl<T> fmt::Display for Port<T> {
+impl fmt::Display for Port {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Use `u16::fmt` so that it respects any formatting flags that
         // may have been set (like padding, align, etc).
@@ -77,35 +74,26 @@ impl<T> fmt::Display for Port<T> {
     }
 }
 
-impl<T> From<Port<T>> for u16 {
-    fn from(port: Port<T>) -> Self {
+impl From<Port> for u16 {
+    fn from(port: Port) -> Self {
         port.as_u16()
     }
 }
 
-impl<T> AsRef<str> for Port<T>
-where
-    T: AsRef<str>,
-{
-    fn as_ref(&self) -> &str {
-        self.as_str()
-    }
-}
-
-impl<T, U> PartialEq<Port<U>> for Port<T> {
-    fn eq(&self, other: &Port<U>) -> bool {
+impl PartialEq<Port> for Port {
+    fn eq(&self, other: &Port) -> bool {
         self.port == other.port
     }
 }
 
-impl<T> PartialEq<u16> for Port<T> {
+impl PartialEq<u16> for Port {
     fn eq(&self, other: &u16) -> bool {
         self.port == *other
     }
 }
 
-impl<T> PartialEq<Port<T>> for u16 {
-    fn eq(&self, other: &Port<T>) -> bool {
+impl PartialEq<Port> for u16 {
+    fn eq(&self, other: &Port) -> bool {
         other.port == *self
     }
 }
@@ -124,7 +112,7 @@ mod tests {
     #[test]
     fn partialeq_port_different_reprs() {
         let port_a = Port {
-            repr: "8081",
+            repr: "8081".to_string(),
             port: 8081,
         };
         let port_b = Port {
