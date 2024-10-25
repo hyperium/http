@@ -108,6 +108,9 @@ jobs:
       - name: Check
         run: cargo check --target wasm32-unknown-unknown
 
+      - name: Test WASI
+        run: cargo test --features wasi
+
   minimal-versions:
     runs-on: ubuntu-latest
     steps:

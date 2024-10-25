@@ -40,6 +40,7 @@ std = []
 bytes = "1"
 fnv = "1.0.5"
 itoa = "1"
+wasi = { version = "0.13", optional = true }
 
 [dev-dependencies]
 quickcheck = "1"

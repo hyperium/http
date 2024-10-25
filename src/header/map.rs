@@ -3872,6 +3872,41 @@ mod as_header_name {
     impl<'a> AsHeaderName for &'a String {}
 }
 
+#[cfg(feature = "wasi")]
+impl TryFrom<wasi::http::types::Fields> for HeaderMap {
+    type Error = Error;
+
+    fn try_from(fields: wasi::http::types::Fields) -> Result<Self, Self::Error> {
+        let mut headers = HeaderMap::new();
+        for (name, value) in fields.entries() {
+            let name = HeaderName::try_from(name)?;
+            let value = HeaderValue::try_from(value)?;
+            match headers.entry(name) {
+                Entry::Vacant(entry) => {
+                    entry.insert(value);
+                }
+                Entry::Occupied(mut entry) => {
+                    entry.append(value);
+                }
+            };
+        }
+        Ok(headers)
+    }
+}
+
+#[cfg(feature = "wasi")]
+impl TryFrom<HeaderMap> for wasi::http::types::Fields {
+    type Error = wasi::http::types::HeaderError;
+
+    fn try_from(headers: HeaderMap) -> Result<Self, Self::Error> {
+        let fields = wasi::http::types::Fields::new();
+        for (name, value) in &headers {
+            fields.append(&name.to_string(), &value.as_bytes().to_vec())?;
+        }
+        Ok(fields)
+    }
+}
+
 #[test]
 fn test_bounds() {
     fn check_bounds<T: Send + Send>() {}

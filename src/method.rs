@@ -419,6 +419,45 @@ mod extension {
     }
 }
 
+#[cfg(feature = "wasi")]
+impl From<Method> for wasi::http::types::Method {
+    fn from(method: Method) -> Self {
+        match method {
+            Method(Get) => Self::Get,
+            Method(Head) => Self::Head,
+            Method(Post) => Self::Post,
+            Method(Put) => Self::Put,
+            Method(Delete) => Self::Delete,
+            Method(Connect) => Self::Connect,
+            Method(Options) => Self::Options,
+            Method(Trace) => Self::Trace,
+            Method(Patch) => Self::Patch,
+            Method(ExtensionInline(inline)) => Self::Other(inline.as_str().into()),
+            Method(ExtensionAllocated(allocated)) => Self::Other(allocated.as_str().into()),
+        }
+    }
+}
+
+#[cfg(feature = "wasi")]
+impl TryFrom<wasi::http::types::Method> for Method {
+    type Error = InvalidMethod;
+
+    fn try_from(method: wasi::http::types::Method) -> Result<Self, Self::Error> {
+        match method {
+            wasi::http::types::Method::Get => Ok(Self::GET),
+            wasi::http::types::Method::Head => Ok(Self::HEAD),
+            wasi::http::types::Method::Post => Ok(Self::POST),
+            wasi::http::types::Method::Put => Ok(Self::PUT),
+            wasi::http::types::Method::Delete => Ok(Self::DELETE),
+            wasi::http::types::Method::Connect => Ok(Self::CONNECT),
+            wasi::http::types::Method::Options => Ok(Self::OPTIONS),
+            wasi::http::types::Method::Trace => Ok(Self::TRACE),
+            wasi::http::types::Method::Patch => Ok(Self::PATCH),
+            wasi::http::types::Method::Other(method) => method.parse(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -481,5 +520,19 @@ mod test {
                 "testing {c} is a valid method character"
             );
         }
+    }
+
+    #[cfg(feature = "wasi")]
+    #[test]
+    fn test_method_wasi_conv() {
+        use std::convert::TryInto;
+
+        let m: Method = wasi::http::types::Method::Get
+            .try_into()
+            .expect("failed to convert WASI method");
+        assert_eq!(m, Method::GET);
+
+        let m: wasi::http::types::Method = Method::GET.into();
+        assert!(matches!(m, wasi::http::types::Method::Get));
     }
 }

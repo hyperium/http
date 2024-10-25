@@ -335,6 +335,34 @@ impl From<Scheme2> for Scheme {
     }
 }
 
+#[cfg(feature = "wasi")]
+impl From<Scheme> for wasi::http::types::Scheme {
+    fn from(scheme: Scheme) -> Self {
+        use self::Protocol::*;
+        use self::Scheme2::*;
+
+        match scheme.inner {
+            Standard(Http) => Self::Http,
+            Standard(Https) => Self::Https,
+            Other(v) => Self::Other(v.to_string()),
+            None => unreachable!(),
+        }
+    }
+}
+
+#[cfg(feature = "wasi")]
+impl TryFrom<wasi::http::types::Scheme> for Scheme {
+    type Error = InvalidUri;
+
+    fn try_from(scheme: wasi::http::types::Scheme) -> Result<Self, Self::Error> {
+        match scheme {
+            wasi::http::types::Scheme::Http => Ok(Self::HTTP),
+            wasi::http::types::Scheme::Https => Ok(Self::HTTPS),
+            wasi::http::types::Scheme::Other(scheme) => scheme.parse(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -357,5 +385,19 @@ mod test {
 
     fn scheme(s: &str) -> Scheme {
         s.parse().expect(&format!("Invalid scheme: {}", s))
+    }
+
+    #[cfg(feature = "wasi")]
+    #[test]
+    fn wasi_conv() {
+        use std::convert::TryInto;
+
+        let s: Scheme = wasi::http::types::Scheme::Http
+            .try_into()
+            .expect("failed to convert WASI scheme");
+        assert_eq!(s, Scheme::HTTP);
+
+        let s: wasi::http::types::Scheme = Scheme::HTTP.into();
+        assert!(matches!(s, wasi::http::types::Scheme::Http));
     }
 }
