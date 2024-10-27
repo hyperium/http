@@ -6,7 +6,7 @@
 //! Notably you'll find `Uri` for what a [`Request`] is requesting, a [`Method`]
 //! for how it's being requested, a [`StatusCode`] for what sort of response came
 //! back, a [`Version`] for how this was communicated, and
-//! [`HeaderName`][header::HeaderName]/[`HeaderValue`][header::HeaderName] definitions to get grouped in a [`HeaderMap`] to
+//! [`HeaderName`]/[`HeaderValue`] definitions to get grouped in a [`HeaderMap`] to
 //! work with request/response headers.
 //!
 //! You will notably *not* find an implementation of sending requests or
@@ -87,10 +87,10 @@
 //! Accept: text/html
 //! ```
 //!
-//! Then `"Accept"` is a [`HeaderName`][header::HeaderName] while `"text/html"` is a [`HeaderValue`][header::HeaderValue].
+//! Then `"Accept"` is a [`HeaderName`] while `"text/html"` is a [`HeaderValue`].
 //! Each of these is a dedicated type to allow for a number of interesting
 //! optimizations and to also encode the static guarantees of each type. For
-//! example a [`HeaderName`][header::HeaderName] is always a valid `&str`, but a [`HeaderValue`] may
+//! example a [`HeaderName`] is always a valid `&str`, but a [`HeaderValue`] may
 //! not be valid UTF-8.
 //!
 //! The most common header names are already defined for you as constant values
@@ -134,7 +134,7 @@
 //! Most HTTP requests and responses tend to come with more than one header, so
 //! it's not too useful to just work with names and values only! This crate also
 //! provides a [`HeaderMap`] type which is a specialized hash map for keys as
-//! [`HeaderName`][header::HeaderName] and generic values. This type, like header names, is optimized
+//! [`HeaderName`] and generic values. This type, like header names, is optimized
 //! for common usage but should continue to scale with your needs over time.
 //!
 //! # URIs
