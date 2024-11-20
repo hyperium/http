@@ -465,7 +465,7 @@ status_codes! {
 
     /// 425 Too early
     /// [[RFC8470, Section 5.2](https://httpwg.org/specs/rfc8470.html#status)]
-    (425, TOO_EARLY, "Too early");
+    (425, TOO_EARLY, "Too Early");
 
     /// 426 Upgrade Required
     /// [[RFC9110, Section 15.5.22](https://datatracker.ietf.org/doc/html/rfc9110#section-15.5.22)]
