@@ -12,10 +12,7 @@
 //! You will notably *not* find an implementation of sending requests or
 //! spinning up a server in this crate. It's intended that this crate is the
 //! "standard library" for HTTP clients and servers without dictating any
-//! particular implementation. Note that this crate is still early on in its
-//! lifecycle so the support libraries that integrate with the `http` crate are
-//! a work in progress! Stay tuned and we'll be sure to highlight crates here
-//! in the future.
+//! particular implementation.
 //!
 //! ## Requests and Responses
 //!
