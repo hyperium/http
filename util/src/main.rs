@@ -68,7 +68,7 @@ standard_headers! {
     /// not to compress if a server use more than 80 % of its computational
     /// power.
     ///
-    /// As long as the identity value, meaning no encryption, is not explicitly
+    /// As long as the identity value, meaning no compression, is not explicitly
     /// forbidden, by an identity;q=0 or a *;q=0 without another explicitly set
     /// value for identity, the server must never send back a 406 Not Acceptable
     /// error.
