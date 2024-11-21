@@ -1,7 +1,10 @@
-use std::convert::{TryFrom, TryInto};
+use std::{
+    convert::{TryFrom, TryInto},
+    fmt::Write,
+};
 
-use super::{Authority, Parts, PathAndQuery, Scheme};
-use crate::Uri;
+use super::{Authority, ErrorKind, InvalidUriParts, Parts, PathAndQuery, Scheme};
+use crate::{byte_str::ByteStr, Uri};
 
 /// A builder for `Uri`s.
 ///
@@ -74,6 +77,34 @@ impl Builder {
         self.map(move |mut parts| {
             let auth = auth.try_into().map_err(Into::into)?;
             parts.authority = Some(auth);
+            Ok(parts)
+        })
+    }
+
+    /// Set the port number for URI, will be part of `Authority`
+    pub fn port<P>(self, port: P) -> Self
+    where
+        P: Into<u16>,
+    {
+        let port: u16 = port.into();
+        self.map(move |mut parts| {
+            let prev_auth = match parts.authority.as_ref() {
+                Some(auth) => {
+                    if auth.port().is_some() {
+                        return Err(InvalidUriParts::from(ErrorKind::InvalidPort).into());
+                    }
+
+                    auth.as_str()
+                }
+                None => "",
+            };
+            // 1 for ':', 5 for port number digists
+            let mut auth = String::with_capacity(prev_auth.len() + 6);
+            auth.push_str(prev_auth);
+            auth.push(':');
+            write!(&mut auth, "{}", port).expect("write to String failed");
+            let data: ByteStr = auth.into();
+            parts.authority = Some(Authority { data });
             Ok(parts)
         })
     }
