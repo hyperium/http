@@ -2020,7 +2020,7 @@ impl<T> FromIterator<(HeaderName, T)> for HeaderMap<T> {
 /// let headers: HeaderMap = (&map).try_into().expect("valid headers");
 /// assert_eq!(headers["X-Custom-Header"], "my value");
 /// ```
-impl<'a, K, V, T> TryFrom<&'a HashMap<K, V>> for HeaderMap<T>
+impl<'a, K, V, S, T> TryFrom<&'a HashMap<K, V, S>> for HeaderMap<T>
 where
     K: Eq + Hash,
     HeaderName: TryFrom<&'a K>,
@@ -2030,7 +2030,7 @@ where
 {
     type Error = Error;
 
-    fn try_from(c: &'a HashMap<K, V>) -> Result<Self, Self::Error> {
+    fn try_from(c: &'a HashMap<K, V, S>) -> Result<Self, Self::Error> {
         c.iter()
             .map(|(k, v)| -> crate::Result<(HeaderName, T)> {
                 let name = TryFrom::try_from(k).map_err(Into::into)?;
