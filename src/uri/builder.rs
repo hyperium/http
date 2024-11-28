@@ -44,8 +44,8 @@ impl Builder {
     /// ```
     pub fn scheme<T>(self, scheme: T) -> Self
     where
-	T: TryInto<Scheme>,
-	<T as TryInto<Scheme>>::Error: Into<crate::Error>,
+        T: TryInto<Scheme>,
+        <T as TryInto<Scheme>>::Error: Into<crate::Error>,
     {
         self.map(move |mut parts| {
             let scheme = scheme.try_into().map_err(Into::into)?;
@@ -68,7 +68,7 @@ impl Builder {
     /// ```
     pub fn authority<T>(self, auth: T) -> Self
     where
-	T: TryInto<Authority>,
+        T: TryInto<Authority>,
         <T as TryInto<Authority>>::Error: Into<crate::Error>,
     {
         self.map(move |mut parts| {
@@ -92,7 +92,7 @@ impl Builder {
     /// ```
     pub fn path_and_query<T>(self, p_and_q: T) -> Self
     where
-	T: TryInto<PathAndQuery>,
+        T: TryInto<PathAndQuery>,
         <T as TryInto<PathAndQuery>>::Error: Into<crate::Error>,
     {
         self.map(move |mut parts| {

@@ -68,7 +68,7 @@ use std::fmt;
 use crate::header::{HeaderMap, HeaderName, HeaderValue};
 use crate::status::StatusCode;
 use crate::version::Version;
-use crate::{ Extensions, Result};
+use crate::{Extensions, Result};
 
 /// Represents an HTTP response
 ///
@@ -559,8 +559,8 @@ impl Builder {
     /// ```
     pub fn status<T>(self, status: T) -> Builder
     where
-	T: TryInto<StatusCode>,
-	<T as TryInto<StatusCode>>::Error: Into<crate::Error>,
+        T: TryInto<StatusCode>,
+        <T as TryInto<StatusCode>>::Error: Into<crate::Error>,
     {
         self.and_then(move |mut head| {
             head.status = status.try_into().map_err(Into::into)?;
@@ -610,10 +610,10 @@ impl Builder {
     /// ```
     pub fn header<K, V>(self, key: K, value: V) -> Builder
     where
-	K: TryInto<HeaderName>,
-	<K as TryInto<HeaderName>>::Error: Into<crate::Error>,
-	V: TryInto<HeaderValue>,
-	<V as TryInto<HeaderValue>>::Error: Into<crate::Error>,
+        K: TryInto<HeaderName>,
+        <K as TryInto<HeaderName>>::Error: Into<crate::Error>,
+        V: TryInto<HeaderValue>,
+        <V as TryInto<HeaderValue>>::Error: Into<crate::Error>,
     {
         self.and_then(move |mut head| {
             let name = key.try_into().map_err(Into::into)?;
