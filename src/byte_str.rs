@@ -35,7 +35,7 @@ impl ByteStr {
     /// behavior to call this with `bytes` that is not valid UTF-8.
     pub unsafe fn from_utf8_unchecked(bytes: Bytes) -> ByteStr {
         if cfg!(debug_assertions) {
-            match str::from_utf8(&bytes) {
+            match core::str::from_utf8(&bytes) {
                 Ok(_) => (),
                 Err(err) => panic!(
                     "ByteStr::from_utf8_unchecked() with invalid bytes; error = {}, bytes = {:?}",
@@ -55,7 +55,7 @@ impl ops::Deref for ByteStr {
     fn deref(&self) -> &str {
         let b: &[u8] = self.bytes.as_ref();
         // Safety: the invariant of `bytes` is that it contains valid UTF-8.
-        unsafe { str::from_utf8_unchecked(b) }
+        unsafe { core::str::from_utf8_unchecked(b) }
     }
 }
 

@@ -2,7 +2,7 @@ use core::convert::TryFrom;
 use core::iter::{FromIterator, FusedIterator};
 use core::marker::PhantomData;
 use core::{fmt, mem, ops, ptr, slice};
-use core::hash::Hash;
+use core::hash::{Hash, Hasher};
 
 use alloc::boxed::Box;
 use alloc::vec;

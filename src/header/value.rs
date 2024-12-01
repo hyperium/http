@@ -275,7 +275,7 @@ impl HeaderValue {
             }
         }
 
-        unsafe { Ok(str::from_utf8_unchecked(bytes)) }
+        unsafe { Ok(core::str::from_utf8_unchecked(bytes)) }
     }
 
     /// Returns the length of `self`.
@@ -394,7 +394,7 @@ impl fmt::Debug for HeaderValue {
             for (i, &b) in bytes.iter().enumerate() {
                 if !is_visible_ascii(b) || b == b'"' {
                     if from != i {
-                        f.write_str(unsafe { str::from_utf8_unchecked(&bytes[from..i]) })?;
+                        f.write_str(unsafe { core::str::from_utf8_unchecked(&bytes[from..i]) })?;
                     }
                     if b == b'"' {
                         f.write_str("\\\"")?;
@@ -405,7 +405,7 @@ impl fmt::Debug for HeaderValue {
                 }
             }
 
-            f.write_str(unsafe { str::from_utf8_unchecked(&bytes[from..]) })?;
+            f.write_str(unsafe { core::str::from_utf8_unchecked(&bytes[from..]) })?;
             f.write_str("\"")
         }
     }
@@ -425,6 +425,8 @@ macro_rules! from_integers {
     ($($name:ident: $t:ident => $max_len:expr),*) => {$(
         impl From<$t> for HeaderValue {
             fn from(num: $t) -> HeaderValue {
+                use core::fmt::Write;
+
                 let mut buf = if mem::size_of::<BytesMut>() - 1 < $max_len {
                     // On 32bit platforms, BytesMut max inline size
                     // is 15 bytes, but the $max_len could be bigger.
@@ -456,6 +458,8 @@ macro_rules! from_integers {
 
         #[test]
         fn $name() {
+            use alloc::string::ToString;
+
             let n: $t = 55;
             let val = HeaderValue::from(n);
             assert_eq!(val, &n.to_string());

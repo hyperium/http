@@ -1,4 +1,6 @@
-use alloc::string::String;
+use core::str::FromStr;
+
+use alloc::string::{String, ToString};
 
 use super::{ErrorKind, InvalidUri, Port, Uri, URI_CHARS};
 

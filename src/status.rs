@@ -16,6 +16,8 @@
 
 use core::{convert::TryFrom, fmt, num::NonZeroU16, str::FromStr};
 
+use alloc::borrow::ToOwned;
+
 /// An HTTP status code (`status-code` in RFC 9110 et al.).
 ///
 /// Constants are provided for known status codes, including those in the IANA
