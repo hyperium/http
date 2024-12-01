@@ -1,7 +1,3 @@
-use std::error;
-use std::fmt;
-use std::result;
-
 use crate::header;
 use crate::header::MaxSizeReached;
 use crate::method;

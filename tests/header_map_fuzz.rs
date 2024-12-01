@@ -6,8 +6,6 @@ use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
 use rand::{Rng, SeedableRng};
 
-use std::collections::HashMap;
-
 #[cfg(not(miri))]
 #[test]
 fn header_map_fuzz() {

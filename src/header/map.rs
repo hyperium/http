@@ -1,11 +1,3 @@
-use std::collections::hash_map::RandomState;
-use std::collections::HashMap;
-use std::convert::TryFrom;
-use std::hash::{BuildHasher, Hash, Hasher};
-use std::iter::{FromIterator, FusedIterator};
-use std::marker::PhantomData;
-use std::{fmt, mem, ops, ptr, vec};
-
 use crate::Error;
 
 use super::name::{HdrName, HeaderName, InvalidHeaderName};

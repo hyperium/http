@@ -33,7 +33,7 @@ exclude = [
 ]
 
 [features]
-default = ["std"]
+default = []
 std = []
 
 [dependencies]

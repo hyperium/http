@@ -1,5 +1,3 @@
-use std::convert::TryInto;
-
 use super::{Authority, Parts, PathAndQuery, Scheme};
 use crate::Uri;
 

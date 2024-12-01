@@ -1,5 +1,3 @@
-use std::fmt;
-
 use super::{ErrorKind, InvalidUri};
 
 /// The port component of a URI.

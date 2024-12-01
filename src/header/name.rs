@@ -1,14 +1,6 @@
 use crate::byte_str::ByteStr;
 use bytes::{Bytes, BytesMut};
 
-use std::borrow::Borrow;
-use std::convert::TryFrom;
-use std::error::Error;
-use std::fmt;
-use std::hash::{Hash, Hasher};
-use std::mem::MaybeUninit;
-use std::str::FromStr;
-
 /// Represents an HTTP header field name
 ///
 /// Header field names identify the header. Header sets may include multiple

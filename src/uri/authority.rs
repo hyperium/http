@@ -1,8 +1,3 @@
-use std::convert::TryFrom;
-use std::hash::{Hash, Hasher};
-use std::str::FromStr;
-use std::{cmp, fmt, str};
-
 use bytes::Bytes;
 
 use super::{ErrorKind, InvalidUri, Port, URI_CHARS};

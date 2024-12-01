@@ -61,10 +61,6 @@
 //! // ...
 //! ```
 
-use std::any::Any;
-use std::convert::TryInto;
-use std::fmt;
-
 use crate::header::{HeaderMap, HeaderName, HeaderValue};
 use crate::status::StatusCode;
 use crate::version::Version;

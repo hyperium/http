@@ -6,7 +6,7 @@ macro_rules! bench {
             use fnv::FnvHasher;
             use http::header::*;
             use seahash::SeaHasher;
-            use std::hash::BuildHasherDefault;
+
             #[allow(unused_imports)]
             use test::{self, Bencher};
 
