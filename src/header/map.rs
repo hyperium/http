@@ -319,7 +319,7 @@ enum Link {
 enum Danger {
     Green,
     Yellow,
-    Red(RandomState), // TODO: no_std?
+    Red, // TODO: no_std?
 }
 
 // Constants related to detecting DOS attacks.
@@ -3529,12 +3529,12 @@ impl Pos {
 
 impl Danger {
     fn is_red(&self) -> bool {
-        matches!(*self, Danger::Red(_))
+        matches!(*self, Danger::Red)
     }
 
     fn set_red(&mut self) {
         debug_assert!(self.is_yellow());
-        *self = Danger::Red(RandomState::new());
+        *self = Danger::Red;
     }
 
     fn is_yellow(&self) -> bool {
@@ -3616,12 +3616,6 @@ where
     const MASK: u64 = (MAX_SIZE as u64) - 1;
 
     let hash = match *danger {
-        // Safe hash
-        Danger::Red(ref hasher) => {
-            let mut h = hasher.build_hasher();
-            k.hash(&mut h);
-            h.finish()
-        }
         // Fast hash
         _ => {
             let mut h = FnvHasher::default();

@@ -1,3 +1,4 @@
+use hashbrown::HashMap;
 use http::header::*;
 use http::*;
 
