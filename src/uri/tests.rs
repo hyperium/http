@@ -1,4 +1,6 @@
-use std::str::FromStr;
+use core::str::FromStr;
+
+use alloc::string::{String, ToString};
 
 use super::{ErrorKind, InvalidUri, Port, Uri, URI_CHARS};
 
@@ -442,9 +444,9 @@ fn test_uri_parse_error() {
 
 #[test]
 fn test_max_uri_len() {
-    let mut uri = vec![];
+    let mut uri = alloc::vec![];
     uri.extend(b"http://localhost/");
-    uri.extend(vec![b'a'; 70 * 1024]);
+    uri.extend(alloc::vec![b'a'; 70 * 1024]);
 
     let uri = String::from_utf8(uri).unwrap();
     let res: Result<Uri, InvalidUri> = uri.parse();
@@ -454,8 +456,8 @@ fn test_max_uri_len() {
 
 #[test]
 fn test_overflowing_scheme() {
-    let mut uri = vec![];
-    uri.extend(vec![b'a'; 256]);
+    let mut uri = alloc::vec![];
+    uri.extend(alloc::vec![b'a'; 256]);
     uri.extend(b"://localhost/");
 
     let uri = String::from_utf8(uri).unwrap();
@@ -466,8 +468,8 @@ fn test_overflowing_scheme() {
 
 #[test]
 fn test_max_length_scheme() {
-    let mut uri = vec![];
-    uri.extend(vec![b'a'; 64]);
+    let mut uri = alloc::vec![];
+    uri.extend(alloc::vec![b'a'; 64]);
     uri.extend(b"://localhost/");
 
     let uri = String::from_utf8(uri).unwrap();
@@ -478,7 +480,7 @@ fn test_max_length_scheme() {
 
 #[test]
 fn test_uri_to_path_and_query() {
-    let cases = vec![
+    let cases = alloc::vec![
         ("/", "/"),
         ("/foo?bar", "/foo?bar"),
         ("/foo?bar#nope", "/foo?bar"),

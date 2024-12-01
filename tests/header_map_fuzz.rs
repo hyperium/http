@@ -1,3 +1,4 @@
+use hashbrown::HashMap;
 use http::header::*;
 use http::*;
 
@@ -5,8 +6,6 @@ use quickcheck::{Arbitrary, Gen, QuickCheck, TestResult};
 use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
 use rand::{Rng, SeedableRng};
-
-use std::collections::HashMap;
 
 #[cfg(not(miri))]
 #[test]

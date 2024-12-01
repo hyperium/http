@@ -22,15 +22,17 @@
 //! assert_eq!(uri.path(), "/install.html");
 //! ```
 
+use core::convert::TryFrom;
+use core::fmt;
+use core::str::FromStr;
+use core::hash::{Hash, Hasher};
+
 use crate::byte_str::ByteStr;
-use std::convert::TryFrom;
 
+use alloc::boxed::Box;
+use alloc::string::String;
+use alloc::vec::Vec;
 use bytes::Bytes;
-
-use std::error::Error;
-use std::fmt;
-use std::hash::{Hash, Hasher};
-use std::str::{self, FromStr};
 
 use self::scheme::Scheme2;
 
@@ -1083,7 +1085,8 @@ impl fmt::Display for InvalidUri {
     }
 }
 
-impl Error for InvalidUri {}
+#[cfg(feature = "std")]
+impl std::error::Error for InvalidUri {}
 
 impl fmt::Display for InvalidUriParts {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1091,7 +1094,8 @@ impl fmt::Display for InvalidUriParts {
     }
 }
 
-impl Error for InvalidUriParts {}
+#[cfg(feature = "std")]
+impl std::error::Error for InvalidUriParts {}
 
 impl Hash for Uri {
     fn hash<H>(&self, state: &mut H)

@@ -1,8 +1,7 @@
-use std::convert::TryFrom;
-use std::fmt;
-use std::hash::{Hash, Hasher};
-use std::str::FromStr;
+use core::{convert::TryFrom, fmt, str::FromStr};
+use core::hash::{Hash, Hasher};
 
+use alloc::boxed::Box;
 use bytes::Bytes;
 
 use super::{ErrorKind, InvalidUri};
@@ -356,6 +355,6 @@ mod test {
     }
 
     fn scheme(s: &str) -> Scheme {
-        s.parse().expect(&format!("Invalid scheme: {}", s))
+        s.parse().expect(&alloc::format!("Invalid scheme: {}", s))
     }
 }

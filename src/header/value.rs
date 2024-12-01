@@ -1,11 +1,12 @@
-use bytes::{Bytes, BytesMut};
+use core::convert::TryFrom;
+use core::{cmp, fmt};
+use core::hash::{Hash, Hasher};
+use core::mem;
+use core::str::FromStr;
 
-use std::convert::TryFrom;
-use std::error::Error;
-use std::fmt::Write;
-use std::hash::{Hash, Hasher};
-use std::str::FromStr;
-use std::{cmp, fmt, mem, str};
+use alloc::string::String;
+use alloc::vec::Vec;
+use bytes::{Bytes, BytesMut};
 
 use crate::header::name::HeaderName;
 
@@ -234,7 +235,7 @@ impl HeaderValue {
     }
 
     fn from_shared(src: Bytes) -> Result<HeaderValue, InvalidHeaderValue> {
-        HeaderValue::try_from_generic(src, std::convert::identity)
+        HeaderValue::try_from_generic(src, core::convert::identity)
     }
 
     fn try_from_generic<T: AsRef<[u8]>, F: FnOnce(T) -> Bytes>(
@@ -274,7 +275,7 @@ impl HeaderValue {
             }
         }
 
-        unsafe { Ok(str::from_utf8_unchecked(bytes)) }
+        unsafe { Ok(core::str::from_utf8_unchecked(bytes)) }
     }
 
     /// Returns the length of `self`.
@@ -393,7 +394,7 @@ impl fmt::Debug for HeaderValue {
             for (i, &b) in bytes.iter().enumerate() {
                 if !is_visible_ascii(b) || b == b'"' {
                     if from != i {
-                        f.write_str(unsafe { str::from_utf8_unchecked(&bytes[from..i]) })?;
+                        f.write_str(unsafe { core::str::from_utf8_unchecked(&bytes[from..i]) })?;
                     }
                     if b == b'"' {
                         f.write_str("\\\"")?;
@@ -404,7 +405,7 @@ impl fmt::Debug for HeaderValue {
                 }
             }
 
-            f.write_str(unsafe { str::from_utf8_unchecked(&bytes[from..]) })?;
+            f.write_str(unsafe { core::str::from_utf8_unchecked(&bytes[from..]) })?;
             f.write_str("\"")
         }
     }
@@ -424,6 +425,8 @@ macro_rules! from_integers {
     ($($name:ident: $t:ident => $max_len:expr),*) => {$(
         impl From<$t> for HeaderValue {
             fn from(num: $t) -> HeaderValue {
+                use core::fmt::Write;
+
                 let mut buf = if mem::size_of::<BytesMut>() - 1 < $max_len {
                     // On 32bit platforms, BytesMut max inline size
                     // is 15 bytes, but the $max_len could be bigger.
@@ -455,11 +458,13 @@ macro_rules! from_integers {
 
         #[test]
         fn $name() {
+            use alloc::string::ToString;
+
             let n: $t = 55;
             let val = HeaderValue::from(n);
             assert_eq!(val, &n.to_string());
 
-            let n = ::std::$t::MAX;
+            let n = ::core::primitive::$t::MAX;
             let val = HeaderValue::from(n);
             assert_eq!(val, &n.to_string());
         }
@@ -620,7 +625,8 @@ impl fmt::Display for InvalidHeaderValue {
     }
 }
 
-impl Error for InvalidHeaderValue {}
+#[cfg(feature = "std")]
+impl std::error::Error for InvalidHeaderValue {}
 
 impl fmt::Display for ToStrError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -628,7 +634,8 @@ impl fmt::Display for ToStrError {
     }
 }
 
-impl Error for ToStrError {}
+#[cfg(feature = "std")]
+impl std::error::Error for ToStrError {}
 
 // ===== PartialEq / PartialOrd =====
 
@@ -795,7 +802,7 @@ impl<'a> PartialOrd<HeaderValue> for &'a str {
 
 #[test]
 fn test_try_from() {
-    HeaderValue::try_from(vec![127]).unwrap_err();
+    HeaderValue::try_from(alloc::vec![127]).unwrap_err();
 }
 
 #[test]
@@ -808,11 +815,11 @@ fn test_debug() {
 
     for &(value, expected) in cases {
         let val = HeaderValue::from_bytes(value.as_bytes()).unwrap();
-        let actual = format!("{:?}", val);
+        let actual = alloc::format!("{:?}", val);
         assert_eq!(expected, actual);
     }
 
     let mut sensitive = HeaderValue::from_static("password");
     sensitive.set_sensitive(true);
-    assert_eq!("Sensitive", format!("{:?}", sensitive));
+    assert_eq!("Sensitive", alloc::format!("{:?}", sensitive));
 }

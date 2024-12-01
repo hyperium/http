@@ -1,10 +1,13 @@
-use std::collections::hash_map::RandomState;
-use std::collections::HashMap;
-use std::convert::TryFrom;
-use std::hash::{BuildHasher, Hash, Hasher};
-use std::iter::{FromIterator, FusedIterator};
-use std::marker::PhantomData;
-use std::{fmt, mem, ops, ptr, vec};
+use core::convert::TryFrom;
+use core::iter::{FromIterator, FusedIterator};
+use core::marker::PhantomData;
+use core::{fmt, mem, ops, ptr, slice};
+use core::hash::{Hash, Hasher};
+
+use alloc::boxed::Box;
+use alloc::vec;
+use alloc::vec::Vec;
+use hashbrown::HashMap;
 
 use crate::Error;
 
@@ -116,7 +119,7 @@ pub struct IntoIter<T> {
 /// associated value.
 #[derive(Debug)]
 pub struct Keys<'a, T> {
-    inner: ::std::slice::Iter<'a, Bucket<T>>,
+    inner: slice::Iter<'a, Bucket<T>>,
 }
 
 /// `HeaderMap` value iterator.
@@ -209,7 +212,7 @@ pub struct ValueIterMut<'a, T> {
 #[derive(Debug)]
 pub struct ValueDrain<'a, T> {
     first: Option<T>,
-    next: Option<::std::vec::IntoIter<T>>,
+    next: Option<vec::IntoIter<T>>,
     lt: PhantomData<&'a mut HeaderMap<T>>,
 }
 
@@ -316,7 +319,7 @@ enum Link {
 enum Danger {
     Green,
     Yellow,
-    Red(RandomState),
+    Red, // TODO: no_std?
 }
 
 // Constants related to detecting DOS attacks.
@@ -520,7 +523,7 @@ impl<T> HeaderMap<T> {
 
             Ok(HeaderMap {
                 mask: (raw_cap - 1) as Size,
-                indices: vec![Pos::none(); raw_cap].into_boxed_slice(),
+                indices: alloc::vec![Pos::none(); raw_cap].into_boxed_slice(),
                 entries: Vec::with_capacity(raw_cap),
                 extra_values: Vec::new(),
                 danger: Danger::Green,
@@ -3526,12 +3529,12 @@ impl Pos {
 
 impl Danger {
     fn is_red(&self) -> bool {
-        matches!(*self, Danger::Red(_))
+        matches!(*self, Danger::Red)
     }
 
     fn set_red(&mut self) {
         debug_assert!(self.is_yellow());
-        *self = Danger::Red(RandomState::new());
+        *self = Danger::Red;
     }
 
     fn is_yellow(&self) -> bool {
@@ -3572,6 +3575,7 @@ impl fmt::Display for MaxSizeReached {
     }
 }
 
+#[cfg(feature = "std")]
 impl std::error::Error for MaxSizeReached {}
 
 // ===== impl Utils =====
@@ -3612,12 +3616,6 @@ where
     const MASK: u64 = (MAX_SIZE as u64) - 1;
 
     let hash = match *danger {
-        // Safe hash
-        Danger::Red(ref hasher) => {
-            let mut h = hasher.build_hasher();
-            k.hash(&mut h);
-            h.finish()
-        }
         // Fast hash
         _ => {
             let mut h = FnvHasher::default();
@@ -3733,6 +3731,8 @@ mod into_header_name {
 }
 
 mod as_header_name {
+    use alloc::string::String;
+
     use super::{Entry, HdrName, HeaderMap, HeaderName, InvalidHeaderName, MaxSizeReached};
 
     /// A marker trait used to identify values that can be used as search keys

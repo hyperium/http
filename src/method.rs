@@ -15,13 +15,12 @@
 //! assert_eq!(Method::POST.as_str(), "POST");
 //! ```
 
+use core::convert::TryFrom;
+use core::fmt;
+use core::str::FromStr;
+
 use self::extension::{AllocatedExtension, InlineExtension};
 use self::Inner::*;
-
-use std::convert::TryFrom;
-use std::error::Error;
-use std::str::FromStr;
-use std::{fmt, str};
 
 /// The Request Method (VERB)
 ///
@@ -302,11 +301,13 @@ impl fmt::Display for InvalidMethod {
     }
 }
 
-impl Error for InvalidMethod {}
+#[cfg(feature = "std")]
+impl std::error::Error for InvalidMethod {}
 
 mod extension {
+    use alloc::{boxed::Box, vec::Vec};
+
     use super::InvalidMethod;
-    use std::str;
 
     #[derive(Clone, PartialEq, Eq, Hash)]
     // Invariant: the first self.1 bytes of self.0 are valid UTF-8.
@@ -334,13 +335,13 @@ mod extension {
             let InlineExtension(ref data, len) = self;
             // Safety: the invariant of InlineExtension ensures that the first
             // len bytes of data contain valid UTF-8.
-            unsafe { str::from_utf8_unchecked(&data[..*len as usize]) }
+            unsafe { core::str::from_utf8_unchecked(&data[..*len as usize]) }
         }
     }
 
     impl AllocatedExtension {
         pub fn new(src: &[u8]) -> Result<AllocatedExtension, InvalidMethod> {
-            let mut data: Vec<u8> = vec![0; src.len()];
+            let mut data: Vec<u8> = alloc::vec![0; src.len()];
 
             write_checked(src, &mut data)?;
 
@@ -352,7 +353,7 @@ mod extension {
         pub fn as_str(&self) -> &str {
             // Safety: the invariant of AllocatedExtension ensures that self.0
             // contains valid UTF-8.
-            unsafe { str::from_utf8_unchecked(&self.0) }
+            unsafe { core::str::from_utf8_unchecked(&self.0) }
         }
     }
 
@@ -421,6 +422,8 @@ mod extension {
 
 #[cfg(test)]
 mod test {
+    use alloc::string::ToString;
+
     use super::*;
 
     #[test]

@@ -1,7 +1,6 @@
-use std::convert::TryFrom;
-use std::str::FromStr;
-use std::{cmp, fmt, hash, str};
+use core::{cmp, convert::TryFrom, fmt, hash::{Hash, Hasher}, str::FromStr};
 
+use alloc::{string::String, vec::Vec};
 use bytes::Bytes;
 
 use super::{ErrorKind, InvalidUri};
@@ -345,8 +344,8 @@ impl fmt::Display for PathAndQuery {
     }
 }
 
-impl hash::Hash for PathAndQuery {
-    fn hash<H: hash::Hasher>(&self, state: &mut H) {
+impl Hash for PathAndQuery {
+    fn hash<H: Hasher>(&self, state: &mut H) {
         self.data.hash(state);
     }
 }
@@ -455,6 +454,8 @@ impl PartialOrd<PathAndQuery> for String {
 
 #[cfg(test)]
 mod tests {
+    use alloc::string::ToString;
+
     use super::*;
 
     #[test]
@@ -565,6 +566,6 @@ mod tests {
     }
 
     fn pq(s: &str) -> PathAndQuery {
-        s.parse().expect(&format!("parsing {}", s))
+        s.parse().expect(&alloc::format!("parsing {}", s))
     }
 }
