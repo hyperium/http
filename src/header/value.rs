@@ -1,3 +1,11 @@
+use core::convert::TryFrom;
+use core::{cmp, fmt};
+use core::hash::{Hash, Hasher};
+use core::mem;
+use core::str::FromStr;
+
+use alloc::string::String;
+use alloc::vec::Vec;
 use bytes::{Bytes, BytesMut};
 
 use crate::header::name::HeaderName;
@@ -227,7 +235,7 @@ impl HeaderValue {
     }
 
     fn from_shared(src: Bytes) -> Result<HeaderValue, InvalidHeaderValue> {
-        HeaderValue::try_from_generic(src, std::convert::identity)
+        HeaderValue::try_from_generic(src, core::convert::identity)
     }
 
     fn try_from_generic<T: AsRef<[u8]>, F: FnOnce(T) -> Bytes>(
@@ -452,7 +460,7 @@ macro_rules! from_integers {
             let val = HeaderValue::from(n);
             assert_eq!(val, &n.to_string());
 
-            let n = ::std::$t::MAX;
+            let n = ::core::primitive::$t::MAX;
             let val = HeaderValue::from(n);
             assert_eq!(val, &n.to_string());
         }
@@ -613,7 +621,8 @@ impl fmt::Display for InvalidHeaderValue {
     }
 }
 
-impl Error for InvalidHeaderValue {}
+#[cfg(feature = "std")]
+impl std::error::Error for InvalidHeaderValue {}
 
 impl fmt::Display for ToStrError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -621,7 +630,8 @@ impl fmt::Display for ToStrError {
     }
 }
 
-impl Error for ToStrError {}
+#[cfg(feature = "std")]
+impl std::error::Error for ToStrError {}
 
 // ===== PartialEq / PartialOrd =====
 
@@ -788,7 +798,7 @@ impl<'a> PartialOrd<HeaderValue> for &'a str {
 
 #[test]
 fn test_try_from() {
-    HeaderValue::try_from(vec![127]).unwrap_err();
+    HeaderValue::try_from(alloc::vec![127]).unwrap_err();
 }
 
 #[test]
@@ -801,11 +811,11 @@ fn test_debug() {
 
     for &(value, expected) in cases {
         let val = HeaderValue::from_bytes(value.as_bytes()).unwrap();
-        let actual = format!("{:?}", val);
+        let actual = alloc::format!("{:?}", val);
         assert_eq!(expected, actual);
     }
 
     let mut sensitive = HeaderValue::from_static("password");
     sensitive.set_sensitive(true);
-    assert_eq!("Sensitive", format!("{:?}", sensitive));
+    assert_eq!("Sensitive", alloc::format!("{:?}", sensitive));
 }

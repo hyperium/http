@@ -1,3 +1,14 @@
+use core::convert::TryFrom;
+use core::iter::{FromIterator, FusedIterator};
+use core::marker::PhantomData;
+use core::{fmt, mem, ops, ptr, slice};
+use core::hash::Hash;
+
+use alloc::boxed::Box;
+use alloc::vec;
+use alloc::vec::Vec;
+use hashbrown::HashMap;
+
 use crate::Error;
 
 use super::name::{HdrName, HeaderName, InvalidHeaderName};
@@ -108,7 +119,7 @@ pub struct IntoIter<T> {
 /// associated value.
 #[derive(Debug)]
 pub struct Keys<'a, T> {
-    inner: ::std::slice::Iter<'a, Bucket<T>>,
+    inner: slice::Iter<'a, Bucket<T>>,
 }
 
 /// `HeaderMap` value iterator.
@@ -201,7 +212,7 @@ pub struct ValueIterMut<'a, T> {
 #[derive(Debug)]
 pub struct ValueDrain<'a, T> {
     first: Option<T>,
-    next: Option<::std::vec::IntoIter<T>>,
+    next: Option<vec::IntoIter<T>>,
     lt: PhantomData<&'a mut HeaderMap<T>>,
 }
 
@@ -308,7 +319,7 @@ enum Link {
 enum Danger {
     Green,
     Yellow,
-    Red(RandomState),
+    Red(RandomState), // TODO: no_std?
 }
 
 // Constants related to detecting DOS attacks.
@@ -512,7 +523,7 @@ impl<T> HeaderMap<T> {
 
             Ok(HeaderMap {
                 mask: (raw_cap - 1) as Size,
-                indices: vec![Pos::none(); raw_cap].into_boxed_slice(),
+                indices: alloc::vec![Pos::none(); raw_cap].into_boxed_slice(),
                 entries: Vec::with_capacity(raw_cap),
                 extra_values: Vec::new(),
                 danger: Danger::Green,
@@ -3564,6 +3575,7 @@ impl fmt::Display for MaxSizeReached {
     }
 }
 
+#[cfg(feature = "std")]
 impl std::error::Error for MaxSizeReached {}
 
 // ===== impl Utils =====
@@ -3725,6 +3737,8 @@ mod into_header_name {
 }
 
 mod as_header_name {
+    use alloc::string::String;
+
     use super::{Entry, HdrName, HeaderMap, HeaderName, InvalidHeaderName, MaxSizeReached};
 
     /// A marker trait used to identify values that can be used as search keys

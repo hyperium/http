@@ -19,6 +19,8 @@
 //! println!("{:?}", http2);
 //! ```
 
+use core::fmt;
+
 /// Represents a version of the HTTP spec.
 #[derive(PartialEq, PartialOrd, Copy, Clone, Eq, Ord, Hash)]
 pub struct Version(Http);

@@ -1,3 +1,5 @@
+use core::fmt;
+
 use super::{ErrorKind, InvalidUri};
 
 /// The port component of a URI.
@@ -110,6 +112,8 @@ impl<T> PartialEq<Port<T>> for u16 {
 
 #[cfg(test)]
 mod tests {
+    use alloc::string::String;
+
     use super::*;
 
     #[test]

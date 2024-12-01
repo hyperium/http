@@ -39,6 +39,7 @@ std = []
 [dependencies]
 bytes = "1"
 fnv = "1.0.5"
+hashbrown = "0.12.0"
 itoa = "1"
 
 [dev-dependencies]

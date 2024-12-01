@@ -1,3 +1,11 @@
+use core::convert::TryFrom;
+use core::fmt;
+use core::str::FromStr;
+use core::{cmp, hash::Hasher};
+use core::hash::Hash;
+
+use alloc::string::String;
+use alloc::vec::Vec;
 use bytes::Bytes;
 
 use super::{ErrorKind, InvalidUri, Port, URI_CHARS};

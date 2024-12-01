@@ -15,6 +15,10 @@
 //! assert_eq!(Method::POST.as_str(), "POST");
 //! ```
 
+use core::convert::TryFrom;
+use core::fmt;
+use core::str::FromStr;
+
 use self::extension::{AllocatedExtension, InlineExtension};
 use self::Inner::*;
 
@@ -297,9 +301,12 @@ impl fmt::Display for InvalidMethod {
     }
 }
 
-impl Error for InvalidMethod {}
+#[cfg(feature = "std")]
+impl std::error::Error for InvalidMethod {}
 
 mod extension {
+    use alloc::{boxed::Box, vec::Vec};
+
     use super::InvalidMethod;
 
     #[derive(Clone, PartialEq, Eq, Hash)]
@@ -334,7 +341,7 @@ mod extension {
 
     impl AllocatedExtension {
         pub fn new(src: &[u8]) -> Result<AllocatedExtension, InvalidMethod> {
-            let mut data: Vec<u8> = vec![0; src.len()];
+            let mut data: Vec<u8> = alloc::vec![0; src.len()];
 
             write_checked(src, &mut data)?;
 

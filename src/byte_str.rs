@@ -1,3 +1,6 @@
+use core::ops;
+
+use alloc::string::String;
 use bytes::Bytes;
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]

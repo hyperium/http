@@ -1,3 +1,8 @@
+use core::{any::{Any, TypeId}, fmt, hash::{BuildHasherDefault, Hasher}};
+
+use alloc::boxed::Box;
+use hashbrown::HashMap;
+
 type AnyMap = HashMap<TypeId, Box<dyn AnyClone + Send + Sync>, BuildHasherDefault<IdHasher>>;
 
 // With TypeIds as keys, there's no need to hash them. They are already hashes

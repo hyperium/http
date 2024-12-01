@@ -1,3 +1,6 @@
+use core::{cmp, convert::TryFrom, fmt, hash::{Hash, Hasher}, str::FromStr};
+
+use alloc::{string::String, vec::Vec};
 use bytes::Bytes;
 
 use super::{ErrorKind, InvalidUri};
@@ -341,8 +344,8 @@ impl fmt::Display for PathAndQuery {
     }
 }
 
-impl hash::Hash for PathAndQuery {
-    fn hash<H: hash::Hasher>(&self, state: &mut H) {
+impl Hash for PathAndQuery {
+    fn hash<H: Hasher>(&self, state: &mut H) {
         self.data.hash(state);
     }
 }
@@ -561,6 +564,6 @@ mod tests {
     }
 
     fn pq(s: &str) -> PathAndQuery {
-        s.parse().expect(&format!("parsing {}", s))
+        s.parse().expect(&alloc::format!("parsing {}", s))
     }
 }

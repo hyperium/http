@@ -1,3 +1,8 @@
+use core::convert;
+use core::error;
+use core::fmt;
+use core::result;
+
 use crate::header;
 use crate::header::MaxSizeReached;
 use crate::method;
@@ -128,8 +133,8 @@ impl From<header::InvalidHeaderValue> for Error {
     }
 }
 
-impl From<std::convert::Infallible> for Error {
-    fn from(err: std::convert::Infallible) -> Error {
+impl From<convert::Infallible> for Error {
+    fn from(err: convert::Infallible) -> Error {
         match err {}
     }
 }

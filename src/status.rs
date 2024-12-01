@@ -14,6 +14,8 @@
 //! assert!(StatusCode::OK.is_success());
 //! ```
 
+use core::{convert::TryFrom, fmt, num::NonZeroU16, str::FromStr};
+
 /// An HTTP status code (`status-code` in RFC 9110 et al.).
 ///
 /// Constants are provided for known status codes, including those in the IANA
@@ -536,7 +538,8 @@ impl fmt::Display for InvalidStatusCode {
     }
 }
 
-impl Error for InvalidStatusCode {}
+#[cfg(feature = "std")]
+impl std::error::Error for InvalidStatusCode {}
 
 // A string of packed 3-ASCII-digit status code values for the supported range
 // of [100, 999] (900 codes, 2700 bytes).
