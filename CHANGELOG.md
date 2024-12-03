@@ -1,3 +1,10 @@
+# 1.1.0 (March 4, 2024)
+
+* Add methods to allow trying to allocate in the `HeaderMap`, returning an error if oversize instead of panicking.
+* Add `Extensions::get_or_insert()` method.
+* Implement `From<Uri>` for `uri::Builder`.
+* Fix `HeaderName::from_lowercase` that could allow NUL bytes in some cases.
+
 # 1.0.0 (November 15, 2023)
 
 - Implement `Clone` for `Request`, `Response`, and `Extensions`. This breaking change requires

@@ -123,7 +123,7 @@ impl Method {
                 _ => Method::extension_inline(src),
             },
             _ => {
-                if src.len() < InlineExtension::MAX {
+                if src.len() <= InlineExtension::MAX {
                     Method::extension_inline(src)
                 } else {
                     let allocated = AllocatedExtension::new(src)?;
@@ -356,7 +356,7 @@ mod extension {
         }
     }
 
-    // From the HTTP spec section 5.1.1, the HTTP method is case-sensitive and can
+    // From the RFC 9110 HTTP Semantics, section 9.1, the HTTP method is case-sensitive and can
     // contain the following characters:
     //
     // ```
@@ -366,7 +366,7 @@ mod extension {
     //     "^" / "_" / "`" / "|" / "~" / DIGIT / ALPHA
     // ```
     //
-    // https://www.w3.org/Protocols/HTTP/1.1/draft-ietf-http-v11-spec-01#Method
+    // https://datatracker.ietf.org/doc/html/rfc9110#section-9.1
     //
     // Note that this definition means that any &[u8] that consists solely of valid
     // characters is also valid UTF-8 because the valid method characters are a
@@ -377,7 +377,7 @@ mod extension {
         b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', //   x
         b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', //  1x
         b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', //  2x
-        b'\0', b'\0', b'\0',  b'!', b'\0', b'\0', b'\0', b'\0', b'\0', b'\0', //  3x
+        b'\0', b'\0', b'\0',  b'!', b'\0',  b'#',  b'$',  b'%',  b'&', b'\'', //  3x
         b'\0', b'\0',  b'*',  b'+', b'\0',  b'-',  b'.', b'\0',  b'0',  b'1', //  4x
          b'2',  b'3',  b'4',  b'5',  b'6',  b'7',  b'8',  b'9', b'\0', b'\0', //  5x
         b'\0', b'\0', b'\0', b'\0', b'\0',  b'A',  b'B',  b'C',  b'D',  b'E', //  6x
@@ -465,5 +465,36 @@ mod test {
 
         let long_method = "This_is_a_very_long_method.It_is_valid_but_unlikely.";
         assert_eq!(Method::from_str(long_method).unwrap(), long_method);
+
+        let longest_inline_method = [b'A'; InlineExtension::MAX];
+        assert_eq!(
+            Method::from_bytes(&longest_inline_method).unwrap(),
+            Method(ExtensionInline(
+                InlineExtension::new(&longest_inline_method).unwrap()
+            ))
+        );
+        let shortest_allocated_method = [b'A'; InlineExtension::MAX + 1];
+        assert_eq!(
+            Method::from_bytes(&shortest_allocated_method).unwrap(),
+            Method(ExtensionAllocated(
+                AllocatedExtension::new(&shortest_allocated_method).unwrap()
+            ))
+        );
+    }
+
+    #[test]
+    fn test_extension_method_chars() {
+        const VALID_METHOD_CHARS: &str =
+            "!#$%&'*+-.^_`|~0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+
+        for c in VALID_METHOD_CHARS.chars() {
+            let c = c.to_string();
+
+            assert_eq!(
+                Method::from_str(&c).unwrap(),
+                c.as_str(),
+                "testing {c} is a valid method character"
+            );
+        }
     }
 }

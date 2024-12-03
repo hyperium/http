@@ -676,7 +676,10 @@ standard_headers! {
     /// document.
     (IfUnmodifiedSince, IF_UNMODIFIED_SINCE, b"if-unmodified-since");
 
-    /// Content-Types that are acceptable for the response.
+    /// The Last-Modified header contains the date and time when the origin believes
+    /// the resource was last modified.
+    ///
+    /// The value is a valid Date/Time string defined in [RFC9910](https://datatracker.ietf.org/doc/html/rfc9110#section-5.6.7)
     (LastModified, LAST_MODIFIED, b"last-modified");
 
     /// Allows the server to point an interested client to another resource
@@ -1008,7 +1011,7 @@ const HEADER_CHARS: [u8; 256] = [
         0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //   x
         0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //  1x
         0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //  2x
-        0,     0,     0,  b'!',  b'"',  b'#',  b'$',  b'%',  b'&', b'\'', //  3x
+        0,     0,     0,  b'!',     0,  b'#',  b'$',  b'%',  b'&', b'\'', //  3x
         0,     0,  b'*',  b'+',     0,  b'-',  b'.',     0,  b'0',  b'1', //  4x
      b'2',  b'3',  b'4',  b'5',  b'6',  b'7',  b'8',  b'9',     0,     0, //  5x
         0,     0,     0,     0,     0,  b'a',  b'b',  b'c',  b'd',  b'e', //  6x
@@ -1176,9 +1179,9 @@ impl HeaderName {
             }
             Repr::Custom(MaybeLower { buf, lower: false }) => {
                 for &b in buf.iter() {
-                    // HEADER_CHARS maps all bytes that are not valid single-byte
+                    // HEADER_CHARS_H2 maps all bytes that are not valid single-byte
                     // UTF-8 to 0 so this check returns an error for invalid UTF-8.
-                    if b != HEADER_CHARS[b as usize] {
+                    if HEADER_CHARS_H2[b as usize] == 0 {
                         return Err(InvalidHeaderName::new());
                     }
                 }
@@ -1274,7 +1277,7 @@ impl HeaderName {
             // https://blog.rust-lang.org/2021/12/02/Rust-1.57.0.html#panic-in-const-contexts
             //
             // See the panics section of this method's document for details.
-            #[allow(clippy::no_effect)]
+            #[allow(clippy::no_effect, clippy::out_of_bounds_indexing)]
             ([] as [u8; 0])[0]; // Invalid header name
         }
 
@@ -1338,7 +1341,7 @@ impl fmt::Display for HeaderName {
 }
 
 impl InvalidHeaderName {
-    fn new() -> InvalidHeaderName {
+    pub(super) fn new() -> InvalidHeaderName {
         InvalidHeaderName { _priv: () }
     }
 }
@@ -1656,13 +1659,13 @@ const SCRATCH_BUF_OVERFLOW: usize = SCRATCH_BUF_SIZE + 1;
 fn uninit_u8_array() -> [MaybeUninit<u8>; SCRATCH_BUF_SIZE] {
     let arr = MaybeUninit::<[MaybeUninit<u8>; SCRATCH_BUF_SIZE]>::uninit();
     // Safety: assume_init() is claiming that an array of MaybeUninit<>
-    // has been initilized, but MaybeUninit<>'s do not require initilizaton.
+    // has been initialized, but MaybeUninit<>'s do not require initialization.
     unsafe { arr.assume_init() }
 }
 
-// Assuming all the elements are initilized, get a slice of them.
+// Assuming all the elements are initialized, get a slice of them.
 //
-// Safety: All elements of `slice` must be initilized to prevent
+// Safety: All elements of `slice` must be initialized to prevent
 // undefined behavior.
 unsafe fn slice_assume_init<T>(slice: &[MaybeUninit<T>]) -> &[T] {
     &*(slice as *const [MaybeUninit<T>] as *const [T])
@@ -1903,5 +1906,17 @@ mod tests {
     #[test]
     fn test_all_tokens() {
         HeaderName::from_static("!#$%&'*+-.^_`|~0123456789abcdefghijklmnopqrstuvwxyz");
+    }
+
+    #[test]
+    fn test_from_lowercase() {
+        HeaderName::from_lowercase(&[0; 10]).unwrap_err();
+        HeaderName::from_lowercase(&[b'A'; 10]).unwrap_err();
+        HeaderName::from_lowercase(&[0x1; 10]).unwrap_err();
+        HeaderName::from_lowercase(&[0xFF; 10]).unwrap_err();
+        //HeaderName::from_lowercase(&[0; 100]).unwrap_err();
+        HeaderName::from_lowercase(&[b'A'; 100]).unwrap_err();
+        HeaderName::from_lowercase(&[0x1; 100]).unwrap_err();
+        HeaderName::from_lowercase(&[0xFF; 100]).unwrap_err();
     }
 }
