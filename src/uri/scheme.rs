@@ -302,7 +302,7 @@ impl Scheme2<usize> {
                         // Return scheme
                         return Ok(Scheme2::Other(i));
                     }
-                    // Invald scheme character, abort
+                    // Invalid scheme character, abort
                     0 => break,
                     _ => {}
                 }
@@ -349,10 +349,10 @@ mod test {
 
     #[test]
     fn invalid_scheme_is_error() {
-        Scheme::try_from("my_funky_scheme").expect_err("Unexpectly valid Scheme");
+        Scheme::try_from("my_funky_scheme").expect_err("Unexpectedly valid Scheme");
 
         // Invalid UTF-8
-        Scheme::try_from([0xC0].as_ref()).expect_err("Unexpectly valid Scheme");
+        Scheme::try_from([0xC0].as_ref()).expect_err("Unexpectedly valid Scheme");
     }
 
     fn scheme(s: &str) -> Scheme {
