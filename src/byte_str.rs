@@ -31,7 +31,7 @@ impl ByteStr {
     ///
     /// ## Safety
     /// `bytes` must contain valid UTF-8. In a release build it is undefined
-    /// behaviour to call this with `bytes` that is not valid UTF-8.
+    /// behavior to call this with `bytes` that is not valid UTF-8.
     pub unsafe fn from_utf8_unchecked(bytes: Bytes) -> ByteStr {
         if cfg!(debug_assertions) {
             match str::from_utf8(&bytes) {
