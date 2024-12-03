@@ -123,7 +123,7 @@ impl Method {
                 _ => Method::extension_inline(src),
             },
             _ => {
-                if src.len() < InlineExtension::MAX {
+                if src.len() <= InlineExtension::MAX {
                     Method::extension_inline(src)
                 } else {
                     let allocated = AllocatedExtension::new(src)?;
@@ -465,6 +465,21 @@ mod test {
 
         let long_method = "This_is_a_very_long_method.It_is_valid_but_unlikely.";
         assert_eq!(Method::from_str(long_method).unwrap(), long_method);
+
+        let longest_inline_method = [b'A'; InlineExtension::MAX];
+        assert_eq!(
+            Method::from_bytes(&longest_inline_method).unwrap(),
+            Method(ExtensionInline(
+                InlineExtension::new(&longest_inline_method).unwrap()
+            ))
+        );
+        let shortest_allocated_method = [b'A'; InlineExtension::MAX + 1];
+        assert_eq!(
+            Method::from_bytes(&shortest_allocated_method).unwrap(),
+            Method(ExtensionAllocated(
+                AllocatedExtension::new(&shortest_allocated_method).unwrap()
+            ))
+        );
     }
 
     #[test]
