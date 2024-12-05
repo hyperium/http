@@ -235,7 +235,7 @@ impl Authority {
     ///
     /// assert!(authority.port().is_none());
     /// ```
-    pub fn port(&self) -> Option<Port<&str>> {
+    pub fn port(&self) -> Option<Port> {
         let bytes = self.as_str();
         bytes
             .rfind(':')
