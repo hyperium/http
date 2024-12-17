@@ -28,9 +28,9 @@ use std::convert::TryFrom;
 use bytes::Bytes;
 
 use std::error::Error;
+use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::str::{self, FromStr};
-use std::{fmt, u16, u8};
 
 use self::scheme::Scheme2;
 

@@ -521,7 +521,7 @@ impl<T> HeaderMap<T> {
             Ok(HeaderMap {
                 mask: (raw_cap - 1) as Size,
                 indices: vec![Pos::none(); raw_cap].into_boxed_slice(),
-                entries: Vec::with_capacity(raw_cap),
+                entries: Vec::with_capacity(usable_capacity(raw_cap)),
                 extra_values: Vec::new(),
                 danger: Danger::Green,
             })
@@ -705,12 +705,12 @@ impl<T> HeaderMap<T> {
             .entries
             .len()
             .checked_add(additional)
-            .ok_or_else(|| MaxSizeReached::new())?;
+            .ok_or_else(MaxSizeReached::new)?;
 
         if cap > self.indices.len() {
             let cap = cap
                 .checked_next_power_of_two()
-                .ok_or_else(|| MaxSizeReached::new())?;
+                .ok_or_else(MaxSizeReached::new)?;
             if cap > MAX_SIZE {
                 return Err(MaxSizeReached::new());
             }
@@ -1066,7 +1066,7 @@ impl<T> HeaderMap<T> {
         } else {
             ValueIter {
                 map: self,
-                index: ::std::usize::MAX,
+                index: usize::MAX,
                 front: None,
                 back: None,
             }
@@ -1449,9 +1449,9 @@ impl<T> HeaderMap<T> {
     }
 
     #[inline]
-    fn find<K: ?Sized>(&self, key: &K) -> Option<(usize, usize)>
+    fn find<K>(&self, key: &K) -> Option<(usize, usize)>
     where
-        K: Hash + Into<HeaderName>,
+        K: Hash + Into<HeaderName> + ?Sized,
         HeaderName: PartialEq<K>,
     {
         if self.entries.is_empty() {
@@ -2020,7 +2020,7 @@ impl<T> FromIterator<(HeaderName, T)> for HeaderMap<T> {
 /// let headers: HeaderMap = (&map).try_into().expect("valid headers");
 /// assert_eq!(headers["X-Custom-Header"], "my value");
 /// ```
-impl<'a, K, V, T> TryFrom<&'a HashMap<K, V>> for HeaderMap<T>
+impl<'a, K, V, S, T> TryFrom<&'a HashMap<K, V, S>> for HeaderMap<T>
 where
     K: Eq + Hash,
     HeaderName: TryFrom<&'a K>,
@@ -2030,7 +2030,7 @@ where
 {
     type Error = Error;
 
-    fn try_from(c: &'a HashMap<K, V>) -> Result<Self, Self::Error> {
+    fn try_from(c: &'a HashMap<K, V, S>) -> Result<Self, Self::Error> {
         c.iter()
             .map(|(k, v)| -> crate::Result<(HeaderName, T)> {
                 let name = TryFrom::try_from(k).map_err(Into::into)?;
@@ -3603,9 +3603,9 @@ fn probe_distance(mask: Size, hash: HashValue, current: usize) -> usize {
     current.wrapping_sub(desired_pos(mask, hash)) & mask as usize
 }
 
-fn hash_elem_using<K: ?Sized>(danger: &Danger, k: &K) -> HashValue
+fn hash_elem_using<K>(danger: &Danger, k: &K) -> HashValue
 where
-    K: Hash,
+    K: Hash + ?Sized,
 {
     use fnv::FnvHasher;
 
@@ -3838,7 +3838,7 @@ mod as_header_name {
     impl Sealed for String {
         #[inline]
         fn try_entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<'_, T>, TryEntryError> {
-            Ok(self.as_str().try_entry(map)?)
+            self.as_str().try_entry(map)
         }
 
         #[inline]

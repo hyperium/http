@@ -14,7 +14,7 @@ pub struct PathAndQuery {
     pub(super) query: u16,
 }
 
-const NONE: u16 = ::std::u16::MAX;
+const NONE: u16 = u16::MAX;
 
 impl PathAndQuery {
     // Not public while `bytes` is unstable.
