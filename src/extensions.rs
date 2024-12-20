@@ -48,7 +48,7 @@ impl Extensions {
     /// Insert a type into this `Extensions`.
     ///
     /// If a extension of this type already existed, it will
-    /// be returned.
+    /// be returned and replaced with the new one.
     ///
     /// # Example
     ///
@@ -215,7 +215,7 @@ impl Extensions {
         self.map.as_ref().map_or(true, |map| map.is_empty())
     }
 
-    /// Get the numer of extensions available.
+    /// Get the number of extensions available.
     ///
     /// # Example
     ///
