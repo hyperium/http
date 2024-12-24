@@ -862,11 +862,6 @@ fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUri> {
         });
     }
 
-    // Authority is required when absolute
-    if authority_end == 0 {
-        return Err(ErrorKind::InvalidFormat.into());
-    }
-
     let authority = s.split_to(authority_end);
     let authority = Authority {
         data: unsafe { ByteStr::from_utf8_unchecked(authority) },
