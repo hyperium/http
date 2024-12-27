@@ -5,7 +5,7 @@ use std::error::Error;
 use std::fmt::Write;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
-use std::{cmp, fmt, mem, str};
+use std::{cmp, fmt, str};
 
 use crate::header::name::HeaderName;
 
@@ -424,27 +424,7 @@ macro_rules! from_integers {
     ($($name:ident: $t:ident => $max_len:expr),*) => {$(
         impl From<$t> for HeaderValue {
             fn from(num: $t) -> HeaderValue {
-                let mut buf = if mem::size_of::<BytesMut>() - 1 < $max_len {
-                    // On 32bit platforms, BytesMut max inline size
-                    // is 15 bytes, but the $max_len could be bigger.
-                    //
-                    // The likelihood of the number *actually* being
-                    // that big is very small, so only allocate
-                    // if the number needs that space.
-                    //
-                    // The largest decimal number in 15 digits:
-                    // It wold be 10.pow(15) - 1, but this is a constant
-                    // version.
-                    if num as u64 > 999_999_999_999_999_999 {
-                        BytesMut::with_capacity($max_len)
-                    } else {
-                        // fits inline...
-                        BytesMut::new()
-                    }
-                } else {
-                    // full value fits inline, so don't allocate!
-                    BytesMut::new()
-                };
+                let mut buf = BytesMut::with_capacity($max_len);
                 let _ = buf.write_str(::itoa::Buffer::new().format(num));
                 HeaderValue {
                     inner: buf.freeze(),
