@@ -44,7 +44,7 @@ impl PathAndQuery {
                     // percent-encoded in the path. If it should have been
                     // percent-encoded, then error.
                     #[rustfmt::skip]
-                    0x21 |
+                    0x20..=0x21 |
                     0x24..=0x3B |
                     0x3D |
                     0x40..=0x5F |
@@ -559,6 +559,11 @@ mod tests {
     #[test]
     fn allow_utf8_in_path() {
         assert_eq!("/🍕", pq("/🍕").path());
+    }
+
+    #[test]
+    fn allow_space_in_path() {
+        assert_eq!("/dav/With Space/", pq("/dav/With Space/").path());
     }
 
     #[test]
