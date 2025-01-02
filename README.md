@@ -66,6 +66,11 @@ This project follows the [Tokio MSRV][msrv] and is currently set to `1.49`.
 
 [msrv]: https://github.com/tokio-rs/tokio/#supported-rust-versions
 
+# no-std support
+
+For no-std support, disable the default "std" feature and enable the "no-std"
+feature. no-std support has an MSRV of Rust 1.81.
+
 # License
 
 Licensed under either of

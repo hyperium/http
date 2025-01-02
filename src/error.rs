@@ -1,6 +1,9 @@
+#[cfg(not(feature = "std"))]
+use core::error;
+use core::fmt;
+use core::result;
+#[cfg(feature = "std")]
 use std::error;
-use std::fmt;
-use std::result;
 
 use crate::header;
 use crate::header::MaxSizeReached;
@@ -132,8 +135,8 @@ impl From<header::InvalidHeaderValue> for Error {
     }
 }
 
-impl From<std::convert::Infallible> for Error {
-    fn from(err: std::convert::Infallible) -> Error {
+impl From<core::convert::Infallible> for Error {
+    fn from(err: core::convert::Infallible) -> Error {
         match err {}
     }
 }

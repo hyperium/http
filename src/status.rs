@@ -14,11 +14,15 @@
 //! assert!(StatusCode::OK.is_success());
 //! ```
 
-use std::convert::TryFrom;
+use crate::alloc::borrow::ToOwned;
+use core::convert::TryFrom;
+#[cfg(not(feature = "std"))]
+use core::error::Error;
+use core::fmt;
+use core::num::NonZeroU16;
+use core::str::FromStr;
+#[cfg(feature = "std")]
 use std::error::Error;
-use std::fmt;
-use std::num::NonZeroU16;
-use std::str::FromStr;
 
 /// An HTTP status code (`status-code` in RFC 9110 et al.).
 ///

@@ -23,14 +23,20 @@
 //! ```
 
 use crate::byte_str::ByteStr;
-use std::convert::TryFrom;
 
 use bytes::Bytes;
 
+use alloc::boxed::Box;
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::convert::TryFrom;
+#[cfg(not(feature = "std"))]
+use core::error::Error;
+use core::fmt;
+use core::hash::{Hash, Hasher};
+use core::str::{self, FromStr};
+#[cfg(feature = "std")]
 use std::error::Error;
-use std::fmt;
-use std::hash::{Hash, Hasher};
-use std::str::{self, FromStr};
 
 use self::scheme::Scheme2;
 
