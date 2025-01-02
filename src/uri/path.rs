@@ -1,6 +1,8 @@
-use std::convert::TryFrom;
-use std::str::FromStr;
-use std::{cmp, fmt, hash, str};
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::convert::TryFrom;
+use core::str::FromStr;
+use core::{cmp, fmt, hash, str};
 
 use bytes::Bytes;
 
