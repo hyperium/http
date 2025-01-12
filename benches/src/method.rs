@@ -16,6 +16,7 @@ fn make_all_methods() -> Vec<Vec<u8>> {
         b"TRACE".to_vec(),
         b"CONNECT".to_vec(),
         b"PATCH".to_vec(),
+        b"QUERY".to_vec(),
         b"CUSTOM_SHORT".to_vec(),
         b"CUSTOM_LONG_METHOD".to_vec(),
     ]
