@@ -1,3 +1,7 @@
+# Unreleased
+
+* Add 'QUERY' method support along with its new 'accept-query' standard header.
+
 # 1.2.0 (December 3, 2024)
 
 * Add `StatusCode::TOO_EARLY` constant for 425 status.

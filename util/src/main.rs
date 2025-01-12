@@ -128,6 +128,19 @@ standard_headers! {
     "accept-ranges";
 
     r#"
+    /// Advertises which query formats the server is able to understand.
+    ///
+    /// Accept-Query should appear in the OPTIONS response for any resource that
+    /// supports the use of the QUERY method. The presence of the
+    /// Accept-Query header in response to any method is an implicit indication
+    /// that QUERY is allowed on the resource identified by the URI. The
+    /// presence of a specific query document format in this header indicates
+    /// that that specific format is allowed on the resource identified by the
+    /// URI.
+    "#,
+    "accept-query";
+
+    r#"
     /// Preflight response indicating if the response to the request can be
     /// exposed to the page.
     ///

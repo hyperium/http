@@ -68,6 +68,7 @@ fn make_all_known_headers() -> Vec<Vec<u8>> {
     // standard_response_headers
     b"Accept-Patch".to_vec(),
     b"Accept-Ranges".to_vec(),
+    b"Accept-Query".to_vec(),
     b"Access-Control-Allow-Credentials".to_vec(),
     b"Access-Control-Allow-Headers".to_vec(),
     b"Access-Control-Allow-Methods".to_vec(),
@@ -191,6 +192,7 @@ static ALL_KNOWN_HEADERS: &[&str] = &[
     // standard_response_headers
     "accept-patch",
     "accept-ranges",
+    "accept-query",
     "access-control-allow-credentials",
     "access-control-allow-headers",
     "access-control-allow-methods",
