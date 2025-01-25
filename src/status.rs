@@ -116,8 +116,8 @@ impl StatusCode {
     /// assert_eq!(status.as_u16(), 200);
     /// ```
     #[inline]
-    pub fn as_u16(&self) -> u16 {
-        (*self).into()
+    pub const fn as_u16(&self) -> u16 {
+        (*self).0.get()
     }
 
     /// Returns a &str representation of the `StatusCode`
@@ -462,6 +462,10 @@ status_codes! {
     /// 424 Failed Dependency
     /// [[RFC4918, Section 11.4](https://tools.ietf.org/html/rfc4918#section-11.4)]
     (424, FAILED_DEPENDENCY, "Failed Dependency");
+
+    /// 425 Too early
+    /// [[RFC8470, Section 5.2](https://httpwg.org/specs/rfc8470.html#status)]
+    (425, TOO_EARLY, "Too Early");
 
     /// 426 Upgrade Required
     /// [[RFC9110, Section 15.5.22](https://datatracker.ietf.org/doc/html/rfc9110#section-15.5.22)]

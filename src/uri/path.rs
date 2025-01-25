@@ -223,7 +223,7 @@ impl TryFrom<Bytes> for PathAndQuery {
                     0x40..=0x5F |
                     0x61..=0x7A |
                     0x7C |
-                    0x7E => {}
+                    0x7E..=0xFF => {}
 
                     // These are code points that are supposed to be
                     // percent-encoded in the path but there are clients
@@ -255,7 +255,7 @@ impl TryFrom<Bytes> for PathAndQuery {
                         0x21 |
                         0x24..=0x3B |
                         0x3D |
-                        0x3F..=0x7E => {}
+                        0x3F..=0xFF => {}
 
                         b'#' => {
                             fragment = Some(i);
@@ -561,6 +561,16 @@ mod tests {
         assert_eq!("/aa%2", pq("/aa%2").path());
         assert_eq!("/aa%2", pq("/aa%2?r=1").path());
         assert_eq!("qr=%3", pq("/a/b?qr=%3").query().unwrap());
+    }
+
+    #[test]
+    fn allow_utf8_in_path() {
+        assert_eq!("/🍕", pq("/🍕").path());
+    }
+
+    #[test]
+    fn allow_utf8_in_query() {
+        assert_eq!(Some("pizza=🍕"), pq("/test?pizza=🍕").query());
     }
 
     #[test]
