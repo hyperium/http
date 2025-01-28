@@ -67,6 +67,42 @@ impl Scheme {
     }
 }
 
+impl TryFrom<Bytes> for Scheme {
+    type Error = InvalidUri;
+
+    /// Attempt to convert a `Scheme` from `Bytes`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # extern crate http;
+    /// # use http::uri::*;
+    /// extern crate bytes;
+    ///
+    /// use std::convert::TryFrom;
+    /// use bytes::Bytes;
+    ///
+    /// # pub fn main() {
+    /// let bytes = Bytes::from("http");
+    /// let scheme = Scheme::try_from(bytes).unwrap();
+    ///
+    /// assert_eq!(scheme.as_str(), "http");
+    /// # }
+    /// ```
+    fn try_from(s: Bytes) -> Result<Self, Self::Error> {
+        use self::Scheme2::*;
+
+        match Scheme2::parse_exact(&s[..])? {
+            None => Err(ErrorKind::InvalidScheme.into()),
+            Standard(p) => Ok(Standard(p).into()),
+            Other(_) => {
+                let b = unsafe { ByteStr::from_utf8_unchecked(s) };
+                Ok(Other(Box::new(b)).into())
+            }
+        }
+    }
+}
+
 impl<'a> TryFrom<&'a [u8]> for Scheme {
     type Error = InvalidUri;
     #[inline]
@@ -102,6 +138,21 @@ impl FromStr for Scheme {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         TryFrom::try_from(s)
+    }
+}
+
+impl From<Scheme> for Bytes {
+    #[inline]
+    fn from(src: Scheme) -> Self {
+        use self::Protocol::*;
+        use self::Scheme2::*;
+
+        match src.inner {
+            None => Bytes::new(),
+            Standard(Http) => Bytes::from_static(b"http"),
+            Standard(Https) => Bytes::from_static(b"https"),
+            Other(v) => (*v).into(),
+        }
     }
 }
 
