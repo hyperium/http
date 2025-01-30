@@ -22,15 +22,17 @@
 //! assert_eq!(uri.path(), "/install.html");
 //! ```
 
-use crate::byte_str::ByteStr;
-use std::convert::TryFrom;
+use alloc::boxed::Box;
+use core::convert::TryFrom;
+use core::error::Error;
+use core::fmt;
+use core::hash::{Hash, Hasher};
+use core::str::FromStr;
+use core::str::{self};
 
 use bytes::Bytes;
 
-use std::error::Error;
-use std::fmt;
-use std::hash::{Hash, Hasher};
-use std::str::{self, FromStr};
+use crate::byte_str::ByteStr;
 
 use self::scheme::Scheme2;
 
@@ -723,29 +725,32 @@ impl<'a> TryFrom<&'a str> for Uri {
     }
 }
 
-impl<'a> TryFrom<&'a String> for Uri {
+#[cfg(feature = "alloc")]
+impl<'a> TryFrom<&'a alloc::string::String> for Uri {
     type Error = InvalidUri;
 
     #[inline]
-    fn try_from(t: &'a String) -> Result<Self, Self::Error> {
+    fn try_from(t: &'a alloc::string::String) -> Result<Self, Self::Error> {
         t.parse()
     }
 }
 
-impl TryFrom<String> for Uri {
+#[cfg(feature = "alloc")]
+impl TryFrom<alloc::string::String> for Uri {
     type Error = InvalidUri;
 
     #[inline]
-    fn try_from(t: String) -> Result<Self, Self::Error> {
+    fn try_from(t: alloc::string::String) -> Result<Self, Self::Error> {
         Uri::from_shared(Bytes::from(t))
     }
 }
 
-impl TryFrom<Vec<u8>> for Uri {
+#[cfg(feature = "alloc")]
+impl TryFrom<alloc::vec::Vec<u8>> for Uri {
     type Error = InvalidUri;
 
     #[inline]
-    fn try_from(vec: Vec<u8>) -> Result<Self, Self::Error> {
+    fn try_from(vec: alloc::vec::Vec<u8>) -> Result<Self, Self::Error> {
         Uri::from_shared(Bytes::from(vec))
     }
 }

@@ -1,6 +1,7 @@
-use std::convert::TryFrom;
-use std::str::FromStr;
-use std::{cmp, fmt, hash, str};
+use core::convert::TryFrom;
+use core::hash::Hash;
+use core::str::FromStr;
+use core::{cmp, fmt, hash, str};
 
 use bytes::Bytes;
 
@@ -294,26 +295,29 @@ impl<'a> TryFrom<&'a str> for PathAndQuery {
     }
 }
 
-impl TryFrom<Vec<u8>> for PathAndQuery {
+#[cfg(feature = "alloc")]
+impl TryFrom<alloc::vec::Vec<u8>> for PathAndQuery {
     type Error = InvalidUri;
     #[inline]
-    fn try_from(vec: Vec<u8>) -> Result<Self, Self::Error> {
+    fn try_from(vec: alloc::vec::Vec<u8>) -> Result<Self, Self::Error> {
         PathAndQuery::from_shared(vec.into())
     }
 }
 
-impl TryFrom<String> for PathAndQuery {
+#[cfg(feature = "alloc")]
+impl TryFrom<alloc::string::String> for PathAndQuery {
     type Error = InvalidUri;
     #[inline]
-    fn try_from(s: String) -> Result<Self, Self::Error> {
+    fn try_from(s: alloc::string::String) -> Result<Self, Self::Error> {
         PathAndQuery::from_shared(s.into())
     }
 }
 
-impl TryFrom<&String> for PathAndQuery {
+#[cfg(feature = "alloc")]
+impl TryFrom<&alloc::string::String> for PathAndQuery {
     type Error = InvalidUri;
     #[inline]
-    fn try_from(s: &String) -> Result<Self, Self::Error> {
+    fn try_from(s: &alloc::string::String) -> Result<Self, Self::Error> {
         TryFrom::try_from(s.as_bytes())
     }
 }
@@ -345,7 +349,7 @@ impl fmt::Display for PathAndQuery {
     }
 }
 
-impl hash::Hash for PathAndQuery {
+impl Hash for PathAndQuery {
     fn hash<H: hash::Hasher>(&self, state: &mut H) {
         self.data.hash(state);
     }
@@ -390,14 +394,16 @@ impl PartialEq<PathAndQuery> for str {
     }
 }
 
-impl PartialEq<String> for PathAndQuery {
+#[cfg(feature = "alloc")]
+impl PartialEq<alloc::string::String> for PathAndQuery {
     #[inline]
-    fn eq(&self, other: &String) -> bool {
+    fn eq(&self, other: &alloc::string::String) -> bool {
         self.as_str() == other.as_str()
     }
 }
 
-impl PartialEq<PathAndQuery> for String {
+#[cfg(feature = "alloc")]
+impl PartialEq<PathAndQuery> for alloc::string::String {
     #[inline]
     fn eq(&self, other: &PathAndQuery) -> bool {
         self.as_str() == other.as_str()
@@ -439,14 +445,16 @@ impl<'a> PartialOrd<PathAndQuery> for &'a str {
     }
 }
 
-impl PartialOrd<String> for PathAndQuery {
+#[cfg(feature = "alloc")]
+impl PartialOrd<alloc::string::String> for PathAndQuery {
     #[inline]
-    fn partial_cmp(&self, other: &String) -> Option<cmp::Ordering> {
+    fn partial_cmp(&self, other: &alloc::string::String) -> Option<cmp::Ordering> {
         self.as_str().partial_cmp(other.as_str())
     }
 }
 
-impl PartialOrd<PathAndQuery> for String {
+#[cfg(feature = "alloc")]
+impl PartialOrd<PathAndQuery> for alloc::string::String {
     #[inline]
     fn partial_cmp(&self, other: &PathAndQuery) -> Option<cmp::Ordering> {
         self.as_str().partial_cmp(other.as_str())
@@ -456,6 +464,8 @@ impl PartialOrd<PathAndQuery> for String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::format;
+    use alloc::string::ToString;
 
     #[test]
     fn equal_to_self_of_same_path() {

@@ -1,6 +1,6 @@
 use bytes::Bytes;
 
-use std::{ops, str};
+use core::{ops, str};
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub(crate) struct ByteStr {
@@ -58,9 +58,9 @@ impl ops::Deref for ByteStr {
     }
 }
 
-impl From<String> for ByteStr {
+impl From<alloc::string::String> for ByteStr {
     #[inline]
-    fn from(src: String) -> ByteStr {
+    fn from(src: alloc::string::String) -> ByteStr {
         ByteStr {
             // Invariant: src is a String so contains valid UTF-8.
             bytes: Bytes::from(src),

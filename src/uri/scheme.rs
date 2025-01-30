@@ -1,12 +1,9 @@
-use std::convert::TryFrom;
-use std::fmt;
-use std::hash::{Hash, Hasher};
-use std::str::FromStr;
-
-use bytes::Bytes;
+use core::convert::TryFrom;
+use core::fmt;
+use core::hash::{Hash, Hasher};
+use core::str::FromStr;
 
 use super::{ErrorKind, InvalidUri};
-use crate::byte_str::ByteStr;
 
 /// Represents the scheme component of a URI
 #[derive(Clone)]
@@ -14,8 +11,13 @@ pub struct Scheme {
     pub(super) inner: Scheme2,
 }
 
+#[cfg(feature = "alloc")]
+type DefaultScheme = alloc::boxed::Box<crate::byte_str::ByteStr>;
+#[cfg(not(feature = "alloc"))]
+type DefaultScheme = core::convert::Infallible;
+
 #[derive(Clone, Debug)]
-pub(super) enum Scheme2<T = Box<ByteStr>> {
+pub(super) enum Scheme2<T = DefaultScheme> {
     None,
     Standard(Protocol),
     Other(T),
@@ -61,8 +63,11 @@ impl Scheme {
         match self.inner {
             Standard(Http) => "http",
             Standard(Https) => "https",
+
+            #[cfg(feature = "alloc")]
             Other(ref v) => &v[..],
-            None => unreachable!(),
+
+            _ => unreachable!(),
         }
     }
 }
@@ -76,15 +81,20 @@ impl<'a> TryFrom<&'a [u8]> for Scheme {
         match Scheme2::parse_exact(s)? {
             None => Err(ErrorKind::InvalidScheme.into()),
             Standard(p) => Ok(Standard(p).into()),
+
+            #[cfg(feature = "alloc")]
             Other(_) => {
-                let bytes = Bytes::copy_from_slice(s);
+                let bytes = bytes::Bytes::copy_from_slice(s);
 
                 // Safety: postcondition on parse_exact() means that s and
                 // hence bytes are valid UTF-8.
-                let string = unsafe { ByteStr::from_utf8_unchecked(bytes) };
+                let string = unsafe { crate::byte_str::ByteStr::from_utf8_unchecked(bytes) };
 
-                Ok(Other(Box::new(string)).into())
+                Ok(Other(alloc::boxed::Box::new(string)).into())
             }
+
+            #[cfg(not(feature = "alloc"))]
+            _ => unreachable!(),
         }
     }
 }
@@ -132,7 +142,10 @@ impl PartialEq for Scheme {
         match (&self.inner, &other.inner) {
             (&Standard(Http), &Standard(Http)) => true,
             (&Standard(Https), &Standard(Https)) => true,
+            #[cfg(feature = "alloc")]
             (Other(a), Other(b)) => a.eq_ignore_ascii_case(b),
+            #[cfg(not(feature = "alloc"))]
+            (Other(a), Other(b)) => a == b,
             (&None, _) | (_, &None) => unreachable!(),
             _ => false,
         }
@@ -173,12 +186,15 @@ impl Hash for Scheme {
             Scheme2::None => (),
             Scheme2::Standard(Protocol::Http) => state.write_u8(1),
             Scheme2::Standard(Protocol::Https) => state.write_u8(2),
+            #[cfg(feature = "alloc")]
             Scheme2::Other(ref other) => {
                 other.len().hash(state);
                 for &b in other.as_bytes() {
                     state.write_u8(b.to_ascii_lowercase());
                 }
             }
+            #[cfg(not(feature = "alloc"))]
+            _ => (),
         }
     }
 }
@@ -338,6 +354,7 @@ impl From<Scheme2> for Scheme {
 #[cfg(test)]
 mod test {
     use super::*;
+    use alloc::format;
 
     #[test]
     fn scheme_eq_to_str() {
