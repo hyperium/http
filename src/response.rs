@@ -61,14 +61,14 @@
 //! // ...
 //! ```
 
-use std::any::Any;
-use std::convert::TryInto;
-use std::fmt;
+use core::any::Any;
+use core::convert::TryInto;
+use core::fmt;
 
 use crate::header::{HeaderMap, HeaderName, HeaderValue};
 use crate::status::StatusCode;
 use crate::version::Version;
-use crate::{Extensions, Result};
+use crate::Result;
 
 /// Represents an HTTP response
 ///
@@ -197,8 +197,9 @@ pub struct Parts {
     /// The response's headers
     pub headers: HeaderMap<HeaderValue>,
 
+    #[cfg(feature = "alloc")]
     /// The response's extensions
-    pub extensions: Extensions,
+    pub extensions: crate::Extensions,
 
     _priv: (),
 }
@@ -374,8 +375,9 @@ impl<T> Response<T> {
     /// let response: Response<()> = Response::default();
     /// assert!(response.extensions().get::<i32>().is_none());
     /// ```
+    #[cfg(feature = "alloc")]
     #[inline]
-    pub fn extensions(&self) -> &Extensions {
+    pub fn extensions(&self) -> &crate::Extensions {
         &self.head.extensions
     }
 
@@ -390,8 +392,9 @@ impl<T> Response<T> {
     /// response.extensions_mut().insert("hello");
     /// assert_eq!(response.extensions().get(), Some(&"hello"));
     /// ```
+    #[cfg(feature = "alloc")]
     #[inline]
-    pub fn extensions_mut(&mut self) -> &mut Extensions {
+    pub fn extensions_mut(&mut self) -> &mut crate::Extensions {
         &mut self.head.extensions
     }
 
@@ -506,7 +509,8 @@ impl Parts {
             status: StatusCode::default(),
             version: Version::default(),
             headers: HeaderMap::default(),
-            extensions: Extensions::default(),
+            #[cfg(feature = "alloc")]
+            extensions: crate::Extensions::default(),
             _priv: (),
         }
     }
@@ -681,6 +685,7 @@ impl Builder {
     /// assert_eq!(response.extensions().get::<&'static str>(),
     ///            Some(&"My Extension"));
     /// ```
+    #[cfg(feature = "alloc")]
     pub fn extension<T>(self, extension: T) -> Builder
     where
         T: Clone + Any + Send + Sync + 'static,
@@ -704,7 +709,8 @@ impl Builder {
     /// assert_eq!(extensions.get::<&'static str>(), Some(&"My Extension"));
     /// assert_eq!(extensions.get::<u32>(), Some(&5u32));
     /// ```
-    pub fn extensions_ref(&self) -> Option<&Extensions> {
+    #[cfg(feature = "alloc")]
+    pub fn extensions_ref(&self) -> Option<&crate::Extensions> {
         self.inner.as_ref().ok().map(|h| &h.extensions)
     }
 
@@ -722,7 +728,8 @@ impl Builder {
     /// extensions.insert(5u32);
     /// assert_eq!(extensions.get::<u32>(), Some(&5u32));
     /// ```
-    pub fn extensions_mut(&mut self) -> Option<&mut Extensions> {
+    #[cfg(feature = "alloc")]
+    pub fn extensions_mut(&mut self) -> Option<&mut crate::Extensions> {
         self.inner.as_mut().ok().map(|h| &mut h.extensions)
     }
 

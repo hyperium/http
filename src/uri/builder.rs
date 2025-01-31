@@ -1,4 +1,4 @@
-use std::convert::TryInto;
+use core::convert::TryInto;
 
 use super::{Authority, Parts, PathAndQuery, Scheme};
 use crate::Uri;
@@ -163,6 +163,7 @@ impl From<Uri> for Builder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::format;
 
     #[test]
     fn build_from_str() {

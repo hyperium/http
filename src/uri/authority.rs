@@ -1,7 +1,7 @@
-use std::convert::TryFrom;
-use std::hash::{Hash, Hasher};
-use std::str::FromStr;
-use std::{cmp, fmt, str};
+use core::convert::TryFrom;
+use core::hash::{Hash, Hasher};
+use core::str::FromStr;
+use core::{cmp, fmt, str};
 
 use bytes::Bytes;
 
@@ -21,6 +21,7 @@ impl Authority {
         }
     }
 
+    #[cfg(feature = "alloc")]
     // Not public while `bytes` is unstable.
     pub(super) fn from_shared(s: Bytes) -> Result<Self, InvalidUri> {
         // Precondition on create_authority: trivially satisfied by the
@@ -314,13 +315,15 @@ impl<'a> PartialEq<&'a str> for Authority {
     }
 }
 
-impl PartialEq<String> for Authority {
-    fn eq(&self, other: &String) -> bool {
+#[cfg(feature = "alloc")]
+impl PartialEq<alloc::string::String> for Authority {
+    fn eq(&self, other: &alloc::string::String) -> bool {
         self.data.eq_ignore_ascii_case(other.as_str())
     }
 }
 
-impl PartialEq<Authority> for String {
+#[cfg(feature = "alloc")]
+impl PartialEq<Authority> for alloc::string::String {
     fn eq(&self, other: &Authority) -> bool {
         self.as_str().eq_ignore_ascii_case(other.as_str())
     }
@@ -376,15 +379,17 @@ impl<'a> PartialOrd<&'a str> for Authority {
     }
 }
 
-impl PartialOrd<String> for Authority {
-    fn partial_cmp(&self, other: &String) -> Option<cmp::Ordering> {
+#[cfg(feature = "alloc")]
+impl PartialOrd<alloc::string::String> for Authority {
+    fn partial_cmp(&self, other: &alloc::string::String) -> Option<cmp::Ordering> {
         let left = self.data.as_bytes().iter().map(|b| b.to_ascii_lowercase());
         let right = other.as_bytes().iter().map(|b| b.to_ascii_lowercase());
         left.partial_cmp(right)
     }
 }
 
-impl PartialOrd<Authority> for String {
+#[cfg(feature = "alloc")]
+impl PartialOrd<Authority> for alloc::string::String {
     fn partial_cmp(&self, other: &Authority) -> Option<cmp::Ordering> {
         let left = self.as_bytes().iter().map(|b| b.to_ascii_lowercase());
         let right = other.data.as_bytes().iter().map(|b| b.to_ascii_lowercase());
@@ -446,20 +451,22 @@ impl<'a> TryFrom<&'a str> for Authority {
     }
 }
 
-impl TryFrom<Vec<u8>> for Authority {
+#[cfg(feature = "alloc")]
+impl TryFrom<alloc::vec::Vec<u8>> for Authority {
     type Error = InvalidUri;
 
     #[inline]
-    fn try_from(vec: Vec<u8>) -> Result<Self, Self::Error> {
+    fn try_from(vec: alloc::vec::Vec<u8>) -> Result<Self, Self::Error> {
         Authority::from_shared(vec.into())
     }
 }
 
-impl TryFrom<String> for Authority {
+#[cfg(feature = "alloc")]
+impl TryFrom<alloc::string::String> for Authority {
     type Error = InvalidUri;
 
     #[inline]
-    fn try_from(t: String) -> Result<Self, Self::Error> {
+    fn try_from(t: alloc::string::String) -> Result<Self, Self::Error> {
         Authority::from_shared(t.into())
     }
 }
@@ -531,6 +538,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::string::ToString;
 
     #[test]
     fn parse_empty_string_is_error() {
