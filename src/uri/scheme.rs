@@ -1,7 +1,8 @@
-use std::convert::TryFrom;
-use std::fmt;
-use std::hash::{Hash, Hasher};
-use std::str::FromStr;
+use alloc::boxed::Box;
+use core::convert::TryFrom;
+use core::fmt;
+use core::hash::{Hash, Hasher};
+use core::str::FromStr;
 
 use bytes::Bytes;
 

@@ -19,7 +19,7 @@
 //! println!("{:?}", http2);
 //! ```
 
-use std::fmt;
+use core::fmt;
 
 /// Represents a version of the HTTP spec.
 #[derive(PartialEq, PartialOrd, Copy, Clone, Eq, Ord, Hash)]

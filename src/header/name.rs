@@ -1,13 +1,18 @@
 use crate::byte_str::ByteStr;
 use bytes::{Bytes, BytesMut};
 
-use std::borrow::Borrow;
-use std::convert::TryFrom;
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::borrow::Borrow;
+use core::convert::TryFrom;
+#[cfg(not(feature = "std"))]
+use core::error::Error;
+use core::fmt;
+use core::hash::{Hash, Hasher};
+use core::mem::MaybeUninit;
+use core::str::FromStr;
+#[cfg(feature = "std")]
 use std::error::Error;
-use std::fmt;
-use std::hash::{Hash, Hasher};
-use std::mem::MaybeUninit;
-use std::str::FromStr;
 
 /// Represents an HTTP header field name
 ///
@@ -89,7 +94,7 @@ macro_rules! standard_headers {
                 match *self {
                     // Safety: test_parse_standard_headers ensures these &[u8]s are &str-safe.
                     $(
-                    StandardHeader::$konst => unsafe { std::str::from_utf8_unchecked( $name_bytes ) },
+                    StandardHeader::$konst => unsafe { core::str::from_utf8_unchecked( $name_bytes ) },
                     )+
                 }
             }
