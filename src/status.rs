@@ -44,7 +44,7 @@ use std::str::FromStr;
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StatusCode(NonZeroU16);
 
-/// A possible error value when converting a `StatusCode` from a `u16` or `&str`
+/// A possible error value when converting a `StatusCode` from a `u16` or `&str`.
 ///
 /// This error indicates that the supplied input was not a valid number, was less
 /// than 100, or was greater than 999.
@@ -80,7 +80,7 @@ impl StatusCode {
             .ok_or_else(InvalidStatusCode::new)
     }
 
-    /// Converts a &[u8] to a status code
+    /// Converts a `&[u8]` to a status code.
     pub fn from_bytes(src: &[u8]) -> Result<StatusCode, InvalidStatusCode> {
         if src.len() != 3 {
             return Err(InvalidStatusCode::new());
@@ -117,7 +117,7 @@ impl StatusCode {
     /// ```
     #[inline]
     pub const fn as_u16(&self) -> u16 {
-        (*self).0.get()
+        self.0.get()
     }
 
     /// Returns a &str representation of the `StatusCode`
@@ -175,31 +175,31 @@ impl StatusCode {
     /// Check if status is within 100-199.
     #[inline]
     pub fn is_informational(&self) -> bool {
-        200 > self.0.get() && self.0.get() >= 100
+        (100..200).contains(&self.0.get())
     }
 
     /// Check if status is within 200-299.
     #[inline]
     pub fn is_success(&self) -> bool {
-        300 > self.0.get() && self.0.get() >= 200
+        (200..300).contains(&self.0.get())
     }
 
     /// Check if status is within 300-399.
     #[inline]
     pub fn is_redirection(&self) -> bool {
-        400 > self.0.get() && self.0.get() >= 300
+        (300..400).contains(&self.0.get())
     }
 
     /// Check if status is within 400-499.
     #[inline]
     pub fn is_client_error(&self) -> bool {
-        500 > self.0.get() && self.0.get() >= 400
+        (400..500).contains(&self.0.get())
     }
 
     /// Check if status is within 500-599.
     #[inline]
     pub fn is_server_error(&self) -> bool {
-        600 > self.0.get() && self.0.get() >= 500
+        (500..600).contains(&self.0.get())
     }
 }
 
