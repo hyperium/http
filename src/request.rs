@@ -52,14 +52,14 @@
 //! }
 //! ```
 
-use std::any::Any;
-use std::convert::TryInto;
-use std::fmt;
+use core::any::Any;
+use core::convert::TryInto;
+use core::fmt;
 
 use crate::header::{HeaderMap, HeaderName, HeaderValue};
 use crate::method::Method;
 use crate::version::Version;
-use crate::{Extensions, Result, Uri};
+use crate::{Result, Uri};
 
 /// Represents an HTTP request.
 ///
@@ -179,7 +179,8 @@ pub struct Parts {
     pub headers: HeaderMap<HeaderValue>,
 
     /// The request's extensions
-    pub extensions: Extensions,
+    #[cfg(feature = "alloc")]
+    pub extensions: crate::Extensions,
 
     _priv: (),
 }
@@ -581,8 +582,9 @@ impl<T> Request<T> {
     /// let request: Request<()> = Request::default();
     /// assert!(request.extensions().get::<i32>().is_none());
     /// ```
+    #[cfg(feature = "alloc")]
     #[inline]
-    pub fn extensions(&self) -> &Extensions {
+    pub fn extensions(&self) -> &crate::Extensions {
         &self.head.extensions
     }
 
@@ -597,8 +599,9 @@ impl<T> Request<T> {
     /// request.extensions_mut().insert("hello");
     /// assert_eq!(request.extensions().get(), Some(&"hello"));
     /// ```
+    #[cfg(feature = "alloc")]
     #[inline]
-    pub fn extensions_mut(&mut self) -> &mut Extensions {
+    pub fn extensions_mut(&mut self) -> &mut crate::Extensions {
         &mut self.head.extensions
     }
 
@@ -714,7 +717,7 @@ impl Parts {
             uri: Uri::default(),
             version: Version::default(),
             headers: HeaderMap::default(),
-            extensions: Extensions::default(),
+            extensions: crate::Extensions::default(),
             _priv: (),
         }
     }
@@ -991,7 +994,7 @@ impl Builder {
     /// assert_eq!(extensions.get::<&'static str>(), Some(&"My Extension"));
     /// assert_eq!(extensions.get::<u32>(), Some(&5u32));
     /// ```
-    pub fn extensions_ref(&self) -> Option<&Extensions> {
+    pub fn extensions_ref(&self) -> Option<&crate::Extensions> {
         self.inner.as_ref().ok().map(|h| &h.extensions)
     }
 
@@ -1009,7 +1012,7 @@ impl Builder {
     /// extensions.insert(5u32);
     /// assert_eq!(extensions.get::<u32>(), Some(&5u32));
     /// ```
-    pub fn extensions_mut(&mut self) -> Option<&mut Extensions> {
+    pub fn extensions_mut(&mut self) -> Option<&mut crate::Extensions> {
         self.inner.as_mut().ok().map(|h| &mut h.extensions)
     }
 
