@@ -1,7 +1,11 @@
-use std::any::{Any, TypeId};
+use alloc::boxed::Box;
+use core::any::{Any, TypeId};
+use core::fmt;
+use core::hash::{BuildHasherDefault, Hasher};
+#[cfg(not(feature = "std"))]
+use hashbrown::HashMap;
+#[cfg(feature = "std")]
 use std::collections::HashMap;
-use std::fmt;
-use std::hash::{BuildHasherDefault, Hasher};
 
 type AnyMap = HashMap<TypeId, Box<dyn AnyClone + Send + Sync>, BuildHasherDefault<IdHasher>>;
 

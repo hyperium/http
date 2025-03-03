@@ -88,6 +88,19 @@ jobs:
       - name: Test
         run: cargo check -p http
 
+  no-std:
+    name: Check no_std
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Check
+        run: cargo check --no-default-features --features=no-std
+
   wasm:
     name: WASM
     #needs: [style]
