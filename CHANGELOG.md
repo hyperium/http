@@ -1,3 +1,7 @@
+# 1.3.1 (March 11, 2025)
+
+* Fix validation that all characters are UTF-8 in URI path and query.
+
 # 1.3.0 (March 11, 2025)
 
 * Allow most UTF-8 characters in URI path and query.
