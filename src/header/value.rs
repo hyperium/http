@@ -1,11 +1,11 @@
 use bytes::{Bytes, BytesMut};
 
-use std::convert::TryFrom;
-use std::error::Error;
-use std::fmt::Write;
-use std::hash::{Hash, Hasher};
-use std::str::FromStr;
-use std::{cmp, fmt, str};
+use core::convert::TryFrom;
+use core::error::Error;
+use core::fmt::Write;
+use core::hash::{Hash, Hasher};
+use core::str::FromStr;
+use core::{cmp, fmt, str};
 
 use crate::header::name::HeaderName;
 
@@ -234,7 +234,7 @@ impl HeaderValue {
     }
 
     fn from_shared(src: Bytes) -> Result<HeaderValue, InvalidHeaderValue> {
-        HeaderValue::try_from_generic(src, std::convert::identity)
+        HeaderValue::try_from_generic(src, core::convert::identity)
     }
 
     fn try_from_generic<T: AsRef<[u8]>, F: FnOnce(T) -> Bytes>(
@@ -435,11 +435,13 @@ macro_rules! from_integers {
 
         #[test]
         fn $name() {
+            use alloc::string::ToString;
+
             let n: $t = 55;
             let val = HeaderValue::from(n);
             assert_eq!(val, &n.to_string());
 
-            let n = ::std::$t::MAX;
+            let n = ::core::$t::MAX;
             let val = HeaderValue::from(n);
             assert_eq!(val, &n.to_string());
         }
@@ -528,10 +530,11 @@ impl<'a> TryFrom<&'a str> for HeaderValue {
     }
 }
 
-impl<'a> TryFrom<&'a String> for HeaderValue {
+#[cfg(feature = "alloc")]
+impl<'a> TryFrom<&'a alloc::string::String> for HeaderValue {
     type Error = InvalidHeaderValue;
     #[inline]
-    fn try_from(s: &'a String) -> Result<Self, Self::Error> {
+    fn try_from(s: &'a alloc::string::String) -> Result<Self, Self::Error> {
         Self::from_bytes(s.as_bytes())
     }
 }
@@ -545,20 +548,22 @@ impl<'a> TryFrom<&'a [u8]> for HeaderValue {
     }
 }
 
-impl TryFrom<String> for HeaderValue {
+#[cfg(feature = "alloc")]
+impl TryFrom<alloc::string::String> for HeaderValue {
     type Error = InvalidHeaderValue;
 
     #[inline]
-    fn try_from(t: String) -> Result<Self, Self::Error> {
+    fn try_from(t: alloc::string::String) -> Result<Self, Self::Error> {
         HeaderValue::from_shared(t.into())
     }
 }
 
-impl TryFrom<Vec<u8>> for HeaderValue {
+#[cfg(feature = "alloc")]
+impl TryFrom<alloc::vec::Vec<u8>> for HeaderValue {
     type Error = InvalidHeaderValue;
 
     #[inline]
-    fn try_from(vec: Vec<u8>) -> Result<Self, Self::Error> {
+    fn try_from(vec: alloc::vec::Vec<u8>) -> Result<Self, Self::Error> {
         HeaderValue::from_shared(vec.into())
     }
 }
@@ -697,28 +702,32 @@ impl PartialOrd<HeaderValue> for [u8] {
     }
 }
 
-impl PartialEq<String> for HeaderValue {
+#[cfg(feature = "alloc")]
+impl PartialEq<alloc::string::String> for HeaderValue {
     #[inline]
-    fn eq(&self, other: &String) -> bool {
+    fn eq(&self, other: &alloc::string::String) -> bool {
         *self == other[..]
     }
 }
 
-impl PartialOrd<String> for HeaderValue {
+#[cfg(feature = "alloc")]
+impl PartialOrd<alloc::string::String> for HeaderValue {
     #[inline]
-    fn partial_cmp(&self, other: &String) -> Option<cmp::Ordering> {
+    fn partial_cmp(&self, other: &alloc::string::String) -> Option<cmp::Ordering> {
         self.inner.partial_cmp(other.as_bytes())
     }
 }
 
-impl PartialEq<HeaderValue> for String {
+#[cfg(feature = "alloc")]
+impl PartialEq<HeaderValue> for alloc::string::String {
     #[inline]
     fn eq(&self, other: &HeaderValue) -> bool {
         *other == *self
     }
 }
 
-impl PartialOrd<HeaderValue> for String {
+#[cfg(feature = "alloc")]
+impl PartialOrd<HeaderValue> for alloc::string::String {
     #[inline]
     fn partial_cmp(&self, other: &HeaderValue) -> Option<cmp::Ordering> {
         self.as_bytes().partial_cmp(other.as_bytes())
@@ -775,7 +784,7 @@ impl<'a> PartialOrd<HeaderValue> for &'a str {
 
 #[test]
 fn test_try_from() {
-    HeaderValue::try_from(vec![127]).unwrap_err();
+    HeaderValue::try_from(alloc::vec![127]).unwrap_err();
 }
 
 #[test]
@@ -788,11 +797,11 @@ fn test_debug() {
 
     for &(value, expected) in cases {
         let val = HeaderValue::from_bytes(value.as_bytes()).unwrap();
-        let actual = format!("{:?}", val);
+        let actual = alloc::format!("{:?}", val);
         assert_eq!(expected, actual);
     }
 
     let mut sensitive = HeaderValue::from_static("password");
     sensitive.set_sensitive(true);
-    assert_eq!("Sensitive", format!("{:?}", sensitive));
+    assert_eq!("Sensitive", alloc::format!("{:?}", sensitive));
 }

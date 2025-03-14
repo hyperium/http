@@ -1,9 +1,13 @@
-use std::any::{Any, TypeId};
-use std::collections::HashMap;
-use std::fmt;
-use std::hash::{BuildHasherDefault, Hasher};
+use alloc::boxed::Box;
+use core::any::{Any, TypeId};
+use core::fmt;
+use std::hash::Hasher;
 
-type AnyMap = HashMap<TypeId, Box<dyn AnyClone + Send + Sync>, BuildHasherDefault<IdHasher>>;
+type AnyMap = hashbrown::HashMap<
+    TypeId,
+    Box<dyn AnyClone + Send + Sync>,
+    core::hash::BuildHasherDefault<IdHasher>,
+>;
 
 // With TypeIds as keys, there's no need to hash them. They are already hashes
 // themselves, coming from the compiler. The IdHasher just holds the u64 of

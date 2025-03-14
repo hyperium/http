@@ -70,16 +70,20 @@
 //! [`HashMap`]: https://doc.rust-lang.org/std/collections/struct.HashMap.html
 //! [Robin Hood hashing]: https://en.wikipedia.org/wiki/Hash_table#Robin_Hood_hashing
 
+#[cfg(feature = "alloc")]
 mod map;
 mod name;
+#[cfg(feature = "alloc")]
 mod value;
 
+#[cfg(feature = "alloc")]
 pub use self::map::{
     AsHeaderName, Drain, Entry, GetAll, HeaderMap, IntoHeaderName, IntoIter, Iter, IterMut, Keys,
     MaxSizeReached, OccupiedEntry, VacantEntry, ValueDrain, ValueIter, ValueIterMut, Values,
     ValuesMut,
 };
 pub use self::name::{HeaderName, InvalidHeaderName};
+#[cfg(feature = "alloc")]
 pub use self::value::{HeaderValue, InvalidHeaderValue, ToStrError};
 
 // Use header name constants
