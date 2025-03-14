@@ -413,6 +413,28 @@ impl Request<()> {
     {
         Builder::new().method(Method::TRACE).uri(uri)
     }
+
+    /// Creates a new `Builder` initialized with a QUERY method and the given URI.
+    ///
+    /// This method returns an instance of `Builder` which can be used to
+    /// create a `Request`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use http::*;
+    ///
+    /// let request = Request::query("https://www.rust-lang.org/")
+    ///     .body(())
+    ///     .unwrap();
+    /// ```
+    pub fn query<T>(uri: T) -> Builder
+    where
+        Uri: TryFrom<T>,
+        <Uri as TryFrom<T>>::Error: Into<crate::Error>,
+    {
+        Builder::new().method(Method::QUERY).uri(uri)
+    }
 }
 
 impl<T> Request<T> {
