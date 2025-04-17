@@ -296,47 +296,34 @@ impl Uri {
             return Err(TooLong.into());
         }
 
-        match s.len() {
-            0 => {
-                return Err(Empty.into());
-            }
-            1 => match s[0] {
-                b'/' => {
-                    return Ok(Uri {
-                        scheme: Scheme::empty(),
-                        authority: Authority::empty(),
-                        path_and_query: PathAndQuery::slash(),
-                    });
-                }
-                b'*' => {
-                    return Ok(Uri {
-                        scheme: Scheme::empty(),
-                        authority: Authority::empty(),
-                        path_and_query: PathAndQuery::star(),
-                    });
-                }
-                _ => {
-                    let authority = Authority::from_shared(s)?;
+        match &s[..] {
+            [] => Err(Empty.into()),
 
-                    return Ok(Uri {
-                        scheme: Scheme::empty(),
-                        authority,
-                        path_and_query: PathAndQuery::empty(),
-                    });
-                }
-            },
-            _ => {}
-        }
+            [b'/'] => Ok(Uri {
+                scheme: Scheme::empty(),
+                authority: Authority::empty(),
+                path_and_query: PathAndQuery::slash(),
+            }),
+            [b'*'] => Ok(Uri {
+                scheme: Scheme::empty(),
+                authority: Authority::empty(),
+                path_and_query: PathAndQuery::star(),
+            }),
+            [_] => Ok(Uri {
+                scheme: Scheme::empty(),
+                authority: Authority::from_shared(s)?,
+                path_and_query: PathAndQuery::empty(),
+            }),
 
-        if s[0] == b'/' {
-            return Ok(Uri {
+            [b'/', b'/', ..] => parse_schemaless(s),
+            [b'/', ..] => Ok(Uri {
                 scheme: Scheme::empty(),
                 authority: Authority::empty(),
                 path_and_query: PathAndQuery::from_shared(s)?,
-            });
-        }
+            }),
 
-        parse_full(s)
+            _ => parse_full(s),
+        }
     }
 
     /// Convert a `Uri` from a static string.
@@ -819,6 +806,12 @@ impl From<Uri> for Parts {
     }
 }
 
+fn parse_schemaless(mut s: Bytes) -> Result<Uri, InvalidUri> {
+    // Strip ‘//’, TODO: use truncate
+    let _ = s.split_to(2);
+    parse_past_schema_imp(s, None)
+}
+
 fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUri> {
     // Parse the scheme
     let scheme = match Scheme2::parse(&s[..])? {
@@ -842,25 +835,33 @@ fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUri> {
         }
     };
 
+    parse_past_schema_imp(s, Some(scheme))
+}
+
+fn parse_past_schema_imp(mut s: Bytes, scheme: Option<Scheme2>) -> Result<Uri, InvalidUri> {
     // Find the end of the authority. The scheme will already have been
     // extracted.
     let authority_end = Authority::parse(&s[..])?;
 
-    if scheme.is_none() {
-        if authority_end != s.len() {
-            return Err(ErrorKind::InvalidFormat.into());
-        }
+    let scheme = match scheme {
+        Some(scheme) if scheme.is_none() => {
+            if authority_end != s.len() {
+                return Err(ErrorKind::InvalidFormat.into());
+            }
 
-        let authority = Authority {
-            data: unsafe { ByteStr::from_utf8_unchecked(s) },
-        };
+            let authority = Authority {
+                data: unsafe { ByteStr::from_utf8_unchecked(s) },
+            };
 
-        return Ok(Uri {
-            scheme: scheme.into(),
-            authority,
-            path_and_query: PathAndQuery::empty(),
-        });
-    }
+            return Ok(Uri {
+                scheme: scheme.into(),
+                authority,
+                path_and_query: PathAndQuery::empty(),
+            });
+        },
+        Some(scheme) => scheme.into(),
+        None => Scheme2::None.into(),
+    };
 
     // Authority is required when absolute
     if authority_end == 0 {
@@ -873,7 +874,7 @@ fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUri> {
     };
 
     Ok(Uri {
-        scheme: scheme.into(),
+        scheme,
         authority,
         path_and_query: PathAndQuery::from_shared(s)?,
     })
@@ -934,6 +935,8 @@ impl PartialEq<str> for Uri {
             }
 
             other = &other[3..];
+        } else if other.get(..2).map_or(false, |pre| pre == b"//") {
+            other = &other[2..];
         }
 
         if let Some(auth) = self.authority() {
@@ -1025,6 +1028,8 @@ impl fmt::Display for Uri {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(scheme) = self.scheme() {
             write!(f, "{}://", scheme)?;
+        } else if self.authority().is_some() {
+            write!(f, "//")?;
         }
 
         if let Some(authority) = self.authority() {

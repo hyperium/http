@@ -80,6 +80,19 @@ test_parse! {
 }
 
 test_parse! {
+    test_uri_parse_absolute_form_schemaless,
+    "//127.0.0.1:61761/chunks",
+    [],
+
+    scheme = None,
+    authority = part!("127.0.0.1:61761"),
+    path = "/chunks",
+    query = None,
+    host = Some("127.0.0.1"),
+    port = Port::from_str("61761").ok(),
+}
+
+test_parse! {
     test_uri_parse_absolute_form_without_path,
     "https://127.0.0.1:61761",
     ["https://127.0.0.1:61761/"],
@@ -195,6 +208,18 @@ test_parse! {
 }
 
 test_parse! {
+    test_uri_parse_path_with_terminating_questionmark_schemaless,
+    "//127.0.0.1/path?",
+    [],
+
+    scheme = None,
+    authority = part!("127.0.0.1"),
+    path = "/path",
+    query = Some(""),
+    port = None,
+}
+
+test_parse! {
     test_uri_parse_absolute_form_with_empty_path_and_nonempty_query,
     "http://127.0.0.1?foo=bar",
     [],
@@ -286,6 +311,19 @@ test_parse! {
     [],
 
     scheme = part!("http"),
+    authority = part!("a@127.0.0.1"),
+    host = Some("127.0.0.1"),
+    path = "/",
+    query = None,
+    port = None,
+}
+
+test_parse! {
+    test_userinfo3_schemaless,
+    "//a@127.0.0.1/",
+    [],
+
+    scheme = None,
     authority = part!("a@127.0.0.1"),
     host = Some("127.0.0.1"),
     path = "/",
@@ -499,7 +537,7 @@ fn test_uri_to_path_and_query() {
 
 #[test]
 fn test_authority_uri_parts_round_trip() {
-    let s = "hyper.rs";
+    let s = "//hyper.rs";
     let uri = Uri::from_str(s).expect("first parse");
     assert_eq!(uri, s);
     assert_eq!(uri.to_string(), s);

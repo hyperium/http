@@ -279,6 +279,10 @@ impl Scheme2<usize> {
             }
         }
 
+        if s.starts_with(b"//") {
+            return Ok(Scheme2::None);
+        }
+
         if s.len() > 3 {
             for i in 0..s.len() {
                 let b = s[i];
