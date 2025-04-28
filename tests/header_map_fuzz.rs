@@ -4,7 +4,6 @@ use http::*;
 use quickcheck::{Arbitrary, Gen, QuickCheck, TestResult};
 use rand::prelude::IndexedRandom;
 use rand::rngs::StdRng;
-// use rand::seq::SliceRandom;
 use rand::{Rng, SeedableRng};
 
 use std::collections::HashMap;
