@@ -1,4 +1,4 @@
-use std::fmt;
+use core::fmt;
 
 use super::{ErrorKind, InvalidUri};
 
@@ -128,7 +128,7 @@ mod tests {
             port: 8081,
         };
         let port_b = Port {
-            repr: String::from("8081"),
+            repr: alloc::string::String::from("8081"),
             port: 8081,
         };
         assert_eq!(port_a, port_b);

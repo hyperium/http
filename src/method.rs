@@ -15,13 +15,15 @@
 //! assert_eq!(Method::POST.as_str(), "POST");
 //! ```
 
-use self::extension::{AllocatedExtension, InlineExtension};
+#[cfg(feature = "alloc")]
+use self::extension::AllocatedExtension;
+use self::extension::InlineExtension;
 use self::Inner::*;
 
-use std::convert::TryFrom;
-use std::error::Error;
-use std::str::FromStr;
-use std::{fmt, str};
+use core::convert::TryFrom;
+use core::error::Error;
+use core::str::FromStr;
+use core::{fmt, str};
 
 /// The Request Method (VERB)
 ///
@@ -63,6 +65,7 @@ enum Inner {
     // If the extension is short enough, store it inline
     ExtensionInline(InlineExtension),
     // Otherwise, allocate it
+    #[cfg(feature = "alloc")]
     ExtensionAllocated(AllocatedExtension),
 }
 
@@ -126,9 +129,16 @@ impl Method {
                 if src.len() <= InlineExtension::MAX {
                     Method::extension_inline(src)
                 } else {
-                    let allocated = AllocatedExtension::new(src)?;
+                    #[cfg(not(feature = "alloc"))]
+                    {
+                        Err(InvalidMethod::new())
+                    }
 
-                    Ok(Method(ExtensionAllocated(allocated)))
+                    #[cfg(feature = "alloc")]
+                    {
+                        let allocated = AllocatedExtension::new(src)?;
+                        Ok(Method(ExtensionAllocated(allocated)))
+                    }
                 }
             }
         }
@@ -175,6 +185,7 @@ impl Method {
             Connect => "CONNECT",
             Patch => "PATCH",
             ExtensionInline(ref inline) => inline.as_str(),
+            #[cfg(feature = "alloc")]
             ExtensionAllocated(ref allocated) => allocated.as_str(),
         }
     }
@@ -306,15 +317,16 @@ impl Error for InvalidMethod {}
 
 mod extension {
     use super::InvalidMethod;
-    use std::str;
+    use core::str;
 
     #[derive(Clone, PartialEq, Eq, Hash)]
     // Invariant: the first self.1 bytes of self.0 are valid UTF-8.
     pub struct InlineExtension([u8; InlineExtension::MAX], u8);
 
+    #[cfg(feature = "alloc")]
     #[derive(Clone, PartialEq, Eq, Hash)]
     // Invariant: self.0 contains valid UTF-8.
-    pub struct AllocatedExtension(Box<[u8]>);
+    pub struct AllocatedExtension(alloc::boxed::Box<[u8]>);
 
     impl InlineExtension {
         // Method::from_bytes() assumes this is at least 7
@@ -338,9 +350,10 @@ mod extension {
         }
     }
 
+    #[cfg(feature = "alloc")]
     impl AllocatedExtension {
         pub fn new(src: &[u8]) -> Result<AllocatedExtension, InvalidMethod> {
-            let mut data: Vec<u8> = vec![0; src.len()];
+            let mut data: alloc::vec::Vec<u8> = alloc::vec![0; src.len()];
 
             write_checked(src, &mut data)?;
 
@@ -422,6 +435,7 @@ mod extension {
 #[cfg(test)]
 mod test {
     use super::*;
+    use alloc::string::ToString;
 
     #[test]
     fn test_method_eq() {
@@ -463,8 +477,11 @@ mod test {
         assert_eq!(Method::from_str("WOW").unwrap(), "WOW");
         assert_eq!(Method::from_str("wOw!!").unwrap(), "wOw!!");
 
-        let long_method = "This_is_a_very_long_method.It_is_valid_but_unlikely.";
-        assert_eq!(Method::from_str(long_method).unwrap(), long_method);
+        #[cfg(feature = "alloc")]
+        {
+            let long_method = "This_is_a_very_long_method.It_is_valid_but_unlikely.";
+            assert_eq!(Method::from_str(long_method).unwrap(), long_method);
+        }
 
         let longest_inline_method = [b'A'; InlineExtension::MAX];
         assert_eq!(
@@ -473,13 +490,18 @@ mod test {
                 InlineExtension::new(&longest_inline_method).unwrap()
             ))
         );
-        let shortest_allocated_method = [b'A'; InlineExtension::MAX + 1];
-        assert_eq!(
-            Method::from_bytes(&shortest_allocated_method).unwrap(),
-            Method(ExtensionAllocated(
-                AllocatedExtension::new(&shortest_allocated_method).unwrap()
-            ))
-        );
+
+        #[cfg(feature = "alloc")]
+        {
+            let shortest_allocated_method = [b'A'; InlineExtension::MAX + 1];
+
+            assert_eq!(
+                Method::from_bytes(&shortest_allocated_method).unwrap(),
+                Method(ExtensionAllocated(
+                    AllocatedExtension::new(&shortest_allocated_method).unwrap()
+                ))
+            );
+        }
     }
 
     #[test]
