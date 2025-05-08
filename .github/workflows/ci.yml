@@ -78,9 +78,7 @@ jobs:
 
       - name: Get MSRV from package metadata
         id: metadata
-        run: |
-          cargo metadata --no-deps --format-version 1 |
-              jq -r '"msrv=" + (.packages[] | select(.name == "http")).rust_version' >> $GITHUB_OUTPUT
+        run: echo "msrv=$(yq '.package.rust-version' Cargo.toml)" >> $GITHUB_OUTPUT
 
       - name: Install Rust (${{ steps.metadata.outputs.msrv }})
         uses: dtolnay/rust-toolchain@master
