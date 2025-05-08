@@ -2,6 +2,8 @@
 
 extern crate test;
 
+use std::convert::TryFrom;
+
 use bytes::Bytes;
 use http::HeaderValue;
 use test::Bencher;
@@ -14,7 +16,7 @@ fn from_shared_short(b: &mut Bencher) {
     b.bytes = SHORT.len() as u64;
     let bytes = Bytes::from_static(SHORT);
     b.iter(|| {
-        HeaderValue::from_maybe_shared(bytes.clone()).unwrap();
+        HeaderValue::try_from(bytes.clone()).unwrap();
     });
 }
 
@@ -23,7 +25,7 @@ fn from_shared_long(b: &mut Bencher) {
     b.bytes = LONG.len() as u64;
     let bytes = Bytes::from_static(LONG);
     b.iter(|| {
-        HeaderValue::from_maybe_shared(bytes.clone()).unwrap();
+        HeaderValue::try_from(bytes.clone()).unwrap();
     });
 }
 
@@ -32,7 +34,7 @@ fn from_shared_unchecked_short(b: &mut Bencher) {
     b.bytes = SHORT.len() as u64;
     let bytes = Bytes::from_static(SHORT);
     b.iter(|| unsafe {
-        HeaderValue::from_maybe_shared_unchecked(bytes.clone());
+        HeaderValue::from_shared_unchecked(bytes.clone());
     });
 }
 
@@ -41,6 +43,6 @@ fn from_shared_unchecked_long(b: &mut Bencher) {
     b.bytes = LONG.len() as u64;
     let bytes = Bytes::from_static(LONG);
     b.iter(|| unsafe {
-        HeaderValue::from_maybe_shared_unchecked(bytes.clone());
+        HeaderValue::from_shared_unchecked(bytes.clone());
     });
 }
