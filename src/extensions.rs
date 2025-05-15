@@ -326,4 +326,7 @@ fn test_extensions() {
 
     assert_eq!(extensions.get::<bool>(), None);
     assert_eq!(extensions.get(), Some(&MyType(10)));
+
+    let mut ext3 = Extensions::new();
+    ext3.extend(extensions);
 }

@@ -1918,5 +1918,6 @@ mod tests {
         HeaderName::from_lowercase(&[b'A'; 100]).unwrap_err();
         HeaderName::from_lowercase(&[0x1; 100]).unwrap_err();
         HeaderName::from_lowercase(&[0xFF; 100]).unwrap_err();
+        HeaderName::from_lowercase(&[b'a'; 100]).unwrap_err();
     }
 }
