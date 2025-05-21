@@ -445,12 +445,23 @@ impl HeaderMap {
     /// assert!(map.is_empty());
     /// assert_eq!(0, map.capacity());
     /// ```
+    #[inline]
     pub fn new() -> Self {
-        HeaderMap::try_with_capacity(0).unwrap()
+        Self::new_empty()
     }
 }
 
 impl<T> HeaderMap<T> {
+    fn new_empty() -> Self {
+        HeaderMap {
+            mask: 0,
+            indices: Box::new([]), // as a ZST, this doesn't actually allocate anything
+            entries: Vec::new(),
+            extra_values: Vec::new(),
+            danger: Danger::Green,
+        }
+    }
+
     /// Create an empty `HeaderMap` with the specified capacity.
     ///
     /// The returned map will allocate internal storage in order to hold about
@@ -501,13 +512,7 @@ impl<T> HeaderMap<T> {
     /// ```
     pub fn try_with_capacity(capacity: usize) -> Result<HeaderMap<T>, MaxSizeReached> {
         if capacity == 0 {
-            Ok(HeaderMap {
-                mask: 0,
-                indices: Box::new([]), // as a ZST, this doesn't actually allocate anything
-                entries: Vec::new(),
-                extra_values: Vec::new(),
-                danger: Danger::Green,
-            })
+            Ok(Self::new_empty())
         } else {
             let raw_cap = match to_raw_capacity(capacity).checked_next_power_of_two() {
                 Some(c) => c,
@@ -2165,8 +2170,9 @@ impl<T: fmt::Debug> fmt::Debug for HeaderMap<T> {
 }
 
 impl<T> Default for HeaderMap<T> {
+    #[inline]
     fn default() -> Self {
-        HeaderMap::try_with_capacity(0).expect("zero capacity should never fail")
+        HeaderMap::new_empty()
     }
 }
 
