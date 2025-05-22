@@ -2315,7 +2315,7 @@ impl<'a, T> IterMut<'a, T> {
             self.cursor = Some(Cursor::Head);
         }
 
-        let entry = unsafe { &mut (*self.map).entries[self.entry] };
+        let entry = &mut unsafe { &mut *self.map }.entries[self.entry];
 
         match self.cursor.unwrap() {
             Head => {
@@ -2323,7 +2323,7 @@ impl<'a, T> IterMut<'a, T> {
                 Some((&entry.key, &mut entry.value as *mut _))
             }
             Values(idx) => {
-                let extra = unsafe { &mut (*self.map).extra_values[idx] };
+                let extra = &mut unsafe { &mut (*self.map) }.extra_values[idx];
 
                 match extra.next {
                     Link::Entry(_) => self.cursor = None,
@@ -2963,7 +2963,7 @@ impl<'a, T: 'a> Iterator for ValueIterMut<'a, T> {
     fn next(&mut self) -> Option<Self::Item> {
         use self::Cursor::*;
 
-        let entry = unsafe { &mut (*self.map).entries[self.index] };
+        let entry = &mut unsafe { &mut *self.map }.entries[self.index];
 
         match self.front {
             Some(Head) => {
@@ -2983,7 +2983,7 @@ impl<'a, T: 'a> Iterator for ValueIterMut<'a, T> {
                 Some(&mut entry.value)
             }
             Some(Values(idx)) => {
-                let extra = unsafe { &mut (*self.map).extra_values[idx] };
+                let extra = &mut unsafe { &mut *self.map }.extra_values[idx];
 
                 if self.front == self.back {
                     self.front = None;
@@ -3006,7 +3006,7 @@ impl<'a, T: 'a> DoubleEndedIterator for ValueIterMut<'a, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
         use self::Cursor::*;
 
-        let entry = unsafe { &mut (*self.map).entries[self.index] };
+        let entry = &mut unsafe { &mut *self.map }.entries[self.index];
 
         match self.back {
             Some(Head) => {
@@ -3015,7 +3015,7 @@ impl<'a, T: 'a> DoubleEndedIterator for ValueIterMut<'a, T> {
                 Some(&mut entry.value)
             }
             Some(Values(idx)) => {
-                let extra = unsafe { &mut (*self.map).extra_values[idx] };
+                let extra = &mut unsafe { &mut *self.map }.extra_values[idx];
 
                 if self.front == self.back {
                     self.front = None;
