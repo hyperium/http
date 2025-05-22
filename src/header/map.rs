@@ -1,10 +1,15 @@
-use std::collections::hash_map::RandomState;
-use std::collections::HashMap;
-use std::convert::TryFrom;
-use std::hash::{BuildHasher, Hash, Hasher};
-use std::iter::{FromIterator, FusedIterator};
-use std::marker::PhantomData;
-use std::{fmt, mem, ops, ptr, vec};
+use alloc::boxed::Box;
+use alloc::vec;
+use alloc::vec::Vec;
+use core::convert::TryFrom;
+use core::hash::{BuildHasher, Hash, Hasher};
+use core::iter::{FromIterator, FusedIterator};
+use core::marker::PhantomData;
+use core::{fmt, mem, ops, ptr};
+#[cfg(feature = "std")]
+use std::collections::{hash_map::RandomState, HashMap};
+#[cfg(not(feature = "std"))]
+use {ahash::RandomState, hashbrown::HashMap};
 
 use crate::Error;
 
@@ -116,7 +121,7 @@ pub struct IntoIter<T> {
 /// associated value.
 #[derive(Debug)]
 pub struct Keys<'a, T> {
-    inner: ::std::slice::Iter<'a, Bucket<T>>,
+    inner: ::core::slice::Iter<'a, Bucket<T>>,
 }
 
 /// `HeaderMap` value iterator.
@@ -209,7 +214,7 @@ pub struct ValueIterMut<'a, T> {
 #[derive(Debug)]
 pub struct ValueDrain<'a, T> {
     first: Option<T>,
-    next: Option<::std::vec::IntoIter<T>>,
+    next: Option<::alloc::vec::IntoIter<T>>,
     lt: PhantomData<&'a mut HeaderMap<T>>,
 }
 
@@ -3574,7 +3579,10 @@ impl fmt::Display for MaxSizeReached {
     }
 }
 
+#[cfg(feature = "std")]
 impl std::error::Error for MaxSizeReached {}
+#[cfg(not(feature = "std"))]
+impl core::error::Error for MaxSizeReached {}
 
 // ===== impl Utils =====
 
@@ -3736,6 +3744,7 @@ mod into_header_name {
 
 mod as_header_name {
     use super::{Entry, HdrName, HeaderMap, HeaderName, InvalidHeaderName, MaxSizeReached};
+    use alloc::string::String;
 
     /// A marker trait used to identify values that can be used as search keys
     /// to a `HeaderMap`.
