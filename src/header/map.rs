@@ -447,12 +447,12 @@ impl HeaderMap {
     /// ```
     #[inline]
     pub fn new() -> Self {
-        Self::new_empty()
+        Self::default()
     }
 }
 
-impl<T> HeaderMap<T> {
-    fn new_empty() -> Self {
+impl<T> Default for HeaderMap<T> {
+    fn default() -> Self {
         HeaderMap {
             mask: 0,
             indices: Box::new([]), // as a ZST, this doesn't actually allocate anything
@@ -461,7 +461,9 @@ impl<T> HeaderMap<T> {
             danger: Danger::Green,
         }
     }
+}
 
+impl<T> HeaderMap<T> {
     /// Create an empty `HeaderMap` with the specified capacity.
     ///
     /// The returned map will allocate internal storage in order to hold about
@@ -512,7 +514,7 @@ impl<T> HeaderMap<T> {
     /// ```
     pub fn try_with_capacity(capacity: usize) -> Result<HeaderMap<T>, MaxSizeReached> {
         if capacity == 0 {
-            Ok(Self::new_empty())
+            Ok(Self::default())
         } else {
             let raw_cap = match to_raw_capacity(capacity).checked_next_power_of_two() {
                 Some(c) => c,
@@ -2166,13 +2168,6 @@ impl<T: Eq> Eq for HeaderMap<T> {}
 impl<T: fmt::Debug> fmt::Debug for HeaderMap<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_map().entries(self.iter()).finish()
-    }
-}
-
-impl<T> Default for HeaderMap<T> {
-    #[inline]
-    fn default() -> Self {
-        HeaderMap::new_empty()
     }
 }
 
