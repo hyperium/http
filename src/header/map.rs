@@ -3902,3 +3902,10 @@ fn skip_duplicates_during_key_iteration() {
     map.try_append("a", HeaderValue::from_static("b")).unwrap();
     assert_eq!(map.keys().count(), map.keys_len());
 }
+
+#[test]
+fn test_headermap_get_mut() {
+    let mut map: HeaderMap<String> = HeaderMap::default();
+    let result = map.get_mut("invalid_key");
+    assert!(result.is_none());
+}

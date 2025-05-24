@@ -681,4 +681,13 @@ mod tests {
         let err = Authority::parse_non_empty(b"]o[").unwrap_err();
         assert_eq!(err.0, ErrorKind::InvalidAuthority);
     }
+
+    #[test]
+    fn from_maybe_shared() {
+        let result = Authority::from_maybe_shared(Bytes::new());
+        assert!(result.is_err());
+
+        let result = Authority::from_maybe_shared("example.com");
+        assert!(result.is_ok());
+    }
 }

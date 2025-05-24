@@ -497,6 +497,17 @@ mod tests {
     }
 
     #[test]
+    fn from_maybe_shared() {
+        let input = Bytes::from_static(b"example?query=string");
+        let result = PathAndQuery::from_maybe_shared(input);
+        assert!(result.is_ok());
+
+        let input: &[u8] = b"";
+        let result = PathAndQuery::from_maybe_shared(input);
+        assert!(result.is_ok());
+    }
+
+    #[test]
     fn not_equal_with_a_str_of_a_different_path() {
         let path_and_query: PathAndQuery = "/hello/world&foo=bar".parse().unwrap();
         // as a reference
