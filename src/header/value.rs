@@ -796,3 +796,14 @@ fn test_debug() {
     sensitive.set_sensitive(true);
     assert_eq!("Sensitive", format!("{:?}", sensitive));
 }
+
+#[test]
+fn from_maybe_shared() {
+    let bytes = Bytes::from_static(b"test");
+    let result = HeaderValue::from_maybe_shared(bytes);
+    assert!(result.is_ok());
+
+    let slice: &[u8] = b"example";
+    let result = HeaderValue::from_maybe_shared(slice);
+    assert!(result.is_ok());
+}

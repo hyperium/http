@@ -326,4 +326,15 @@ fn test_extensions() {
 
     assert_eq!(extensions.get::<bool>(), None);
     assert_eq!(extensions.get(), Some(&MyType(10)));
+
+    let mut ext_a = Extensions::new();
+
+    let mut ext_b = Extensions::new();
+    ext_b.insert(4u8);
+    ext_b.insert("hello");
+
+    ext_a.extend(ext_b);
+    assert_eq!(ext_a.len(), 2);
+    assert_eq!(ext_a.get::<u8>(), Some(&4u8));
+    assert_eq!(ext_a.get::<&'static str>().copied(), Some("hello"));
 }

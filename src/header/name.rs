@@ -1918,5 +1918,13 @@ mod tests {
         HeaderName::from_lowercase(&[b'A'; 100]).unwrap_err();
         HeaderName::from_lowercase(&[0x1; 100]).unwrap_err();
         HeaderName::from_lowercase(&[0xFF; 100]).unwrap_err();
+        HeaderName::from_lowercase(&[b'a'; SCRATCH_BUF_OVERFLOW]).unwrap();
+    }
+
+    #[test]
+    fn test_eq_ignore_ascii_case() {
+        let lower: &[u8] = b"a";
+        let s: &[u8] = b"";
+        assert_eq!(eq_ignore_ascii_case(lower, s), false);
     }
 }

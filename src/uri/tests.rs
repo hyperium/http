@@ -517,3 +517,23 @@ fn test_partial_eq_path_with_terminating_questionmark() {
 
     assert_eq!(uri, a);
 }
+
+#[test]
+#[should_panic = "static str is not valid URI"]
+fn test_uri_from_static() {
+    let s = "";
+    let _result = Uri::from_static(s);
+}
+
+#[test]
+fn test_url_from_maybe_shared() {
+    use bytes::Bytes;
+
+    let input = Bytes::from_static(b"http://example.com");
+    let result = Uri::from_maybe_shared(input);
+    assert!(result.is_ok());
+
+    let input: &[u8] = b"mailto:user@example.com";
+    let result = Uri::from_maybe_shared(input).unwrap();
+    assert_eq!(result.query(), None);
+}
