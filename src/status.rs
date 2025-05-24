@@ -14,11 +14,11 @@
 //! assert!(StatusCode::OK.is_success());
 //! ```
 
-use std::convert::TryFrom;
-use std::error::Error;
-use std::fmt;
-use std::num::NonZeroU16;
-use std::str::FromStr;
+use core::convert::TryFrom;
+use core::error::Error;
+use core::fmt;
+use core::num::NonZeroU16;
+use core::str::FromStr;
 
 /// An HTTP status code (`status-code` in RFC 9110 et al.).
 ///
@@ -267,7 +267,7 @@ impl FromStr for StatusCode {
 impl<'a> From<&'a StatusCode> for StatusCode {
     #[inline]
     fn from(t: &'a StatusCode) -> Self {
-        t.to_owned()
+        *t
     }
 }
 

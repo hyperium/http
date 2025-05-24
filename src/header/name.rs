@@ -1,13 +1,15 @@
-use crate::byte_str::ByteStr;
-use bytes::{Bytes, BytesMut};
+use core::borrow::Borrow;
+use core::convert::TryFrom;
+use core::error::Error;
+use core::fmt;
+use core::hash::{Hash, Hasher};
+use core::mem::MaybeUninit;
+use core::str::FromStr;
 
-use std::borrow::Borrow;
-use std::convert::TryFrom;
-use std::error::Error;
-use std::fmt;
-use std::hash::{Hash, Hasher};
-use std::mem::MaybeUninit;
-use std::str::FromStr;
+#[cfg(feature = "alloc")]
+use crate::byte_str::ByteStr;
+#[cfg(feature = "alloc")]
+use alloc::{string::String, vec::Vec};
 
 /// Represents an HTTP header field name
 ///
@@ -31,7 +33,10 @@ use std::str::FromStr;
 /// [`header`]: index.html
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub struct HeaderName {
+    #[cfg(feature = "alloc")]
     inner: Repr<Custom>,
+    #[cfg(not(feature = "alloc"))]
+    inner: Repr<core::convert::Infallible>,
 }
 
 // Almost a full `HeaderName`
@@ -46,6 +51,7 @@ enum Repr<T> {
     Custom(T),
 }
 
+#[cfg(feature = "alloc")]
 // Used to hijack the Hash impl
 #[derive(Debug, Clone, Eq, PartialEq)]
 struct Custom(ByteStr);
@@ -89,7 +95,7 @@ macro_rules! standard_headers {
                 match *self {
                     // Safety: test_parse_standard_headers ensures these &[u8]s are &str-safe.
                     $(
-                    StandardHeader::$konst => unsafe { std::str::from_utf8_unchecked( $name_bytes ) },
+                    StandardHeader::$konst => unsafe { core::str::from_utf8_unchecked( $name_bytes ) },
                     )+
                 }
             }
@@ -118,25 +124,26 @@ macro_rules! standard_headers {
                 assert_eq!(HeaderName::from_bytes(name_bytes).unwrap(), HeaderName::from(std));
 
                 // Test upper case
-                let upper = std::str::from_utf8(name_bytes).expect("byte string constants are all utf-8").to_uppercase();
+                let upper = core::str::from_utf8(name_bytes).expect("byte string constants are all utf-8").to_uppercase();
                 assert_eq!(HeaderName::from_bytes(upper.as_bytes()).unwrap(), HeaderName::from(std));
             }
         }
 
+        #[cfg(feature = "alloc")]
         #[test]
         fn test_standard_headers_into_bytes() {
             for &(std, name_bytes) in TEST_HEADERS {
-                let name = std::str::from_utf8(name_bytes).unwrap();
+                let name = core::str::from_utf8(name_bytes).unwrap();
                 let std = HeaderName::from(std);
                 // Test lower case
-                let bytes: Bytes =
+                let bytes: bytes::Bytes =
                     HeaderName::from_bytes(name_bytes).unwrap().inner.into();
                 assert_eq!(bytes, name);
                 assert_eq!(HeaderName::from_bytes(name_bytes).unwrap(), std);
 
                 // Test upper case
                 let upper = name.to_uppercase();
-                let bytes: Bytes =
+                let bytes: bytes::Bytes =
                     HeaderName::from_bytes(upper.as_bytes()).unwrap().inner.into();
                 assert_eq!(bytes, name_bytes);
                 assert_eq!(HeaderName::from_bytes(upper.as_bytes()).unwrap(),
@@ -1117,15 +1124,21 @@ impl HeaderName {
         // Precondition: HEADER_CHARS is a valid table for parse_hdr().
         match parse_hdr(src, &mut buf, &HEADER_CHARS)?.inner {
             Repr::Standard(std) => Ok(std.into()),
+
+            #[cfg(not(feature = "alloc"))]
+            _ => Err(InvalidHeaderName::new()),
+
+            #[cfg(feature = "alloc")]
             Repr::Custom(MaybeLower { buf, lower: true }) => {
-                let buf = Bytes::copy_from_slice(buf);
+                let buf = bytes::Bytes::copy_from_slice(buf);
                 // Safety: the invariant on MaybeLower ensures buf is valid UTF-8.
                 let val = unsafe { ByteStr::from_utf8_unchecked(buf) };
                 Ok(Custom(val).into())
             }
+            #[cfg(feature = "alloc")]
             Repr::Custom(MaybeLower { buf, lower: false }) => {
                 use bytes::BufMut;
-                let mut dst = BytesMut::with_capacity(buf.len());
+                let mut dst = bytes::BytesMut::with_capacity(buf.len());
 
                 for b in buf.iter() {
                     // HEADER_CHARS maps all bytes to valid single-byte UTF-8
@@ -1171,12 +1184,19 @@ impl HeaderName {
         // Precondition: HEADER_CHARS_H2 is a valid table for parse_hdr()
         match parse_hdr(src, &mut buf, &HEADER_CHARS_H2)?.inner {
             Repr::Standard(std) => Ok(std.into()),
+
+            #[cfg(not(feature = "alloc"))]
+            _ => Err(InvalidHeaderName::new()),
+
+            #[cfg(feature = "alloc")]
             Repr::Custom(MaybeLower { buf, lower: true }) => {
-                let buf = Bytes::copy_from_slice(buf);
+                let buf = bytes::Bytes::copy_from_slice(buf);
                 // Safety: the invariant on MaybeLower ensures buf is valid UTF-8.
                 let val = unsafe { ByteStr::from_utf8_unchecked(buf) };
                 Ok(Custom(val).into())
             }
+
+            #[cfg(feature = "alloc")]
             Repr::Custom(MaybeLower { buf, lower: false }) => {
                 for &b in buf.iter() {
                     // HEADER_CHARS_H2 maps all bytes that are not valid single-byte
@@ -1186,7 +1206,7 @@ impl HeaderName {
                     }
                 }
 
-                let buf = Bytes::copy_from_slice(buf);
+                let buf = bytes::Bytes::copy_from_slice(buf);
                 // Safety: the loop above checks that each byte of buf (either
                 // version) is valid UTF-8.
                 let val = unsafe { ByteStr::from_utf8_unchecked(buf) };
@@ -1226,6 +1246,9 @@ impl HeaderName {
     ///      | ------------------------------------------------------------------------
     /// ```
     ///
+    /// With the "alloc" feature disabled, any header name that is not well-known will also
+    /// raise a panic. It is recommended in this case to use [`StandardHeader::from_bytes`].
+    ///
     /// # Examples
     ///
     /// ```
@@ -1234,12 +1257,14 @@ impl HeaderName {
     /// let hdr = HeaderName::from_static("content-length");
     /// assert_eq!(CONTENT_LENGTH, hdr);
     ///
+    /// # #[cfg(feature = "alloc")] {
     /// // Parsing a custom header
     /// let CUSTOM_HEADER: &'static str = "custom-header";
     ///
     /// let a = HeaderName::from_lowercase(b"custom-header").unwrap();
     /// let b = HeaderName::from_static(CUSTOM_HEADER);
     /// assert_eq!(a, b);
+    /// # }
     /// ```
     ///
     /// ```should_panic
@@ -1281,6 +1306,19 @@ impl HeaderName {
             ([] as [u8; 0])[0]; // Invalid header name
         }
 
+        #[cfg(not(feature = "alloc"))]
+        {
+            // TODO: see above
+            #[allow(clippy::no_effect, clippy::out_of_bounds_indexing)]
+            ([] as [u8; 0])[0]; // Invalid header name
+
+            // dummy
+            HeaderName {
+                inner: Repr::Standard(StandardHeader::Accept),
+            }
+        }
+
+        #[cfg(feature = "alloc")]
         HeaderName {
             inner: Repr::Custom(Custom(ByteStr::from_static(src))),
         }
@@ -1293,11 +1331,15 @@ impl HeaderName {
     pub fn as_str(&self) -> &str {
         match self.inner {
             Repr::Standard(v) => v.as_str(),
+            #[cfg(feature = "alloc")]
             Repr::Custom(ref v) => &v.0,
+            #[cfg(not(feature = "alloc"))]
+            _ => unreachable!(),
         }
     }
 
-    pub(super) fn into_bytes(self) -> Bytes {
+    #[cfg(feature = "alloc")]
+    pub(super) fn into_bytes(self) -> bytes::Bytes {
         self.inner.into()
     }
 }
@@ -1352,23 +1394,25 @@ impl<'a> From<&'a HeaderName> for HeaderName {
     }
 }
 
+#[cfg(feature = "alloc")]
 #[doc(hidden)]
-impl<T> From<Repr<T>> for Bytes
+impl<T> From<Repr<T>> for bytes::Bytes
 where
-    T: Into<Bytes>,
+    T: Into<bytes::Bytes>,
 {
-    fn from(repr: Repr<T>) -> Bytes {
+    fn from(repr: Repr<T>) -> bytes::Bytes {
         match repr {
-            Repr::Standard(header) => Bytes::from_static(header.as_str().as_bytes()),
+            Repr::Standard(header) => bytes::Bytes::from_static(header.as_str().as_bytes()),
             Repr::Custom(header) => header.into(),
         }
     }
 }
 
-impl From<Custom> for Bytes {
+#[cfg(feature = "alloc")]
+impl From<Custom> for bytes::Bytes {
     #[inline]
-    fn from(Custom(inner): Custom) -> Bytes {
-        Bytes::from(inner)
+    fn from(Custom(inner): Custom) -> bytes::Bytes {
+        bytes::Bytes::from(inner)
     }
 }
 
@@ -1380,6 +1424,7 @@ impl<'a> TryFrom<&'a str> for HeaderName {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl<'a> TryFrom<&'a String> for HeaderName {
     type Error = InvalidHeaderName;
     #[inline]
@@ -1396,6 +1441,7 @@ impl<'a> TryFrom<&'a [u8]> for HeaderName {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl TryFrom<String> for HeaderName {
     type Error = InvalidHeaderName;
 
@@ -1405,6 +1451,7 @@ impl TryFrom<String> for HeaderName {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl TryFrom<Vec<u8>> for HeaderName {
     type Error = InvalidHeaderName;
 
@@ -1423,6 +1470,7 @@ impl From<StandardHeader> for HeaderName {
     }
 }
 
+#[cfg(feature = "alloc")]
 #[doc(hidden)]
 impl From<Custom> for HeaderName {
     fn from(src: Custom) -> HeaderName {
@@ -1558,9 +1606,10 @@ impl<'a> From<HdrName<'a>> for HeaderName {
             Repr::Standard(s) => HeaderName {
                 inner: Repr::Standard(s),
             },
+            #[cfg(feature = "alloc")]
             Repr::Custom(maybe_lower) => {
                 if maybe_lower.lower {
-                    let buf = Bytes::copy_from_slice(maybe_lower.buf);
+                    let buf = bytes::Bytes::copy_from_slice(maybe_lower.buf);
                     // Safety: the invariant on MaybeLower ensures buf is valid UTF-8.
                     let byte_str = unsafe { ByteStr::from_utf8_unchecked(buf) };
 
@@ -1569,7 +1618,7 @@ impl<'a> From<HdrName<'a>> for HeaderName {
                     }
                 } else {
                     use bytes::BufMut;
-                    let mut dst = BytesMut::with_capacity(maybe_lower.buf.len());
+                    let mut dst = bytes::BytesMut::with_capacity(maybe_lower.buf.len());
 
                     for b in maybe_lower.buf.iter() {
                         // HEADER_CHARS maps each byte to a valid single-byte UTF-8
@@ -1587,6 +1636,10 @@ impl<'a> From<HdrName<'a>> for HeaderName {
                     }
                 }
             }
+            #[cfg(not(feature = "alloc"))]
+            _ => {
+                unreachable!()
+            }
         }
     }
 }
@@ -1600,6 +1653,7 @@ impl<'a> PartialEq<HdrName<'a>> for HeaderName {
                 Repr::Standard(b) => a == b,
                 _ => false,
             },
+            #[cfg(feature = "alloc")]
             Repr::Custom(Custom(ref a)) => match other.inner {
                 Repr::Custom(ref b) => {
                     if b.lower {
@@ -1610,12 +1664,18 @@ impl<'a> PartialEq<HdrName<'a>> for HeaderName {
                 }
                 _ => false,
             },
+
+            #[cfg(not(feature = "alloc"))]
+            _ => {
+                unreachable!()
+            }
         }
     }
 }
 
 // ===== Custom =====
 
+#[cfg(feature = "alloc")]
 impl Hash for Custom {
     #[inline]
     fn hash<H: Hasher>(&self, hasher: &mut H) {
@@ -1675,6 +1735,13 @@ unsafe fn slice_assume_init<T>(slice: &[MaybeUninit<T>]) -> &[T] {
 mod tests {
     use self::StandardHeader::Vary;
     use super::*;
+    use alloc::vec;
+
+    #[cfg(feature = "alloc")]
+    use crate::byte_str::ByteStr;
+
+    #[cfg(feature = "alloc")]
+    use crate::header::name::Custom;
 
     #[test]
     fn test_bounds() {
@@ -1696,6 +1763,7 @@ mod tests {
 
     const ONE_TOO_LONG: &[u8] = &[b'a'; super::super::MAX_HEADER_NAME_LEN + 1];
 
+    #[cfg(feature = "alloc")]
     #[test]
     fn test_invalid_name_lengths() {
         assert!(
@@ -1705,7 +1773,7 @@ mod tests {
 
         let long = &ONE_TOO_LONG[0..super::super::MAX_HEADER_NAME_LEN];
 
-        let long_str = std::str::from_utf8(long).unwrap();
+        let long_str = core::str::from_utf8(long).unwrap();
         assert_eq!(HeaderName::from_static(long_str), long_str); // shouldn't panic!
 
         assert!(
@@ -1722,10 +1790,11 @@ mod tests {
     #[should_panic]
     fn test_static_invalid_name_lengths() {
         // Safety: ONE_TOO_LONG contains only the UTF-8 safe, single-byte codepoint b'a'.
-        let _ = HeaderName::from_static(unsafe { std::str::from_utf8_unchecked(ONE_TOO_LONG) });
+        let _ = HeaderName::from_static(unsafe { core::str::from_utf8_unchecked(ONE_TOO_LONG) });
     }
 
     #[test]
+    #[cfg(feature = "alloc")]
     fn test_from_hdr_name() {
         use self::StandardHeader::Vary;
 
@@ -1761,6 +1830,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "alloc")]
     fn test_eq_hdr_name() {
         use self::StandardHeader::Vary;
 
@@ -1820,8 +1890,11 @@ mod tests {
         let b = HeaderName::from_static("vary");
         assert_eq!(a, b);
 
-        let b = HeaderName::from_static("vaary");
-        assert_ne!(a, b);
+        #[cfg(feature = "alloc")]
+        {
+            let b = HeaderName::from_static("vaary");
+            assert_ne!(a, b);
+        }
     }
 
     #[test]
@@ -1838,6 +1911,7 @@ mod tests {
 
     // MaybeLower { lower: true }
     #[test]
+    #[cfg(feature = "alloc")]
     fn test_from_static_custom_short() {
         let a = HeaderName {
             inner: Repr::Custom(Custom(ByteStr::from_static("customheader"))),
@@ -1860,6 +1934,7 @@ mod tests {
 
     // MaybeLower { lower: false }
     #[test]
+    #[cfg(feature = "alloc")]
     fn test_from_static_custom_long() {
         let a = HeaderName {
             inner: Repr::Custom(Custom(ByteStr::from_static(
@@ -1889,6 +1964,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "alloc")]
     fn test_from_static_custom_single_char() {
         let a = HeaderName {
             inner: Repr::Custom(Custom(ByteStr::from_static("a"))),
@@ -1903,6 +1979,8 @@ mod tests {
         HeaderName::from_static("");
     }
 
+    // Header name parsing panics in a non-alloc context
+    #[cfg(feature = "alloc")]
     #[test]
     fn test_all_tokens() {
         HeaderName::from_static("!#$%&'*+-.^_`|~0123456789abcdefghijklmnopqrstuvwxyz");

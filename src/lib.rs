@@ -26,6 +26,7 @@
 //! server you might want to inspect a requests URI to dispatch it:
 //!
 //! ```
+//! # #[cfg(feature = "alloc")] {
 //! use http::{Request, Response};
 //!
 //! fn response(req: Request<()>) -> http::Result<Response<()>> {
@@ -40,6 +41,7 @@
 //! # fn foo(_req: Request<()>) -> http::Result<Response<()>> { panic!() }
 //! # fn bar(_req: Request<()>) -> http::Result<Response<()>> { panic!() }
 //! # fn not_found(_req: Request<()>) -> http::Result<Response<()>> { panic!() }
+//! # }
 //! ```
 //!
 //! On a [`Request`] you'll also find accessors like [`method`][Request::method] to return a
@@ -50,6 +52,7 @@
 //! to edit the request/response:
 //!
 //! ```
+//! # #[cfg(feature = "alloc")] {
 //! use http::{HeaderValue, Response, StatusCode};
 //! use http::header::CONTENT_TYPE;
 //!
@@ -58,6 +61,7 @@
 //!         .insert(CONTENT_TYPE, HeaderValue::from_static("text/html"));
 //!     *response.status_mut() = StatusCode::OK;
 //! }
+//! # }
 //! ```
 //!
 //! And finally, one of the most important aspects of requests/responses, the
@@ -113,19 +117,23 @@
 //! function:
 //!
 //! ```
+//! # #[cfg(feature = "alloc")] {
 //! use http::HeaderValue;
 //!
 //! let value = HeaderValue::from_static("text/html");
 //! assert_eq!(value.as_bytes(), b"text/html");
+//! # }
 //! ```
 //!
 //! And header values can also be parsed like names:
 //!
 //! ```
+//! # #[cfg(feature = "alloc")] {
 //! use http::HeaderValue;
 //!
 //! let value = "text/html";
 //! let value = value.parse::<HeaderValue>().unwrap();
+//! # }
 //! ```
 //!
 //! Most HTTP requests and responses tend to come with more than one header, so
@@ -142,6 +150,7 @@
 //! interpret it:
 //!
 //! ```
+//! # #[cfg(feature = "alloc")] {
 //! use http::Uri;
 //! use http::uri::Scheme;
 //!
@@ -151,17 +160,21 @@
 //! assert_eq!(uri.host(), Some("www.rust-lang.org"));
 //! assert_eq!(uri.path(), "/index.html");
 //! assert_eq!(uri.query(), None);
+//! # }
 //! ```
 
 #![deny(warnings, missing_docs, missing_debug_implementations)]
-
-//#![cfg_attr(not(feature = "std"), no_std)]
-#[cfg(not(feature = "std"))]
-compile_error!("`std` feature currently required, support for `no_std` may be added later");
+#![no_std]
 
 #[cfg(test)]
 #[macro_use]
 extern crate doc_comment;
+
+#[cfg(any(feature = "alloc", test))]
+extern crate alloc;
+
+#[cfg(any(feature = "std", test))]
+extern crate std;
 
 #[cfg(test)]
 doctest!("../README.md");
@@ -171,27 +184,41 @@ mod convert;
 
 pub mod header;
 pub mod method;
+#[cfg(feature = "alloc")]
 pub mod request;
+#[cfg(feature = "alloc")]
 pub mod response;
 pub mod status;
+
+#[cfg(feature = "alloc")]
 pub mod uri;
 pub mod version;
 
+#[cfg(feature = "alloc")]
 mod byte_str;
 mod error;
+
+#[cfg(feature = "alloc")]
 mod extensions;
 
 pub use crate::error::{Error, Result};
+#[cfg(feature = "alloc")]
 pub use crate::extensions::Extensions;
+pub use crate::header::HeaderName;
 #[doc(no_inline)]
-pub use crate::header::{HeaderMap, HeaderName, HeaderValue};
+#[cfg(feature = "alloc")]
+pub use crate::header::{HeaderMap, HeaderValue};
 pub use crate::method::Method;
+#[cfg(feature = "alloc")]
 pub use crate::request::Request;
+#[cfg(feature = "alloc")]
 pub use crate::response::Response;
 pub use crate::status::StatusCode;
+#[cfg(feature = "alloc")]
 pub use crate::uri::Uri;
 pub use crate::version::Version;
 
+#[cfg(feature = "alloc")]
 #[cfg(test)]
 mod tests {
     use super::*;

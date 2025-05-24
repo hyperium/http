@@ -1,11 +1,12 @@
-use std::error;
-use std::fmt;
-use std::result;
+use core::error;
+use core::fmt;
 
 use crate::header;
+#[cfg(feature = "alloc")]
 use crate::header::MaxSizeReached;
 use crate::method;
 use crate::status;
+#[cfg(feature = "alloc")]
 use crate::uri;
 
 /// A generic "error" for HTTP connections
@@ -19,15 +20,19 @@ pub struct Error {
 }
 
 /// A `Result` typedef to use with the `http::Error` type
-pub type Result<T> = result::Result<T, Error>;
+pub type Result<T> = core::result::Result<T, Error>;
 
 enum ErrorKind {
     StatusCode(status::InvalidStatusCode),
     Method(method::InvalidMethod),
+    #[cfg(feature = "alloc")]
     Uri(uri::InvalidUri),
+    #[cfg(feature = "alloc")]
     UriParts(uri::InvalidUriParts),
     HeaderName(header::InvalidHeaderName),
+    #[cfg(feature = "alloc")]
     HeaderValue(header::InvalidHeaderValue),
+    #[cfg(feature = "alloc")]
     MaxSizeReached(MaxSizeReached),
 }
 
@@ -59,10 +64,14 @@ impl Error {
         match self.inner {
             StatusCode(ref e) => e,
             Method(ref e) => e,
+            #[cfg(feature = "alloc")]
             Uri(ref e) => e,
+            #[cfg(feature = "alloc")]
             UriParts(ref e) => e,
             HeaderName(ref e) => e,
+            #[cfg(feature = "alloc")]
             HeaderValue(ref e) => e,
+            #[cfg(feature = "alloc")]
             MaxSizeReached(ref e) => e,
         }
     }
@@ -76,6 +85,7 @@ impl error::Error for Error {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl From<MaxSizeReached> for Error {
     fn from(err: MaxSizeReached) -> Error {
         Error {
@@ -100,6 +110,7 @@ impl From<method::InvalidMethod> for Error {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl From<uri::InvalidUri> for Error {
     fn from(err: uri::InvalidUri) -> Error {
         Error {
@@ -108,6 +119,7 @@ impl From<uri::InvalidUri> for Error {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl From<uri::InvalidUriParts> for Error {
     fn from(err: uri::InvalidUriParts) -> Error {
         Error {
@@ -124,6 +136,7 @@ impl From<header::InvalidHeaderName> for Error {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl From<header::InvalidHeaderValue> for Error {
     fn from(err: header::InvalidHeaderValue) -> Error {
         Error {
@@ -132,8 +145,8 @@ impl From<header::InvalidHeaderValue> for Error {
     }
 }
 
-impl From<std::convert::Infallible> for Error {
-    fn from(err: std::convert::Infallible) -> Error {
+impl From<core::convert::Infallible> for Error {
+    fn from(err: core::convert::Infallible) -> Error {
         match err {}
     }
 }
@@ -147,10 +160,12 @@ mod tests {
         if let Err(e) = status::StatusCode::from_u16(6666) {
             let err: Error = e.into();
             let ie = err.get_ref();
+            #[cfg(feature = "alloc")]
             assert!(!ie.is::<header::InvalidHeaderValue>());
             assert!(ie.is::<status::InvalidStatusCode>());
             ie.downcast_ref::<status::InvalidStatusCode>().unwrap();
 
+            #[cfg(feature = "alloc")]
             assert!(!err.is::<header::InvalidHeaderValue>());
             assert!(err.is::<status::InvalidStatusCode>());
         } else {
