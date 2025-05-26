@@ -1,11 +1,16 @@
 use bytes::{Bytes, BytesMut};
 
-use std::convert::TryFrom;
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::convert::TryFrom;
+#[cfg(not(feature = "std"))]
+use core::error::Error;
+use core::fmt::Write;
+use core::hash::{Hash, Hasher};
+use core::str::FromStr;
+use core::{cmp, fmt, str};
+#[cfg(feature = "std")]
 use std::error::Error;
-use std::fmt::Write;
-use std::hash::{Hash, Hasher};
-use std::str::FromStr;
-use std::{cmp, fmt, str};
 
 use crate::header::name::HeaderName;
 
@@ -234,7 +239,7 @@ impl HeaderValue {
     }
 
     fn from_shared(src: Bytes) -> Result<HeaderValue, InvalidHeaderValue> {
-        HeaderValue::try_from_generic(src, std::convert::identity)
+        HeaderValue::try_from_generic(src, core::convert::identity)
     }
 
     fn try_from_generic<T: AsRef<[u8]>, F: FnOnce(T) -> Bytes>(
