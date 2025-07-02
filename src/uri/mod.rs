@@ -103,6 +103,7 @@ pub struct Uri {
 ///
 /// This struct is used to provide to and retrieve from a URI.
 #[derive(Debug, Default)]
+#[non_exhaustive]
 pub struct Parts {
     /// The scheme component of a URI
     pub scheme: Option<Scheme>,
@@ -112,9 +113,6 @@ pub struct Parts {
 
     /// The origin-form component of a URI
     pub path_and_query: Option<PathAndQuery>,
-
-    /// Allow extending in the future
-    _priv: (),
 }
 
 /// An error resulting from a failed attempt to construct a URI.
@@ -361,7 +359,7 @@ impl Uri {
         let s = Bytes::from_static(src.as_bytes());
         match Uri::from_shared(s) {
             Ok(uri) => uri,
-            Err(e) => panic!("static str is not valid URI: {}", e),
+            Err(e) => panic!("static str is not valid URI: {e}"),
         }
     }
 
@@ -814,7 +812,6 @@ impl From<Uri> for Parts {
             scheme,
             authority,
             path_and_query,
-            _priv: (),
         }
     }
 }
@@ -1001,7 +998,7 @@ impl<'a> PartialEq<&'a str> for Uri {
     }
 }
 
-impl<'a> PartialEq<Uri> for &'a str {
+impl PartialEq<Uri> for &str {
     fn eq(&self, uri: &Uri) -> bool {
         uri == *self
     }
@@ -1024,17 +1021,17 @@ impl Default for Uri {
 impl fmt::Display for Uri {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(scheme) = self.scheme() {
-            write!(f, "{}://", scheme)?;
+            write!(f, "{scheme}://")?;
         }
 
         if let Some(authority) = self.authority() {
-            write!(f, "{}", authority)?;
+            write!(f, "{authority}")?;
         }
 
         write!(f, "{}", self.path())?;
 
         if let Some(query) = self.query() {
-            write!(f, "?{}", query)?;
+            write!(f, "?{query}")?;
         }
 
         Ok(())

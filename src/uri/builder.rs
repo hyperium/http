@@ -182,10 +182,10 @@ mod tests {
     fn build_from_string() {
         for i in 1..10 {
             let uri = Builder::new()
-                .path_and_query(format!("/foo?a={}", i))
+                .path_and_query(format!("/foo?a={i}"))
                 .build()
                 .unwrap();
-            let expected_query = format!("a={}", i);
+            let expected_query = format!("a={i}");
             assert_eq!(uri.path(), "/foo");
             assert_eq!(uri.query(), Some(expected_query.as_str()));
         }
@@ -194,9 +194,9 @@ mod tests {
     #[test]
     fn build_from_string_ref() {
         for i in 1..10 {
-            let p_a_q = format!("/foo?a={}", i);
+            let p_a_q = format!("/foo?a={i}");
             let uri = Builder::new().path_and_query(&p_a_q).build().unwrap();
-            let expected_query = format!("a={}", i);
+            let expected_query = format!("a={i}");
             assert_eq!(uri.path(), "/foo");
             assert_eq!(uri.query(), Some(expected_query.as_str()));
         }

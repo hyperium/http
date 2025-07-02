@@ -1439,7 +1439,7 @@ impl<'a> PartialEq<&'a HeaderName> for HeaderName {
     }
 }
 
-impl<'a> PartialEq<HeaderName> for &'a HeaderName {
+impl PartialEq<HeaderName> for &HeaderName {
     #[inline]
     fn eq(&self, other: &HeaderName) -> bool {
         *other == *self
@@ -1493,7 +1493,7 @@ impl<'a> PartialEq<&'a str> for HeaderName {
     }
 }
 
-impl<'a> PartialEq<HeaderName> for &'a str {
+impl PartialEq<HeaderName> for &str {
     /// Performs a case-insensitive comparison of the string against the header
     /// name
     #[inline]
@@ -1688,8 +1688,7 @@ mod tests {
             let hdr = vec![1u8; i];
             assert!(
                 HeaderName::from_bytes(&hdr).is_err(),
-                "{} invalid header chars did not fail",
-                i
+                "{i} invalid header chars did not fail"
             );
         }
     }

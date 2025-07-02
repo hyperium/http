@@ -398,7 +398,7 @@ impl fmt::Debug for HeaderValue {
                     if b == b'"' {
                         f.write_str("\\\"")?;
                     } else {
-                        write!(f, "\\x{:x}", b)?;
+                        write!(f, "\\x{b:x}")?;
                     }
                     from = i + 1;
                 }
@@ -439,7 +439,7 @@ macro_rules! from_integers {
             let val = HeaderValue::from(n);
             assert_eq!(val, &n.to_string());
 
-            let n = ::std::$t::MAX;
+            let n = $t::MAX;
             let val = HeaderValue::from(n);
             assert_eq!(val, &n.to_string());
         }
@@ -571,7 +571,7 @@ mod try_from_header_name_tests {
     #[test]
     fn it_converts_using_try_from() {
         assert_eq!(
-            HeaderValue::try_from(name::UPGRADE).unwrap(),
+            HeaderValue::from(name::UPGRADE),
             HeaderValue::from_bytes(b"upgrade").unwrap()
         );
     }
@@ -725,14 +725,14 @@ impl PartialOrd<HeaderValue> for String {
     }
 }
 
-impl<'a> PartialEq<HeaderValue> for &'a HeaderValue {
+impl PartialEq<HeaderValue> for &HeaderValue {
     #[inline]
     fn eq(&self, other: &HeaderValue) -> bool {
         **self == *other
     }
 }
 
-impl<'a> PartialOrd<HeaderValue> for &'a HeaderValue {
+impl PartialOrd<HeaderValue> for &HeaderValue {
     #[inline]
     fn partial_cmp(&self, other: &HeaderValue) -> Option<cmp::Ordering> {
         (**self).partial_cmp(other)
@@ -759,14 +759,14 @@ where
     }
 }
 
-impl<'a> PartialEq<HeaderValue> for &'a str {
+impl PartialEq<HeaderValue> for &str {
     #[inline]
     fn eq(&self, other: &HeaderValue) -> bool {
         *other == *self
     }
 }
 
-impl<'a> PartialOrd<HeaderValue> for &'a str {
+impl PartialOrd<HeaderValue> for &str {
     #[inline]
     fn partial_cmp(&self, other: &HeaderValue) -> Option<cmp::Ordering> {
         self.as_bytes().partial_cmp(other.as_bytes())
@@ -788,11 +788,11 @@ fn test_debug() {
 
     for &(value, expected) in cases {
         let val = HeaderValue::from_bytes(value.as_bytes()).unwrap();
-        let actual = format!("{:?}", val);
+        let actual = format!("{val:?}");
         assert_eq!(expected, actual);
     }
 
     let mut sensitive = HeaderValue::from_static("password");
     sensitive.set_sensitive(true);
-    assert_eq!("Sensitive", format!("{:?}", sensitive));
+    assert_eq!("Sensitive", format!("{sensitive:?}"));
 }

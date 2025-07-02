@@ -170,7 +170,7 @@ impl AltMap {
         let name = self.gen_name(-5, rng);
         let val = gen_header_value(rng);
 
-        let vals = self.map.entry(name.clone()).or_insert(vec![]);
+        let vals = self.map.entry(name.clone()).or_default();
 
         let ret = !vals.is_empty();
         vals.push(val.clone());
@@ -180,7 +180,7 @@ impl AltMap {
 
     /// Negative numbers weigh finding an existing header higher
     fn gen_name(&self, weight: i32, rng: &mut StdRng) -> HeaderName {
-        let mut existing = rng.random_ratio(1, weight.abs() as u32);
+        let mut existing = rng.random_ratio(1, weight.unsigned_abs());
 
         if weight < 0 {
             existing = !existing;
@@ -203,7 +203,7 @@ impl AltMap {
             None
         } else {
             let n = rng.random_range(0..self.map.len());
-            self.map.keys().nth(n).map(Clone::clone)
+            self.map.keys().nth(n).cloned()
         }
     }
 
@@ -221,7 +221,7 @@ impl AltMap {
 
         for (key, val) in &self.map {
             // Test get
-            assert_eq!(other.get(key), val.get(0));
+            assert_eq!(other.get(key), val.first());
 
             // Test get_all
             let vals = other.get_all(key);
@@ -253,7 +253,7 @@ impl Action {
 }
 
 fn gen_header_name(g: &mut StdRng) -> HeaderName {
-    const STANDARD_HEADERS: &'static [HeaderName] = &[
+    const STANDARD_HEADERS: &[HeaderName] = &[
         header::ACCEPT,
         header::ACCEPT_CHARSET,
         header::ACCEPT_ENCODING,
@@ -354,10 +354,9 @@ fn gen_string(g: &mut StdRng, min: usize, max: usize) -> String {
     let bytes: Vec<_> = (min..max)
         .map(|_| {
             // Chars to pick from
-            b"ABCDEFGHIJKLMNOPQRSTUVabcdefghilpqrstuvwxyz----"
+            *b"ABCDEFGHIJKLMNOPQRSTUVabcdefghilpqrstuvwxyz----"
                 .choose(g)
                 .unwrap()
-                .clone()
         })
         .collect();
 

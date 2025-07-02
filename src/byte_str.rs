@@ -37,8 +37,7 @@ impl ByteStr {
             match str::from_utf8(&bytes) {
                 Ok(_) => (),
                 Err(err) => panic!(
-                    "ByteStr::from_utf8_unchecked() with invalid bytes; error = {}, bytes = {:?}",
-                    err, bytes
+                    "ByteStr::from_utf8_unchecked() with invalid bytes; error = {err}, bytes = {bytes:?}"
                 ),
             }
         }
