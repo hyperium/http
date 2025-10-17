@@ -96,6 +96,7 @@ pub use self::name::{
     IF_RANGE,
     IF_UNMODIFIED_SINCE,
     LAST_MODIFIED,
+    KEEP_ALIVE,
     LINK,
     LOCATION,
     MAX_FORWARDS,
