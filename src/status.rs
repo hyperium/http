@@ -334,6 +334,9 @@ status_codes! {
     /// 102 Processing
     /// [[RFC2518, Section 10.1](https://datatracker.ietf.org/doc/html/rfc2518#section-10.1)]
     (102, PROCESSING, "Processing");
+    /// 103 Early Hints
+    /// [[RFC8297, Section 2](https://datatracker.ietf.org/doc/html/rfc8297#section-2)]
+    (103, EARLY_HINTS, "Early Hints");
 
     /// 200 OK
     /// [[RFC9110, Section 15.3.1](https://datatracker.ietf.org/doc/html/rfc9110#section-15.3.1)]
