@@ -14,11 +14,47 @@ use super::HeaderValue;
 pub use self::as_header_name::AsHeaderName;
 pub use self::into_header_name::IntoHeaderName;
 
-/// A set of HTTP headers
+/// A specialized [multimap](<https://en.wikipedia.org/wiki/Multimap>) for
+/// header names and values.
 ///
-/// `HeaderMap` is a multimap of [`HeaderName`] to values.
+/// # Overview
+///
+/// `HeaderMap` is designed specifically for efficient manipulation of HTTP
+/// headers. It supports multiple values per header name and provides
+/// specialized APIs for insertion, retrieval, and iteration.
+///
+/// The internal implementation is optimized for common usage patterns in HTTP,
+/// and may change across versions. For example, the current implementation uses
+/// [Robin Hood
+/// hashing](<https://en.wikipedia.org/wiki/Hash_table#Robin_Hood_hashing>) to
+/// store entries compactly and enable high load factors with good performance.
+/// However, the collision resolution strategy and storage mechanism are not
+/// part of the public API and may be altered in future releases.
+///
+/// # Iteration order
+///
+/// Unless otherwise specified, the order in which items are returned by
+/// iterators from `HeaderMap` methods is arbitrary; there is no guaranteed
+/// ordering among the elements yielded by such an iterator. Changes to the
+/// iteration order are not considered breaking changes, so users must not rely
+/// on any incidental order produced by such an iterator. However, for a given
+/// crate version, the iteration order will be consistent across all platforms.
+///
+/// # Adaptive hashing
+///
+/// `HeaderMap` uses an adaptive strategy for hashing to maintain fast lookups
+/// while resisting hash collision attacks. The default hash function
+/// prioritizes performance. In scenarios where high collision rates are
+/// detected—typically indicative of denial-of-service attacks—the
+/// implementation switches to a more secure, collision-resistant hash function.
+///
+/// # Limitations
+///
+/// A `HeaderMap` can store at most 32,768 entries \(header name/value pairs\).
+/// Attempting to exceed this limit will result in a panic.
 ///
 /// [`HeaderName`]: struct.HeaderName.html
+/// [`HeaderMap`]: struct.HeaderMap.html
 ///
 /// # Examples
 ///
@@ -445,8 +481,21 @@ impl HeaderMap {
     /// assert!(map.is_empty());
     /// assert_eq!(0, map.capacity());
     /// ```
+    #[inline]
     pub fn new() -> Self {
-        HeaderMap::try_with_capacity(0).unwrap()
+        Self::default()
+    }
+}
+
+impl<T> Default for HeaderMap<T> {
+    fn default() -> Self {
+        HeaderMap {
+            mask: 0,
+            indices: Box::new([]), // as a ZST, this doesn't actually allocate anything
+            entries: Vec::new(),
+            extra_values: Vec::new(),
+            danger: Danger::Green,
+        }
     }
 }
 
@@ -501,13 +550,7 @@ impl<T> HeaderMap<T> {
     /// ```
     pub fn try_with_capacity(capacity: usize) -> Result<HeaderMap<T>, MaxSizeReached> {
         if capacity == 0 {
-            Ok(HeaderMap {
-                mask: 0,
-                indices: Box::new([]), // as a ZST, this doesn't actually allocate anything
-                entries: Vec::new(),
-                extra_values: Vec::new(),
-                danger: Danger::Green,
-            })
+            Ok(Self::default())
         } else {
             let raw_cap = match to_raw_capacity(capacity).checked_next_power_of_two() {
                 Some(c) => c,
@@ -2164,12 +2207,6 @@ impl<T: fmt::Debug> fmt::Debug for HeaderMap<T> {
     }
 }
 
-impl<T> Default for HeaderMap<T> {
-    fn default() -> Self {
-        HeaderMap::try_with_capacity(0).expect("zero capacity should never fail")
-    }
-}
-
 impl<K, T> ops::Index<K> for HeaderMap<T>
 where
     K: AsHeaderName,
@@ -2315,7 +2352,7 @@ impl<'a, T> IterMut<'a, T> {
             self.cursor = Some(Cursor::Head);
         }
 
-        let entry = unsafe { &mut (*self.map).entries[self.entry] };
+        let entry = &mut unsafe { &mut *self.map }.entries[self.entry];
 
         match self.cursor.unwrap() {
             Head => {
@@ -2323,7 +2360,7 @@ impl<'a, T> IterMut<'a, T> {
                 Some((&entry.key, &mut entry.value as *mut _))
             }
             Values(idx) => {
-                let extra = unsafe { &mut (*self.map).extra_values[idx] };
+                let extra = &mut unsafe { &mut (*self.map) }.extra_values[idx];
 
                 match extra.next {
                     Link::Entry(_) => self.cursor = None,
@@ -2963,7 +3000,7 @@ impl<'a, T: 'a> Iterator for ValueIterMut<'a, T> {
     fn next(&mut self) -> Option<Self::Item> {
         use self::Cursor::*;
 
-        let entry = unsafe { &mut (*self.map).entries[self.index] };
+        let entry = &mut unsafe { &mut *self.map }.entries[self.index];
 
         match self.front {
             Some(Head) => {
@@ -2983,7 +3020,7 @@ impl<'a, T: 'a> Iterator for ValueIterMut<'a, T> {
                 Some(&mut entry.value)
             }
             Some(Values(idx)) => {
-                let extra = unsafe { &mut (*self.map).extra_values[idx] };
+                let extra = &mut unsafe { &mut *self.map }.extra_values[idx];
 
                 if self.front == self.back {
                     self.front = None;
@@ -3006,7 +3043,7 @@ impl<'a, T: 'a> DoubleEndedIterator for ValueIterMut<'a, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
         use self::Cursor::*;
 
-        let entry = unsafe { &mut (*self.map).entries[self.index] };
+        let entry = &mut unsafe { &mut *self.map }.entries[self.index];
 
         match self.back {
             Some(Head) => {
@@ -3015,7 +3052,7 @@ impl<'a, T: 'a> DoubleEndedIterator for ValueIterMut<'a, T> {
                 Some(&mut entry.value)
             }
             Some(Values(idx)) => {
-                let extra = unsafe { &mut (*self.map).extra_values[idx] };
+                let extra = &mut unsafe { &mut *self.map }.extra_values[idx];
 
                 if self.front == self.back {
                     self.front = None;
