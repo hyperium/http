@@ -2126,6 +2126,19 @@ impl<T> Extend<(Option<HeaderName>, T)> for HeaderMap<T> {
     fn extend<I: IntoIterator<Item = (Option<HeaderName>, T)>>(&mut self, iter: I) {
         let mut iter = iter.into_iter();
 
+        // Reserve capacity similar to the (HeaderName, T) impl.
+        // Keys may be already present or show multiple times in the iterator.
+        // Reserve the entire hint lower bound if the map is empty.
+        // Otherwise reserve half the hint (rounded up), so the map
+        // will only resize twice in the worst case.
+        let reserve = if self.is_empty() {
+            iter.size_hint().0
+        } else {
+            (iter.size_hint().0 + 1) / 2
+        };
+
+        self.reserve(reserve);
+
         // The structure of this is a bit weird, but it is mostly to make the
         // borrow checker happy.
         let (mut key, mut val) = match iter.next() {
