@@ -60,7 +60,7 @@ fn with_capacity_overflow() {
 fn reserve_overflow() {
     // See https://github.com/hyperium/http/issues/352
     let mut headers = HeaderMap::<u32>::with_capacity(0);
-    headers.reserve(std::usize::MAX); // next_power_of_two overflows
+    headers.reserve(usize::MAX); // next_power_of_two overflows
 }
 
 #[test]
@@ -74,9 +74,7 @@ fn reserve() {
     let reserved_cap = headers.capacity();
     assert!(
         reserved_cap >= requested_cap,
-        "requested {} capacity, but it reserved only {} entries",
-        requested_cap,
-        reserved_cap,
+        "requested {requested_cap} capacity, but it reserved only {reserved_cap} entries",
     );
 
     for i in 0..requested_cap {
@@ -351,7 +349,7 @@ fn custom_std(n: usize) -> Vec<HeaderName> {
         .collect()
 }
 
-const STD: &'static [HeaderName] = &[
+const STD: &[HeaderName] = &[
     ACCEPT,
     ACCEPT_CHARSET,
     ACCEPT_ENCODING,
