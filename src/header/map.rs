@@ -552,7 +552,8 @@ impl<T> HeaderMap<T> {
         if capacity == 0 {
             Ok(Self::default())
         } else {
-            let raw_cap = match to_raw_capacity(capacity).checked_next_power_of_two() {
+            let raw_cap = to_raw_capacity(capacity)?;
+            let raw_cap = match raw_cap.checked_next_power_of_two() {
                 Some(c) => c,
                 None => return Err(MaxSizeReached { _priv: () }),
             };
@@ -750,7 +751,7 @@ impl<T> HeaderMap<T> {
             .checked_add(additional)
             .ok_or_else(MaxSizeReached::new)?;
 
-        let raw_cap = to_raw_capacity(cap);
+        let raw_cap = to_raw_capacity(cap)?;
 
         if raw_cap > self.indices.len() {
             let raw_cap = raw_cap
@@ -3621,14 +3622,8 @@ fn usable_capacity(cap: usize) -> usize {
 }
 
 #[inline]
-fn to_raw_capacity(n: usize) -> usize {
-    match n.checked_add(n / 3) {
-        Some(n) => n,
-        None => panic!(
-            "requested capacity {} too large: overflow while converting to raw capacity",
-            n
-        ),
-    }
+fn to_raw_capacity(n: usize) -> Result<usize, MaxSizeReached> {
+    n.checked_add(n / 3).ok_or_else(MaxSizeReached::new)
 }
 
 #[inline]
