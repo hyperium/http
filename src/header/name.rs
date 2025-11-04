@@ -1245,7 +1245,7 @@ impl HeaderName {
     /// ```should_panic
     /// # use http::header::*;
     /// #
-    /// // Parsing a header that contains invalid symbols(s):
+    /// // Parsing a header that contains invalid symbols:
     /// HeaderName::from_static("content{}{}length"); // This line panics!
     ///
     /// // Parsing a header that contains invalid uppercase characters.
