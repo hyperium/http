@@ -299,6 +299,7 @@ fn gen_header_name(g: &mut StdRng) -> HeaderName {
         header::IF_RANGE,
         header::IF_UNMODIFIED_SINCE,
         header::LAST_MODIFIED,
+        header::KEEP_ALIVE,
         header::LINK,
         header::LOCATION,
         header::MAX_FORWARDS,
