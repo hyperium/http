@@ -45,9 +45,95 @@ impl Authority {
     /// let authority = Authority::from_static("example.com");
     /// assert_eq!(authority.host(), "example.com");
     /// ```
-    pub fn from_static(src: &'static str) -> Self {
-        Authority::from_shared(Bytes::from_static(src.as_bytes()))
-            .expect("static str is not valid authority")
+    #[inline]
+    #[allow(unconditional_panic)]
+    pub const fn from_static(src: &'static str) -> Self {
+        let bytes = src.as_bytes();
+
+        if bytes.len() == 0 {
+            #[allow(clippy::no_effect, clippy::out_of_bounds_indexing)]
+            ([] as [u8; 0])[0];
+        }
+
+        let mut colon_cnt: u32 = 0;
+        let mut start_bracket: bool = false;
+        let mut end_bracket: bool = false;
+        let mut has_percent: bool = false;
+        let mut at_sign_pos: usize = bytes.len();
+        const MAX_COLONS: u32 = 8;
+
+        let mut i: usize = 0;
+        while i < bytes.len() {
+            let b = bytes[i];
+
+            if b == b'/' || b == b'?' || b == b'#' {
+                #[allow(clippy::no_effect, clippy::out_of_bounds_indexing)]
+                ([] as [u8; 0])[0];
+            }
+
+            let ch = URI_CHARS[b as usize];
+            if ch == 0 {
+                if b == b'%' {
+                    has_percent = true;
+                } else {
+                    #[allow(clippy::no_effect, clippy::out_of_bounds_indexing)]
+                    ([] as [u8; 0])[0];
+                }
+            } else if ch == b':' {
+                if colon_cnt >= MAX_COLONS {
+                    #[allow(clippy::no_effect, clippy::out_of_bounds_indexing)]
+                    ([] as [u8; 0])[0];
+                }
+                colon_cnt += 1;
+            } else if ch == b'[' {
+                if has_percent || start_bracket {
+                    #[allow(clippy::no_effect, clippy::out_of_bounds_indexing)]
+                    ([] as [u8; 0])[0];
+                }
+                start_bracket = true;
+            } else if ch == b']' {
+                if !start_bracket || end_bracket {
+                    #[allow(clippy::no_effect, clippy::out_of_bounds_indexing)]
+                    ([] as [u8; 0])[0];
+                }
+                end_bracket = true;
+
+                // Forget IPv6 internals
+                colon_cnt = 0;
+                has_percent = false;
+            } else if ch == b'@' {
+                at_sign_pos = i;
+
+                colon_cnt = 0;
+                has_percent = false;
+            }
+
+            i += 1;
+        }
+
+        if (start_bracket && !end_bracket) || (!start_bracket && end_bracket) {
+            #[allow(clippy::no_effect, clippy::out_of_bounds_indexing)]
+            ([] as [u8; 0])[0];
+        }
+
+        if colon_cnt > 1 {
+            #[allow(clippy::no_effect, clippy::out_of_bounds_indexing)]
+            ([] as [u8; 0])[0];
+        }
+
+        if bytes.len() > 0 && at_sign_pos == bytes.len() - 1 {
+            #[allow(clippy::no_effect, clippy::out_of_bounds_indexing)]
+            ([] as [u8; 0])[0];
+        }
+
+        if has_percent {
+            #[allow(clippy::no_effect, clippy::out_of_bounds_indexing)]
+            ([] as [u8; 0])[0];
+        }
+
+        Authority {
+            data: ByteStr::from_static(src),
+        }
     }
 
     /// Attempt to convert a `Bytes` buffer to a `Authority`.

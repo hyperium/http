@@ -138,10 +138,71 @@ impl PathAndQuery {
     /// assert_eq!(v.query(), Some("world"));
     /// ```
     #[inline]
-    pub fn from_static(src: &'static str) -> Self {
-        let src = Bytes::from_static(src.as_bytes());
+    #[allow(unconditional_panic)]
+    pub const fn from_static(src: &'static str) -> Self {
+        let bytes = src.as_bytes();
+        let mut query: u16 = NONE;
 
-        PathAndQuery::from_shared(src).unwrap()
+        // path ...
+        let mut i: usize = 0;
+        while i < bytes.len() {
+            let b = bytes[i];
+            if b == b'?' {
+                query = i as u16;
+                i += 1;
+                break;
+            } else if b == b'#' {
+                #[allow(clippy::no_effect, clippy::out_of_bounds_indexing)]
+                ([] as [u8; 0])[0];
+            } else {
+                let allowed = b == 0x21
+                    || (b >= 0x24 && b <= 0x3B)
+                    || b == 0x3D
+                    || (b >= 0x40 && b <= 0x5F)
+                    || (b >= 0x61 && b <= 0x7A)
+                    || b == 0x7C
+                    || b == 0x7E
+                    || b == b'"'
+                    || b == b'{'
+                    || b == b'}'
+                    || (b >= 0x7F);
+
+                if !allowed {
+                    #[allow(clippy::no_effect, clippy::out_of_bounds_indexing)]
+                    ([] as [u8; 0])[0];
+                }
+            }
+            i += 1;
+        }
+
+        // query ...
+        if query != NONE {
+            while i < bytes.len() {
+                let b = bytes[i];
+                if b == b'#' {
+                    #[allow(clippy::no_effect, clippy::out_of_bounds_indexing)]
+                    ([] as [u8; 0])[0];
+                }
+
+                let allowed = b == 0x21
+                    || (b >= 0x24 && b <= 0x3B)
+                    || b == 0x3D
+                    || (b >= 0x3F && b <= 0x7E)
+                    || (b >= 0x7F);
+
+                if !allowed {
+                    #[allow(clippy::no_effect, clippy::out_of_bounds_indexing)]
+                    ([] as [u8; 0])[0];
+                }
+
+                i += 1;
+            }
+        }
+
+        PathAndQuery {
+            data: ByteStr::from_static(src),
+            query,
+        }
     }
 
     /// Attempt to convert a `Bytes` buffer to a `PathAndQuery`.
