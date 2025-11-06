@@ -21,13 +21,6 @@ impl Authority {
         }
     }
 
-    // Not public while `bytes` is unstable.
-    pub(super) fn from_shared(s: Bytes) -> Result<Self, InvalidUri> {
-        // Precondition on create_authority: trivially satisfied by the
-        // identity closure
-        create_authority(s, |s| s)
-    }
-
     /// Attempt to convert an `Authority` from a static string.
     ///
     /// This function will not perform any copying, and the string will be
@@ -46,20 +39,18 @@ impl Authority {
     /// assert_eq!(authority.host(), "example.com");
     /// ```
     pub fn from_static(src: &'static str) -> Self {
-        Authority::from_shared(Bytes::from_static(src.as_bytes()))
+        Authority::try_from(Bytes::from_static(src.as_bytes()))
             .expect("static str is not valid authority")
     }
 
-    /// Attempt to convert a `Bytes` buffer to a `Authority`.
-    ///
-    /// This will try to prevent a copy if the type passed is the type used
-    /// internally, and will copy the data if it is not.
+    #[deprecated = "Use TryFrom::<Bytes>::try_from instead"]
+    #[doc(hidden)]
     pub fn from_maybe_shared<T>(src: T) -> Result<Self, InvalidUri>
     where
         T: AsRef<[u8]> + 'static,
     {
         if_downcast_into!(T, Bytes, src, {
-            return Authority::from_shared(src);
+            return Authority::try_from(src);
         });
 
         Authority::try_from(src.as_ref())
@@ -263,8 +254,33 @@ impl Authority {
     }
 }
 
-// Purposefully not public while `bytes` is unstable.
-// impl TryFrom<Bytes> for Authority
+impl TryFrom<Bytes> for Authority {
+    type Error = InvalidUri;
+    /// Attempt to convert an `Authority` from `Bytes`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # extern crate http;
+    /// # use http::uri::*;
+    /// extern crate bytes;
+    ///
+    /// use std::convert::TryFrom;
+    /// use bytes::Bytes;
+    ///
+    /// # pub fn main() {
+    /// let bytes = Bytes::from("example.com");
+    /// let authority = Authority::try_from(bytes).unwrap();
+    ///
+    /// assert_eq!(authority.host(), "example.com");
+    /// # }
+    /// ```
+    fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
+        // Precondition on create_authority: trivially satisfied by the
+        // identity closure
+        create_authority(bytes, |s| s)
+    }
+}
 
 impl AsRef<str> for Authority {
     fn as_ref(&self) -> &str {
@@ -451,7 +467,7 @@ impl TryFrom<Vec<u8>> for Authority {
 
     #[inline]
     fn try_from(vec: Vec<u8>) -> Result<Self, Self::Error> {
-        Authority::from_shared(vec.into())
+        Authority::try_from(Bytes::from(vec))
     }
 }
 
@@ -460,7 +476,7 @@ impl TryFrom<String> for Authority {
 
     #[inline]
     fn try_from(t: String) -> Result<Self, Self::Error> {
-        Authority::from_shared(t.into())
+        Authority::try_from(Bytes::from(t))
     }
 }
 
@@ -469,6 +485,13 @@ impl FromStr for Authority {
 
     fn from_str(s: &str) -> Result<Self, InvalidUri> {
         TryFrom::try_from(s)
+    }
+}
+
+impl From<Authority> for Bytes {
+    #[inline]
+    fn from(src: Authority) -> Bytes {
+        src.data.into()
     }
 }
 
@@ -668,7 +691,7 @@ mod tests {
         let err = Authority::try_from([0xc0u8].as_ref()).unwrap_err();
         assert_eq!(err.0, ErrorKind::InvalidUriChar);
 
-        let err = Authority::from_shared(Bytes::from_static([0xc0u8].as_ref())).unwrap_err();
+        let err = Authority::try_from(Bytes::from_static([0xc0u8].as_ref())).unwrap_err();
         assert_eq!(err.0, ErrorKind::InvalidUriChar);
     }
 
