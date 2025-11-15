@@ -3654,7 +3654,7 @@ fn hash_elem_using<K>(danger: &Danger, k: &K) -> HashValue
 where
     K: Hash + ?Sized,
 {
-    use fnv::FnvHasher;
+    use rustc_hash::FxHasher;
 
     const MASK: u64 = (MAX_SIZE as u64) - 1;
 
@@ -3667,7 +3667,7 @@ where
         }
         // Fast hash
         _ => {
-            let mut h = FnvHasher::default();
+            let mut h = FxHasher::default();
             k.hash(&mut h);
             h.finish()
         }
