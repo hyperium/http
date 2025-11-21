@@ -1,6 +1,6 @@
 //! HTTP status codes
 //!
-//! This module contains HTTP-status code related structs an errors. The main
+//! This module contains HTTP-status code related structs and errors. The main
 //! type in this module is `StatusCode` which is not intended to be used through
 //! this module but rather the `http::StatusCode` type.
 //!
@@ -70,14 +70,13 @@ impl StatusCode {
     /// assert!(err.is_err());
     /// ```
     #[inline]
-    pub fn from_u16(src: u16) -> Result<StatusCode, InvalidStatusCode> {
-        if !(100..1000).contains(&src) {
-            return Err(InvalidStatusCode::new());
+    pub const fn from_u16(src: u16) -> Result<StatusCode, InvalidStatusCode> {
+        if let 100..=999 = src {
+            if let Some(code) = NonZeroU16::new(src) {
+                return Ok(StatusCode(code));
+            }
         }
-
-        NonZeroU16::new(src)
-            .map(StatusCode)
-            .ok_or_else(InvalidStatusCode::new)
+        Err(InvalidStatusCode::new())
     }
 
     /// Converts a `&[u8]` to a status code.
@@ -526,7 +525,7 @@ status_codes! {
 }
 
 impl InvalidStatusCode {
-    fn new() -> InvalidStatusCode {
+    const fn new() -> InvalidStatusCode {
         InvalidStatusCode { _priv: () }
     }
 }
