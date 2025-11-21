@@ -407,6 +407,10 @@ impl Request<()> {
     {
         Builder::new().method(Method::TRACE).uri(uri)
     }
+
+    // This is purposefully excluded because of potential conflict with the
+    // URI query.
+    // pub fn query() -> Builder
 }
 
 impl<T> Request<T> {
