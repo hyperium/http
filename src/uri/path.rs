@@ -7,6 +7,14 @@ use bytes::Bytes;
 use super::{ErrorKind, InvalidUri};
 use crate::byte_str::ByteStr;
 
+/// Validation result for path and query parsing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PathAndQueryError {
+    InvalidPathChar,
+    InvalidQueryChar,
+    FragmentNotAllowed,
+}
+
 /// Represents the path component of a URI
 #[derive(Clone)]
 pub struct PathAndQuery {
@@ -138,10 +146,14 @@ impl PathAndQuery {
     /// assert_eq!(v.query(), Some("world"));
     /// ```
     #[inline]
-    pub fn from_static(src: &'static str) -> Self {
-        let src = Bytes::from_static(src.as_bytes());
-
-        PathAndQuery::from_shared(src).unwrap()
+    pub const fn from_static(src: &'static str) -> Self {
+        match validate_path_and_query_bytes(src.as_bytes()) {
+            Ok(query) => PathAndQuery {
+                data: ByteStr::from_static(src),
+                query,
+            },
+            Err(_) => panic!("static str is not valid path"),
+        }
     }
 
     /// Attempt to convert a `Bytes` buffer to a `PathAndQuery`.
@@ -465,6 +477,66 @@ impl PartialOrd<PathAndQuery> for String {
     fn partial_cmp(&self, other: &PathAndQuery) -> Option<cmp::Ordering> {
         self.as_str().partial_cmp(other.as_str())
     }
+}
+
+/// Shared validation logic for path and query bytes.
+/// Returns the query position (or NONE), or an error.
+const fn validate_path_and_query_bytes(bytes: &[u8]) -> Result<u16, PathAndQueryError> {
+    let mut query: u16 = NONE;
+    let mut i: usize = 0;
+
+    // path ...
+    while i < bytes.len() {
+        let b = bytes[i];
+        if b == b'?' {
+            query = i as u16;
+            i += 1;
+            break;
+        } else if b == b'#' {
+            return Err(PathAndQueryError::FragmentNotAllowed);
+        } else {
+            let allowed = b == 0x21
+                || (b >= 0x24 && b <= 0x3B)
+                || b == 0x3D
+                || (b >= 0x40 && b <= 0x5F)
+                || (b >= 0x61 && b <= 0x7A)
+                || b == 0x7C
+                || b == 0x7E
+                || b == b'"'
+                || b == b'{'
+                || b == b'}'
+                || (b >= 0x7F);
+
+            if !allowed {
+                return Err(PathAndQueryError::InvalidPathChar);
+            }
+        }
+        i += 1;
+    }
+
+    // query ...
+    if query != NONE {
+        while i < bytes.len() {
+            let b = bytes[i];
+            if b == b'#' {
+                return Err(PathAndQueryError::FragmentNotAllowed);
+            }
+
+            let allowed = b == 0x21
+                || (b >= 0x24 && b <= 0x3B)
+                || b == 0x3D
+                || (b >= 0x3F && b <= 0x7E)
+                || (b >= 0x7F);
+
+            if !allowed {
+                return Err(PathAndQueryError::InvalidQueryChar);
+            }
+
+            i += 1;
+        }
+    }
+
+    Ok(query)
 }
 
 #[cfg(test)]
