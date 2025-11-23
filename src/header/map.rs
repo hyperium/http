@@ -3650,12 +3650,40 @@ fn probe_distance(mask: Size, hash: HashValue, current: usize) -> usize {
     current.wrapping_sub(desired_pos(mask, hash)) & mask as usize
 }
 
+#[inline]
+// This is a hasher specially designed for single byte http header enum,
+// it should not be used for general purpose hashing.
+fn first_byte_hash<K>(k: &K) -> u64
+where
+    K: Hash + ?Sized,
+{
+    struct FirstByteHasher {
+        hash: u64,
+    }
+
+    impl Hasher for FirstByteHasher {
+        #[inline]
+        fn finish(&self) -> u64 {
+            self.hash
+        }
+
+        #[inline]
+        fn write(&mut self, bytes: &[u8]) {
+            if let Some(&b) = bytes.first() {
+                self.hash = (b as u64) << 56;
+            }
+        }
+    }
+
+    let mut hasher = FirstByteHasher { hash: 0 };
+    k.hash(&mut hasher);
+    hasher.finish()
+}
+
 fn hash_elem_using<K>(danger: &Danger, k: &K) -> HashValue
 where
     K: Hash + ?Sized,
 {
-    use fnv::FnvHasher;
-
     const MASK: u64 = (MAX_SIZE as u64) - 1;
 
     let hash = match *danger {
@@ -3666,11 +3694,7 @@ where
             h.finish()
         }
         // Fast hash
-        _ => {
-            let mut h = FnvHasher::default();
-            k.hash(&mut h);
-            h.finish()
-        }
+        _ => first_byte_hash(k),
     };
 
     HashValue((hash & MASK) as u16)

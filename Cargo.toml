@@ -24,13 +24,8 @@ edition = "2018"
 rust-version = "1.49.0"
 
 [workspace]
-members = [
-  ".",
-]
-exclude = [
-  "fuzz",
-  "benches"
-]
+members = ["."]
+exclude = ["fuzz", "benches"]
 
 [features]
 default = ["std"]
@@ -38,7 +33,6 @@ std = []
 
 [dependencies]
 bytes = "1"
-fnv = "1.0.5"
 itoa = "1"
 
 [dev-dependencies]
