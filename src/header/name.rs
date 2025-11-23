@@ -989,6 +989,9 @@ standard_headers! {
     (XXssProtection, X_XSS_PROTECTION, b"x-xss-protection");
 }
 
+/// The size of a machine word in bytes.
+const WORD_SIZE: usize = std::mem::size_of::<usize>();
+
 /// Valid header name characters
 ///
 /// ```not_rust
@@ -1070,6 +1073,59 @@ const HEADER_CHARS_H2: [u8; 256] = [
         0,     0,     0,     0,     0,     0                              // 25x
 ];
 
+pub(crate) struct WordRegister {
+    val: usize,
+}
+
+/// A helper structure for performing word-sized operations on bytes.
+///
+/// `WordRegister` wraps a `usize` to allow efficient checking and manipulation of bytes
+/// within a machine word. This is typically used for optimizing string scanning or
+/// parsing operations where checking 4 or 8 bytes at a time is faster than checking
+/// them individually.
+impl WordRegister {
+    /// Creates a new, zero‑initialised buffer.
+    #[inline]
+    pub const fn new() -> Self {
+        Self { val: 0 }
+    }
+
+    /// Returns `true` if any byte in the buffer is zero (null byte).
+    ///
+    /// This method uses bitwise hacks (often referred to as the "Mycroft" or "Alan Mycroft"
+    /// algorithm) to determine if a zero byte exists within the word without branching
+    /// on individual bytes.
+    #[inline]
+    pub fn contains_zero(&self) -> bool {
+        let val = self.val;
+        const ONES: usize = usize::MAX / 0xFF;
+        const HIGHS: usize = ONES << 7;
+        ((val.wrapping_sub(ONES)) & !val & HIGHS) != 0
+    }
+
+    /// Writes a single byte at the given byte index.
+    ///
+    /// The index `idx` corresponds to the byte position within the `usize`, where `0`
+    /// is the most significant byte.
+    ///
+    /// # Arguments
+    ///
+    /// * `idx` - The byte index to write to (0-indexed).
+    /// * `byte` - The `u8` value to write.
+    #[inline]
+    pub fn set(&mut self, idx: usize, byte: u8) {
+        let shift = (core::mem::size_of::<usize>() - 1 - idx) * 8;
+        let mask = !(0xFFusize << shift);
+        self.val = (self.val & mask) | ((byte as usize) << shift);
+    }
+
+    /// Returns the raw `usize` value contained in the register.
+    #[inline]
+    pub const fn value(&self) -> usize {
+        self.val
+    }
+}
+
 fn parse_hdr<'a>(
     data: &'a [u8],
     b: &'a mut [MaybeUninit<u8>; SCRATCH_BUF_SIZE],
@@ -1079,20 +1135,49 @@ fn parse_hdr<'a>(
         0 => Err(InvalidHeaderName::new()),
         len @ 1..=SCRATCH_BUF_SIZE => {
             // Read from data into the buffer - transforming using `table` as we go
-            data.iter()
-                .zip(b.iter_mut())
-                .for_each(|(index, out)| *out = MaybeUninit::new(table[*index as usize]));
+            let mut i = 0;
+
+            if WORD_SIZE >= 4 {
+                let mut register = WordRegister::new();
+                while i + WORD_SIZE <= len {
+                    let chunk = &data[i..i + WORD_SIZE];
+
+                    for (j, b) in chunk.iter().enumerate() {
+                        let b = table[*b as usize];
+                        register.set(j, b);
+                    }
+
+                    if register.contains_zero() {
+                        // Found a zero byte, break to process remaining bytes one by one
+                        return Err(InvalidHeaderName::new());
+                    }
+
+                    // Safety: We are writing initialized bytes (usize) into MaybeUninit<u8> array.
+                    // This is valid because MaybeUninit<u8> has the same layout as u8, and we are
+                    // writing a chunk of bytes.
+                    unsafe {
+                        let ptr = b.as_mut_ptr().add(i) as *mut [u8; WORD_SIZE];
+                        std::ptr::write_unaligned(ptr, register.value().to_be_bytes());
+                    }
+
+                    i += WORD_SIZE;
+                }
+            }
+
+            // Process the remainder bytes
+            while i < len {
+                let v = table[data[i] as usize];
+                if v == 0 {
+                    return Err(InvalidHeaderName::new());
+                }
+                b[i] = MaybeUninit::new(v);
+                i += 1;
+            }
             // Safety: len bytes of b were just initialized.
             let name: &'a [u8] = unsafe { slice_assume_init(&b[0..len]) };
             match StandardHeader::from_bytes(name) {
                 Some(sh) => Ok(sh.into()),
-                None => {
-                    if name.contains(&0) {
-                        Err(InvalidHeaderName::new())
-                    } else {
-                        Ok(HdrName::custom(name, true))
-                    }
-                }
+                None => Ok(HdrName::custom(name, true)),
             }
         }
         SCRATCH_BUF_OVERFLOW..=super::MAX_HEADER_NAME_LEN => Ok(HdrName::custom(data, false)),
@@ -1123,10 +1208,41 @@ impl HeaderName {
                 let val = unsafe { ByteStr::from_utf8_unchecked(buf) };
                 Ok(Custom(val).into())
             }
-            Repr::Custom(MaybeLower { buf, lower: false }) => {
+            Repr::Custom(MaybeLower {
+                mut buf,
+                lower: false,
+            }) => {
                 use bytes::BufMut;
                 let mut dst = BytesMut::with_capacity(buf.len());
 
+                if WORD_SIZE >= 4 {
+                    let mut register = WordRegister::new();
+                    while buf.len() >= WORD_SIZE {
+                        let chunk = &buf[..WORD_SIZE];
+
+                        for (i, b) in chunk.iter().enumerate() {
+                            // HEADER_CHARS maps all bytes to valid single-byte UTF-8
+                            let b = HEADER_CHARS[*b as usize];
+                            register.set(i, b);
+                        }
+
+                        if register.contains_zero() {
+                            return Err(InvalidHeaderName::new());
+                        }
+
+                        #[cfg(target_pointer_width = "64")]
+                        {
+                            dst.put_u64(register.value() as u64);
+                        }
+                        #[cfg(target_pointer_width = "32")]
+                        {
+                            dst.put_u32(register.value() as u32);
+                        }
+
+                        buf = &buf[WORD_SIZE..];
+                    }
+                }
+                // process the reminder bytes
                 for b in buf.iter() {
                     // HEADER_CHARS maps all bytes to valid single-byte UTF-8
                     let b = HEADER_CHARS[*b as usize];
@@ -1178,7 +1294,27 @@ impl HeaderName {
                 Ok(Custom(val).into())
             }
             Repr::Custom(MaybeLower { buf, lower: false }) => {
-                for &b in buf.iter() {
+                let mut check_buf = buf;
+
+                if WORD_SIZE >= 4 {
+                    let mut register = WordRegister::new();
+                    while check_buf.len() >= WORD_SIZE {
+                        let chunk = &check_buf[..WORD_SIZE];
+
+                        for (i, b) in chunk.iter().enumerate() {
+                            let b = HEADER_CHARS_H2[*b as usize];
+                            register.set(i, b);
+                        }
+
+                        if register.contains_zero() {
+                            return Err(InvalidHeaderName::new());
+                        }
+
+                        check_buf = &check_buf[WORD_SIZE..];
+                    }
+                }
+
+                for &b in check_buf.iter() {
                     // HEADER_CHARS_H2 maps all bytes that are not valid single-byte
                     // UTF-8 to 0 so this check returns an error for invalid UTF-8.
                     if HEADER_CHARS_H2[b as usize] == 0 {
@@ -1570,8 +1706,33 @@ impl<'a> From<HdrName<'a>> for HeaderName {
                 } else {
                     use bytes::BufMut;
                     let mut dst = BytesMut::with_capacity(maybe_lower.buf.len());
+                    let mut buf = maybe_lower.buf;
 
-                    for b in maybe_lower.buf.iter() {
+                    if WORD_SIZE >= 4 {
+                        let mut register = WordRegister::new();
+                        while buf.len() >= WORD_SIZE {
+                            let chunk = &maybe_lower.buf[..WORD_SIZE];
+
+                            for (i, b) in chunk.iter().enumerate() {
+                                // HEADER_CHARS maps all bytes to valid single-byte UTF-8
+                                let b = HEADER_CHARS[*b as usize];
+                                register.set(i, b);
+                            }
+
+                            #[cfg(target_pointer_width = "64")]
+                            {
+                                dst.put_u64(register.value() as u64);
+                            }
+                            #[cfg(target_pointer_width = "32")]
+                            {
+                                dst.put_u32(register.value() as u32);
+                            }
+
+                            buf = &buf[WORD_SIZE..];
+                        }
+                    }
+
+                    for b in buf.iter() {
                         // HEADER_CHARS maps each byte to a valid single-byte UTF-8
                         // codepoint.
                         dst.put_u8(HEADER_CHARS[*b as usize]);
