@@ -671,6 +671,6 @@ mod tests {
     }
 
     fn pq(s: &str) -> PathAndQuery {
-        s.parse().expect(&format!("parsing {}", s))
+        s.parse().unwrap_or_else(|_| panic!("parsing {s}"))
     }
 }
