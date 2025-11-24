@@ -543,7 +543,7 @@ mod try_from_header_name_tests {
     #[test]
     fn it_converts_using_try_from() {
         assert_eq!(
-            HeaderValue::try_from(name::UPGRADE).unwrap(),
+            HeaderValue::from(name::UPGRADE),
             HeaderValue::from_bytes(b"upgrade").unwrap()
         );
     }
