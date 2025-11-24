@@ -620,10 +620,10 @@ mod tests {
     #[test]
     fn compares_with_a_string() {
         let path_and_query: PathAndQuery = "/b/world&foo=bar".parse().unwrap();
-        assert!(path_and_query < "/c/world&foo=bar".to_string());
-        assert!("/c/world&foo=bar".to_string() > path_and_query);
-        assert!(path_and_query > "/a/world&foo=bar".to_string());
-        assert!("/a/world&foo=bar".to_string() < path_and_query);
+        assert!(path_and_query < "/c/world&foo=bar");
+        assert!("/c/world&foo=bar" > path_and_query);
+        assert!(path_and_query > "/a/world&foo=bar");
+        assert!("/a/world&foo=bar" < path_and_query);
     }
 
     #[test]
