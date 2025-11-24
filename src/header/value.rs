@@ -411,7 +411,7 @@ macro_rules! from_integers {
             let val = HeaderValue::from(n);
             assert_eq!(val, &n.to_string());
 
-            let n = ::std::$t::MAX;
+            let n = $t::MAX;
             let val = HeaderValue::from(n);
             assert_eq!(val, &n.to_string());
         }
