@@ -395,7 +395,7 @@ impl PartialEq<str> for PathAndQuery {
     }
 }
 
-impl<'a> PartialEq<PathAndQuery> for &'a str {
+impl PartialEq<PathAndQuery> for &str {
     #[inline]
     fn eq(&self, other: &PathAndQuery) -> bool {
         self == &other.as_str()
@@ -458,7 +458,7 @@ impl<'a> PartialOrd<&'a str> for PathAndQuery {
     }
 }
 
-impl<'a> PartialOrd<PathAndQuery> for &'a str {
+impl PartialOrd<PathAndQuery> for &str {
     #[inline]
     fn partial_cmp(&self, other: &PathAndQuery) -> Option<cmp::Ordering> {
         self.partial_cmp(&other.as_str())

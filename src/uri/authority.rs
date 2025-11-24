@@ -244,7 +244,7 @@ impl PartialEq<Authority> for str {
     }
 }
 
-impl<'a> PartialEq<Authority> for &'a str {
+impl PartialEq<Authority> for &str {
     fn eq(&self, other: &Authority) -> bool {
         self.eq_ignore_ascii_case(other.as_str())
     }
@@ -302,7 +302,7 @@ impl PartialOrd<Authority> for str {
     }
 }
 
-impl<'a> PartialOrd<Authority> for &'a str {
+impl PartialOrd<Authority> for &str {
     fn partial_cmp(&self, other: &Authority) -> Option<cmp::Ordering> {
         let left = self.as_bytes().iter().map(|b| b.to_ascii_lowercase());
         let right = other.data.as_bytes().iter().map(|b| b.to_ascii_lowercase());

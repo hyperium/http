@@ -1001,7 +1001,7 @@ impl<'a> PartialEq<&'a str> for Uri {
     }
 }
 
-impl<'a> PartialEq<Uri> for &'a str {
+impl PartialEq<Uri> for &str {
     fn eq(&self, uri: &Uri) -> bool {
         uri == *self
     }

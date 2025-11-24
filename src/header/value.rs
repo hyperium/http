@@ -697,14 +697,14 @@ impl PartialOrd<HeaderValue> for String {
     }
 }
 
-impl<'a> PartialEq<HeaderValue> for &'a HeaderValue {
+impl PartialEq<HeaderValue> for &HeaderValue {
     #[inline]
     fn eq(&self, other: &HeaderValue) -> bool {
         **self == *other
     }
 }
 
-impl<'a> PartialOrd<HeaderValue> for &'a HeaderValue {
+impl PartialOrd<HeaderValue> for &HeaderValue {
     #[inline]
     fn partial_cmp(&self, other: &HeaderValue) -> Option<cmp::Ordering> {
         (**self).partial_cmp(other)
@@ -731,14 +731,14 @@ where
     }
 }
 
-impl<'a> PartialEq<HeaderValue> for &'a str {
+impl PartialEq<HeaderValue> for &str {
     #[inline]
     fn eq(&self, other: &HeaderValue) -> bool {
         *other == *self
     }
 }
 
-impl<'a> PartialOrd<HeaderValue> for &'a str {
+impl PartialOrd<HeaderValue> for &str {
     #[inline]
     fn partial_cmp(&self, other: &HeaderValue) -> Option<cmp::Ordering> {
         self.as_bytes().partial_cmp(other.as_bytes())
