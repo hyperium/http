@@ -1497,7 +1497,7 @@ impl<T> HeaderMap<T> {
     #[inline]
     fn find<K>(&self, key: &K) -> Option<(usize, usize)>
     where
-        K: Hash + Into<HeaderName> + ?Sized,
+        K: Hash + Into<HeaderName>,
         HeaderName: PartialEq<K>,
     {
         if self.entries.is_empty() {
