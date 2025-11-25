@@ -682,6 +682,12 @@ standard_headers! {
     /// The value is a valid Date/Time string defined in [RFC9910](https://datatracker.ietf.org/doc/html/rfc9110#section-5.6.7)
     (LastModified, LAST_MODIFIED, b"last-modified");
 
+    /// Non-standard HTTP header.
+    /// Hint about how the connection and may be used to set a timeout and a
+    /// maximum amount of requests.
+    #[doc(hidden)]
+    (KeepAlive, KEEP_ALIVE, b"keep-alive");
+
     /// Allows the server to point an interested client to another resource
     /// containing metadata about the requested resource.
     (Link, LINK, b"link");
