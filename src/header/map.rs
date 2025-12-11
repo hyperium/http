@@ -3693,7 +3693,7 @@ impl std::hash::Hasher for FnvHasher {
     fn write(&mut self, bytes: &[u8]) {
         let mut hash = self.0;
         for &b in bytes {
-            hash = hash ^ (b as u64);
+            hash ^= b as u64;
             hash = hash.wrapping_mul(0x100000001b3);
         }
         self.0 = hash;
