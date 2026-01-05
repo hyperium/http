@@ -3658,8 +3658,6 @@ fn hash_elem_using<K>(danger: &Danger, k: &K) -> HashValue
 where
     K: Hash + ?Sized,
 {
-    use fnv::FnvHasher;
-
     const MASK: u64 = (MAX_SIZE as u64) - 1;
 
     let hash = match *danger {
@@ -3671,13 +3669,39 @@ where
         }
         // Fast hash
         _ => {
-            let mut h = FnvHasher::default();
+            let mut h = FnvHasher::new();
             k.hash(&mut h);
             h.finish()
         }
     };
 
     HashValue((hash & MASK) as u16)
+}
+
+struct FnvHasher(u64);
+
+impl FnvHasher {
+    #[inline]
+    fn new() -> Self {
+        FnvHasher(0xcbf29ce484222325)
+    }
+}
+
+impl std::hash::Hasher for FnvHasher {
+    #[inline]
+    fn finish(&self) -> u64 {
+        self.0
+    }
+
+    #[inline]
+    fn write(&mut self, bytes: &[u8]) {
+        let mut hash = self.0;
+        for &b in bytes {
+            hash ^= b as u64;
+            hash = hash.wrapping_mul(0x100000001b3);
+        }
+        self.0 = hash;
+    }
 }
 
 /*
