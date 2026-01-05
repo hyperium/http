@@ -85,6 +85,9 @@ jobs:
         with:
           toolchain: ${{ steps.metadata.outputs.msrv }}
 
+      - name: Pin deps
+        run: cargo update -p itoa --precise 1.0.15
+
       - name: Test
         run: cargo check -p http
 
