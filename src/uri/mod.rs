@@ -705,29 +705,29 @@ impl Uri {
     }
 }
 
-impl<'a> TryFrom<&'a [u8]> for Uri {
+impl TryFrom<&[u8]> for Uri {
     type Error = InvalidUri;
 
     #[inline]
-    fn try_from(t: &'a [u8]) -> Result<Self, Self::Error> {
+    fn try_from(t: &[u8]) -> Result<Self, Self::Error> {
         Uri::from_shared(Bytes::copy_from_slice(t))
     }
 }
 
-impl<'a> TryFrom<&'a str> for Uri {
+impl TryFrom<&str> for Uri {
     type Error = InvalidUri;
 
     #[inline]
-    fn try_from(t: &'a str) -> Result<Self, Self::Error> {
+    fn try_from(t: &str) -> Result<Self, Self::Error> {
         t.parse()
     }
 }
 
-impl<'a> TryFrom<&'a String> for Uri {
+impl TryFrom<&String> for Uri {
     type Error = InvalidUri;
 
     #[inline]
-    fn try_from(t: &'a String) -> Result<Self, Self::Error> {
+    fn try_from(t: &String) -> Result<Self, Self::Error> {
         t.parse()
     }
 }
@@ -759,11 +759,11 @@ impl TryFrom<Parts> for Uri {
     }
 }
 
-impl<'a> TryFrom<&'a Uri> for Uri {
+impl TryFrom<&Uri> for Uri {
     type Error = crate::Error;
 
     #[inline]
-    fn try_from(src: &'a Uri) -> Result<Self, Self::Error> {
+    fn try_from(src: &Uri) -> Result<Self, Self::Error> {
         Ok(src.clone())
     }
 }
@@ -995,13 +995,13 @@ impl PartialEq<Uri> for str {
     }
 }
 
-impl<'a> PartialEq<&'a str> for Uri {
-    fn eq(&self, other: &&'a str) -> bool {
+impl PartialEq<&str> for Uri {
+    fn eq(&self, other: &&str) -> bool {
         self == *other
     }
 }
 
-impl<'a> PartialEq<Uri> for &'a str {
+impl PartialEq<Uri> for &str {
     fn eq(&self, uri: &Uri) -> bool {
         uri == *self
     }
