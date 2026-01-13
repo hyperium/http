@@ -213,7 +213,14 @@ impl HeaderValue {
         src: T,
         into: F,
     ) -> Result<HeaderValue, InvalidHeaderValue> {
-        for &b in src.as_ref() {
+        let u8_slice = src.as_ref();
+        match u8_slice {
+            [b' ', ..] | [b'\t', ..] | [.., b' '] | [.., b'\t'] => {
+                return Err(InvalidHeaderValue { _priv: () })
+            }
+            _ => (),
+        };
+        for &b in u8_slice {
             if !is_valid(b) {
                 return Err(InvalidHeaderValue { _priv: () });
             }
