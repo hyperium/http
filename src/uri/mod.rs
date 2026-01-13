@@ -288,19 +288,22 @@ impl Uri {
         Uri::try_from(src.as_ref())
     }
 
-    // Not public while `bytes` is unstable.
-    fn from_shared(s: Bytes) -> Result<Uri, InvalidUri> {
+    /// Convert a [`Bytes`] into a `Uri`.
+    ///
+    /// This function will not perform any copying, however the value will be
+    /// checked to ensure that it is valid.
+    pub fn from_shared(src: Bytes) -> Result<Uri, InvalidUri> {
         use self::ErrorKind::*;
 
-        if s.len() > MAX_LEN {
+        if src.len() > MAX_LEN {
             return Err(TooLong.into());
         }
 
-        match s.len() {
+        match src.len() {
             0 => {
                 return Err(Empty.into());
             }
-            1 => match s[0] {
+            1 => match src[0] {
                 b'/' => {
                     return Ok(Uri {
                         scheme: Scheme::empty(),
@@ -316,7 +319,7 @@ impl Uri {
                     });
                 }
                 _ => {
-                    let authority = Authority::from_shared(s)?;
+                    let authority = Authority::from_shared(src)?;
 
                     return Ok(Uri {
                         scheme: Scheme::empty(),
@@ -328,15 +331,15 @@ impl Uri {
             _ => {}
         }
 
-        if s[0] == b'/' {
+        if src[0] == b'/' {
             return Ok(Uri {
                 scheme: Scheme::empty(),
                 authority: Authority::empty(),
-                path_and_query: PathAndQuery::from_shared(s)?,
+                path_and_query: PathAndQuery::from_shared(src)?,
             });
         }
 
-        parse_full(s)
+        parse_full(src)
     }
 
     /// Convert a `Uri` from a static string.
