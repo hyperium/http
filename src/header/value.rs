@@ -296,6 +296,19 @@ impl HeaderValue {
         self.as_ref()
     }
 
+    /// Converts a `HeaderValue` to a `Byte` slice.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::HeaderValue;
+    /// let val = HeaderValue::from_static("hello");
+    /// assert_eq!(&val.into_bytes(), b"hello");
+    /// ```
+    pub fn into_bytes(self) -> Bytes {
+        self.inner.into()
+    }
+
     /// Mark that the header value represents sensitive information.
     ///
     /// # Examples
