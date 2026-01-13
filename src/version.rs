@@ -20,6 +20,7 @@
 //! ```
 
 use std::fmt;
+use std::fmt::{Display, Formatter};
 
 /// Represents a version of the HTTP spec.
 #[derive(PartialEq, PartialOrd, Copy, Clone, Eq, Ord, Hash)]
@@ -40,6 +41,12 @@ impl Version {
 
     /// `HTTP/3.0`
     pub const HTTP_3: Version = Version(Http::H3);
+}
+
+impl Display for Version {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 #[derive(PartialEq, PartialOrd, Copy, Clone, Eq, Ord, Hash)]
@@ -71,5 +78,15 @@ impl fmt::Debug for Version {
             H3 => "HTTP/3.0",
             __NonExhaustive => unreachable!(),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::Version;
+
+    #[test]
+    fn test_display_for_version() {
+        assert_eq!("HTTP/1.1", format!("{}", Version::HTTP_11));
     }
 }
