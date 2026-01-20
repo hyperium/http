@@ -279,22 +279,22 @@ impl Scheme2<usize> {
             }
         }
 
-        if s.len() > 3 {
+        if s.len() >= 3 {
             for i in 0..s.len() {
                 let b = s[i];
 
                 match SCHEME_CHARS[b as usize] {
                     b':' => {
-                        // Not enough data remaining
-                        if s.len() < i + 3 {
+                        // According to https://tools.ietf.org/html/rfc3986#section-3 the URI "x:"
+                        // has scheme "x", but to differentiate from shortcuts like
+                        // "localhost:3000", which should be handled equivalent to
+                        // "http://localhost:3000" we only treat an URI part as a scheme if the ':'
+                        // is followed by a '/'.
+                        if (i + 1) >= s.len() || s[i + 1] != b'/' {
                             break;
                         }
 
-                        // Not a scheme
-                        if &s[i + 1..i + 3] != b"//" {
-                            break;
-                        }
-
+                        // Check length
                         if i > MAX_SCHEME_LEN {
                             return Err(ErrorKind::SchemeTooLong.into());
                         }

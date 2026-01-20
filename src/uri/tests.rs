@@ -255,6 +255,34 @@ test_parse! {
 }
 
 test_parse! {
+    test_uri_parse_scheme_single_slash,
+    "x:/y",
+    [],
+
+    scheme = part!("x"),
+    path = "/y",
+}
+
+test_parse! {
+    test_uri_parse_scheme_triple_slash,
+    "x:///y",
+    [],
+
+    scheme = part!("x"),
+    path = "/y",
+}
+
+
+test_parse! {
+    test_uri_parse_scheme_file,
+    "file:/foo/bar",
+    ["file:///foo/bar"],
+
+    scheme = part!("file"),
+    path = "/foo/bar",
+}
+
+test_parse! {
     test_userinfo1,
     "http://a:b@127.0.0.1:1234/",
     [],
