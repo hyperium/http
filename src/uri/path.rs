@@ -103,6 +103,9 @@ impl PathAndQuery {
                             is_maybe_not_utf8 = true;
                         }
 
+                        // Allows for " to be passed in the query.
+                        0x22 => {},
+
                         b'#' => {
                             fragment = Some(i);
                             break;
