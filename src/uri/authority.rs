@@ -660,10 +660,10 @@ mod tests {
     #[test]
     fn compares_with_a_string() {
         let authority: Authority = "def.com".parse().unwrap();
-        assert!(authority < "ghi.com".to_string());
-        assert!("ghi.com".to_string() > authority);
-        assert!(authority > "abc.com".to_string());
-        assert!("abc.com".to_string() < authority);
+        assert!(authority < "ghi.com");
+        assert!("ghi.com" > authority);
+        assert!(authority > "abc.com");
+        assert!("abc.com" < authority);
     }
 
     #[test]
