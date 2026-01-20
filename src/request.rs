@@ -723,7 +723,7 @@ impl fmt::Debug for Parts {
             .field("headers", &self.headers)
             // omits Extensions because not useful
             // omits _priv because not useful
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
