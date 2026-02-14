@@ -76,6 +76,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: taiki-e/install-action@cargo-hack
+
+      - name: Remove dev-dependencies
+        run: cargo hack --remove-dev-deps update
+
+      - name: Pin deps
+        run: cargo update -p itoa --precise 1.0.15
+
       - name: Get MSRV from package metadata
         id: metadata
         run: echo "msrv=$(yq '.package.rust-version' Cargo.toml)" >> $GITHUB_OUTPUT
@@ -84,9 +94,6 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ steps.metadata.outputs.msrv }}
-
-      - name: Pin deps
-        run: cargo update -p itoa --precise 1.0.15
 
       - name: Test
         run: cargo check -p http
