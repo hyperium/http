@@ -455,9 +455,9 @@ status_codes! {
     /// 421 Misdirected Request
     /// [[RFC9110, Section 15.5.20](https://datatracker.ietf.org/doc/html/rfc9110#section-15.5.20)]
     (421, MISDIRECTED_REQUEST, "Misdirected Request");
-    /// 422 Unprocessable Entity
+    /// 422 Unprocessable Content
     /// [[RFC9110, Section 15.5.21](https://datatracker.ietf.org/doc/html/rfc9110#section-15.5.21)]
-    (422, UNPROCESSABLE_ENTITY, "Unprocessable Entity");
+    (422, UNPROCESSABLE_CONTENT, "Unprocessable Content");
     /// 423 Locked
     /// [[RFC4918, Section 11.3](https://datatracker.ietf.org/doc/html/rfc4918#section-11.3)]
     (423, LOCKED, "Locked");
