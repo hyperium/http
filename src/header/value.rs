@@ -103,7 +103,15 @@ impl HeaderValue {
     #[inline]
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(src: &str) -> Result<HeaderValue, InvalidHeaderValue> {
-        HeaderValue::try_from_generic(src, |s| Bytes::copy_from_slice(s.as_bytes()))
+        for &b in src.as_bytes() {
+            if !is_visible_ascii(b) {
+                return Err(InvalidHeaderValue { _priv: () });
+            }
+        }
+        Ok(HeaderValue {
+            inner: Bytes::copy_from_slice(src.as_bytes()),
+            is_sensitive: false,
+        })
     }
 
     /// Converts a HeaderName into a HeaderValue
