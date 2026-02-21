@@ -63,7 +63,7 @@ impl PathAndQuery {
                     0x7E => {}
 
                     // potentially utf8, might not, should check
-                    0x7F..=0xFF => {
+                    0x80..=0xFF => {
                         is_maybe_not_utf8 = true;
                     }
 
@@ -99,7 +99,7 @@ impl PathAndQuery {
                         0x3D |
                         0x3F..=0x7E => {}
 
-                        0x7F..=0xFF => {
+                        0x80..=0xFF => {
                             is_maybe_not_utf8 = true;
                         }
 
@@ -505,7 +505,7 @@ const fn validate_path_and_query_bytes(bytes: &[u8]) -> Result<u16, PathAndQuery
                 || b == b'"'
                 || b == b'{'
                 || b == b'}'
-                || (b >= 0x7F);
+                || (b >= 0x80);
 
             if !allowed {
                 return Err(PathAndQueryError::InvalidPathChar);
@@ -526,7 +526,7 @@ const fn validate_path_and_query_bytes(bytes: &[u8]) -> Result<u16, PathAndQuery
                 || (b >= 0x24 && b <= 0x3B)
                 || b == 0x3D
                 || (b >= 0x3F && b <= 0x7E)
-                || (b >= 0x7F);
+                || (b >= 0x80);
 
             if !allowed {
                 return Err(PathAndQueryError::InvalidQueryChar);
@@ -650,6 +650,16 @@ mod tests {
     #[test]
     fn allow_utf8_in_query() {
         assert_eq!(Some("pizza=🍕"), pq("/test?pizza=🍕").query());
+    }
+
+    #[test]
+    fn rejects_del_in_path() {
+        PathAndQuery::try_from(&[b'/', 0x7F][..]).expect_err("reject DEL");
+    }
+
+    #[test]
+    fn rejects_del_in_query() {
+        PathAndQuery::try_from(&[b'/', b'a', b'?', 0x7F][..]).expect_err("reject DEL");
     }
 
     #[test]
