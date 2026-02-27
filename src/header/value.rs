@@ -1,5 +1,6 @@
 use bytes::{Bytes, BytesMut};
 
+use std::borrow::Borrow;
 use std::convert::TryFrom;
 use std::error::Error;
 use std::fmt::Write;
@@ -351,6 +352,12 @@ impl AsRef<[u8]> for HeaderValue {
     #[inline]
     fn as_ref(&self) -> &[u8] {
         self.inner.as_ref()
+    }
+}
+
+impl Borrow<[u8]> for HeaderValue {
+    fn borrow(&self) -> &[u8] {
+        self.inner.borrow()
     }
 }
 
