@@ -552,7 +552,8 @@ impl<T> HeaderMap<T> {
         if capacity == 0 {
             Ok(Self::default())
         } else {
-            let raw_cap = match to_raw_capacity(capacity).checked_next_power_of_two() {
+            let raw_cap = to_raw_capacity(capacity)?;
+            let raw_cap = match raw_cap.checked_next_power_of_two() {
                 Some(c) => c,
                 None => return Err(MaxSizeReached { _priv: () }),
             };
@@ -750,7 +751,7 @@ impl<T> HeaderMap<T> {
             .checked_add(additional)
             .ok_or_else(MaxSizeReached::new)?;
 
-        let raw_cap = to_raw_capacity(cap);
+        let raw_cap = to_raw_capacity(cap)?;
 
         if raw_cap > self.indices.len() {
             let raw_cap = raw_cap
@@ -2125,6 +2126,19 @@ impl<T> Extend<(Option<HeaderName>, T)> for HeaderMap<T> {
     /// ```
     fn extend<I: IntoIterator<Item = (Option<HeaderName>, T)>>(&mut self, iter: I) {
         let mut iter = iter.into_iter();
+
+        // Reserve capacity similar to the (HeaderName, T) impl.
+        // Keys may be already present or show multiple times in the iterator.
+        // Reserve the entire hint lower bound if the map is empty.
+        // Otherwise reserve half the hint (rounded up), so the map
+        // will only resize twice in the worst case.
+        let reserve = if self.is_empty() {
+            iter.size_hint().0
+        } else {
+            (iter.size_hint().0 + 1) / 2
+        };
+
+        self.reserve(reserve);
 
         // The structure of this is a bit weird, but it is mostly to make the
         // borrow checker happy.
@@ -3621,14 +3635,8 @@ fn usable_capacity(cap: usize) -> usize {
 }
 
 #[inline]
-fn to_raw_capacity(n: usize) -> usize {
-    match n.checked_add(n / 3) {
-        Some(n) => n,
-        None => panic!(
-            "requested capacity {} too large: overflow while converting to raw capacity",
-            n
-        ),
-    }
+fn to_raw_capacity(n: usize) -> Result<usize, MaxSizeReached> {
+    n.checked_add(n / 3).ok_or_else(MaxSizeReached::new)
 }
 
 #[inline]
@@ -3646,8 +3654,6 @@ fn hash_elem_using<K>(danger: &Danger, k: &K) -> HashValue
 where
     K: Hash + ?Sized,
 {
-    use fnv::FnvHasher;
-
     const MASK: u64 = (MAX_SIZE as u64) - 1;
 
     let hash = match *danger {
@@ -3659,13 +3665,39 @@ where
         }
         // Fast hash
         _ => {
-            let mut h = FnvHasher::default();
+            let mut h = FnvHasher::new();
             k.hash(&mut h);
             h.finish()
         }
     };
 
     HashValue((hash & MASK) as u16)
+}
+
+struct FnvHasher(u64);
+
+impl FnvHasher {
+    #[inline]
+    fn new() -> Self {
+        FnvHasher(0xcbf29ce484222325)
+    }
+}
+
+impl std::hash::Hasher for FnvHasher {
+    #[inline]
+    fn finish(&self) -> u64 {
+        self.0
+    }
+
+    #[inline]
+    fn write(&mut self, bytes: &[u8]) {
+        let mut hash = self.0;
+        for &b in bytes {
+            hash ^= b as u64;
+            hash = hash.wrapping_mul(0x100000001b3);
+        }
+        self.0 = hash;
+    }
 }
 
 /*
@@ -3726,7 +3758,7 @@ mod into_header_name {
 
     impl IntoHeaderName for HeaderName {}
 
-    impl<'a> Sealed for &'a HeaderName {
+    impl Sealed for &HeaderName {
         #[inline]
         fn try_insert<T>(
             self,
@@ -3746,7 +3778,7 @@ mod into_header_name {
         }
     }
 
-    impl<'a> IntoHeaderName for &'a HeaderName {}
+    impl IntoHeaderName for &HeaderName {}
 
     impl Sealed for &'static str {
         #[inline]
@@ -3836,7 +3868,7 @@ mod as_header_name {
 
     impl AsHeaderName for HeaderName {}
 
-    impl<'a> Sealed for &'a HeaderName {
+    impl Sealed for &HeaderName {
         #[inline]
         fn try_entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<'_, T>, TryEntryError> {
             Ok(map.try_entry2(self)?)
@@ -3852,9 +3884,9 @@ mod as_header_name {
         }
     }
 
-    impl<'a> AsHeaderName for &'a HeaderName {}
+    impl AsHeaderName for &HeaderName {}
 
-    impl<'a> Sealed for &'a str {
+    impl Sealed for &str {
         #[inline]
         fn try_entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<'_, T>, TryEntryError> {
             Ok(HdrName::from_bytes(self.as_bytes(), move |hdr| {
@@ -3872,7 +3904,7 @@ mod as_header_name {
         }
     }
 
-    impl<'a> AsHeaderName for &'a str {}
+    impl AsHeaderName for &str {}
 
     impl Sealed for String {
         #[inline]
@@ -3892,7 +3924,7 @@ mod as_header_name {
 
     impl AsHeaderName for String {}
 
-    impl<'a> Sealed for &'a String {
+    impl Sealed for &String {
         #[inline]
         fn try_entry<T>(self, map: &mut HeaderMap<T>) -> Result<Entry<'_, T>, TryEntryError> {
             self.as_str().try_entry(map)
@@ -3908,7 +3940,7 @@ mod as_header_name {
         }
     }
 
-    impl<'a> AsHeaderName for &'a String {}
+    impl AsHeaderName for &String {}
 }
 
 #[test]
