@@ -15,7 +15,7 @@ use crate::header::name::HeaderName;
 /// HTTP spec allows for a header value to contain opaque bytes as well. In this
 /// case, the header field value is not able to be represented as a string.
 ///
-/// To handle this, the `HeaderValue` is useable as a type and can be compared
+/// To handle this, the `HeaderValue` is usable as a type and can be compared
 /// with strings and implements `Debug`. A `to_str` fn is provided that returns
 /// an `Err` if the header value contains non visible ascii characters.
 #[derive(Clone)]
@@ -51,27 +51,6 @@ impl HeaderValue {
     /// This function panics if the argument contains invalid header value
     /// characters.
     ///
-    /// Until [Allow panicking in constants](https://github.com/rust-lang/rfcs/pull/2345)
-    /// makes its way into stable, the panic message at compile-time is
-    /// going to look cryptic, but should at least point at your header value:
-    ///
-    /// ```text
-    /// error: any use of this value will cause an error
-    ///   --> http/src/header/value.rs:67:17
-    ///    |
-    /// 67 |                 ([] as [u8; 0])[0]; // Invalid header value
-    ///    |                 ^^^^^^^^^^^^^^^^^^
-    ///    |                 |
-    ///    |                 index out of bounds: the length is 0 but the index is 0
-    ///    |                 inside `HeaderValue::from_static` at http/src/header/value.rs:67:17
-    ///    |                 inside `INVALID_HEADER` at src/main.rs:73:33
-    ///    |
-    ///   ::: src/main.rs:73:1
-    ///    |
-    /// 73 | const INVALID_HEADER: HeaderValue = HeaderValue::from_static("жsome value");
-    ///    | ----------------------------------------------------------------------------
-    /// ```
-    ///
     /// # Examples
     ///
     /// ```
@@ -80,19 +59,12 @@ impl HeaderValue {
     /// assert_eq!(val, "hello");
     /// ```
     #[inline]
-    #[allow(unconditional_panic)] // required for the panic circumvention
     pub const fn from_static(src: &'static str) -> HeaderValue {
         let bytes = src.as_bytes();
         let mut i = 0;
         while i < bytes.len() {
             if !is_visible_ascii(bytes[i]) {
-                // TODO: When msrv is bumped to larger than 1.57, this should be
-                // replaced with `panic!` macro.
-                // https://blog.rust-lang.org/2021/12/02/Rust-1.57.0.html#panic-in-const-contexts
-                //
-                // See the panics section of this method's document for details.
-                #[allow(clippy::no_effect, clippy::out_of_bounds_indexing)]
-                ([] as [u8; 0])[0]; // Invalid header value
+                panic!("HeaderValue::from_static with invalid bytes")
             }
             i += 1;
         }
@@ -516,35 +488,35 @@ impl From<HeaderValue> for Bytes {
     }
 }
 
-impl<'a> From<&'a HeaderValue> for HeaderValue {
+impl From<&HeaderValue> for HeaderValue {
     #[inline]
-    fn from(t: &'a HeaderValue) -> Self {
+    fn from(t: &HeaderValue) -> Self {
         t.clone()
     }
 }
 
-impl<'a> TryFrom<&'a str> for HeaderValue {
+impl TryFrom<&str> for HeaderValue {
     type Error = InvalidHeaderValue;
 
     #[inline]
-    fn try_from(t: &'a str) -> Result<Self, Self::Error> {
+    fn try_from(t: &str) -> Result<Self, Self::Error> {
         t.parse()
     }
 }
 
-impl<'a> TryFrom<&'a String> for HeaderValue {
+impl TryFrom<&String> for HeaderValue {
     type Error = InvalidHeaderValue;
     #[inline]
-    fn try_from(s: &'a String) -> Result<Self, Self::Error> {
+    fn try_from(s: &String) -> Result<Self, Self::Error> {
         Self::from_bytes(s.as_bytes())
     }
 }
 
-impl<'a> TryFrom<&'a [u8]> for HeaderValue {
+impl TryFrom<&[u8]> for HeaderValue {
     type Error = InvalidHeaderValue;
 
     #[inline]
-    fn try_from(t: &'a [u8]) -> Result<Self, Self::Error> {
+    fn try_from(t: &[u8]) -> Result<Self, Self::Error> {
         HeaderValue::from_bytes(t)
     }
 }
@@ -738,48 +710,48 @@ impl PartialOrd<HeaderValue> for String {
     }
 }
 
-impl<'a> PartialEq<HeaderValue> for &'a HeaderValue {
+impl PartialEq<HeaderValue> for &HeaderValue {
     #[inline]
     fn eq(&self, other: &HeaderValue) -> bool {
         **self == *other
     }
 }
 
-impl<'a> PartialOrd<HeaderValue> for &'a HeaderValue {
+impl PartialOrd<HeaderValue> for &HeaderValue {
     #[inline]
     fn partial_cmp(&self, other: &HeaderValue) -> Option<cmp::Ordering> {
         (**self).partial_cmp(other)
     }
 }
 
-impl<'a, T: ?Sized> PartialEq<&'a T> for HeaderValue
+impl<T: ?Sized> PartialEq<&T> for HeaderValue
 where
     HeaderValue: PartialEq<T>,
 {
     #[inline]
-    fn eq(&self, other: &&'a T) -> bool {
+    fn eq(&self, other: &&T) -> bool {
         *self == **other
     }
 }
 
-impl<'a, T: ?Sized> PartialOrd<&'a T> for HeaderValue
+impl<T: ?Sized> PartialOrd<&T> for HeaderValue
 where
     HeaderValue: PartialOrd<T>,
 {
     #[inline]
-    fn partial_cmp(&self, other: &&'a T) -> Option<cmp::Ordering> {
+    fn partial_cmp(&self, other: &&T) -> Option<cmp::Ordering> {
         self.partial_cmp(*other)
     }
 }
 
-impl<'a> PartialEq<HeaderValue> for &'a str {
+impl PartialEq<HeaderValue> for &str {
     #[inline]
     fn eq(&self, other: &HeaderValue) -> bool {
         *other == *self
     }
 }
 
-impl<'a> PartialOrd<HeaderValue> for &'a str {
+impl PartialOrd<HeaderValue> for &str {
     #[inline]
     fn partial_cmp(&self, other: &HeaderValue) -> Option<cmp::Ordering> {
         self.as_bytes().partial_cmp(other.as_bytes())

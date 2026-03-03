@@ -2,9 +2,9 @@ use http::header::*;
 use http::*;
 
 use quickcheck::{Arbitrary, Gen, QuickCheck, TestResult};
-use rand::prelude::IndexedRandom;
 use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use rand::seq::IndexedRandom;
+use rand::{RngExt, SeedableRng};
 
 use std::collections::HashMap;
 
@@ -111,8 +111,8 @@ impl Fuzz {
 }
 
 impl Arbitrary for Fuzz {
-    fn arbitrary(_: &mut Gen) -> Self {
-        Self::new(rand::rng().random())
+    fn arbitrary(g: &mut Gen) -> Self {
+        Self::new(Arbitrary::arbitrary(g))
     }
 }
 

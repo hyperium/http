@@ -1205,27 +1205,6 @@ impl HeaderName {
     ///
     /// This function panics when the static string is a invalid header.
     ///
-    /// Until [Allow panicking in constants](https://github.com/rust-lang/rfcs/pull/2345)
-    /// makes its way into stable, the panic message at compile-time is
-    /// going to look cryptic, but should at least point at your header value:
-    ///
-    /// ```text
-    /// error: any use of this value will cause an error
-    ///     --> http/src/header/name.rs:1241:13
-    ///      |
-    /// 1241 |             ([] as [u8; 0])[0]; // Invalid header name
-    ///      |             ^^^^^^^^^^^^^^^^^^
-    ///      |             |
-    ///      |             index out of bounds: the length is 0 but the index is 0
-    ///      |             inside `http::HeaderName::from_static` at http/src/header/name.rs:1241:13
-    ///      |             inside `INVALID_NAME` at src/main.rs:3:34
-    ///      |
-    ///     ::: src/main.rs:3:1
-    ///      |
-    /// 3    | const INVALID_NAME: HeaderName = HeaderName::from_static("Capitalized");
-    ///      | ------------------------------------------------------------------------
-    /// ```
-    ///
     /// # Examples
     ///
     /// ```
@@ -1245,14 +1224,13 @@ impl HeaderName {
     /// ```should_panic
     /// # use http::header::*;
     /// #
-    /// // Parsing a header that contains invalid symbols(s):
+    /// // Parsing a header that contains invalid symbols:
     /// HeaderName::from_static("content{}{}length"); // This line panics!
     ///
     /// // Parsing a header that contains invalid uppercase characters.
     /// let a = HeaderName::from_static("foobar");
     /// let b = HeaderName::from_static("FOOBAR"); // This line panics!
     /// ```
-    #[allow(unconditional_panic)] // required for the panic circumvention
     pub const fn from_static(src: &'static str) -> HeaderName {
         let name_bytes = src.as_bytes();
         if let Some(standard) = StandardHeader::from_bytes(name_bytes) {
@@ -1272,13 +1250,8 @@ impl HeaderName {
                 i += 1;
             }
         } {
-            // TODO: When msrv is bumped to larger than 1.57, this should be
-            // replaced with `panic!` macro.
-            // https://blog.rust-lang.org/2021/12/02/Rust-1.57.0.html#panic-in-const-contexts
-            //
-            // See the panics section of this method's document for details.
-            #[allow(clippy::no_effect, clippy::out_of_bounds_indexing)]
-            ([] as [u8; 0])[0]; // Invalid header name
+            // Invalid header name
+            panic!("HeaderName::from_static with invalid bytes")
         }
 
         HeaderName {
@@ -1342,8 +1315,8 @@ impl InvalidHeaderName {
     }
 }
 
-impl<'a> From<&'a HeaderName> for HeaderName {
-    fn from(src: &'a HeaderName) -> HeaderName {
+impl From<&HeaderName> for HeaderName {
+    fn from(src: &HeaderName) -> HeaderName {
         src.clone()
     }
 }
@@ -1375,26 +1348,26 @@ impl From<HeaderName> for Bytes {
     }
 }
 
-impl<'a> TryFrom<&'a str> for HeaderName {
+impl TryFrom<&str> for HeaderName {
     type Error = InvalidHeaderName;
     #[inline]
-    fn try_from(s: &'a str) -> Result<Self, Self::Error> {
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
         Self::from_bytes(s.as_bytes())
     }
 }
 
-impl<'a> TryFrom<&'a String> for HeaderName {
+impl TryFrom<&String> for HeaderName {
     type Error = InvalidHeaderName;
     #[inline]
-    fn try_from(s: &'a String) -> Result<Self, Self::Error> {
+    fn try_from(s: &String) -> Result<Self, Self::Error> {
         Self::from_bytes(s.as_bytes())
     }
 }
 
-impl<'a> TryFrom<&'a [u8]> for HeaderName {
+impl TryFrom<&[u8]> for HeaderName {
     type Error = InvalidHeaderName;
     #[inline]
-    fn try_from(s: &'a [u8]) -> Result<Self, Self::Error> {
+    fn try_from(s: &[u8]) -> Result<Self, Self::Error> {
         Self::from_bytes(s)
     }
 }
@@ -1443,14 +1416,14 @@ impl From<Custom> for HeaderName {
     }
 }
 
-impl<'a> PartialEq<&'a HeaderName> for HeaderName {
+impl PartialEq<&HeaderName> for HeaderName {
     #[inline]
-    fn eq(&self, other: &&'a HeaderName) -> bool {
+    fn eq(&self, other: &&HeaderName) -> bool {
         *self == **other
     }
 }
 
-impl<'a> PartialEq<HeaderName> for &'a HeaderName {
+impl PartialEq<HeaderName> for &HeaderName {
     #[inline]
     fn eq(&self, other: &HeaderName) -> bool {
         *other == *self
@@ -1495,16 +1468,16 @@ impl PartialEq<HeaderName> for str {
     }
 }
 
-impl<'a> PartialEq<&'a str> for HeaderName {
+impl PartialEq<&str> for HeaderName {
     /// Performs a case-insensitive comparison of the string against the header
     /// name
     #[inline]
-    fn eq(&self, other: &&'a str) -> bool {
+    fn eq(&self, other: &&str) -> bool {
         *self == **other
     }
 }
 
-impl<'a> PartialEq<HeaderName> for &'a str {
+impl PartialEq<HeaderName> for &str {
     /// Performs a case-insensitive comparison of the string against the header
     /// name
     #[inline]
