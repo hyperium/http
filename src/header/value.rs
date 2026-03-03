@@ -173,11 +173,12 @@ impl HeaderValue {
     /// within the buffer.
     ///
     /// ## Panics
-    /// In a debug build this will panic if `src` is not valid UTF-8.
+    /// In a debug build this will panic if `src` contains bytes that are not
+    /// allowed in HTTP field values.
     ///
     /// ## Safety
-    /// `src` must contain valid UTF-8. In a release build it is undefined
-    /// behaviour to call this with `src` that is not valid UTF-8.
+    /// `src` must contain valid HTTP field value. In a release build it is
+    /// undefined behaviour to call this with `src` that is not valid.
     pub unsafe fn from_maybe_shared_unchecked<T>(src: T) -> HeaderValue
     where
         T: AsRef<[u8]> + 'static,
