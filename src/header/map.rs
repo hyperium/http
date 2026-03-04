@@ -371,7 +371,7 @@ const FORWARD_SHIFT_THRESHOLD: usize = 512;
 // If growing the hash map would cause the load factor to drop bellow this
 // threshold, then instead of growing, the headermap is switched to the red
 // danger state and safe hashing is used instead.
-const LOAD_FACTOR_THRESHOLD: f32 = 0.2;
+const LOAD_FACTOR_THRESHOLD: usize = 5;
 
 // Macro used to iterate the hash table starting at a given point, looping when
 // the end is hit.
@@ -1743,9 +1743,10 @@ impl<T> HeaderMap<T> {
         let len = self.entries.len();
 
         if self.danger.is_yellow() {
-            let load_factor = self.entries.len() as f32 / self.indices.len() as f32;
-
-            if load_factor >= LOAD_FACTOR_THRESHOLD {
+            // Overflow is not a concern here: entries.len() is bounded by
+            // MAX_SIZE (2^15) and LOAD_FACTOR_THRESHOLD is 5, so the product
+            // fits comfortably within a usize.
+            if self.entries.len() * LOAD_FACTOR_THRESHOLD >= self.indices.len() {
                 // Transition back to green danger level
                 self.danger.set_green();
 
