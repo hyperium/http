@@ -1,5 +1,6 @@
 use bytes::{Bytes, BytesMut};
 
+use core::ops::RangeBounds;
 use std::convert::TryFrom;
 use std::error::Error;
 use std::fmt::Write;
@@ -152,6 +153,62 @@ impl HeaderValue {
         HeaderValue::try_from_generic(src, Bytes::copy_from_slice)
     }
 
+    /// Convert a [`Bytes`] into a `HeaderValue`.
+    ///
+    /// This function will not perform any copying.
+    ///
+    /// If the argument contains invalid header value bytes, an error is
+    /// returned. Only byte values between 32 and 255 (inclusive) are permitted,
+    /// excluding byte 127 (DEL).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::HeaderValue;
+    /// # use bytes::Bytes;
+    /// let bytes = Bytes::from_static(b"hello\xfa");
+    /// let val = HeaderValue::from_shared(bytes).unwrap();
+    /// assert_eq!(val, &b"hello\xfa"[..]);
+    /// ```
+    pub fn from_shared(src: Bytes) -> Result<HeaderValue, InvalidHeaderValue> {
+        for &b in src.as_ref() {
+            if !is_valid(b) {
+                return Err(InvalidHeaderValue { _priv: () });
+            }
+        }
+        Ok(HeaderValue {
+            inner: src,
+            is_sensitive: false,
+        })
+    }
+
+    /// Convert a [`Bytes`] directly into a `HeaderValue` without validating.
+    ///
+    /// This function does NOT validate that illegal bytes are not contained
+    /// within the buffer.
+    ///
+    /// ## Panics
+    /// In a debug build this will panic if `src` is not valid UTF-8.
+    ///
+    /// ## Safety
+    /// `src` must contain valid UTF-8. In a release build it is undefined
+    /// behaviour to call this with `src` that is not valid UTF-8.
+    pub unsafe fn from_shared_unchecked(src: Bytes) -> HeaderValue {
+        if cfg!(debug_assertions) {
+            match HeaderValue::from_shared(src) {
+                Ok(val) => val,
+                Err(_err) => {
+                    panic!("HeaderValue::from_shared_unchecked() with invalid bytes");
+                }
+            }
+        } else {
+            return HeaderValue {
+                inner: src,
+                is_sensitive: false,
+            };
+        }
+    }
+
     /// Attempt to convert a `Bytes` buffer to a `HeaderValue`.
     ///
     /// This will try to prevent a copy if the type passed is the type used
@@ -203,10 +260,6 @@ impl HeaderValue {
                 is_sensitive: false,
             }
         }
-    }
-
-    fn from_shared(src: Bytes) -> Result<HeaderValue, InvalidHeaderValue> {
-        HeaderValue::try_from_generic(src, std::convert::identity)
     }
 
     fn try_from_generic<T: AsRef<[u8]>, F: FnOnce(T) -> Bytes>(
@@ -294,6 +347,148 @@ impl HeaderValue {
     #[inline]
     pub fn as_bytes(&self) -> &[u8] {
         self.as_ref()
+    }
+
+    /// Creates a new [`Bytes`] object from this `HeaderValue`.
+    ///
+    /// This function will not perform any copying. Rather, it allocates a new,
+    /// owned `Bytes` object (which will be, at the time of writing, roughly 4
+    /// pointers in size) which will claim a reference-counted borrow of the
+    /// shared memory region that backs this `HeaderValue`. Because of the
+    /// Arc-like semantics of `Bytes` and `HeaderValue`s, this `HeaderValue` and
+    /// the returned `Bytes` can be dropped in any order and the shared memory
+    /// region will remain valid for the other.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::HeaderValue;
+    /// # use bytes::Bytes;
+    /// let val = HeaderValue::from_static("hello");
+    /// assert_eq!(val.as_shared(), Bytes::from_static(b"hello"));
+    /// ```
+    #[inline]
+    pub fn as_shared(&self) -> Bytes {
+        self.inner.clone()
+    }
+
+    /// Return the inner [`Bytes`] object, consuming this `HeaderValue`.
+    ///
+    /// Unlike [`as_shared()`], this method will not increment the reference
+    /// count of the shared memory region that backs this `HeaderValue`. This
+    /// method consumes `self` to do so.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::HeaderValue;
+    /// # use bytes::Bytes;
+    /// let val = HeaderValue::from_static("hello");
+    /// assert_eq!(val.into_shared(), Bytes::from_static(b"hello"));
+    /// ```
+    ///
+    /// [`as_shared()`]: Self::as_shared()
+    #[inline]
+    pub fn into_shared(self) -> Bytes {
+        self.inner
+    }
+
+    /// Returns a slice of `self` over the provided range.
+    ///
+    ///
+    /// This function will not perform any copying. Rather, it allocates a new,
+    /// owned `HeaderValue` object (which will be, at the time of writing,
+    /// roughly 5 pointers in size) which will claim a reference-counted borrow
+    /// of the shared memory region that backs this `HeaderValue`. Because of the
+    /// Arc-like semantics of`HeaderValue`s, this and the resulting
+    /// `HeaderValue` can be dropped in any order and the shared memory region
+    /// will remain valid for the other.
+    ///
+    /// If the `range` would be out of bounds, this function will return `None`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::HeaderValue;
+    /// let val = HeaderValue::from_static(r#"W/"67ab43", "54ed21", "7892dd""#);
+    /// let slice_1 = val.try_slice(0..10).unwrap();
+    /// let slice_3 = val.try_slice(22..30).unwrap();
+    /// assert_eq!(slice_1, r#"W/"67ab43""#);
+    /// assert_eq!(slice_3, "\"7892dd\"");
+    /// assert!(val.try_slice(0..31).is_none());
+    /// ```
+    #[inline]
+    pub fn try_slice(&self, range: impl RangeBounds<usize>) -> Option<HeaderValue> {
+        use core::ops::Bound;
+
+        let len = self.len();
+
+        let begin = match range.start_bound() {
+            Bound::Included(&n) => n,
+            Bound::Excluded(&n) => {
+                if let Some(n) = n.checked_add(1) {
+                    n
+                } else {
+                    return None;
+                }
+            }
+            Bound::Unbounded => 0,
+        };
+
+        let end = match range.end_bound() {
+            Bound::Included(&n) => {
+                if let Some(n) = n.checked_add(1) {
+                    n
+                } else {
+                    return None;
+                }
+            }
+            Bound::Excluded(&n) => n,
+            Bound::Unbounded => len,
+        };
+
+        if begin > end {
+            return None;
+        }
+        if end > len {
+            return None;
+        }
+
+        Some(self.slice(range))
+    }
+
+    /// Returns a slice of `self` over the provided range.
+    ///
+    ///
+    /// This function will not perform any copying. Rather, it allocates a new,
+    /// owned `HeaderValue` object (which will be, at the time of writing,
+    /// roughly 5 pointers in size) which will claim a reference-counted borrow
+    /// of the shared memory region that backs this `HeaderValue`. Because of the
+    /// Arc-like semantics of`HeaderValue`s, this and the resulting
+    /// `HeaderValue` can be dropped in any order and the shared memory region
+    /// will remain valid for the other.
+    ///
+    /// # Panics
+    ///
+    /// Requires that `begin <= end` and `end <= self.len()`, otherwise slicing
+    /// will panic.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::HeaderValue;
+    /// let val = HeaderValue::from_static(r#"W/"67ab43", "54ed21", "7892dd""#);
+    /// let slice_1 = val.slice(0..10);
+    /// let slice_3 = val.slice(22..30);
+    /// assert_eq!(slice_1, r#"W/"67ab43""#);
+    /// assert_eq!(slice_3, "\"7892dd\"");
+    /// ```
+    #[inline]
+    pub fn slice(&self, range: impl RangeBounds<usize>) -> HeaderValue {
+        let inner_slice = self.inner.slice(range);
+        // SAFETY: Any subslice of `self.inner` should be just as valid for use
+        // as a HeaderValue as the full `self.inner` buffer.
+        unsafe { HeaderValue::from_shared_unchecked(inner_slice) }
     }
 
     /// Mark that the header value represents sensitive information.
@@ -386,7 +581,7 @@ impl From<HeaderName> for HeaderValue {
     #[inline]
     fn from(h: HeaderName) -> HeaderValue {
         HeaderValue {
-            inner: h.into_bytes(),
+            inner: h.into_shared(),
             is_sensitive: false,
         }
     }
