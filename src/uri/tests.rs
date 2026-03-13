@@ -195,6 +195,18 @@ test_parse! {
 }
 
 test_parse! {
+    test_uri_parse_with_quotes,
+    r#"http://127.0.0.1?foo=["bar","baz"]"#,
+    [],
+
+    scheme = part!("http"),
+    authority = part!("127.0.0.1"),
+    path = "/",
+    query = Some(r#"foo=["bar","baz"]"#),
+    port = None,
+}
+
+test_parse! {
     test_uri_parse_absolute_form_with_empty_path_and_nonempty_query,
     "http://127.0.0.1?foo=bar",
     [],
