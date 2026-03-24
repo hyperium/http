@@ -135,6 +135,7 @@ enum ErrorKind {
     SchemeMissing,
     AuthorityMissing,
     PathAndQueryMissing,
+    PathDoesNotStartWithSlash,
     TooLong,
     Empty,
     SchemeTooLong,
@@ -872,10 +873,17 @@ fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUri> {
         data: unsafe { ByteStr::from_utf8_unchecked(authority) },
     };
 
+    // When absolute, path is coered to / if empty.
+    let path_and_query = if s.is_empty() {
+        PathAndQuery::slash()
+    } else {
+        PathAndQuery::from_shared(s)?
+    };
+
     Ok(Uri {
         scheme: scheme.into(),
         authority,
-        path_and_query: PathAndQuery::from_shared(s)?,
+        path_and_query,
     })
 }
 
@@ -1070,6 +1078,7 @@ impl InvalidUri {
             ErrorKind::SchemeMissing => "scheme missing",
             ErrorKind::AuthorityMissing => "authority missing",
             ErrorKind::PathAndQueryMissing => "path missing",
+            ErrorKind::PathDoesNotStartWithSlash => "path does not start with slash",
             ErrorKind::TooLong => "uri too long",
             ErrorKind::Empty => "empty string",
             ErrorKind::SchemeTooLong => "scheme too long",
