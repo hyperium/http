@@ -412,6 +412,14 @@ const fn scan_path_and_query(bytes: &[u8]) -> Result<Scanned, ErrorKind> {
 
     let mut is_maybe_not_utf8 = false;
 
+    if bytes.is_empty() {
+        return Err(ErrorKind::Empty);
+    }
+
+    if !matches!(bytes[0], b'/' | b'?' | b'#') {
+        return Err(ErrorKind::PathDoesNotStartWithSlash);
+    }
+
     while i < bytes.len() {
         // See https://url.spec.whatwg.org/#path-state
         match bytes[i] {
@@ -619,6 +627,16 @@ mod tests {
     #[test]
     fn rejects_invalid_utf8_in_query() {
         PathAndQuery::try_from(&[b'/', b'a', b'?', 0xFF][..]).expect_err("reject invalid utf8");
+    }
+
+    #[test]
+    fn rejects_empty_string() {
+        PathAndQuery::try_from("").expect_err("reject empty str");
+    }
+
+    #[test]
+    fn requires_starting_with_slash() {
+        PathAndQuery::try_from("sneaky").expect_err("reject missing slash");
     }
 
     #[test]
