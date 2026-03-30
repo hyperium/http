@@ -7,14 +7,6 @@ use bytes::Bytes;
 use super::{ErrorKind, InvalidUri};
 use crate::byte_str::ByteStr;
 
-/// Validation result for path and query parsing.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum PathAndQueryError {
-    InvalidPathChar,
-    InvalidQueryChar,
-    FragmentNotAllowed,
-}
-
 /// Represents the path component of a URI
 #[derive(Clone)]
 pub struct PathAndQuery {
@@ -27,95 +19,14 @@ const NONE: u16 = u16::MAX;
 impl PathAndQuery {
     // Not public while `bytes` is unstable.
     pub(super) fn from_shared(mut src: Bytes) -> Result<Self, InvalidUri> {
-        let mut query = NONE;
-        let mut fragment = None;
-
-        let mut is_maybe_not_utf8 = false;
-
-        // block for iterator borrow
-        {
-            let mut iter = src.as_ref().iter().enumerate();
-
-            // path ...
-            for (i, &b) in &mut iter {
-                // See https://url.spec.whatwg.org/#path-state
-                match b {
-                    b'?' => {
-                        debug_assert_eq!(query, NONE);
-                        query = i as u16;
-                        break;
-                    }
-                    b'#' => {
-                        fragment = Some(i);
-                        break;
-                    }
-
-                    // This is the range of bytes that don't need to be
-                    // percent-encoded in the path. If it should have been
-                    // percent-encoded, then error.
-                    #[rustfmt::skip]
-                    0x21 |
-                    0x24..=0x3B |
-                    0x3D |
-                    0x40..=0x5F |
-                    0x61..=0x7A |
-                    0x7C |
-                    0x7E => {}
-
-                    // potentially utf8, might not, should check
-                    0x7F..=0xFF => {
-                        is_maybe_not_utf8 = true;
-                    }
-
-                    // These are code points that are supposed to be
-                    // percent-encoded in the path but there are clients
-                    // out there sending them as is and httparse accepts
-                    // to parse those requests, so they are allowed here
-                    // for parity.
-                    //
-                    // For reference, those are code points that are used
-                    // to send requests with JSON directly embedded in
-                    // the URI path. Yes, those things happen for real.
-                    #[rustfmt::skip]
-                    b'"' |
-                    b'{' | b'}' => {}
-
-                    _ => return Err(ErrorKind::InvalidUriChar.into()),
-                }
-            }
-
-            // query ...
-            if query != NONE {
-                for (i, &b) in iter {
-                    match b {
-                        // While queries *should* be percent-encoded, most
-                        // bytes are actually allowed...
-                        // See https://url.spec.whatwg.org/#query-state
-                        //
-                        // Allowed: 0x21 / 0x24 - 0x3B / 0x3D / 0x3F - 0x7E
-                        #[rustfmt::skip]
-                        0x21 |
-                        0x24..=0x3B |
-                        0x3D |
-                        0x3F..=0x7E => {}
-
-                        0x7F..=0xFF => {
-                            is_maybe_not_utf8 = true;
-                        }
-
-                        b'#' => {
-                            fragment = Some(i);
-                            break;
-                        }
-
-                        _ => return Err(ErrorKind::InvalidUriChar.into()),
-                    }
-                }
-            }
-        }
+        let Scanned {
+            query,
+            fragment,
+            is_maybe_not_utf8,
+        } = scan_path_and_query(&src)?;
 
         if let Some(i) = fragment {
-            src.truncate(i);
+            src.truncate(i as usize);
         }
 
         let data = if is_maybe_not_utf8 {
@@ -147,12 +58,17 @@ impl PathAndQuery {
     /// ```
     #[inline]
     pub const fn from_static(src: &'static str) -> Self {
-        match validate_path_and_query_bytes(src.as_bytes()) {
-            Ok(query) => PathAndQuery {
+        match scan_path_and_query(src.as_bytes()) {
+            Ok(Scanned {
+                query,
+                fragment: None,
+                is_maybe_not_utf8: false,
+            }) => PathAndQuery {
                 data: ByteStr::from_static(src),
                 query,
             },
-            Err(_) => panic!("static str is not valid path"),
+            // Yes, we reject fragments and non-utf8
+            _ => panic!("static str is not valid path"),
         }
     }
 
@@ -479,37 +395,76 @@ impl PartialOrd<PathAndQuery> for String {
     }
 }
 
-/// Shared validation logic for path and query bytes.
-/// Returns the query position (or NONE), or an error.
-const fn validate_path_and_query_bytes(bytes: &[u8]) -> Result<u16, PathAndQueryError> {
-    let mut query: u16 = NONE;
-    let mut i: usize = 0;
+// Scanner implementation that is `const fn`, usable by both `from_static`
+// and `from_shared`.
+// =====
 
-    // path ...
+struct Scanned {
+    query: u16,
+    fragment: Option<u16>,
+    is_maybe_not_utf8: bool,
+}
+
+const fn scan_path_and_query(bytes: &[u8]) -> Result<Scanned, ErrorKind> {
+    let mut i = 0;
+    let mut query = NONE;
+    let mut fragment = None;
+
+    let mut is_maybe_not_utf8 = false;
+
+    if bytes.is_empty() {
+        return Err(ErrorKind::Empty);
+    }
+
+    if !matches!(bytes[0], b'/' | b'?' | b'#') {
+        return Err(ErrorKind::PathDoesNotStartWithSlash);
+    }
+
     while i < bytes.len() {
-        let b = bytes[i];
-        if b == b'?' {
-            query = i as u16;
-            i += 1;
-            break;
-        } else if b == b'#' {
-            return Err(PathAndQueryError::FragmentNotAllowed);
-        } else {
-            let allowed = b == 0x21
-                || (b >= 0x24 && b <= 0x3B)
-                || b == 0x3D
-                || (b >= 0x40 && b <= 0x5F)
-                || (b >= 0x61 && b <= 0x7A)
-                || b == 0x7C
-                || b == 0x7E
-                || b == b'"'
-                || b == b'{'
-                || b == b'}'
-                || (b >= 0x7F);
-
-            if !allowed {
-                return Err(PathAndQueryError::InvalidPathChar);
+        // See https://url.spec.whatwg.org/#path-state
+        match bytes[i] {
+            b'?' => {
+                debug_assert!(query == NONE);
+                query = i as u16;
+                i += 1;
+                break;
             }
+            b'#' => {
+                fragment = Some(i as u16);
+                break;
+            }
+
+            // This is the range of bytes that don't need to be
+            // percent-encoded in the path. If it should have been
+            // percent-encoded, then error.
+            #[rustfmt::skip]
+            0x21 |
+            0x24..=0x3B |
+            0x3D |
+            0x40..=0x5F |
+            0x61..=0x7A |
+            0x7C |
+            0x7E => {}
+
+            // potentially utf8, might not, should check
+            0x7F..=0xFF => {
+                is_maybe_not_utf8 = true;
+            }
+
+            // These are code points that are supposed to be
+            // percent-encoded in the path but there are clients
+            // out there sending them as is and httparse accepts
+            // to parse those requests, so they are allowed here
+            // for parity.
+            //
+            // For reference, those are code points that are used
+            // to send requests with JSON directly embedded in
+            // the URI path. Yes, those things happen for real.
+            #[rustfmt::skip]
+            b'"' |
+            b'{' | b'}' => {}
+
+            _ => return Err(ErrorKind::InvalidUriChar),
         }
         i += 1;
     }
@@ -517,26 +472,38 @@ const fn validate_path_and_query_bytes(bytes: &[u8]) -> Result<u16, PathAndQuery
     // query ...
     if query != NONE {
         while i < bytes.len() {
-            let b = bytes[i];
-            if b == b'#' {
-                return Err(PathAndQueryError::FragmentNotAllowed);
+            match bytes[i] {
+                // While queries *should* be percent-encoded, most
+                // bytes are actually allowed...
+                // See https://url.spec.whatwg.org/#query-state
+                //
+                // Allowed: 0x21 / 0x24 - 0x3B / 0x3D / 0x3F - 0x7E
+                #[rustfmt::skip]
+                0x21 |
+                0x24..=0x3B |
+                0x3D |
+                0x3F..=0x7E => {}
+
+                0x7F..=0xFF => {
+                    is_maybe_not_utf8 = true;
+                }
+
+                b'#' => {
+                    fragment = Some(i as u16);
+                    break;
+                }
+
+                _ => return Err(ErrorKind::InvalidUriChar),
             }
-
-            let allowed = b == 0x21
-                || (b >= 0x24 && b <= 0x3B)
-                || b == 0x3D
-                || (b >= 0x3F && b <= 0x7E)
-                || (b >= 0x7F);
-
-            if !allowed {
-                return Err(PathAndQueryError::InvalidQueryChar);
-            }
-
             i += 1;
         }
     }
 
-    Ok(query)
+    Ok(Scanned {
+        query,
+        fragment,
+        is_maybe_not_utf8,
+    })
 }
 
 #[cfg(test)]
@@ -660,6 +627,16 @@ mod tests {
     #[test]
     fn rejects_invalid_utf8_in_query() {
         PathAndQuery::try_from(&[b'/', b'a', b'?', 0xFF][..]).expect_err("reject invalid utf8");
+    }
+
+    #[test]
+    fn rejects_empty_string() {
+        PathAndQuery::try_from("").expect_err("reject empty str");
+    }
+
+    #[test]
+    fn requires_starting_with_slash() {
+        PathAndQuery::try_from("sneaky").expect_err("reject missing slash");
     }
 
     #[test]
