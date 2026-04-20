@@ -89,7 +89,9 @@ jobs:
         with:
           toolchain: stable
 
-      - uses: taiki-e/install-action@cargo-hack
+      - uses: taiki-e/install-action@055f5df8c3f65ea01cd41e9dc855becd88953486 # v2.75.18
+        with:
+          tool: cargo-hack
 
       - name: Remove dev-dependencies
         run: cargo hack --remove-dev-deps update
@@ -142,8 +144,12 @@ jobs:
       - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
         with:
           toolchain: stable
-      - uses: taiki-e/install-action@cargo-hack
-      - uses: taiki-e/install-action@cargo-minimal-versions
+      - uses: taiki-e/install-action@055f5df8c3f65ea01cd41e9dc855becd88953486 # v2.75.18
+        with:
+          tool: cargo-hack
+      - uses: taiki-e/install-action@055f5df8c3f65ea01cd41e9dc855becd88953486 # v2.75.18
+        with:
+          tool: cargo-minimal-versions
       - run: cargo minimal-versions check
 
   miri:
