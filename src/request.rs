@@ -180,7 +180,7 @@ pub struct Parts {
 
 /// An HTTP request builder
 ///
-/// This type can be used to construct an instance or `Request`
+/// This type can be used to construct an instance of `Request`
 /// through a builder-like pattern.
 #[derive(Debug)]
 pub struct Builder {
