@@ -1270,7 +1270,24 @@ impl HeaderName {
         }
     }
 
-    pub(super) fn into_bytes(self) -> Bytes {
+    /// Creates a [`Bytes`] object from this `HeaderName`.
+    ///
+    /// This function will _likely_ copy the standard string representation of
+    /// this `HeaderName` into a new `Bytes` object. If this `HeaderName` is a
+    /// non-standard header name (that just so happens to be backed by a `Bytes`
+    /// object), the copy may be elided in favor of claiming a reference-counted
+    /// borrow of the shared memory region that backs this `HeaderName`. Expect
+    /// the former behavior.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::*;
+    /// # use bytes::Bytes;
+    /// let hdr = HeaderName::from_static("content-length");
+    /// assert_eq!(hdr.into_shared(), Bytes::from_static(b"content-length"));
+    /// ```
+    pub fn into_shared(self) -> Bytes {
         self.inner.into()
     }
 }
