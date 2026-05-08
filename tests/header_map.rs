@@ -689,3 +689,37 @@ fn ensure_miri_sharedreadonly_not_violated() {
 
     let _foo = &headers.iter().next();
 }
+
+#[test]
+fn ensure_miri_itermut_not_violated() {
+    let mut headers = HeaderMap::<u32>::default();
+    headers.insert(HeaderName::from_static("hello"), 1u32);
+    headers.insert(HeaderName::from_static("zomg"), 2u32);
+
+    let mut iter = headers.iter_mut();
+    let (_, first) = iter.next().unwrap();
+    let (_, second) = iter.next().unwrap();
+
+    *first += 10;
+    *second += 20;
+}
+
+#[test]
+fn ensure_miri_valueitermut_not_violated() {
+    let mut headers = HeaderMap::<u32>::default();
+    headers.insert(HeaderName::from_static("hello"), 1u32);
+    headers.append(HeaderName::from_static("hello"), 2u32);
+    headers.append(HeaderName::from_static("hello"), 3u32);
+
+    let mut entry = match headers.entry(HeaderName::from_static("hello")) {
+        Entry::Occupied(entry) => entry,
+        Entry::Vacant(_) => panic!(),
+    };
+
+    let mut iter = entry.iter_mut();
+    let first = iter.next().unwrap();
+    let second = iter.next().unwrap();
+
+    *first += 10;
+    *second += 20;
+}
