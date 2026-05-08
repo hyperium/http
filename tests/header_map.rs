@@ -723,3 +723,52 @@ fn ensure_miri_valueitermut_not_violated() {
     *first += 10;
     *second += 20;
 }
+
+#[test]
+fn into_iter_drop_panic_after_yielding_extra_value_double_drops() {
+    use std::panic::{catch_unwind, AssertUnwindSafe};
+
+    struct ManuallyAllocated {
+        ptr: *mut u8,
+        panic_on_drop: bool,
+    }
+
+    impl ManuallyAllocated {
+        fn new(byte: u8, panic_on_drop: bool) -> Self {
+            Self {
+                ptr: Box::into_raw(Box::new(byte)),
+                panic_on_drop,
+            }
+        }
+    }
+
+    impl Drop for ManuallyAllocated {
+        fn drop(&mut self) {
+            unsafe {
+                drop(Box::from_raw(self.ptr));
+            }
+
+            if self.panic_on_drop {
+                panic!("intentional drop panic");
+            }
+        }
+    }
+
+    let mut map: HeaderMap<ManuallyAllocated> = HeaderMap::default();
+    map.append("x-first", ManuallyAllocated::new(1, false));
+    map.append("x-first", ManuallyAllocated::new(2, false));
+    map.insert("x-second", ManuallyAllocated::new(3, true));
+
+    let mut iter = map.into_iter();
+
+    // HeaderMap::IntoIter yields extra values with ptr::read from
+    // self.extra_values and relies on Drop setting self.extra_values.len() to
+    // zero after the iterator has been fully consumed. If a later value's Drop
+    // panics while IntoIter::drop is draining the iterator, that set_len(0) is
+    // skipped. The Vec then drops already-yielded extra value slots again. The
+    // safe sequence below therefore double-frees byte 2 under Miri.
+    drop(iter.next().unwrap());
+    drop(iter.next().unwrap());
+
+    let _ = catch_unwind(AssertUnwindSafe(|| drop(iter)));
+}
