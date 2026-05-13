@@ -56,6 +56,23 @@ fn with_capacity_overflow() {
 }
 
 #[test]
+fn extend_size_hint_above_capacity() {
+    // A `HeaderMap` may hold more values than the table can index when many
+    // values are appended under one name, so an exact size hint can exceed the
+    // largest `reserve` request. Extending must not panic in that case.
+    let name = HeaderName::from_static("h");
+    let value = HeaderValue::from_static("0");
+    let pairs: Vec<(HeaderName, HeaderValue)> =
+        std::iter::repeat_with(|| (name.clone(), value.clone()))
+            .take(24_577)
+            .collect();
+
+    let map = HeaderMap::from_iter(pairs);
+    assert_eq!(map.len(), 24_577);
+    assert_eq!(map.keys_len(), 1);
+}
+
+#[test]
 #[should_panic]
 fn reserve_overflow() {
     // See https://github.com/hyperium/http/issues/352

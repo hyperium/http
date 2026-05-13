@@ -2133,11 +2133,15 @@ impl<T> Extend<(Option<HeaderName>, T)> for HeaderMap<T> {
         // Reserve the entire hint lower bound if the map is empty.
         // Otherwise reserve half the hint (rounded up), so the map
         // will only resize twice in the worst case.
-        let reserve = if self.is_empty() {
+        let hint = if self.is_empty() {
             iter.size_hint().0
         } else {
             (iter.size_hint().0 + 1) / 2
         };
+
+        // Clamp the hint so an over-estimate cannot overflow `reserve`.
+        let max_reserve = usable_capacity(MAX_SIZE).saturating_sub(self.entries.len());
+        let reserve = hint.min(max_reserve);
 
         self.reserve(reserve);
 
@@ -2189,11 +2193,15 @@ impl<T> Extend<(HeaderName, T)> for HeaderMap<T> {
         // will only resize twice in the worst case.
         let iter = iter.into_iter();
 
-        let reserve = if self.is_empty() {
+        let hint = if self.is_empty() {
             iter.size_hint().0
         } else {
             (iter.size_hint().0 + 1) / 2
         };
+
+        // Clamp the hint so an over-estimate cannot overflow `reserve`.
+        let max_reserve = usable_capacity(MAX_SIZE).saturating_sub(self.entries.len());
+        let reserve = hint.min(max_reserve);
 
         self.reserve(reserve);
 
