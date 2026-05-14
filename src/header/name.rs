@@ -737,6 +737,28 @@ standard_headers! {
     /// Cache-Control HTTP/1.1 header is not yet present.
     (Pragma, PRAGMA, b"pragma");
 
+    /// Influencing how a server processes a request without changing its
+    /// semantics is achieved through the Prefer request header, which
+    /// communicates optional processing preferences.
+    ///
+    /// The Prefer header enables clients to express preferences about how a
+    /// server processes a request and constructs a response. Preferences are
+    /// advisory. A server is free to ignore any or all preferences without
+    /// causing the request to fail. When a server honors one or more
+    /// preferences, the Preference-Applied response header confirms which ones
+    /// were applied.
+    (Prefer, PREFER, b"prefer");
+
+    /// When a server honors optional behaviors from the Prefer request header,
+    /// the Preference-Applied response header confirms which preferences were
+    /// applied during processing.
+    ///
+    /// The Preference-Applied header is part of the HTTP Prefer framework.
+    /// Clients use the Prefer request header to request optional behaviors
+    /// during request processing. The server responds with Preference-Applied
+    /// to confirm which preferences were applied.
+    (PreferenceApplied, PREFERENCE_APPLIED, b"preference-applied");
+
     /// Defines the authentication method that should be used to gain access to
     /// a proxy.
     ///
