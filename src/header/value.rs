@@ -1,8 +1,7 @@
-use bytes::{Bytes, BytesMut};
+use bytes::Bytes;
 
 use std::convert::TryFrom;
 use std::error::Error;
-use std::fmt::Write;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 use std::{cmp, fmt, str};
@@ -396,10 +395,10 @@ macro_rules! from_integers {
     ($($name:ident: $t:ident => $max_len:expr),*) => {$(
         impl From<$t> for HeaderValue {
             fn from(num: $t) -> HeaderValue {
-                let mut buf = BytesMut::with_capacity($max_len);
-                let _ = buf.write_str(::itoa::Buffer::new().format(num));
+                let mut buf = ::itoa::Buffer::new();
+                let s = buf.format(num);
                 HeaderValue {
-                    inner: buf.freeze(),
+                    inner: Bytes::copy_from_slice(s.as_bytes()),
                     is_sensitive: false,
                 }
             }
