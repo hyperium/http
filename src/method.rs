@@ -134,6 +134,29 @@ impl Method {
         }
     }
 
+    /// Convert static bytes into a `Method`.
+    ///
+    /// # Panics
+    ///
+    /// If the input bytes are not a valid method name or if the method name is over 15 bytes.
+    pub const fn from_static(src: &'static [u8]) -> Method {
+        match src {
+            b"OPTIONS" => Method::OPTIONS,
+            b"GET" => Method::GET,
+            b"POST" => Method::POST,
+            b"PUT" => Method::PUT,
+            b"DELETE" => Method::DELETE,
+            b"HEAD" => Method::HEAD,
+            b"TRACE" => Method::TRACE,
+            b"CONNECT" => Method::CONNECT,
+            b"PATCH" => Method::PATCH,
+            src => {
+                let inline = InlineExtension::from_static(src);
+                Method(ExtensionInline(inline))
+            }
+        }
+    }
+
     fn extension_inline(src: &[u8]) -> Result<Method, InvalidMethod> {
         let inline = InlineExtension::new(src)?;
 
@@ -316,6 +339,9 @@ mod extension {
     // Invariant: self.0 contains valid UTF-8.
     pub struct AllocatedExtension(Box<[u8]>);
 
+    #[derive(Clone, PartialEq, Eq, Hash)]
+    pub struct StaticExtension(&'static [u8]);
+
     impl InlineExtension {
         // Method::from_bytes() assumes this is at least 7
         pub const MAX: usize = 15;
@@ -328,6 +354,34 @@ mod extension {
             // Invariant: write_checked ensures that the first src.len() bytes
             // of data are valid UTF-8.
             Ok(InlineExtension(data, src.len() as u8))
+        }
+
+        /// Convert static bytes into an `InlineExtension`.
+        ///
+        /// # Panics
+        ///
+        /// If the input bytes are not a valid method name or if the method name is over 15 bytes.
+        pub const fn from_static(src: &'static [u8]) -> InlineExtension {
+            let mut i = 0;
+            let mut dst = [0u8; 15];
+            if src.len() > 15 {
+                // panicking in const requires Rust 1.57.0
+                #[allow(unconditional_panic)]
+                ([] as [u8; 0])[0];
+            }
+            while i < src.len() {
+                let byte = src[i];
+                let v = METHOD_CHARS[byte as usize];
+                if v == 0 {
+                    // panicking in const requires Rust 1.57.0
+                    #[allow(unconditional_panic)]
+                    ([] as [u8; 0])[0];
+                }
+                dst[i] = byte;
+                i += 1;
+            }
+
+            InlineExtension(dst, i as u8)
         }
 
         pub fn as_str(&self) -> &str {
@@ -437,6 +491,43 @@ mod test {
     }
 
     #[test]
+    fn test_from_static() {
+        // First class variant
+        assert_eq!(
+            Method::from_static(b"GET"),
+            Method::from_bytes(b"GET").unwrap()
+        );
+        // Inline, len < 15
+        assert_eq!(
+            Method::from_static(b"PROPFIND"),
+            Method::from_bytes(b"PROPFIND").unwrap()
+        );
+        // Inline, len == 15
+        assert_eq!(Method::from_static(b"GET"), Method::GET);
+        assert_eq!(
+            Method::from_static(b"123456789012345").to_string(),
+            "123456789012345".to_string()
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_from_static_too_long() {
+        // Ref, len > 15
+        Method::from_static(b"1234567890123456");
+        assert_eq!(
+            Method::from_static(b"1234567890123456").to_string(),
+            "1234567890123456".to_string()
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_from_static_bad() {
+        Method::from_static(b"\0");
+    }
+
+    #[test]
     fn test_invalid_method() {
         assert!(Method::from_str("").is_err());
         assert!(Method::from_bytes(b"").is_err());
@@ -496,5 +587,14 @@ mod test {
                 "testing {c} is a valid method character"
             );
         }
+    }
+
+    #[test]
+    fn test_extension_comparison() {
+        const REPORT: Method = Method::from_static(b"REPORT");
+
+        let m = Method::from_bytes(b"REPORT").unwrap();
+
+        assert!(matches!(m, REPORT));
     }
 }
