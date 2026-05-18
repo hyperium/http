@@ -743,13 +743,17 @@ impl<T> HeaderMap<T> {
     /// # map.try_insert(HOST, "bar".parse().unwrap()).unwrap();
     /// ```
     pub fn try_reserve(&mut self, additional: usize) -> Result<(), MaxSizeReached> {
-        // TODO: This can't overflow if done properly... since the max # of
-        // elements is u16::MAX.
-        let cap = self
-            .entries
-            .len()
-            .checked_add(additional)
-            .ok_or_else(MaxSizeReached::new)?;
+        // Early bounds check: Since self.entries.len() <= MAX_SIZE (invariant),
+        // and MAX_SIZE fits in u16, we can avoid checked_add by validating
+        // that additional won't cause the total to exceed MAX_SIZE.
+        let current_len = self.entries.len();
+        if additional > MAX_SIZE.saturating_sub(current_len) {
+            return Err(MaxSizeReached::new());
+        }
+
+        // Safe: We've verified that current_len + additional <= MAX_SIZE,
+        // which is well within usize range, so no overflow is possible.
+        let cap = current_len + additional;
 
         let raw_cap = to_raw_capacity(cap)?;
 
