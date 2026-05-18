@@ -60,6 +60,7 @@ enum Inner {
     Trace,
     Connect,
     Patch,
+    Query,
     // If the extension is short enough, store it inline
     ExtensionInline(InlineExtension),
     // Otherwise, allocate it
@@ -94,6 +95,9 @@ impl Method {
     /// TRACE
     pub const TRACE: Method = Method(Trace);
 
+    /// QUERY
+    pub const QUERY: Method = Method(Query);
+
     /// Converts a slice of bytes to an HTTP method.
     pub fn from_bytes(src: &[u8]) -> Result<Method, InvalidMethod> {
         match src.len() {
@@ -111,6 +115,7 @@ impl Method {
             5 => match src {
                 b"PATCH" => Ok(Method(Patch)),
                 b"TRACE" => Ok(Method(Trace)),
+                b"QUERY" => Ok(Method(Query)),
                 _ => Method::extension_inline(src),
             },
             6 => match src {
@@ -146,7 +151,7 @@ impl Method {
     /// See [the spec](https://tools.ietf.org/html/rfc7231#section-4.2.1)
     /// for more words.
     pub fn is_safe(&self) -> bool {
-        matches!(self.0, Get | Head | Options | Trace)
+        matches!(self.0, Get | Head | Options | Trace | Query)
     }
 
     /// Whether a method is considered "idempotent", meaning the request has
@@ -174,6 +179,7 @@ impl Method {
             Trace => "TRACE",
             Connect => "CONNECT",
             Patch => "PATCH",
+            Query => "QUERY",
             ExtensionInline(ref inline) => inline.as_str(),
             ExtensionAllocated(ref allocated) => allocated.as_str(),
         }
@@ -452,6 +458,7 @@ mod test {
         assert!(Method::DELETE.is_idempotent());
         assert!(Method::HEAD.is_idempotent());
         assert!(Method::TRACE.is_idempotent());
+        assert!(Method::QUERY.is_idempotent());
 
         assert!(!Method::POST.is_idempotent());
         assert!(!Method::CONNECT.is_idempotent());
