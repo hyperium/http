@@ -1270,7 +1270,10 @@ impl HeaderName {
         }
     }
 
-    pub(super) fn into_bytes(self) -> Bytes {
+    /// Returns a `Bytes` representation of the header.
+    ///
+    /// The returned string will always be lower case.
+    pub fn into_bytes(self) -> Bytes {
         self.inner.into()
     }
 }
