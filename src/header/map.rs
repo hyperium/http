@@ -3195,13 +3195,20 @@ impl<T> FusedIterator for IntoIter<T> {}
 
 impl<T> Drop for IntoIter<T> {
     fn drop(&mut self) {
-        // Ensure the iterator is consumed
-        for _ in self.by_ref() {}
+        struct Guard<'a, T>(&'a mut IntoIter<T>);
 
-        // All the values have already been yielded out.
-        unsafe {
-            self.extra_values.set_len(0);
+        impl<'a, T> Drop for Guard<'a, T> {
+            fn drop(&mut self) {
+                unsafe {
+                    self.0.extra_values.set_len(0);
+                }
+            }
         }
+
+        let guard = Guard(self);
+
+        // Ensure the iterator is consumed
+        for _ in guard.0.by_ref() {}
     }
 }
 
