@@ -129,7 +129,13 @@ pub struct Iter<'a, T> {
 /// yielded more than once if it has more than one associated value.
 #[derive(Debug)]
 pub struct IterMut<'a, T> {
-    map: *mut HeaderMap<T>,
+    // Raw access avoids reborrowing the whole `HeaderMap` on every `next()`,
+    // which would invalidate previously yielded `&mut T`s.
+    entries: *mut Bucket<T>,
+    entries_len: usize,
+    // This points at the original `HeaderMap::extra_values` allocation for the
+    // lifetime of the iterator.
+    extra_values: *mut ExtraValue<T>,
     entry: usize,
     cursor: Option<Cursor>,
     lt: PhantomData<&'a mut HeaderMap<T>>,
@@ -234,7 +240,11 @@ pub struct ValueIter<'a, T> {
 /// A mutable iterator of all values associated with a single header name.
 #[derive(Debug)]
 pub struct ValueIterMut<'a, T> {
-    map: *mut HeaderMap<T>,
+    // Raw access avoids reborrowing the whole `HeaderMap` on every step.
+    entries: *mut Bucket<T>,
+    // This points at the original `HeaderMap::extra_values` allocation for the
+    // lifetime of the iterator.
+    extra_values: *mut ExtraValue<T>,
     index: usize,
     front: Option<Cursor>,
     back: Option<Cursor>,
@@ -951,7 +961,9 @@ impl<T> HeaderMap<T> {
     /// ```
     pub fn iter_mut(&mut self) -> IterMut<'_, T> {
         IterMut {
-            map: self as *mut _,
+            entries: self.entries.as_mut_ptr(),
+            entries_len: self.entries.len(),
+            extra_values: self.extra_values.as_mut_ptr(),
             entry: 0,
             cursor: self.entries.first().map(|_| Cursor::Head),
             lt: PhantomData,
@@ -1129,7 +1141,8 @@ impl<T> HeaderMap<T> {
         };
 
         ValueIterMut {
-            map: self as *mut _,
+            entries: self.entries.as_mut_ptr(),
+            extra_values: self.extra_values.as_mut_ptr(),
             index: idx,
             front: Some(Head),
             back: Some(back),
@@ -2363,11 +2376,11 @@ unsafe impl<'a, T: Sync> Send for Iter<'a, T> {}
 // ===== impl IterMut =====
 
 impl<'a, T> IterMut<'a, T> {
-    fn next_unsafe(&mut self) -> Option<(&'a HeaderName, *mut T)> {
+    fn next_unsafe(&mut self) -> Option<(*const HeaderName, *mut T)> {
         use self::Cursor::*;
 
         if self.cursor.is_none() {
-            if (self.entry + 1) >= unsafe { &*self.map }.entries.len() {
+            if (self.entry + 1) >= self.entries_len {
                 return None;
             }
 
@@ -2375,22 +2388,46 @@ impl<'a, T> IterMut<'a, T> {
             self.cursor = Some(Cursor::Head);
         }
 
-        let entry = &mut unsafe { &mut *self.map }.entries[self.entry];
+        // SAFETY: `self.entry < self.entries_len`, and the iterator has
+        // exclusive access to the underlying map for `'a`, so the `entries`
+        // allocation remains valid for the lifetime of the iterator.
+        let entry = unsafe { self.entries.add(self.entry) };
 
         match self.cursor.unwrap() {
             Head => {
-                self.cursor = entry.links.map(|l| Values(l.next));
-                Some((&entry.key, &mut entry.value as *mut _))
+                // SAFETY: `entry` points at a live bucket in `entries`.
+                self.cursor = unsafe { (*entry).links }.map(|l| Values(l.next));
+                // SAFETY: `entry` points at a live bucket, and the iterator only
+                // yields each slot at most once, so materializing these field
+                // pointers does not alias another yielded `&mut T`.
+                Some(unsafe {
+                    (
+                        ptr::addr_of!((*entry).key),
+                        ptr::addr_of_mut!((*entry).value),
+                    )
+                })
             }
             Values(idx) => {
-                let extra = &mut unsafe { &mut (*self.map) }.extra_values[idx];
+                // SAFETY: `idx` comes from the `links` chain stored in a live
+                // bucket / extra value, so it points at a live `extra_values`
+                // slot for the duration of iteration.
+                let extra = unsafe { self.extra_values.add(idx) };
 
-                match extra.next {
+                // SAFETY: `extra` points at a live extra value.
+                match unsafe { (*extra).next } {
                     Link::Entry(_) => self.cursor = None,
                     Link::Extra(i) => self.cursor = Some(Values(i)),
                 }
 
-                Some((&entry.key, &mut extra.value as *mut _))
+                // SAFETY: `entry` and `extra` both point at live elements in the
+                // map backing storage, and the iterator only yields each value
+                // slot at most once.
+                Some(unsafe {
+                    (
+                        ptr::addr_of!((*entry).key),
+                        ptr::addr_of_mut!((*extra).value),
+                    )
+                })
             }
         }
     }
@@ -2401,14 +2438,13 @@ impl<'a, T> Iterator for IterMut<'a, T> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.next_unsafe()
-            .map(|(key, ptr)| (key, unsafe { &mut *ptr }))
+            .map(|(key, ptr)| (unsafe { &*key }, unsafe { &mut *ptr }))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let map = unsafe { &*self.map };
-        debug_assert!(map.entries.len() >= self.entry);
+        debug_assert!(self.entries_len >= self.entry);
 
-        let lower = map.entries.len() - self.entry;
+        let lower = self.entries_len - self.entry;
         // We could pessimistically guess at the upper bound, saying
         // that its lower + map.extra_values.len(). That could be
         // way over though, such as if we're near the end, and have
@@ -3023,7 +3059,9 @@ impl<'a, T: 'a> Iterator for ValueIterMut<'a, T> {
     fn next(&mut self) -> Option<Self::Item> {
         use self::Cursor::*;
 
-        let entry = &mut unsafe { &mut *self.map }.entries[self.index];
+        // SAFETY: `self.index` was created from a live occupied entry and stays
+        // fixed for the lifetime of this iterator.
+        let entry = unsafe { self.entries.add(self.index) };
 
         match self.front {
             Some(Head) => {
@@ -3032,7 +3070,8 @@ impl<'a, T: 'a> Iterator for ValueIterMut<'a, T> {
                     self.back = None;
                 } else {
                     // Update the iterator state
-                    match entry.links {
+                    // SAFETY: `entry` points at a live bucket in `entries`.
+                    match unsafe { (*entry).links } {
                         Some(links) => {
                             self.front = Some(Values(links.next));
                         }
@@ -3040,22 +3079,29 @@ impl<'a, T: 'a> Iterator for ValueIterMut<'a, T> {
                     }
                 }
 
-                Some(&mut entry.value)
+                // SAFETY: `entry` points at a live bucket, and `front`/`back`
+                // ensure this value slot is yielded at most once.
+                Some(unsafe { &mut *ptr::addr_of_mut!((*entry).value) })
             }
             Some(Values(idx)) => {
-                let extra = &mut unsafe { &mut *self.map }.extra_values[idx];
+                // SAFETY: `idx` comes from the live linked list rooted at
+                // `self.index`, so it refers to a live extra value slot.
+                let extra = unsafe { self.extra_values.add(idx) };
 
                 if self.front == self.back {
                     self.front = None;
                     self.back = None;
                 } else {
-                    match extra.next {
+                    // SAFETY: `extra` points at a live extra value.
+                    match unsafe { (*extra).next } {
                         Link::Entry(_) => self.front = None,
                         Link::Extra(i) => self.front = Some(Values(i)),
                     }
                 }
 
-                Some(&mut extra.value)
+                // SAFETY: `extra` points at a live extra value, and
+                // `front`/`back` ensure this value slot is yielded at most once.
+                Some(unsafe { &mut *ptr::addr_of_mut!((*extra).value) })
             }
             None => None,
         }
@@ -3066,28 +3112,37 @@ impl<'a, T: 'a> DoubleEndedIterator for ValueIterMut<'a, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
         use self::Cursor::*;
 
-        let entry = &mut unsafe { &mut *self.map }.entries[self.index];
+        // SAFETY: `self.index` was created from a live occupied entry and stays
+        // fixed for the lifetime of this iterator.
+        let entry = unsafe { self.entries.add(self.index) };
 
         match self.back {
             Some(Head) => {
                 self.front = None;
                 self.back = None;
-                Some(&mut entry.value)
+                // SAFETY: `entry` points at a live bucket, and `front`/`back`
+                // ensure this value slot is yielded at most once.
+                Some(unsafe { &mut *ptr::addr_of_mut!((*entry).value) })
             }
             Some(Values(idx)) => {
-                let extra = &mut unsafe { &mut *self.map }.extra_values[idx];
+                // SAFETY: `idx` comes from the live linked list rooted at
+                // `self.index`, so it refers to a live extra value slot.
+                let extra = unsafe { self.extra_values.add(idx) };
 
                 if self.front == self.back {
                     self.front = None;
                     self.back = None;
                 } else {
-                    match extra.prev {
+                    // SAFETY: `extra` points at a live extra value.
+                    match unsafe { (*extra).prev } {
                         Link::Entry(_) => self.back = Some(Head),
                         Link::Extra(idx) => self.back = Some(Values(idx)),
                     }
                 }
 
-                Some(&mut extra.value)
+                // SAFETY: `extra` points at a live extra value, and
+                // `front`/`back` ensure this value slot is yielded at most once.
+                Some(unsafe { &mut *ptr::addr_of_mut!((*extra).value) })
             }
             None => None,
         }
