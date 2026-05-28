@@ -385,6 +385,19 @@ test_parse! {
 }
 
 test_parse! {
+    test_file_no_host,
+    "file:///some/path",
+    [],
+
+    scheme = part!("file"),
+    authority = None,
+    host = None,
+    path = "/some/path",
+    query = None,
+    port = None,
+}
+
+test_parse! {
     test_percentage_encoded_path,
     "/echo/abcdefgh_i-j%20/abcdefg_i-j%20478",
     [],
@@ -419,7 +432,6 @@ fn test_uri_parse_error() {
         Uri::from_str(s).unwrap_err();
     }
 
-    err("http://");
     err("htt:p//host");
     err("hyper.rs/");
     err("hyper.rs?key=val");
