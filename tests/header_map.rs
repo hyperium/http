@@ -77,7 +77,7 @@ fn extend_size_hint_above_capacity() {
 fn reserve_overflow() {
     // See https://github.com/hyperium/http/issues/352
     let mut headers = HeaderMap::<u32>::with_capacity(0);
-    headers.reserve(std::usize::MAX); // next_power_of_two overflows
+    headers.reserve(usize::MAX); // next_power_of_two overflows
 }
 
 #[test]
