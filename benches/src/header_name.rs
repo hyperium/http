@@ -115,6 +115,9 @@ fn make_all_known_headers() -> Vec<Vec<u8>> {
     b"X-Frame-Options".to_vec(),
     // common_non_standard_response
     b"Content-Security-Policy".to_vec(),
+    b"Cross-Origin-Embedder-Policy".to_vec(),
+    b"Cross-Origin-Opener-Policy".to_vec(),
+    b"Cross-Origin-Resource-Policy".to_vec(),
     b"Refresh".to_vec(),
     b"Status".to_vec(),
     b"Timing-Allow-Origin".to_vec(),
@@ -238,6 +241,9 @@ static ALL_KNOWN_HEADERS: &[&str] = &[
     "x-frame-options",
     // common_non_standard_response
     "content-security-policy",
+    "cross-origin-embedder-policy",
+    "cross-origin-opener-policy",
+    "cross-origin-resource-policy",
     "refresh",
     "status",
     "timing-allow-origin",
