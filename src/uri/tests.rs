@@ -11,6 +11,16 @@ fn test_char_table() {
     }
 }
 
+#[test]
+fn test_into_builder() {
+    let uri = Uri::from_static("http://example.com/foo?bar=baz");
+    let modified_uri = uri.into_builder()
+        .path_and_query("/")
+        .build()
+        .unwrap();
+    assert_eq!(modified_uri, "http://example.com/");
+}
+
 macro_rules! part {
     ($s:expr) => {
         Some(&$s.parse().unwrap())
