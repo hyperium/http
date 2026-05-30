@@ -301,25 +301,41 @@ macro_rules! status_codes {
     (
         $(
             $(#[$docs:meta])*
-            ($num:expr, $konst:ident, $phrase:expr);
+            ($num:expr, $name:ident $(aka $alias:ident)*, $phrase:literal);
         )+
     ) => {
         impl StatusCode {
         $(
             $(#[$docs])*
-            pub const $konst: StatusCode = StatusCode(unsafe { NonZeroU16::new_unchecked($num) });
+            pub const $name: StatusCode = StatusCode(unsafe { NonZeroU16::new_unchecked($num) });
+            $(
+                status_codes! {
+                    @alias $alias = $name;
+                    concat!("Alias of [`", stringify!($name),
+                            "`](`Self::", stringify!($name), "`).")
+                }
+            )*
         )+
 
         }
 
         fn canonical_reason(num: u16) -> Option<&'static str> {
             match num {
+                // Make sure none of the numbers are < 100 or > 999.
+                0..=99 | 1000..=u16::MAX => None,
                 $(
                 $num => Some($phrase),
                 )+
                 _ => None
             }
         }
+    };
+
+    // Work around rustc 1.49 not supporting #[doc = concat!(...)].  With newer
+    // rustc this can be inlined.
+    (@alias $alias:ident = $name:ident; $doc:expr) => {
+        #[doc = $doc]
+        pub const $alias: StatusCode = StatusCode::$name;
     }
 }
 
@@ -348,7 +364,7 @@ status_codes! {
     (202, ACCEPTED, "Accepted");
     /// 203 Non-Authoritative Information
     /// [[RFC9110, Section 15.3.4](https://datatracker.ietf.org/doc/html/rfc9110#section-15.3.4)]
-    (203, NON_AUTHORITATIVE_INFORMATION, "Non Authoritative Information");
+    (203, NON_AUTHORITATIVE_INFORMATION, "Non-Authoritative Information");
     /// 204 No Content
     /// [[RFC9110, Section 15.3.5](https://datatracker.ietf.org/doc/html/rfc9110#section-15.3.5)]
     (204, NO_CONTENT, "No Content");
@@ -433,9 +449,11 @@ status_codes! {
     /// 412 Precondition Failed
     /// [[RFC9110, Section 15.5.13](https://datatracker.ietf.org/doc/html/rfc9110#section-15.5.13)]
     (412, PRECONDITION_FAILED, "Precondition Failed");
-    /// 413 Payload Too Large
+    /// 413 Content Too Large
     /// [[RFC9110, Section 15.5.14](https://datatracker.ietf.org/doc/html/rfc9110#section-15.5.14)]
-    (413, PAYLOAD_TOO_LARGE, "Payload Too Large");
+    ///
+    /// Prior to RFC9110 phrase for this status was ‘Payload Too Large’.
+    (413, CONTENT_TOO_LARGE aka PAYLOAD_TOO_LARGE, "Content Too Large");
     /// 414 URI Too Long
     /// [[RFC9110, Section 15.5.15](https://datatracker.ietf.org/doc/html/rfc9110#section-15.5.15)]
     (414, URI_TOO_LONG, "URI Too Long");
@@ -455,9 +473,11 @@ status_codes! {
     /// 421 Misdirected Request
     /// [[RFC9110, Section 15.5.20](https://datatracker.ietf.org/doc/html/rfc9110#section-15.5.20)]
     (421, MISDIRECTED_REQUEST, "Misdirected Request");
-    /// 422 Unprocessable Entity
+    /// 422 Unprocessable Content
     /// [[RFC9110, Section 15.5.21](https://datatracker.ietf.org/doc/html/rfc9110#section-15.5.21)]
-    (422, UNPROCESSABLE_ENTITY, "Unprocessable Entity");
+    ///
+    /// Prior to RFC9110 phrase for this status was ‘Unprocessable Entity’.
+    (422, UNPROCESSABLE_CONTENT aka UNPROCESSABLE_ENTITY, "Unprocessable Content");
     /// 423 Locked
     /// [[RFC4918, Section 11.3](https://datatracker.ietf.org/doc/html/rfc4918#section-11.3)]
     (423, LOCKED, "Locked");
