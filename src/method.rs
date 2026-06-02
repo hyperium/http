@@ -187,6 +187,20 @@ impl AsRef<str> for Method {
     }
 }
 
+impl Ord for Method {
+    #[inline]
+    fn cmp(&self, other: &Method) -> std::cmp::Ordering {
+        self.as_ref().cmp(other.as_ref())
+    }
+}
+
+impl PartialOrd for Method {
+    #[inline]
+    fn partial_cmp(&self, other: &Method) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl PartialEq<&Method> for Method {
     #[inline]
     fn eq(&self, other: &&Method) -> bool {
