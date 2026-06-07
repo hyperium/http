@@ -447,7 +447,7 @@ const fn scan_path_and_query(bytes: &[u8]) -> Result<Scanned, ErrorKind> {
             0x7E => {}
 
             // potentially utf8, might not, should check
-            0x7F..=0xFF => {
+            0x80..=0xFF => {
                 is_maybe_not_utf8 = true;
             }
 
@@ -484,7 +484,7 @@ const fn scan_path_and_query(bytes: &[u8]) -> Result<Scanned, ErrorKind> {
                 0x3D |
                 0x3F..=0x7E => {}
 
-                0x7F..=0xFF => {
+                0x80..=0xFF => {
                     is_maybe_not_utf8 = true;
                 }
 
@@ -637,6 +637,16 @@ mod tests {
     #[test]
     fn requires_starting_with_slash() {
         PathAndQuery::try_from("sneaky").expect_err("reject missing slash");
+    }
+
+    #[test]
+    fn rejects_del_in_path() {
+        PathAndQuery::try_from(&[b'/', 0x7F][..]).expect_err("reject DEL");
+    }
+
+    #[test]
+    fn rejects_del_in_query() {
+        PathAndQuery::try_from(&[b'/', b'a', b'?', 0x7F][..]).expect_err("reject DEL");
     }
 
     #[test]
