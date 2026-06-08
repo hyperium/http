@@ -1,5 +1,6 @@
 use bytes::{Bytes, BytesMut};
 
+use std::any::Any;
 use std::convert::TryFrom;
 use std::error::Error;
 use std::fmt::Write;
@@ -294,6 +295,30 @@ impl HeaderValue {
     #[inline]
     pub fn as_bytes(&self) -> &[u8] {
         self.as_ref()
+    }
+
+    /// Returns a reference to the inner value as `&dyn Any`.
+    ///
+    /// This allows the caller to downcast to `&Bytes` and clone it to obtain
+    /// a handle to the same shared underlying data without copying.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::header::HeaderValue;
+    /// use bytes::Bytes;
+    /// use std::any::Any;
+    ///
+    /// let val = HeaderValue::from_maybe_shared(Bytes::from_static(b"hello")).unwrap();
+    /// let shared: &dyn Any = val.as_maybe_shared();
+    /// if let Some(bytes) = shared.downcast_ref::<Bytes>() {
+    ///     let cloned: Bytes = bytes.clone();
+    ///     assert_eq!(cloned.as_ref(), b"hello");
+    /// }
+    /// ```
+    #[inline]
+    pub fn as_maybe_shared(&self) -> &dyn Any {
+        &self.inner
     }
 
     /// Mark that the header value represents sensitive information.
@@ -767,4 +792,16 @@ fn test_debug() {
     let mut sensitive = HeaderValue::from_static("password");
     sensitive.set_sensitive(true);
     assert_eq!("Sensitive", format!("{:?}", sensitive));
+}
+
+#[test]
+fn test_as_maybe_shared() {
+    let val = HeaderValue::from_maybe_shared(bytes::Bytes::from_static(b"hello")).unwrap();
+
+    let recovered = val
+        .as_maybe_shared()
+        .downcast_ref::<bytes::Bytes>()
+        .unwrap();
+
+    assert_eq!(recovered.as_ref(), b"hello");
 }
