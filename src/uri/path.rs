@@ -416,6 +416,14 @@ const fn scan_path_and_query(bytes: &[u8]) -> Result<Scanned, ErrorKind> {
         return Err(ErrorKind::Empty);
     }
 
+    if bytes.len() == 1 && bytes[0] == b'*' {
+        return Ok(Scanned {
+            query,
+            fragment,
+            is_maybe_not_utf8: false,
+        });
+    }
+
     if !matches!(bytes[0], b'/' | b'?' | b'#') {
         return Err(ErrorKind::PathDoesNotStartWithSlash);
     }

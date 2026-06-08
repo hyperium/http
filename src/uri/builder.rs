@@ -208,4 +208,18 @@ mod tests {
         let uri = Builder::from(original_uri.clone()).build().unwrap();
         assert_eq!(original_uri, uri);
     }
+
+    #[test]
+    fn build_star_for_http2() {
+        let uri = Builder::new()
+            .scheme("https")
+            .authority("example.com")
+            .path_and_query("*")
+            .build()
+            .unwrap();
+
+        assert_eq!(uri.scheme(), Some(&Scheme::HTTPS));
+        assert_eq!(uri.host(), Some("example.com"));
+        assert_eq!(uri.path(), "*");
+    }
 }
