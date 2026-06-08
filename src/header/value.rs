@@ -172,12 +172,23 @@ impl HeaderValue {
     /// This function does NOT validate that illegal bytes are not contained
     /// within the buffer.
     ///
-    /// ## Panics
-    /// In a debug build this will panic if `src` is not valid UTF-8.
+    /// # Panics
     ///
-    /// ## Safety
-    /// `src` must contain valid UTF-8. In a release build it is undefined
-    /// behaviour to call this with `src` that is not valid UTF-8.
+    /// In a debug build this will panic if `src` contains bytes that are not
+    /// allowed in HTTP field values.
+    ///
+    /// # Safety
+    ///
+    /// This function is not unsafe in Rust terms (meaning memory unsafety),
+    /// and the value is only converted to &str in the `to_str()` function
+    /// after verifying that all bytes are in a visible subset of US-ASCII
+    /// (which is also valid UTF-8).
+    ///
+    /// However, a care must be taken to ensure that `src` contains only bytes
+    /// allowed in HTTP field values (e.g. by using this function with a value
+    /// that was already processed by a validating HTTP parser), since invalid
+    /// bytes might result in a header being ignored, or even the whole request
+    /// containing it being rejected, by an HTTP peer.
     pub unsafe fn from_maybe_shared_unchecked<T>(src: T) -> HeaderValue
     where
         T: AsRef<[u8]> + 'static,
