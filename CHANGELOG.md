@@ -1,3 +1,8 @@
+# 1.4.2 (June 8, 2026)
+
+- Fix `uri::Builder` to allow `"*"` as the path when scheme and authority are also set, used in HTTP/2 requests.
+- Fix `Uri` to properly reject `DEL` characters.
+
 # 1.4.1 (May 25, 2026)
 
 - Fix `PathAndQuery::from_static()` and `from_shared()` to reject inputs that do not start with `/`.
