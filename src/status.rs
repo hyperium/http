@@ -594,3 +594,30 @@ const CODE_DIGITS: &str = "\
 940941942943944945946947948949950951952953954955956957958959\
 960961962963964965966967968969970971972973974975976977978979\
 980981982983984985986987988989990991992993994995996997998999";
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_invalid_status_code_from_u16() {
+        assert!(StatusCode::from_u16(0).is_err());
+        assert!(StatusCode::from_u16(99).is_err());
+        assert!(StatusCode::from_u16(1000).is_err());
+    }
+
+    #[test]
+    fn test_invalid_status_code_from_bytes() {
+        // Wrong length
+        assert!(StatusCode::from_bytes(b"12").is_err());
+        assert!(StatusCode::from_bytes(b"1000").is_err());
+        assert!(StatusCode::from_bytes(b"").is_err());
+
+        // Leading zero
+        assert!(StatusCode::from_bytes(b"099").is_err());
+
+        // Non-ASCII digit
+        assert!(StatusCode::from_bytes(b"1\xFF2").is_err());
+        assert!(StatusCode::from_bytes(b"1 2").is_err());
+    }
+}

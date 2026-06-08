@@ -456,6 +456,9 @@ mod test {
         assert!(Method::from_bytes(b"").is_err());
         assert!(Method::from_bytes(&[0xC0]).is_err()); // invalid utf-8
         assert!(Method::from_bytes(&[0x10]).is_err()); // invalid method characters
+        assert!(Method::from_bytes(b"GET ").is_err()); // trailing space
+        assert!(Method::from_bytes(b"G{ET}").is_err()); // invalid token characters
+        assert!(Method::from_bytes(b"\"").is_err()); // invalid token character
     }
 
     #[test]
