@@ -298,6 +298,11 @@ impl HeaderValue {
 
     /// Mark that the header value represents sensitive information.
     ///
+    /// This method is `const` to allow marking constants created with
+    /// [`HeaderValue::from_static`] as sensitive. Note that sensitive values
+    /// that are embedded into an application are trivial to dump and cannot be
+    /// considered secure.
+    ///
     /// # Examples
     ///
     /// ```
@@ -311,7 +316,7 @@ impl HeaderValue {
     /// assert!(!val.is_sensitive());
     /// ```
     #[inline]
-    pub fn set_sensitive(&mut self, val: bool) {
+    pub const fn set_sensitive(&mut self, val: bool) {
         self.is_sensitive = val;
     }
 
