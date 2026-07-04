@@ -441,6 +441,28 @@ fn test_uri_parse_error() {
 }
 
 #[test]
+fn test_invalid_uri_errors_are_comparable() {
+    fn assert_eq_impl<T: Eq>() {}
+
+    fn invalid_uri_parts() -> super::InvalidUriParts {
+        let mut parts = super::Parts::default();
+        parts.authority = Some("example.com".parse().unwrap());
+        parts.path_and_query = Some("/".parse().unwrap());
+
+        Uri::from_parts(parts).unwrap_err()
+    }
+
+    assert_eq_impl::<InvalidUri>();
+    assert_eq_impl::<super::InvalidUriParts>();
+
+    assert_eq!(
+        "http://[::1".parse::<Uri>().unwrap_err(),
+        "http://[::1".parse::<Uri>().unwrap_err(),
+    );
+    assert_eq!(invalid_uri_parts(), invalid_uri_parts());
+}
+
+#[test]
 fn test_max_uri_len() {
     let mut uri = vec![];
     uri.extend(b"http://localhost/");

@@ -118,11 +118,11 @@ pub struct Parts {
 }
 
 /// An error resulting from a failed attempt to construct a URI.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct InvalidUri(ErrorKind);
 
 /// An error resulting from a failed attempt to construct a URI.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct InvalidUriParts(InvalidUri);
 
 #[derive(Debug, Eq, PartialEq)]
