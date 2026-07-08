@@ -166,6 +166,19 @@ impl Method {
         }
     }
 
+    /// Whether a response to the method is defined as cacheable.
+    ///
+    /// This only indicates whether the method's semantics allow caching. A
+    /// response might still not be storable or reusable by a cache depending on
+    /// its status code, headers, and method-specific conditions.
+    ///
+    /// See [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110#section-9.2.3)
+    /// and [RFC 10008](https://www.rfc-editor.org/rfc/rfc10008#section-2.7)
+    /// for more words.
+    pub fn is_cacheable(&self) -> bool {
+        matches!(self.0, Get | Head | Post | Query)
+    }
+
     /// Return a &str representation of the HTTP method
     #[inline]
     pub fn as_str(&self) -> &str {
@@ -477,6 +490,22 @@ mod test {
         assert!(!Method::POST.is_idempotent());
         assert!(!Method::CONNECT.is_idempotent());
         assert!(!Method::PATCH.is_idempotent());
+    }
+
+    #[test]
+    fn test_is_cacheable() {
+        assert!(Method::GET.is_cacheable());
+        assert!(Method::HEAD.is_cacheable());
+        assert!(Method::POST.is_cacheable());
+        assert!(Method::QUERY.is_cacheable());
+
+        assert!(!Method::PUT.is_cacheable());
+        assert!(!Method::DELETE.is_cacheable());
+        assert!(!Method::CONNECT.is_cacheable());
+        assert!(!Method::OPTIONS.is_cacheable());
+        assert!(!Method::PATCH.is_cacheable());
+        assert!(!Method::TRACE.is_cacheable());
+        assert!(!Method::from_str("WOW").unwrap().is_cacheable());
     }
 
     #[test]
