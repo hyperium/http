@@ -96,7 +96,17 @@ impl Builder {
         <T as TryInto<PathAndQuery>>::Error: Into<crate::Error>,
     {
         self.map(move |mut parts| {
-            let p_and_q = p_and_q.try_into().map_err(Into::into)?;
+            let p_and_q = match p_and_q.try_into() {
+                Ok(p_and_q) => p_and_q,
+                Err(err) => {
+                    let err = err.into();
+                    if err.is_empty_uri() {
+                        PathAndQuery::empty()
+                    } else {
+                        return Err(err);
+                    }
+                }
+            };
             parts.path_and_query = Some(p_and_q);
             Ok(parts)
         })
@@ -200,6 +210,32 @@ mod tests {
             assert_eq!(uri.path(), "/foo");
             assert_eq!(uri.query(), Some(expected_query.as_str()));
         }
+    }
+
+    #[test]
+    fn build_from_empty_path_and_query() {
+        let uri = Builder::new()
+            .scheme(Scheme::HTTP)
+            .authority("localhost:8080")
+            .path_and_query("")
+            .build()
+            .unwrap();
+
+        assert_eq!(uri, "http://localhost:8080");
+        assert_eq!(uri.path(), "/");
+    }
+
+    #[test]
+    fn empty_path_and_query_remains_strict() {
+        assert!(PathAndQuery::try_from("").is_err());
+    }
+
+    #[test]
+    fn authority_form_path_and_query_remains_strict() {
+        assert!(Builder::new()
+            .path_and_query("localhost:8080")
+            .build()
+            .is_err());
     }
 
     #[test]

@@ -1068,6 +1068,10 @@ impl From<ErrorKind> for InvalidUriParts {
 }
 
 impl InvalidUri {
+    pub(crate) fn is_empty(&self) -> bool {
+        self.0 == ErrorKind::Empty
+    }
+
     fn s(&self) -> &str {
         match self.0 {
             ErrorKind::InvalidUriChar => "invalid uri character",
