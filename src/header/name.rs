@@ -803,6 +803,15 @@ standard_headers! {
     /// refreshed.
     (Refresh, REFRESH, b"refresh");
 
+    /// Allows website owners to specify one or more named endpoints used for
+    /// receiving reports.
+    ///
+    /// The Reporting-Endpoints response header specifies a set of named
+    /// endpoints, each mapped to a URL, that the browser can use as destinations
+    /// for delivering reports (such as CSP violations, deprecation reports, or
+    /// other issues collected via the Reporting API).
+    (ReportingEndpoints, REPORTING_ENDPOINTS, b"reporting-endpoints");
+
     /// The Retry-After response HTTP header indicates how long the user agent
     /// should wait before making a follow-up request. There are two main cases
     /// this header is used:
