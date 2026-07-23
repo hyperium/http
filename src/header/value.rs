@@ -213,10 +213,13 @@ impl HeaderValue {
         src: T,
         into: F,
     ) -> Result<HeaderValue, InvalidHeaderValue> {
+        // Avoid an early return so the loop vectorizes.
+        let mut bad = false;
         for &b in src.as_ref() {
-            if !is_valid(b) {
-                return Err(InvalidHeaderValue { _priv: () });
-            }
+            bad |= !is_valid(b);
+        }
+        if bad {
+            return Err(InvalidHeaderValue { _priv: () });
         }
         Ok(HeaderValue {
             inner: into(src),
@@ -240,10 +243,13 @@ impl HeaderValue {
     pub fn to_str(&self) -> Result<&str, ToStrError> {
         let bytes = self.as_ref();
 
+        // Avoid an early return so the loop vectorizes.
+        let mut bad = false;
         for &b in bytes {
-            if !is_visible_ascii(b) {
-                return Err(ToStrError { _priv: () });
-            }
+            bad |= !is_visible_ascii(b);
+        }
+        if bad {
+            return Err(ToStrError { _priv: () });
         }
 
         unsafe { Ok(str::from_utf8_unchecked(bytes)) }

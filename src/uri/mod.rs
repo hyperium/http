@@ -1032,17 +1032,19 @@ impl Default for Uri {
 impl fmt::Display for Uri {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(scheme) = self.scheme() {
-            write!(f, "{}://", scheme)?;
+            f.write_str(scheme.as_str())?;
+            f.write_str("://")?;
         }
 
         if let Some(authority) = self.authority() {
-            write!(f, "{}", authority)?;
+            f.write_str(authority.as_str())?;
         }
 
-        write!(f, "{}", self.path())?;
+        f.write_str(self.path())?;
 
         if let Some(query) = self.query() {
-            write!(f, "?{}", query)?;
+            f.write_str("?")?;
+            f.write_str(query)?;
         }
 
         Ok(())

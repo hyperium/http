@@ -278,11 +278,14 @@ impl fmt::Display for PathAndQuery {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         if !self.data.is_empty() {
             match self.data.as_bytes()[0] {
-                b'/' | b'*' => write!(fmt, "{}", &self.data[..]),
-                _ => write!(fmt, "/{}", &self.data[..]),
+                b'/' | b'*' => fmt.write_str(&self.data),
+                _ => {
+                    fmt.write_str("/")?;
+                    fmt.write_str(&self.data)
+                }
             }
         } else {
-            write!(fmt, "/")
+            fmt.write_str("/")
         }
     }
 }
@@ -405,6 +408,62 @@ struct Scanned {
     is_maybe_not_utf8: bool,
 }
 
+// Per-byte character classes for the path and query scanners.
+const CLASS_VALID: u8 = 0;
+const CLASS_QUERY: u8 = 1;
+const CLASS_FRAGMENT: u8 = 2;
+const CLASS_HIGH: u8 = 3;
+const CLASS_INVALID: u8 = 4;
+
+const fn build_path_map() -> [u8; 256] {
+    let mut t = [CLASS_INVALID; 256];
+    let mut i = 0;
+    while i < 256 {
+        // See https://url.spec.whatwg.org/#path-state
+        t[i] = match i as u8 {
+            b'?' => CLASS_QUERY,
+            b'#' => CLASS_FRAGMENT,
+
+            // Bytes that don't need to be percent-encoded in the path.
+            0x21 | 0x24..=0x3B | 0x3D | 0x40..=0x5F | 0x61..=0x7A | 0x7C | 0x7E => CLASS_VALID,
+
+            // Potentially utf8, checked later.
+            0x80..=0xFF => CLASS_HIGH,
+
+            // Should be percent-encoded, but accepted for parity with clients
+            // that send them as-is (e.g. JSON embedded in the path).
+            b'"' | b'{' | b'}' => CLASS_VALID,
+
+            _ => CLASS_INVALID,
+        };
+        i += 1;
+    }
+    t
+}
+
+const fn build_query_map() -> [u8; 256] {
+    let mut t = [CLASS_INVALID; 256];
+    let mut i = 0;
+    while i < 256 {
+        // See https://url.spec.whatwg.org/#query-state
+        t[i] = match i as u8 {
+            b'#' => CLASS_FRAGMENT,
+
+            // Allowed: 0x21 / 0x24 - 0x3B / 0x3D / 0x3F - 0x7E
+            0x21 | 0x24..=0x3B | 0x3D | 0x3F..=0x7E => CLASS_VALID,
+
+            0x80..=0xFF => CLASS_HIGH,
+
+            _ => CLASS_INVALID,
+        };
+        i += 1;
+    }
+    t
+}
+
+const PATH_MAP: [u8; 256] = build_path_map();
+const QUERY_MAP: [u8; 256] = build_query_map();
+
 const fn scan_path_and_query(bytes: &[u8]) -> Result<Scanned, ErrorKind> {
     let mut i = 0;
     let mut query = NONE;
@@ -429,49 +488,21 @@ const fn scan_path_and_query(bytes: &[u8]) -> Result<Scanned, ErrorKind> {
     }
 
     while i < bytes.len() {
-        // See https://url.spec.whatwg.org/#path-state
-        match bytes[i] {
-            b'?' => {
+        match PATH_MAP[bytes[i] as usize] {
+            CLASS_VALID => {}
+            CLASS_QUERY => {
                 debug_assert!(query == NONE);
                 query = i as u16;
                 i += 1;
                 break;
             }
-            b'#' => {
+            CLASS_FRAGMENT => {
                 fragment = Some(i as u16);
                 break;
             }
-
-            // This is the range of bytes that don't need to be
-            // percent-encoded in the path. If it should have been
-            // percent-encoded, then error.
-            #[rustfmt::skip]
-            0x21 |
-            0x24..=0x3B |
-            0x3D |
-            0x40..=0x5F |
-            0x61..=0x7A |
-            0x7C |
-            0x7E => {}
-
-            // potentially utf8, might not, should check
-            0x80..=0xFF => {
+            CLASS_HIGH => {
                 is_maybe_not_utf8 = true;
             }
-
-            // These are code points that are supposed to be
-            // percent-encoded in the path but there are clients
-            // out there sending them as is and httparse accepts
-            // to parse those requests, so they are allowed here
-            // for parity.
-            //
-            // For reference, those are code points that are used
-            // to send requests with JSON directly embedded in
-            // the URI path. Yes, those things happen for real.
-            #[rustfmt::skip]
-            b'"' |
-            b'{' | b'}' => {}
-
             _ => return Err(ErrorKind::InvalidUriChar),
         }
         i += 1;
@@ -480,27 +511,15 @@ const fn scan_path_and_query(bytes: &[u8]) -> Result<Scanned, ErrorKind> {
     // query ...
     if query != NONE {
         while i < bytes.len() {
-            match bytes[i] {
-                // While queries *should* be percent-encoded, most
-                // bytes are actually allowed...
-                // See https://url.spec.whatwg.org/#query-state
-                //
-                // Allowed: 0x21 / 0x24 - 0x3B / 0x3D / 0x3F - 0x7E
-                #[rustfmt::skip]
-                0x21 |
-                0x24..=0x3B |
-                0x3D |
-                0x3F..=0x7E => {}
-
-                0x80..=0xFF => {
+            match QUERY_MAP[bytes[i] as usize] {
+                CLASS_VALID => {}
+                CLASS_HIGH => {
                     is_maybe_not_utf8 = true;
                 }
-
-                b'#' => {
+                CLASS_FRAGMENT => {
                     fragment = Some(i as u16);
                     break;
                 }
-
                 _ => return Err(ErrorKind::InvalidUriChar),
             }
             i += 1;

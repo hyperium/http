@@ -3721,6 +3721,7 @@ fn probe_distance(mask: Size, hash: HashValue, current: usize) -> usize {
     current.wrapping_sub(desired_pos(mask, hash)) & mask as usize
 }
 
+#[inline]
 fn hash_elem_using<K>(danger: &Danger, k: &K) -> HashValue
 where
     K: Hash + ?Sized,
