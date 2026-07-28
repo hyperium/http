@@ -4,7 +4,7 @@ use std::{cmp, fmt, hash, str};
 
 use bytes::Bytes;
 
-use super::{ErrorKind, InvalidUri};
+use super::{ErrorKind, InvalidUri, MAX_LEN};
 use crate::byte_str::ByteStr;
 
 /// Represents the path component of a URI
@@ -475,6 +475,10 @@ const fn scan_path_and_query(bytes: &[u8]) -> Result<Scanned, ErrorKind> {
         return Err(ErrorKind::Empty);
     }
 
+    if bytes.len() > MAX_LEN {
+        return Err(ErrorKind::TooLong);
+    }
+
     if bytes.len() == 1 && bytes[0] == b'*' {
         return Ok(Scanned {
             query,
@@ -674,6 +678,21 @@ mod tests {
     #[test]
     fn rejects_del_in_query() {
         PathAndQuery::try_from(&[b'/', b'a', b'?', 0x7F][..]).expect_err("reject DEL");
+    }
+
+    #[test]
+    fn rejects_too_long_path_and_query() {
+        let path = format!("/{}?query", "a".repeat(MAX_LEN));
+        let err = PathAndQuery::try_from(path).expect_err("reject overly long path and query");
+        assert_eq!(err.0, ErrorKind::TooLong);
+    }
+
+    #[test]
+    fn accepts_max_length_path_and_query() {
+        let path = format!("/{}?", "a".repeat(MAX_LEN - 2));
+        let path_and_query = PathAndQuery::try_from(path).expect("accept maximum length");
+        assert_eq!(path_and_query.as_str().len(), MAX_LEN);
+        assert_eq!(path_and_query.query(), Some(""));
     }
 
     #[test]
