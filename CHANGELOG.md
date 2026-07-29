@@ -1,3 +1,9 @@
+# 1.5.0 (July 29, 2026)
+
+- Add `Method::QUERY` constant for the new QUERY method defined in RFC 10008.
+- Fix `uri::Builder::path_and_query()` to allow empty strings to mean no path.
+- Fix `uri::PathAndQuery` parsing to enforce URI max length.
+
 # 1.4.2 (June 8, 2026)
 
 - Fix `uri::Builder` to allow `"*"` as the path when scheme and authority are also set, used in HTTP/2 requests.
