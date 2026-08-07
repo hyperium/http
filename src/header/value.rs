@@ -561,7 +561,7 @@ const fn is_visible_ascii(b: u8) -> bool {
 
 #[inline]
 fn is_valid(b: u8) -> bool {
-    b >= 32 && b != 127 || b == b'\t'
+    (32..=127).contains(&b) || b == b'\t'
 }
 
 impl fmt::Debug for InvalidHeaderValue {
