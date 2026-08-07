@@ -44,7 +44,7 @@ impl HeaderValue {
     ///
     /// This function will not perform any copying, however the string is
     /// checked to ensure that no invalid characters are present. Only visible
-    /// ASCII characters (32-127) are permitted.
+    /// ASCII characters (32-126) and horizontal tab are permitted.
     ///
     /// # Panics
     ///
@@ -63,7 +63,7 @@ impl HeaderValue {
         let bytes = src.as_bytes();
         let mut i = 0;
         while i < bytes.len() {
-            if !is_visible_ascii(bytes[i]) {
+            if !is_valid_ascii(bytes[i]) {
                 panic!("HeaderValue::from_static with invalid bytes")
             }
             i += 1;
@@ -78,7 +78,8 @@ impl HeaderValue {
     /// Attempt to convert a string to a `HeaderValue`.
     ///
     /// If the argument contains invalid header value characters, an error is
-    /// returned. Only visible ASCII characters (32-127) are permitted. Use
+    /// returned. Only visible ASCII characters (32-126) and horizontal tab are
+    /// permitted. Use
     /// `from_bytes` to create a `HeaderValue` that includes opaque octets
     /// (128-255).
     ///
@@ -103,7 +104,11 @@ impl HeaderValue {
     #[inline]
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(src: &str) -> Result<HeaderValue, InvalidHeaderValue> {
-        HeaderValue::try_from_generic(src, |s| Bytes::copy_from_slice(s.as_bytes()))
+        HeaderValue::try_from_generic(
+            src,
+            |s| Bytes::copy_from_slice(s.as_bytes()),
+            is_valid_ascii,
+        )
     }
 
     /// Converts a HeaderName into a HeaderValue
@@ -149,7 +154,7 @@ impl HeaderValue {
     /// ```
     #[inline]
     pub fn from_bytes(src: &[u8]) -> Result<HeaderValue, InvalidHeaderValue> {
-        HeaderValue::try_from_generic(src, Bytes::copy_from_slice)
+        HeaderValue::try_from_generic(src, Bytes::copy_from_slice, is_valid_ascii_or_opaque_byte)
     }
 
     /// Attempt to convert a `Bytes` buffer to a `HeaderValue`.
@@ -206,12 +211,13 @@ impl HeaderValue {
     }
 
     fn from_shared(src: Bytes) -> Result<HeaderValue, InvalidHeaderValue> {
-        HeaderValue::try_from_generic(src, std::convert::identity)
+        HeaderValue::try_from_generic(src, std::convert::identity, is_valid_ascii_or_opaque_byte)
     }
 
-    fn try_from_generic<T: AsRef<[u8]>, F: FnOnce(T) -> Bytes>(
+    fn try_from_generic<T: AsRef<[u8]>, F: FnOnce(T) -> Bytes, V: Fn(u8) -> bool>(
         src: T,
         into: F,
+        is_valid: V,
     ) -> Result<HeaderValue, InvalidHeaderValue> {
         // Avoid an early return so the loop vectorizes.
         let mut bad = false;
@@ -246,7 +252,7 @@ impl HeaderValue {
         // Avoid an early return so the loop vectorizes.
         let mut bad = false;
         for &b in bytes {
-            bad |= !is_visible_ascii(b);
+            bad |= !is_valid_ascii(b);
         }
         if bad {
             return Err(ToStrError { _priv: () });
@@ -369,7 +375,7 @@ impl fmt::Debug for HeaderValue {
             let mut from = 0;
             let bytes = self.as_bytes();
             for (i, &b) in bytes.iter().enumerate() {
-                if !is_visible_ascii(b) || b == b'"' {
+                if !is_valid_ascii(b) || b == b'"' {
                     if from != i {
                         f.write_str(unsafe { str::from_utf8_unchecked(&bytes[from..i]) })?;
                     }
@@ -417,7 +423,7 @@ macro_rules! from_integers {
             let val = HeaderValue::from(n);
             assert_eq!(val, &n.to_string());
 
-            let n = ::std::$t::MAX;
+            let n = <$t>::MAX;
             let val = HeaderValue::from(n);
             assert_eq!(val, &n.to_string());
         }
@@ -510,7 +516,7 @@ impl TryFrom<&String> for HeaderValue {
     type Error = InvalidHeaderValue;
     #[inline]
     fn try_from(s: &String) -> Result<Self, Self::Error> {
-        Self::from_bytes(s.as_bytes())
+        Self::from_str(s)
     }
 }
 
@@ -528,7 +534,7 @@ impl TryFrom<String> for HeaderValue {
 
     #[inline]
     fn try_from(t: String) -> Result<Self, Self::Error> {
-        HeaderValue::from_shared(t.into())
+        HeaderValue::try_from_generic(t, |s| s.into(), is_valid_ascii)
     }
 }
 
@@ -555,12 +561,15 @@ mod try_from_header_name_tests {
     }
 }
 
-const fn is_visible_ascii(b: u8) -> bool {
+const fn is_valid_ascii(b: u8) -> bool {
     b >= 32 && b < 127 || b == b'\t'
 }
 
+// This validator is only for byte-oriented constructors. HTTP field values
+// may contain opaque bytes, even though those bytes cannot be exposed by
+// `HeaderValue::to_str`.
 #[inline]
-fn is_valid(b: u8) -> bool {
+fn is_valid_ascii_or_opaque_byte(b: u8) -> bool {
     b >= 32 && b != 127 || b == b'\t'
 }
 
@@ -754,6 +763,37 @@ impl PartialOrd<HeaderValue> for &str {
 #[test]
 fn test_try_from() {
     HeaderValue::try_from(vec![127]).unwrap_err();
+}
+
+#[test]
+fn test_string_constructors_reject_non_ascii() {
+    let value = String::from("hello \u{e9}");
+
+    assert!(HeaderValue::from_str(&value).is_err());
+    assert!(HeaderValue::try_from(value.as_str()).is_err());
+    assert!(HeaderValue::try_from(&value).is_err());
+    assert!(HeaderValue::try_from(value).is_err());
+}
+
+#[test]
+fn test_byte_constructors_allow_opaque_bytes_but_reject_del() {
+    assert!(HeaderValue::from_bytes(b"hello\xff").is_ok());
+    assert!(HeaderValue::try_from(&b"hello\xff"[..]).is_ok());
+    assert!(HeaderValue::try_from(b"hello\xff".to_vec()).is_ok());
+
+    assert!(HeaderValue::from_bytes(b"hello\x7f").is_err());
+}
+
+#[test]
+fn test_string_and_byte_constructors_allow_horizontal_tab() {
+    assert!(HeaderValue::from_str("hello\tworld").is_ok());
+    assert!(HeaderValue::from_bytes(b"hello\tworld").is_ok());
+}
+
+#[test]
+#[should_panic(expected = "HeaderValue::from_static with invalid bytes")]
+fn test_static_constructor_rejects_non_ascii() {
+    HeaderValue::from_static("hello \u{e9}");
 }
 
 #[test]
