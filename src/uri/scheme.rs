@@ -356,6 +356,6 @@ mod test {
     }
 
     fn scheme(s: &str) -> Scheme {
-        s.parse().expect(&format!("Invalid scheme: {}", s))
+        s.parse().unwrap_or_else(|_| panic!("Invalid scheme: {s}"))
     }
 }

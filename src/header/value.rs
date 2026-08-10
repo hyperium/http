@@ -417,7 +417,7 @@ macro_rules! from_integers {
             let val = HeaderValue::from(n);
             assert_eq!(val, &n.to_string());
 
-            let n = ::std::$t::MAX;
+            let n = $t::MAX;
             let val = HeaderValue::from(n);
             assert_eq!(val, &n.to_string());
         }
@@ -549,7 +549,7 @@ mod try_from_header_name_tests {
     #[test]
     fn it_converts_using_try_from() {
         assert_eq!(
-            HeaderValue::try_from(name::UPGRADE).unwrap(),
+            HeaderValue::from(name::UPGRADE),
             HeaderValue::from_bytes(b"upgrade").unwrap()
         );
     }
