@@ -50,8 +50,14 @@ pub use self::into_header_name::IntoHeaderName;
 ///
 /// # Limitations
 ///
-/// A `HeaderMap` can store at most 32,768 entries \(header name/value pairs\).
-/// Attempting to exceed this limit will result in a panic.
+/// A `HeaderMap` can hold a limited number of entries, currently 24,576 header
+/// name/value pairs. Methods that would grow the map beyond that limit, such as
+/// [`insert`](Self::insert), [`append`](Self::append), and
+/// [`reserve`](Self::reserve), panic once it is reached. The fallible
+/// counterparts [`try_insert`](Self::try_insert),
+/// [`try_append`](Self::try_append), and [`try_reserve`](Self::try_reserve)
+/// return a [`MaxSizeReached`] error instead, so callers can handle the limit
+/// without panicking.
 ///
 /// [`HeaderName`]: struct.HeaderName.html
 /// [`HeaderMap`]: struct.HeaderMap.html
@@ -713,7 +719,10 @@ impl<T> HeaderMap<T> {
     ///
     /// # Panics
     ///
-    /// Panics if the new allocation size overflows `HeaderMap` `MAX_SIZE`.
+    /// Panics if reserving the additional capacity would grow the map beyond
+    /// its maximum capacity. See the [`HeaderMap`] documentation for the limit,
+    /// or use [`try_reserve`](Self::try_reserve) to handle the failure without
+    /// panicking.
     ///
     /// # Examples
     ///
