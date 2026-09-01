@@ -131,7 +131,7 @@ impl HeaderValue {
     /// Attempt to convert a byte slice to a `HeaderValue`.
     ///
     /// If the argument contains invalid header value bytes, an error is
-    /// returned. Only byte values 12, 13, and values between 32 and 255 (inclusive)
+    /// returned. Only byte values 11, 12, and values between 32 and 255 (inclusive)
     /// are permitted, excluding byte 127 (DEL).
     ///
     /// This function is intended to be replaced in the future by a `TryFrom`
