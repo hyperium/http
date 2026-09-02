@@ -815,6 +815,10 @@ standard_headers! {
     /// before issuing the redirected request.
     (RetryAfter, RETRY_AFTER, b"retry-after");
 
+    /// The Sec-Fetch-Dest request HTTP header exposes a request's fetch
+    /// destination to the server.
+    (SecFetchDest, SEC_FETCH_DEST, b"sec-fetch-dest");
+
     /// The |Sec-WebSocket-Accept| header field is used in the WebSocket
     /// opening handshake. It is sent from the server to the client to
     /// confirm that the server is willing to initiate the WebSocket
