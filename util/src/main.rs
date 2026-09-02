@@ -408,6 +408,40 @@ standard_headers! {
     "cookie";
 
     r#"
+    /// The HTTP Cross-Origin-Embedder-Policy (COEP) response header configures
+    /// embedding cross-origin resources into the document.
+    /// 
+    /// You can only access certain features like SharedArrayBuffer objects or 
+    /// Performance.now() with unthrottled timers, if your document has a COEP 
+    /// header with a value of require-corp or credentialless set.
+    "#,
+    "cross-origin-embedder-policy";
+
+    r#"
+    /// The HTTP Cross-Origin-Opener-Policy (COOP) response header allows you 
+    /// to ensure a top-level document does not share a browsing context group
+    /// with cross-origin documents.
+    ///
+    /// COOP will process-isolate your document and potential attackers can't
+    /// access your global object if they were to open it in a popup, 
+    /// preventing a set of cross-origin attacks dubbed XS-Leaks.
+    ///
+    /// If a cross-origin document with COOP is opened in a new window, the
+    /// opening document will not have a reference to it, and the
+    /// window.opener property of the new window will be null. This allows
+    /// you to have more control over references to a window than
+    /// rel=noopener, which only affects outgoing navigations.
+    "#,
+    "cross-origin-opener-policy";
+
+    r#"
+    /// The HTTP Cross-Origin-Resource-Policy response header conveys a
+    /// desire that the browser blocks no-cors cross-origin/cross-site
+    /// requests to the given resource.
+    "#,
+    "cross-origin-resource-policy";
+
+    r#"
     /// Indicates the client's tracking preference.
     ///
     /// This header lets users indicate whether they would prefer privacy rather

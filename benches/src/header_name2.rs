@@ -29,6 +29,7 @@ const STANDARD_HEADERS_BY_SIZE: &[&str] = &[
     "content-security-policy",
     "sec-websocket-extensions",
     "strict-transport-security",
+    "cross-origin-opener-policy",
     "access-control-allow-origin",
     "access-control-allow-headers",
     "access-control-expose-headers",
