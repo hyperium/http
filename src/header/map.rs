@@ -85,12 +85,11 @@ pub use self::into_header_name::IntoHeaderName;
 /// ```
 #[derive(Clone)]
 pub struct HeaderMap<T = HeaderValue> {
-    // Used to mask values to get an index
-    mask: Size,
     indices: Box<[Pos]>,
     entries: Vec<Bucket<T>>,
-    extra_values: Vec<ExtraValue<T>>,
-    danger: Danger,
+    // These fields are not often needed, so they are stored in a lazy box to
+    // reduce the memory layout of HeaderMap.
+    cold: Option<Box<Cold<T>>>,
 }
 
 // # Implementation notes
@@ -277,6 +276,12 @@ enum Cursor {
     Values(usize),
 }
 
+#[derive(Clone)]
+struct Cold<T> {
+    extra_values: Vec<ExtraValue<T>>,
+    danger: Danger,
+}
+
 /// Type used for representing the size of a HeaderMap value.
 ///
 /// 32,768 is more than enough entries for a single header map. Setting this
@@ -437,8 +442,9 @@ macro_rules! insert_phase_one {
      $occupied:expr,
      $robinhood:expr) =>
     {{
-        let $hash = hash_elem_using(&$map.danger, &$key);
-        let mut $probe = desired_pos($map.mask, $hash);
+        let $hash = hash_elem_using($map.danger(), &$key);
+        let mask = $map.mask();
+        let mut $probe = desired_pos(mask, $hash);
         let mut dist = 0;
         let ret;
 
@@ -447,7 +453,7 @@ macro_rules! insert_phase_one {
             if let Some(($pos, entry_hash)) = $map.indices[$probe].resolve() {
                 // The slot is already occupied, but check if it has a lower
                 // displacement.
-                let their_dist = probe_distance($map.mask, entry_hash, $probe);
+                let their_dist = probe_distance(mask, entry_hash, $probe);
 
                 if their_dist < dist {
                     // The new key's distance is larger, so claim this spot and
@@ -455,7 +461,7 @@ macro_rules! insert_phase_one {
                     //
                     // Check if this insertion is above the danger threshold.
                     let $danger =
-                        dist >= FORWARD_SHIFT_THRESHOLD && !$map.danger.is_red();
+                        dist >= FORWARD_SHIFT_THRESHOLD && !$map.danger().is_red();
 
                     ret = $robinhood;
                     break 'probe;
@@ -467,7 +473,7 @@ macro_rules! insert_phase_one {
             } else {
                 // The entry is vacant, use it for this key.
                 let $danger =
-                    dist >= FORWARD_SHIFT_THRESHOLD && !$map.danger.is_red();
+                    dist >= FORWARD_SHIFT_THRESHOLD && !$map.danger().is_red();
 
                 ret = $vacant;
                 break 'probe;
@@ -506,16 +512,60 @@ impl HeaderMap {
 impl<T> Default for HeaderMap<T> {
     fn default() -> Self {
         HeaderMap {
-            mask: 0,
             indices: Box::new([]), // as a ZST, this doesn't actually allocate anything
             entries: Vec::new(),
-            extra_values: Vec::new(),
-            danger: Danger::Green,
+            cold: None,
         }
     }
 }
 
 impl<T> HeaderMap<T> {
+    #[inline]
+    fn mask(&self) -> Size {
+        // Capacities are powers of two. The wrapped empty-map value is never
+        // used for probing; insertion allocates the initial table first.
+        self.indices.len().wrapping_sub(1) as Size
+    }
+
+    #[inline]
+    fn extra_values(&self) -> &[ExtraValue<T>] {
+        self.cold
+            .as_ref()
+            .map(|cold| cold.extra_values.as_slice())
+            .unwrap_or(&[])
+    }
+
+    #[inline]
+    fn cold_mut(&mut self) -> &mut Cold<T> {
+        self.cold.get_or_insert_with(|| {
+            Box::new(Cold {
+                extra_values: Vec::new(),
+                danger: Danger::Green,
+            })
+        })
+    }
+
+    #[inline]
+    fn extra_values_mut(&mut self) -> &mut Vec<ExtraValue<T>> {
+        &mut self.cold_mut().extra_values
+    }
+
+    #[inline]
+    fn extra_values_mut_ptr(&mut self) -> *mut ExtraValue<T> {
+        self.cold
+            .as_mut()
+            .map(|cold| cold.extra_values.as_mut_ptr())
+            .unwrap_or_else(|| ptr::NonNull::dangling().as_ptr())
+    }
+
+    #[inline]
+    fn danger(&self) -> &Danger {
+        self.cold
+            .as_ref()
+            .map(|cold| &cold.danger)
+            .unwrap_or(&Danger::Green)
+    }
+
     /// Create an empty `HeaderMap` with the specified capacity.
     ///
     /// The returned map will allocate internal storage in order to hold about
@@ -579,11 +629,9 @@ impl<T> HeaderMap<T> {
             debug_assert!(raw_cap > 0);
 
             Ok(HeaderMap {
-                mask: (raw_cap - 1) as Size,
                 indices: vec![Pos::none(); raw_cap].into_boxed_slice(),
                 entries: Vec::with_capacity(usable_capacity(raw_cap)),
-                extra_values: Vec::new(),
-                danger: Danger::Green,
+                cold: None,
             })
         }
     }
@@ -613,7 +661,7 @@ impl<T> HeaderMap<T> {
     /// assert_eq!(3, map.len());
     /// ```
     pub fn len(&self) -> usize {
-        self.entries.len() + self.extra_values.len()
+        self.entries.len() + self.extra_values().len()
     }
 
     /// Returns the number of keys stored in the map.
@@ -679,8 +727,10 @@ impl<T> HeaderMap<T> {
     /// ```
     pub fn clear(&mut self) {
         self.entries.clear();
-        self.extra_values.clear();
-        self.danger = Danger::Green;
+        if let Some(cold) = self.cold.as_mut() {
+            cold.extra_values.clear();
+            cold.danger = Danger::Green;
+        }
 
         for e in self.indices.iter_mut() {
             *e = Pos::none();
@@ -781,7 +831,6 @@ impl<T> HeaderMap<T> {
             }
 
             if self.entries.is_empty() {
-                self.mask = raw_cap as Size - 1;
                 self.indices = vec![Pos::none(); raw_cap].into_boxed_slice();
                 self.entries = Vec::with_capacity(usable_capacity(raw_cap));
             } else {
@@ -972,7 +1021,7 @@ impl<T> HeaderMap<T> {
         IterMut {
             entries: self.entries.as_mut_ptr(),
             entries_len: self.entries.len(),
-            extra_values: self.extra_values.as_mut_ptr(),
+            extra_values: self.extra_values_mut_ptr(),
             entry: 0,
             cursor: self.entries.first().map(|_| Cursor::Head),
             lt: PhantomData,
@@ -1098,7 +1147,7 @@ impl<T> HeaderMap<T> {
         // gets to run.
 
         let entries = &mut self.entries[..] as *mut _;
-        let extra_values = &mut self.extra_values as *mut _;
+        let extra_values = self.extra_values_mut() as *mut _;
         let len = self.entries.len();
         unsafe {
             self.entries.set_len(0);
@@ -1151,7 +1200,7 @@ impl<T> HeaderMap<T> {
 
         ValueIterMut {
             entries: self.entries.as_mut_ptr(),
-            extra_values: self.extra_values.as_mut_ptr(),
+            extra_values: self.extra_values_mut_ptr(),
             index: idx,
             front: Some(Head),
             back: Some(back),
@@ -1392,7 +1441,7 @@ impl<T> HeaderMap<T> {
         }
 
         let raw_links = self.raw_links();
-        let extra_values = &mut self.extra_values;
+        let extra_values = self.extra_values_mut();
 
         let next =
             links.map(|l| drain_all_extra_values(raw_links, extra_values, l.next).into_iter());
@@ -1504,7 +1553,11 @@ impl<T> HeaderMap<T> {
             },
             // Occupied
             {
-                append_value(pos, &mut self.entries[pos], &mut self.extra_values, value);
+                let (entries, cold) = (&mut self.entries, &mut self.cold);
+                let extra_values = &mut cold
+                    .get_or_insert_with(|| Box::new(Cold::default()))
+                    .extra_values;
+                append_value(pos, &mut entries[pos], extra_values, value);
                 true
             },
             // Robinhood
@@ -1526,8 +1579,8 @@ impl<T> HeaderMap<T> {
             return None;
         }
 
-        let hash = hash_elem_using(&self.danger, key);
-        let mask = self.mask;
+        let hash = hash_elem_using(self.danger(), key);
+        let mask = self.mask();
         let mut probe = desired_pos(mask, hash);
         let mut dist = 0;
 
@@ -1565,7 +1618,7 @@ impl<T> HeaderMap<T> {
 
         if danger || num_displaced >= DISPLACEMENT_THRESHOLD {
             // Increase danger level
-            self.danger.set_yellow();
+            self.cold_mut().danger.set_yellow();
         }
 
         Ok(index)
@@ -1616,6 +1669,7 @@ impl<T> HeaderMap<T> {
     /// _before_ this method is called.
     #[inline]
     fn remove_found(&mut self, probe: usize, found: usize) -> Bucket<T> {
+        let mask = self.mask();
         // index `probe` and entry `found` is to be removed
         // use swap_remove, but then we need to update the index that points
         // to the other entry that has to move
@@ -1626,7 +1680,7 @@ impl<T> HeaderMap<T> {
         if let Some(entry) = self.entries.get(found) {
             // was not last element
             // examine new element in `found` and find it in indices
-            let mut probe = desired_pos(self.mask, entry.hash);
+            let mut probe = desired_pos(mask, entry.hash);
 
             probe_loop!(probe < self.indices.len(), {
                 if let Some((i, _)) = self.indices[probe].resolve() {
@@ -1640,8 +1694,8 @@ impl<T> HeaderMap<T> {
 
             // Update links
             if let Some(links) = entry.links {
-                self.extra_values[links.next].prev = Link::Entry(found);
-                self.extra_values[links.tail].next = Link::Entry(found);
+                self.extra_values_mut()[links.next].prev = Link::Entry(found);
+                self.extra_values_mut()[links.tail].next = Link::Entry(found);
             }
         }
 
@@ -1653,7 +1707,7 @@ impl<T> HeaderMap<T> {
 
             probe_loop!(probe < self.indices.len(), {
                 if let Some((_, entry_hash)) = self.indices[probe].resolve() {
-                    if probe_distance(self.mask, entry_hash, probe) > 0 {
+                    if probe_distance(mask, entry_hash, probe) > 0 {
                         self.indices[last_probe] = self.indices[probe];
                         self.indices[probe] = Pos::none();
                     } else {
@@ -1674,7 +1728,7 @@ impl<T> HeaderMap<T> {
     #[inline]
     fn remove_extra_value(&mut self, idx: usize) -> ExtraValue<T> {
         let raw_links = self.raw_links();
-        remove_extra_value(raw_links, &mut self.extra_values, idx)
+        remove_extra_value(raw_links, self.extra_values_mut(), idx)
     }
 
     fn remove_all_extra_values(&mut self, mut head: usize) {
@@ -1711,10 +1765,16 @@ impl<T> HeaderMap<T> {
     }
 
     fn rebuild(&mut self) {
+        let mask = self.mask();
+        let danger = self
+            .cold
+            .as_ref()
+            .map(|cold| &cold.danger)
+            .unwrap_or(&Danger::Green);
         // Loop over all entries and re-insert them into the map
         'outer: for (index, entry) in self.entries.iter_mut().enumerate() {
-            let hash = hash_elem_using(&self.danger, &entry.key);
-            let mut probe = desired_pos(self.mask, hash);
+            let hash = hash_elem_using(danger, &entry.key);
+            let mut probe = desired_pos(mask, hash);
             let mut dist = 0;
 
             // Update the entry's hash code
@@ -1723,7 +1783,7 @@ impl<T> HeaderMap<T> {
             probe_loop!(probe < self.indices.len(), {
                 if let Some((_, entry_hash)) = self.indices[probe].resolve() {
                     // if existing element probed less than us, swap
-                    let their_dist = probe_distance(self.mask, entry_hash, probe);
+                    let their_dist = probe_distance(mask, entry_hash, probe);
 
                     if their_dist < dist {
                         // Robinhood
@@ -1745,7 +1805,7 @@ impl<T> HeaderMap<T> {
     fn reinsert_entry_in_order(&mut self, pos: Pos) {
         if let Some((_, entry_hash)) = pos.resolve() {
             // Find first empty bucket and insert there
-            let mut probe = desired_pos(self.mask, entry_hash);
+            let mut probe = desired_pos(self.mask(), entry_hash);
 
             probe_loop!(probe < self.indices.len(), {
                 if self.indices[probe].resolve().is_none() {
@@ -1760,13 +1820,13 @@ impl<T> HeaderMap<T> {
     fn try_reserve_one(&mut self) -> Result<(), MaxSizeReached> {
         let len = self.entries.len();
 
-        if self.danger.is_yellow() {
+        if self.danger().is_yellow() {
             // Overflow is not a concern here: entries.len() is bounded by
             // MAX_SIZE (2^15) and LOAD_FACTOR_THRESHOLD is 5, so the product
             // fits comfortably within a usize.
             if self.entries.len() * LOAD_FACTOR_THRESHOLD >= self.indices.len() {
                 // Transition back to green danger level
-                self.danger.set_green();
+                self.cold_mut().danger.set_green();
 
                 // Double the capacity
                 let new_cap = self.indices.len() * 2;
@@ -1774,7 +1834,7 @@ impl<T> HeaderMap<T> {
                 // Grow the capacity
                 self.try_grow(new_cap)?;
             } else {
-                self.danger.set_red();
+                self.cold_mut().danger.set_red();
 
                 // Rebuild hash table
                 for index in self.indices.iter_mut() {
@@ -1786,7 +1846,6 @@ impl<T> HeaderMap<T> {
         } else if len == self.capacity() {
             if len == 0 {
                 let new_raw_cap = 8;
-                self.mask = 8 - 1;
                 self.indices = vec![Pos::none(); new_raw_cap].into_boxed_slice();
                 self.entries = Vec::with_capacity(usable_capacity(new_raw_cap));
             } else {
@@ -1804,12 +1863,14 @@ impl<T> HeaderMap<T> {
             return Err(MaxSizeReached::new());
         }
 
+        let old_mask = self.mask();
+
         // find first ideally placed element -- start of cluster
         let mut first_ideal = 0;
 
         for (i, pos) in self.indices.iter().enumerate() {
             if let Some((_, entry_hash)) = pos.resolve() {
-                if 0 == probe_distance(self.mask, entry_hash, i) {
+                if 0 == probe_distance(old_mask, entry_hash, i) {
                     first_ideal = i;
                     break;
                 }
@@ -1822,8 +1883,6 @@ impl<T> HeaderMap<T> {
             &mut self.indices,
             vec![Pos::none(); new_raw_cap].into_boxed_slice(),
         );
-        self.mask = new_raw_cap.wrapping_sub(1) as Size;
-
         for &pos in &old_indices[first_ideal..] {
             self.reinsert_entry_in_order(pos);
         }
@@ -2058,7 +2117,7 @@ impl<T> IntoIterator for HeaderMap<T> {
         IntoIter {
             next: None,
             entries: self.entries.into_iter(),
-            extra_values: self.extra_values,
+            extra_values: self.cold.map(|cold| cold.extra_values).unwrap_or_default(),
         }
     }
 }
@@ -2352,7 +2411,7 @@ impl<'a, T> Iterator for Iter<'a, T> {
                 Some((&entry.key, &entry.value))
             }
             Values(idx) => {
-                let extra = &self.map.extra_values[idx];
+                let extra = &self.map.extra_values()[idx];
 
                 match extra.next {
                     Link::Entry(_) => self.cursor = None,
@@ -2998,7 +3057,7 @@ impl<'a, T: 'a> Iterator for ValueIter<'a, T> {
                 Some(&entry.value)
             }
             Some(Values(idx)) => {
-                let extra = &self.map.extra_values[idx];
+                let extra = &self.map.extra_values()[idx];
 
                 if self.front == self.back {
                     self.front = None;
@@ -3039,7 +3098,7 @@ impl<'a, T: 'a> DoubleEndedIterator for ValueIter<'a, T> {
                 Some(&self.map.entries[self.index].value)
             }
             Some(Values(idx)) => {
-                let extra = &self.map.extra_values[idx];
+                let extra = &self.map.extra_values()[idx];
 
                 if self.front == self.back {
                     self.front = None;
@@ -3391,8 +3450,12 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// ```
     pub fn append(&mut self, value: T) {
         let idx = self.index;
-        let entry = &mut self.map.entries[idx];
-        append_value(idx, entry, &mut self.map.extra_values, value);
+        let (entries, cold) = (&mut self.map.entries, &mut self.map.cold);
+        let entry = &mut entries[idx];
+        let extra_values = &mut cold
+            .get_or_insert_with(|| Box::new(Cold::default()))
+            .extra_values;
+        append_value(idx, entry, extra_values, value);
     }
 
     /// Remove the entry from the map.
@@ -3455,11 +3518,9 @@ impl<'a, T> OccupiedEntry<'a, T> {
     /// returned.
     pub fn remove_entry_mult(self) -> (HeaderName, ValueDrain<'a, T>) {
         let raw_links = self.map.raw_links();
-        let extra_values = &mut self.map.extra_values;
-
-        let next = self.map.entries[self.index]
-            .links
-            .map(|l| drain_all_extra_values(raw_links, extra_values, l.next).into_iter());
+        let next = self.map.entries[self.index].links.map(|l| {
+            drain_all_extra_values(raw_links, self.map.extra_values_mut(), l.next).into_iter()
+        });
 
         let entry = self.map.remove_found(self.probe, self.index);
 
@@ -3708,6 +3769,15 @@ impl fmt::Display for MaxSizeReached {
 impl std::error::Error for MaxSizeReached {}
 
 // ===== impl Utils =====
+
+impl<T> Default for Cold<T> {
+    fn default() -> Self {
+        Self {
+            extra_values: Vec::new(),
+            danger: Danger::Green,
+        }
+    }
+}
 
 #[inline]
 fn usable_capacity(cap: usize) -> usize {
