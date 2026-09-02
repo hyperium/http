@@ -181,6 +181,7 @@ pub struct Response<T> {
 /// The HTTP response head consists of a status, version, and a set of
 /// header fields.
 #[derive(Clone)]
+#[non_exhaustive]
 pub struct Parts {
     /// The response's status
     pub status: StatusCode,
@@ -193,8 +194,6 @@ pub struct Parts {
 
     /// The response's extensions
     pub extensions: Extensions,
-
-    _priv: (),
 }
 
 /// An HTTP response builder
@@ -501,7 +500,6 @@ impl Parts {
             version: Version::default(),
             headers: HeaderMap::default(),
             extensions: Extensions::default(),
-            _priv: (),
         }
     }
 }
@@ -513,7 +511,6 @@ impl fmt::Debug for Parts {
             .field("version", &self.version)
             .field("headers", &self.headers)
             // omits Extensions because not useful
-            // omits _priv because not useful
             .finish()
     }
 }
