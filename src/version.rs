@@ -73,3 +73,17 @@ impl fmt::Debug for Version {
         })
     }
 }
+
+impl fmt::Display for Version {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let version_str = match self.0 {
+            Http::Http09 => "HTTP/0.9",
+            Http::Http10 => "HTTP/1.0",
+            Http::Http11 => "HTTP/1.1",
+            Http::H2 => "HTTP/2.0",
+            Http::H3 => "HTTP/3.0",
+            Http::__NonExhaustive => unreachable!(),
+        };
+        write!(f, "{}", version_str)
+    }
+}
