@@ -691,6 +691,37 @@ fn ensure_miri_sharedreadonly_not_violated() {
 }
 
 #[test]
+fn iter_size_hint() {
+    fn check(mut iter: impl Iterator, len: usize) {
+        for remaining in (0..=len).rev() {
+            let (lower, upper) = iter.size_hint();
+            assert!(lower <= remaining, "lower {lower} > remaining {remaining}");
+            if let Some(upper) = upper {
+                assert!(upper >= remaining);
+            }
+            assert_eq!(iter.next().is_some(), remaining > 0);
+        }
+        assert_eq!(iter.size_hint().0, 0);
+        assert!(iter.next().is_none());
+    }
+
+    for counts in [vec![], vec![1], vec![3], vec![1, 1], vec![3, 1, 2]] {
+        let mut headers = HeaderMap::new();
+        for (i, count) in counts.into_iter().enumerate() {
+            let name = HeaderName::from_bytes(format!("header-{i}").as_bytes()).unwrap();
+            for _ in 0..count {
+                headers.append(name.clone(), HeaderValue::from_static("x"));
+            }
+        }
+        let len = headers.len();
+        check(headers.iter(), len);
+        check(headers.iter_mut(), len);
+        check(headers.values(), len);
+        check(headers.values_mut(), len);
+    }
+}
+
+#[test]
 fn ensure_miri_itermut_not_violated() {
     let mut headers = HeaderMap::<u32>::default();
     headers.insert(HeaderName::from_static("hello"), 1u32);
