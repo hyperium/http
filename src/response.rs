@@ -271,6 +271,25 @@ impl<T> Response<T> {
         Response { head: parts, body }
     }
 
+    /// Returns a reference to the response's component parts.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    /// let response = Response::builder()
+    ///     .status(StatusCode::CREATED)
+    ///     .body(())
+    ///     .unwrap();
+    ///
+    /// let parts = response.parts();
+    /// assert_eq!(parts.status, StatusCode::CREATED);
+    /// ```
+    #[inline]
+    pub fn parts(&self) -> &Parts {
+        &self.head
+    }
+
     /// Returns the `StatusCode`.
     ///
     /// # Examples
@@ -768,6 +787,18 @@ impl Default for Builder {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn it_can_borrow_parts() {
+        let response = Response::builder()
+            .status(StatusCode::CREATED)
+            .body("body")
+            .unwrap();
+
+        let parts = response.parts();
+        assert_eq!(parts.status, StatusCode::CREATED);
+        assert_eq!(response.body(), &"body");
+    }
 
     #[test]
     fn it_can_map_a_body_from_one_type_to_another() {
