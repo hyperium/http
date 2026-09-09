@@ -1,3 +1,7 @@
+# Unreleased
+
+- Make `HeaderValue::from_maybe_shared_unchecked()` safe.
+
 # 1.5.0 (July 29, 2026)
 
 - Add `Method::QUERY` constant for the new QUERY method defined in RFC 10008.
@@ -266,4 +270,3 @@
 [#450]: https://github.com/hyperium/http/pull/450
 [#435]: https://github.com/hyperium/http/issues/435
 [#445]: https://github.com/hyperium/http/pull/445
-

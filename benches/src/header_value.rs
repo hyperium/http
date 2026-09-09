@@ -31,7 +31,7 @@ fn from_shared_long(b: &mut Bencher) {
 fn from_shared_unchecked_short(b: &mut Bencher) {
     b.bytes = SHORT.len() as u64;
     let bytes = Bytes::from_static(SHORT);
-    b.iter(|| unsafe {
+    b.iter(|| {
         HeaderValue::from_maybe_shared_unchecked(bytes.clone());
     });
 }
@@ -40,7 +40,7 @@ fn from_shared_unchecked_short(b: &mut Bencher) {
 fn from_shared_unchecked_long(b: &mut Bencher) {
     b.bytes = LONG.len() as u64;
     let bytes = Bytes::from_static(LONG);
-    b.iter(|| unsafe {
+    b.iter(|| {
         HeaderValue::from_maybe_shared_unchecked(bytes.clone());
     });
 }

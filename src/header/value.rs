@@ -172,41 +172,31 @@ impl HeaderValue {
         HeaderValue::from_bytes(src.as_ref())
     }
 
-    /// Convert a `Bytes` directly into a `HeaderValue` without validating.
+    /// Convert a buffer directly into a `HeaderValue` without validating.
     ///
-    /// This function does NOT validate that illegal bytes are not contained
-    /// within the buffer.
+    /// Unlike [`from_maybe_shared`](Self::from_maybe_shared), this accepts any
+    /// bytes, including bytes that are not valid in an HTTP header value.
     ///
-    /// ## Panics
-    /// In a debug build this will panic if `src` is not valid UTF-8.
+    /// # Security
     ///
-    /// ## Safety
-    /// `src` must contain valid UTF-8. In a release build it is undefined
-    /// behaviour to call this with `src` that is not valid UTF-8.
-    pub unsafe fn from_maybe_shared_unchecked<T>(src: T) -> HeaderValue
+    /// Serializing untrusted values created with this function may produce
+    /// malformed messages. In particular, carriage return and line feed bytes
+    /// may enable HTTP/1 message splitting.
+    pub fn from_maybe_shared_unchecked<T>(src: T) -> HeaderValue
     where
         T: AsRef<[u8]> + 'static,
     {
-        if cfg!(debug_assertions) {
-            match HeaderValue::from_maybe_shared(src) {
-                Ok(val) => val,
-                Err(_err) => {
-                    panic!("HeaderValue::from_maybe_shared_unchecked() with invalid bytes");
-                }
-            }
-        } else {
-            if_downcast_into!(T, Bytes, src, {
-                return HeaderValue {
-                    inner: src,
-                    is_sensitive: false,
-                };
-            });
-
-            let src = Bytes::copy_from_slice(src.as_ref());
-            HeaderValue {
+        if_downcast_into!(T, Bytes, src, {
+            return HeaderValue {
                 inner: src,
                 is_sensitive: false,
-            }
+            };
+        });
+
+        let src = Bytes::copy_from_slice(src.as_ref());
+        HeaderValue {
+            inner: src,
+            is_sensitive: false,
         }
     }
 
@@ -813,4 +803,35 @@ fn test_debug() {
     let mut sensitive = HeaderValue::from_static("password");
     sensitive.set_sensitive(true);
     assert_eq!("Sensitive", format!("{:?}", sensitive));
+}
+
+#[test]
+fn test_from_maybe_shared_unchecked_arbitrary_bytes() {
+    let bytes = (u8::MIN..=u8::MAX).collect::<Vec<_>>();
+    let value = HeaderValue::from_maybe_shared_unchecked(bytes.clone());
+
+    assert_eq!(value.as_bytes(), bytes);
+    assert!(value.to_str().is_err());
+    assert_eq!(value, bytes.as_slice());
+    assert_eq!(
+        value.partial_cmp(bytes.as_slice()),
+        Some(cmp::Ordering::Equal)
+    );
+
+    let cloned = value.clone();
+
+    assert_eq!(value.cmp(&cloned), cmp::Ordering::Equal);
+    assert!(format!("{:?}", value).starts_with('"'));
+}
+
+#[test]
+fn test_from_maybe_shared_unchecked_bytes_are_not_copied() {
+    let bytes = Bytes::from_static(b"\0\r\n\x7f\xff");
+    let source_pointer = bytes.as_ptr();
+    let value = HeaderValue::from_maybe_shared_unchecked(bytes);
+
+    assert_eq!(value.as_bytes(), b"\0\r\n\x7f\xff");
+    assert_eq!(value.as_bytes().as_ptr(), source_pointer);
+    assert!(value.to_str().is_err());
+    assert_eq!(format!("{:?}", value), "\"\\x0\\xd\\xa\\x7f\\xff\"");
 }
