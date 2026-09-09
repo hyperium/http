@@ -10,15 +10,18 @@ use crate::byte_str::ByteStr;
 
 /// Validation result for authority parsing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)] // to compare in const contexts
 enum AuthorityError {
     Empty,
     InvalidUriChar,
-    InvalidAuthority,
-    TooManyColons,
-    MismatchedBrackets,
+    InvalidAtUsage,
     InvalidBracketUsage,
-    EmptyAfterAt,
+    InvalidUserinfo,
+    InvalidHostname,
     InvalidPercent,
+    InvalidPort,
+    InvalidIpv6,
+    InvalidZoneId,
 }
 
 /// Represents the authority component of a URI.
@@ -91,12 +94,8 @@ impl Authority {
             match e {
                 AuthorityError::Empty => ErrorKind::Empty,
                 AuthorityError::InvalidUriChar => ErrorKind::InvalidUriChar,
-                AuthorityError::InvalidAuthority
-                | AuthorityError::MismatchedBrackets
-                | AuthorityError::InvalidBracketUsage
-                | AuthorityError::EmptyAfterAt
-                | AuthorityError::InvalidPercent
-                | AuthorityError::TooManyColons => ErrorKind::InvalidAuthority,
+                AuthorityError::InvalidPort => ErrorKind::InvalidPort,
+                _ => ErrorKind::InvalidAuthority,
             }
             .into()
         })
@@ -470,26 +469,291 @@ where
     })
 }
 
-/// Shared validation logic for authority bytes.
-/// Returns the end position of valid authority bytes, or an error.
+macro_rules! const_try {
+    ($e:expr) => {
+        match $e {
+            Ok(ok) => ok,
+            Err(err) => return Err(err),
+        }
+    };
+}
+
+/// unreserved characters according to RFC 3986, section 2.3
+#[inline]
+const fn is_unreserved(c: u8) -> bool {
+    c.is_ascii_alphanumeric() || matches!(c, b'-' | b'.' | b'_' | b'~')
+}
+
+/// sub-delim characters according to RFC 3986, section 2.3
+#[inline]
+const fn is_sub_delims(c: u8) -> bool {
+    matches!(
+        c,
+        b'!' | b'$' | b'&' | b'\'' | b'(' | b')' | b'*' | b'+' | b',' | b';' | b'='
+    )
+}
+
+/// Decode a hex digit into its nibble value (0-15).
+#[inline]
+const fn hex_decode_nibble(c: u8) -> Result<u8, AuthorityError> {
+    match c {
+        b'0'..=b'9' => Ok(c - b'0'),
+        b'A'..=b'F' => Ok(c - b'A' + 10),
+        b'a'..=b'f' => Ok(c - b'a' + 10),
+        _ => Err(AuthorityError::InvalidPercent),
+    }
+}
+
+/// Decode a hex byte in at position `i` in a byte string.
+#[inline]
+const fn hex_decode_byte(s: &[u8], i: usize) -> Result<u8, AuthorityError> {
+    if i + 1 >= s.len() {
+        return Err(AuthorityError::InvalidPercent);
+    };
+    Ok(const_try!(hex_decode_nibble(s[i])) << 4 | const_try!(hex_decode_nibble(s[i + 1])))
+}
+
+/// Check that the userinfo in s[..i_end] is compliant with RFC 3986, section 2.3.1.
+#[inline]
+const fn validate_userinfo(s: &[u8], i_end: usize) -> Result<(), AuthorityError> {
+    if i_end == 0 {
+        return Err(AuthorityError::InvalidUserinfo);
+    }
+
+    let mut i = 0;
+    while i < i_end {
+        let c = s[i];
+        if is_unreserved(c) || is_sub_delims(c) || c == b':' {
+            i += 1;
+        } else if c == b'%' {
+            const_try!(hex_decode_byte(s, i + 1));
+            i += 3;
+        } else {
+            return Err(AuthorityError::InvalidUserinfo);
+        }
+    }
+    Ok(())
+}
+
+/// Validate a hostname against RFC 3986.
+#[inline]
+const fn validate_hostname(s: &[u8], i_start: usize, i_end: usize) -> Result<(), AuthorityError> {
+    // This check is not part of RFC 3986 (which allows an empty hostname), but
+    // RFC 9110 (HTTP Semantics), section 4.2.1, clearly states that empty host
+    // identifiers *MUST* be rejected.
+    //
+    // It also matches the past behavior of the crate, which is intentional
+    // (see https://github.com/hyperium/http/pull/698).
+    if i_start == i_end {
+        return Err(AuthorityError::InvalidHostname);
+    }
+
+    let mut i = i_start;
+    while i < i_end {
+        let c = s[i];
+        if is_unreserved(c) || is_sub_delims(c) {
+            i += 1
+        } else if c == b'%' {
+            let encoded = const_try!(hex_decode_byte(s, i + 1));
+            // Only allow percent encoded bytes that can't be included as-is.
+            //
+            // RFC 3986 section 3.2.2 states that URI *producers* must not use percent encoding
+            // unless it is used to represent non-ASCII UTF8 sequences. However it does not state
+            // that *parsers* must reject ASCII or non-UTF8 percent encodings.
+            //
+            // To avoid ambiguity with this crate's previous rejection of percent-encoded hosts while
+            // allowing e.g. percent-encoded socket paths, we only reject percent encodings that would
+            // otherwise be valid reg-name characters.
+            if is_unreserved(encoded) || is_sub_delims(encoded) {
+                return Err(AuthorityError::InvalidPercent);
+            }
+            i += 3;
+        } else {
+            return Err(AuthorityError::InvalidHostname);
+        }
+    }
+    Ok(())
+}
+
+/// Validate a zoneid against RFC 6874.
+#[inline]
+const fn validate_zoneid(s: &[u8], i_start: usize, i_end: usize) -> Result<(), AuthorityError> {
+    // The zoneid must not be empty.
+    if i_start == i_end {
+        return Err(AuthorityError::InvalidZoneId);
+    }
+
+    let mut i = i_start;
+    while i < i_end {
+        let c = s[i];
+        if is_unreserved(c) {
+            i += 1
+        } else if c == b'%' {
+            const_try!(hex_decode_byte(s, i + 1));
+            i += 3;
+        } else {
+            return Err(AuthorityError::InvalidZoneId);
+        }
+    }
+    Ok(())
+}
+
+/// Parses a mapped IPv4 in an IPv6 address.
+///
+/// Returns its starting position in the byte slice if successful.
+const fn parse_trailing_ipv4(s: &[u8], i_start: usize, i_end: usize) -> Option<usize> {
+    let mut octet_cnt = 0;
+    let mut digit_mul = 1;
+    let mut octet_value = 0;
+    let mut first_digit = 0;
+    let mut i = i_end;
+
+    while i > i_start {
+        i -= 1;
+        let c = s[i];
+        if (c == b':' && octet_cnt == 3) || (c == b'.' && octet_cnt < 3) {
+            // disallow empty fields, trailing zeroes and ensure the octet value is in range
+            if first_digit == 0 || (first_digit == b'0' && octet_value > 0) || octet_value >= 256 {
+                return None;
+            }
+            // success after parsing 4 octets
+            octet_cnt += 1;
+            if octet_cnt == 4 {
+                // note: +1 as we don't count the ipv6 separator ':'
+                return Some(i + 1);
+            }
+            // reset octet state
+            digit_mul = 1;
+            octet_value = 0;
+            first_digit = 0;
+        } else if digit_mul == 1000 || !c.is_ascii_digit() {
+            return None;
+        } else {
+            first_digit = c;
+            octet_value = digit_mul * (c - b'0') as u32 + octet_value;
+            digit_mul *= 10;
+        }
+    }
+    None
+}
+
+/// Validate an IPv6 address according to RFC 3986.
+///
+/// Zone identifiers encoded according to RFC 6874 are allowed, despite being
+/// obsoleted by RFC 9844, for backwards compatibility.
+///
+/// This supports mapped IPv4 addresses.
+const fn validate_ipv6(s: &[u8], i_start: usize, mut i_end: usize) -> Result<(), AuthorityError> {
+    // First find the first instance of '%25' to check if we have a zone identifier,
+    // and validate it.
+    //
+    // We can't use the last '%25', since anything (including another %) may be encoded
+    // as part of the zoneid.
+    let mut i = i_start;
+    while i + 2 < i_end {
+        if s[i] == b'%' {
+            if const_try!(hex_decode_byte(s, i + 1)) != b'%' {
+                return Err(AuthorityError::InvalidIpv6);
+            }
+            const_try!(validate_zoneid(s, i + 3, i_end));
+            i_end = i;
+            break;
+        }
+        i += 1;
+    }
+
+    // Then, check if we have a trailing IPv4. If so, there are 6 16-bit groups left.
+    // Otherwise there are 8.
+    let (mut groups_left, is_mapped) = match parse_trailing_ipv4(s, i_start, i_end) {
+        Some(new_end) => {
+            i_end = new_end;
+            (6, true)
+        }
+        None => (8, false),
+    };
+
+    // The proper ipv6 is at least 2 characters and less than 5*groups_left.
+    //
+    // Doing this check early allows us to also check if : is in the start position,
+    // which the loop below can't do without checking this at each : in the IP.
+    let len = i_end - i_start;
+    if len < 2 || len > 5 * groups_left || (s[i_start] == b':' && s[i_start + 1] != b':') {
+        return Err(AuthorityError::InvalidIpv6);
+    }
+
+    let mut has_double_colon = false;
+    let mut colon_cnt = 0;
+    let mut digit_cnt = 0;
+    let mut i = i_start;
+    while i < i_end {
+        let c = s[i];
+        if c.is_ascii_hexdigit() {
+            if digit_cnt == 4 {
+                return Err(AuthorityError::InvalidIpv6);
+            }
+            if digit_cnt == 0 {
+                if groups_left == 0 {
+                    return Err(AuthorityError::InvalidIpv6);
+                }
+                groups_left -= 1;
+            }
+            colon_cnt = 0;
+            digit_cnt += 1;
+        } else if c == b':' {
+            if colon_cnt > 0 {
+                if has_double_colon {
+                    return Err(AuthorityError::InvalidIpv6);
+                }
+                has_double_colon = true;
+            }
+            digit_cnt = 0;
+            colon_cnt += 1;
+        } else {
+            return Err(AuthorityError::InvalidIpv6);
+        }
+        i += 1;
+    }
+
+    // we need an ending single colon iff the ip ends with a v4 address.
+    if colon_cnt != 2 && (colon_cnt == 1) != is_mapped {
+        return Err(AuthorityError::InvalidIpv6);
+    }
+
+    // Either we don't have a double colon and specified all groups, or we have
+    // one and omitted at least one group.
+    if has_double_colon == (groups_left > 0) {
+        Ok(())
+    } else {
+        Err(AuthorityError::InvalidIpv6)
+    }
+}
+
+/// Validate the port of the authority against RFC 3986, section 3.2.3.
+#[inline]
+const fn validate_port(s: &[u8], i_start: usize, i_end: usize) -> Result<(), AuthorityError> {
+    let mut i = i_start;
+    while i < i_end {
+        if !s[i].is_ascii_digit() {
+            return Err(AuthorityError::InvalidPort);
+        }
+        i += 1;
+    }
+    Ok(())
+}
+
+/// Validate the authority against RFC 3986, but don't accept empty authorities.
 const fn validate_authority_bytes(s: &[u8]) -> Result<usize, AuthorityError> {
     if s.is_empty() {
         return Err(AuthorityError::Empty);
     }
 
-    let mut colon_cnt: u32 = 0;
-    let mut start_bracket = false;
-    let mut end_bracket = false;
-    let mut has_percent = false;
     let mut end = s.len();
-    let mut at_sign_pos: usize = s.len();
-    const MAX_COLONS: u32 = 8; // e.g., [FEDC:BA98:7654:3210:FEDC:BA98:7654:3210]:80
+    let mut port_colon = None;
+    let mut at = None;
+    let mut start_bracket = None;
+    let mut end_bracket = None;
 
     let mut i = 0;
-    // Among other things, this loop checks that every byte in s up to the
-    // first '/', '?', or '#' is a valid URI character (or in some contexts,
-    // a '%'). This means that each such byte is a valid single-byte UTF-8
-    // code point.
     while i < s.len() {
         let b = s[i];
         let ch = URI_CHARS[b as usize];
@@ -498,72 +762,52 @@ const fn validate_authority_bytes(s: &[u8]) -> Result<usize, AuthorityError> {
             end = i;
             break;
         }
-
-        if ch == 0 {
-            if b == b'%' {
-                // Per https://tools.ietf.org/html/rfc3986#section-3.2.1 and
-                // https://url.spec.whatwg.org/#authority-state
-                // the userinfo can have a percent-encoded username and password,
-                // so record that a `%` was found. If this turns out to be
-                // part of the userinfo, this flag will be cleared.
-                // Also per https://tools.ietf.org/html/rfc6874, percent-encoding can
-                // be used to indicate a zone identifier.
-                // If the flag hasn't been cleared at the end, that means this
-                // was part of the hostname (and not part of an IPv6 address), and
-                // will fail with an error.
-                has_percent = true;
-            } else {
-                return Err(AuthorityError::InvalidUriChar);
-            }
+        if ch == 0 && b != b'%' {
+            return Err(AuthorityError::InvalidUriChar);
         } else if ch == b':' {
-            if colon_cnt >= MAX_COLONS {
-                return Err(AuthorityError::TooManyColons);
-            }
-            colon_cnt += 1;
-        } else if ch == b'[' {
-            if has_percent || start_bracket {
-                // Something other than the userinfo has a `%`, so reject it.
-                return Err(AuthorityError::InvalidBracketUsage);
-            }
-            start_bracket = true;
-        } else if ch == b']' {
-            if !start_bracket || end_bracket {
-                return Err(AuthorityError::InvalidBracketUsage);
-            }
-            end_bracket = true;
-
-            // Those were part of an IPv6 hostname, so forget them...
-            colon_cnt = 0;
-            has_percent = false;
+            port_colon = Some(i);
         } else if ch == b'@' {
-            at_sign_pos = i;
-
-            // Those weren't a port colon, but part of the
-            // userinfo, so it needs to be forgotten.
-            colon_cnt = 0;
-            has_percent = false;
+            if at.is_some() || start_bracket.is_some() {
+                return Err(AuthorityError::InvalidAtUsage);
+            }
+            port_colon = None;
+            at = Some(i);
+        } else if ch == b'[' {
+            if start_bracket.is_some() || end_bracket.is_some() {
+                return Err(AuthorityError::InvalidBracketUsage);
+            }
+            start_bracket = Some(i)
+        } else if ch == b']' {
+            if start_bracket.is_none() || end_bracket.is_some() {
+                return Err(AuthorityError::InvalidBracketUsage);
+            }
+            port_colon = None;
+            end_bracket = Some(i)
         }
-
         i += 1;
     }
 
-    if start_bracket != end_bracket {
-        return Err(AuthorityError::MismatchedBrackets);
-    }
+    let host_start = match at {
+        Some(i) => {
+            const_try!(validate_userinfo(s, i));
+            i + 1
+        }
+        None => 0,
+    };
+    let host_end = match port_colon {
+        Some(i) => {
+            const_try!(validate_port(s, i + 1, end));
+            i
+        }
+        None => end,
+    };
 
-    if colon_cnt > 1 {
-        // Things like 'localhost:8080:3030' are rejected.
-        return Err(AuthorityError::InvalidAuthority);
-    }
-
-    if end > 0 && at_sign_pos == end - 1 {
-        // If there's nothing after an `@`, this is bonkers.
-        return Err(AuthorityError::EmptyAfterAt);
-    }
-
-    if has_percent {
-        // Something after the userinfo has a `%`, so reject it.
-        return Err(AuthorityError::InvalidPercent);
+    match (start_bracket, end_bracket) {
+        (None, None) => const_try!(validate_hostname(s, host_start, host_end)),
+        (Some(start), Some(end)) if start == host_start && end + 1 == host_end => {
+            const_try!(validate_ipv6(s, start + 1, end))
+        }
+        _ => return Err(AuthorityError::InvalidBracketUsage),
     }
 
     Ok(end)
@@ -572,6 +816,145 @@ const fn validate_authority_bytes(s: &[u8]) -> Result<usize, AuthorityError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[allow(dead_code)]
+    const fn test_zoneid(s: &[u8], valid: bool) {
+        if validate_zoneid(s, 0, s.len()).is_ok() != valid {
+            panic!("zoneid test failed")
+        }
+    }
+
+    const _ZONEID_UNRESERVED: () = test_zoneid(b"wlan0", true);
+    const _ZONEID_ANY_PERCENT: () = test_zoneid(b"%00wl%61n%30", true);
+    const _ZONEID_EMPTY: () = test_zoneid(b"", false);
+    const _ZONEID_BAD_PERCENT1: () = test_zoneid(b"wlan0%1z", false);
+    const _ZONEID_BAD_PERCENT2: () = test_zoneid(b"wlan0%%z", false);
+    const _ZONEID_SUB_DELIM_INVALID: () = test_zoneid(b"wlan0:", false);
+    const _ZONEID_GEN_DELIM_INVALID: () = test_zoneid(b"abc@", false);
+
+    #[allow(dead_code)]
+    const fn test_trailing_ipv4(s: &[u8], expected: Option<usize>) {
+        match (parse_trailing_ipv4(s, 0, s.len()), expected) {
+            (None, None) => (),
+            (Some(x), Some(y)) if x == y => (),
+            _ => panic!("trailing ipv4 test failed"),
+        }
+    }
+
+    const _TRAILING_IPV4_OK1: () = test_trailing_ipv4(b":0.0.0.0", Some(1));
+    const _TRAILING_IPV4_OK2: () = test_trailing_ipv4(b"2f:127.3.42.53", Some(3));
+    const _TRAILING_IPV4_OK3: () = test_trailing_ipv4(b":255.255.255.255", Some(1));
+    const _TRAILING_IPV4_TOO_SHORT: () = test_trailing_ipv4(b":0.0.0", None);
+    const _TRAILING_IPV4_TOO_LONG: () = test_trailing_ipv4(b":0.0.0.0.0", None);
+    const _TRAILING_IPV4_MISSING1: () = test_trailing_ipv4(b":12.0.0.", None);
+    const _TRAILING_IPV4_MISSING2: () = test_trailing_ipv4(b":12..0.0", None);
+    const _TRAILING_IPV4_MISSING3: () = test_trailing_ipv4(b":..0.0", None);
+    const _TRAILING_IPV4_MISSING4: () = test_trailing_ipv4(b":0.0", None);
+    const _TRAILING_IPV4_LEADING_ZERO: () = test_trailing_ipv4(b":01.0.0.0", None);
+    const _TRAILING_IPV4_TOO_BIG: () = test_trailing_ipv4(b":256.0.0.0", None);
+
+    #[allow(dead_code)]
+    const fn test_ipv6(s: &[u8], valid: bool) {
+        if validate_ipv6(s, 0, s.len()).is_ok() != valid {
+            panic!("ipv6 test failed")
+        }
+    }
+
+    const _IPV6_FULL: () = test_ipv6(b"a1b2:c34:e5f6:7890:0:c3d4:e5f6:7890", true);
+    const _IPV6_FULL_ZONEID: () =
+        test_ipv6(b"a1b2:c3d4:e5f6:7890:a1b2:c3d4:e5f6:7890%25eth%30", true);
+    const _IPV6_SHORT_START: () = test_ipv6(b"::a1b2", true);
+    const _IPV6_SHORT_END: () = test_ipv6(b"cd4:a1b2::", true);
+    const _IPV6_SHORT_MIDDLE: () = test_ipv6(b"0:1:234::5:6:7", true);
+    const _IPV6_ZERO: () = test_ipv6(b"::", true);
+    const _IPV6_MAPPED_FULL_ZONEID: () = test_ipv6(b"a:b:c:d:e:f:123.45.67.9%25eth0", true);
+    const _IPV6_MAPPED_SHORT: () = test_ipv6(b"::ffff:123.45.67.8", true);
+    const _IPV6_MAPPED_VERY_SHORT: () = test_ipv6(b"::123.45.67.8", true);
+
+    const _IPV6_TOO_SHORT: () = test_ipv6(b"0:1:2:3", false);
+    const _IPV6_TOO_LONG: () = test_ipv6(b"0:1:2:3:4:5:6:7:8", false);
+    const _IPV6_TOO_LONG_MAPPED: () = test_ipv6(b"0:1:2:3:4:5:6:12.34.56.78", false);
+    const _IPV6_TOO_LONG_COMPACT_END: () = test_ipv6(b"0:1:2:3:4:5:6:7::", false);
+    const _IPV6_TOO_LONG_COMPACT_MIDDLE: () = test_ipv6(b"0:1:2:3:4::5:6:7", false);
+    const _IPV6_TOO_TRAILING_COLON: () = test_ipv6(b"0:1:2:34:5:6:7:", false);
+    const _IPV6_TOO_STARTING_COLON: () = test_ipv6(b":0:1:2:34:5:6:7", false);
+    const _IPV6_NON_HEX_CHR: () = test_ipv6(b"::45g", false);
+    const _IPV6_MORE_THAN_4_CHRS: () = test_ipv6(b"::12020", false);
+    const _IPV6_BAD_ZONEID_SEP: () = test_ipv6(b"::%33abc", false);
+
+    #[allow(dead_code)]
+    const fn test_hostname(s: &[u8], valid: bool) {
+        if validate_hostname(s, 0, s.len()).is_ok() != valid {
+            panic!("reg_name test failed")
+        }
+    }
+
+    const _HOST_NAME: () = test_hostname(b"04-2alx$!~", true);
+    const _HOST_NAME_PERCENT: () = test_hostname(b"abc%40%19", true);
+    const _HOST_NAME_EMPTY: () = test_hostname(b"", false);
+    const _HOST_NAME_COLON: () = test_hostname(b"abc:def", false);
+    const _HOST_NAME_RESERVED: () = test_hostname(b"@abc", false);
+    const _HOST_NAME_NON_ASCII: () = test_hostname(b"abc\x19", false);
+    const _HOST_NAME_BAD_PERCENT: () = test_hostname(b"abc%", false);
+    const _HOST_NAME_USELESS_PERCENT1: () = test_hostname(b"abc%24", false); // 0x40 = '$'
+    const _HOST_NAME_USELESS_PERCENT2: () = test_hostname(b"abc%5a", false); // 0x5a = 'Z'
+
+    #[allow(dead_code)]
+    const fn test_port(s: &[u8], valid: bool) {
+        if validate_port(s, 0, s.len()).is_ok() != valid {
+            panic!("port test failed")
+        }
+    }
+
+    const _PORT_OK: () = test_port(b"12345", true);
+    const _PORT_EMPTY: () = test_port(b"", true);
+    const _PORT_LONG_OK: () = test_port(b"000123456789", true);
+    const _PORT_NON_DIGIT: () = test_port(b"a", false);
+
+    #[allow(dead_code)]
+    const fn test_userinfo(s: &[u8], valid: bool) {
+        if validate_userinfo(s, s.len()).is_ok() != valid {
+            panic!("userinfo test failed")
+        }
+    }
+
+    const _USERINFO: () = test_userinfo(b"04-2al:x$!~", true);
+    const _USERINFO_PERCENT: () = test_userinfo(b"abc%40%19%30%59", true);
+    const _USERINFO_EMPTY: () = test_userinfo(b"", false);
+    const _USERINFO_RESERVED: () = test_userinfo(b"abc@", false);
+    const _USERINFO_NON_ASCII: () = test_userinfo(b"abc\x19", false);
+
+    #[allow(dead_code)]
+    const fn test_authority(s: &[u8], expected: Result<usize, AuthorityError>) {
+        match (validate_authority_bytes(s), expected) {
+            (Ok(x), Ok(y)) if x == y => (),
+            (Err(x), Err(y)) if x as u8 == y as u8 => (),
+            _ => panic!("authority test failed"),
+        }
+    }
+
+    // Pass tests
+    const _AUTHORITY_FULL: () = test_authority(b"u:p@abc:5?some", Ok(9));
+    const _AUTHORITY_NO_PORT: () = test_authority(b"u@abc", Ok(5));
+    const _AUTHORITY_PCT_ENCODED: () = test_authority(b"abc.%19", Ok(7));
+    const _AUTHORITY_IPV6: () = test_authority(b"[::ffff:1.2.3.4]", Ok(16));
+    const _AUTHORITY_IPV6_FULL: () = test_authority(b"user:pass@[::1]:1234", Ok(20));
+    // Fail tests
+    const _AUTHORITY_EMPTY: () = test_authority(b"/", Err(AuthorityError::InvalidHostname));
+    const _AUTHORITY_TWO_PORTS: () =
+        test_authority(b"u@ab:c:", Err(AuthorityError::InvalidHostname));
+    const _AUTHORITY_TWO_USERINFO: () =
+        test_authority(b"u1@u2@abc", Err(AuthorityError::InvalidAtUsage));
+    const _AUTHORITY_BAD_BRACKETS1: () =
+        test_authority(b"[abc", Err(AuthorityError::InvalidBracketUsage));
+    const _AUTHORITY_BAD_BRACKETS2: () =
+        test_authority(b"[::1]]", Err(AuthorityError::InvalidBracketUsage));
+    const _AUTHORITY_BAD_PERCENT: () =
+        test_authority(b"abc%2", Err(AuthorityError::InvalidPercent));
+    const _AUTHORITY_BAD_IPV6: () = test_authority(b"[1:2]", Err(AuthorityError::InvalidIpv6));
+    const _AUTHORITY_BAD_ZONEID: () =
+        test_authority(b"[::%25wl$]", Err(AuthorityError::InvalidZoneId));
+    const _AUTHORITY_BAD_PORT: () = test_authority(b"abc:10c", Err(AuthorityError::InvalidPort));
 
     #[test]
     fn parse_empty_string_is_error() {
@@ -674,12 +1057,14 @@ mod tests {
     }
 
     #[test]
-    fn rejects_percent_in_hostname() {
-        let err = Authority::parse_non_empty(b"example%2f.com").unwrap_err();
-        assert_eq!(err.0, ErrorKind::InvalidAuthority);
+    fn allows_ok_percent_in_hostname() {
+        let authority_str = "example%2f.com";
+        let authority: Authority = authority_str.parse().unwrap();
+        assert_eq!(authority, authority_str);
 
-        let err = Authority::parse_non_empty(b"a%2f:b%2f@example%2f.com").unwrap_err();
-        assert_eq!(err.0, ErrorKind::InvalidAuthority);
+        let authority_str = "a%2f:b%2f@example%2f.com";
+        let authority: Authority = authority_str.parse().unwrap();
+        assert_eq!(authority, authority_str);
     }
 
     #[test]
@@ -690,17 +1075,20 @@ mod tests {
     }
 
     #[test]
-    fn reject_obviously_invalid_ipv6_address() {
-        let err = Authority::parse_non_empty(b"[0:1:2:3:4:5:6:7:8:9:10:11:12:13:14]").unwrap_err();
+    fn rejects_redundant_percent_in_hostname() {
+        let err = Authority::parse_non_empty(b"example%46com").unwrap_err();
         assert_eq!(err.0, ErrorKind::InvalidAuthority);
     }
 
     #[test]
-    fn rejects_percent_outside_ipv6_address() {
-        let err = Authority::parse_non_empty(b"1234%20[fe80::1:2:3:4]").unwrap_err();
+    fn rejects_bad_percent_in_hostname() {
+        let err = Authority::parse_non_empty(b"example%4zcom").unwrap_err();
         assert_eq!(err.0, ErrorKind::InvalidAuthority);
+    }
 
-        let err = Authority::parse_non_empty(b"[fe80::1:2:3:4]%20").unwrap_err();
+    #[test]
+    fn reject_obviously_invalid_ipv6_address() {
+        let err = Authority::parse_non_empty(b"[0:1:2:3:4:5:6:7:8:9:10:11:12:13:14]").unwrap_err();
         assert_eq!(err.0, ErrorKind::InvalidAuthority);
     }
 
