@@ -131,8 +131,8 @@ impl HeaderValue {
     /// Attempt to convert a byte slice to a `HeaderValue`.
     ///
     /// If the argument contains invalid header value bytes, an error is
-    /// returned. Only byte values between 32 and 255 (inclusive) are permitted,
-    /// excluding byte 127 (DEL).
+    /// returned. Only byte values 11, 12, and values between 32 and 255 (inclusive)
+    /// are permitted, excluding byte 127 (DEL).
     ///
     /// This function is intended to be replaced in the future by a `TryFrom`
     /// implementation once the trait is stabilized in std.
@@ -570,7 +570,7 @@ const fn is_valid_ascii(b: u8) -> bool {
 // `HeaderValue::to_str`.
 #[inline]
 fn is_valid_ascii_or_opaque_byte(b: u8) -> bool {
-    b >= 32 && b != 127 || b == b'\t'
+    b >= 32 && b != 127 || b == b'\t' || b == b'\x0B' || b == b'\x0C'
 }
 
 impl fmt::Debug for InvalidHeaderValue {
@@ -778,6 +778,8 @@ fn test_string_constructors_reject_non_ascii() {
 #[test]
 fn test_byte_constructors_allow_opaque_bytes_but_reject_del() {
     assert!(HeaderValue::from_bytes(b"hello\xff").is_ok());
+    assert!(HeaderValue::from_bytes(b"hello\x0B").is_ok());
+    assert!(HeaderValue::from_bytes(b"hello\x0C").is_ok());
     assert!(HeaderValue::try_from(&b"hello\xff"[..]).is_ok());
     assert!(HeaderValue::try_from(b"hello\xff".to_vec()).is_ok());
 
