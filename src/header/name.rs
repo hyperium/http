@@ -1095,7 +1095,13 @@ fn parse_hdr<'a>(
                 }
             }
         }
-        SCRATCH_BUF_OVERFLOW..=super::MAX_HEADER_NAME_LEN => Ok(HdrName::custom(data, false)),
+        SCRATCH_BUF_OVERFLOW..=super::MAX_HEADER_NAME_LEN => {
+            if data.iter().any(|&b| table[b as usize] == 0) {
+                Err(InvalidHeaderName::new())
+            } else {
+                Ok(HdrName::custom(data, false))
+            }
+        }
         _ => Err(InvalidHeaderName::new()),
     }
 }
@@ -1664,6 +1670,27 @@ mod tests {
                 "{} invalid header chars did not fail",
                 i
             );
+        }
+    }
+
+    #[test]
+    fn test_parse_invalid_long_headers() {
+        // Names longer than the scratch buffer take a separate parsing path.
+        // Invalid bytes must be rejected regardless of where they occur.
+        for len in [SCRATCH_BUF_OVERFLOW, SCRATCH_BUF_OVERFLOW + 1, 256] {
+            for index in [0, SCRATCH_BUF_SIZE - 1, SCRATCH_BUF_SIZE, len - 1] {
+                for invalid in [0, b' ', b'\n', 127, 128, 255] {
+                    let mut hdr = vec![b'a'; len];
+                    hdr[index] = invalid;
+                    assert!(
+                        HdrName::from_bytes(&hdr, |_| ()).is_err(),
+                        "invalid byte {} at index {} in a {}-byte name was accepted",
+                        invalid,
+                        index,
+                        len,
+                    );
+                }
+            }
         }
     }
 
