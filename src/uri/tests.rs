@@ -517,3 +517,19 @@ fn test_partial_eq_path_with_terminating_questionmark() {
 
     assert_eq!(uri, a);
 }
+
+#[test]
+fn test_empty_path_and_query_equals_slash() {
+    let uri1 = Uri::from_static("http://example.com");
+    let uri2 = Uri::from_static("http://example.com/");
+
+    assert_eq!(uri1.to_string(), uri2.to_string());
+    assert_eq!(uri1, uri2);
+
+    let path1 = uri1.path_and_query().unwrap();
+    let path2 = uri2.path_and_query().unwrap();
+    assert_eq!(path1.to_string(), path2.to_string());
+    assert_eq!(format!("{path1:?}"), format!("{path2:?}"));
+    assert!(path1 <= path2 && path1 >= path2);
+    assert_eq!(path1, path2);
+}
