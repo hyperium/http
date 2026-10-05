@@ -1045,7 +1045,7 @@ const HEADER_CHARS_H2: [u8; 256] = [
         0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //   x
         0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //  1x
         0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //  2x
-        0,     0,     0,  b'!',  b'"',  b'#',  b'$',  b'%',  b'&', b'\'', //  3x
+        0,     0,     0,  b'!',     0,  b'#',  b'$',  b'%',  b'&', b'\'', //  3x
         0,     0,  b'*',  b'+',     0,  b'-',  b'.',     0,  b'0',  b'1', //  4x
      b'2',  b'3',  b'4',  b'5',  b'6',  b'7',  b'8',  b'9',     0,     0, //  5x
         0,     0,     0,     0,     0,     0,     0,     0,     0,     0, //  6x
@@ -1918,5 +1918,13 @@ mod tests {
         HeaderName::from_lowercase(&[b'A'; 100]).unwrap_err();
         HeaderName::from_lowercase(&[0x1; 100]).unwrap_err();
         HeaderName::from_lowercase(&[0xFF; 100]).unwrap_err();
+    }
+
+    #[test]
+    fn test_from_lowercase_rejects_double_quote() {
+        // HEADER_CHARS_H2 must reject `"` just like HEADER_CHARS does for
+        // from_bytes(), per the tchar grammar in RFC 9110 5.6.2 (reused by
+        // RFC 9113 8.2.1 for HTTP/2 field names).
+        HeaderName::from_lowercase(b"x-evil\"name").unwrap_err();
     }
 }
