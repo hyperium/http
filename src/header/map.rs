@@ -126,6 +126,7 @@ pub struct Iter<'a, T> {
     map: &'a HeaderMap<T>,
     entry: usize,
     cursor: Option<Cursor>,
+    remaining: usize,
 }
 
 /// `HeaderMap` mutable entry iterator
@@ -143,6 +144,7 @@ pub struct IterMut<'a, T> {
     extra_values: *mut ExtraValue<T>,
     entry: usize,
     cursor: Option<Cursor>,
+    remaining: usize,
     lt: PhantomData<&'a mut HeaderMap<T>>,
 }
 
@@ -155,6 +157,7 @@ pub struct IntoIter<T> {
     next: Option<usize>,
     entries: vec::IntoIter<Bucket<T>>,
     extra_values: Vec<ExtraValue<T>>,
+    remaining: usize,
 }
 
 /// An iterator over `HeaderMap` keys.
@@ -993,6 +996,7 @@ impl<T> HeaderMap<T> {
             map: self,
             entry: 0,
             cursor: self.entries.first().map(|_| Cursor::Head),
+            remaining: self.len(),
         }
     }
 
@@ -1018,12 +1022,14 @@ impl<T> HeaderMap<T> {
     /// }
     /// ```
     pub fn iter_mut(&mut self) -> IterMut<'_, T> {
+        let remaining = self.len();
         IterMut {
             entries: self.entries.as_mut_ptr(),
             entries_len: self.entries.len(),
             extra_values: self.extra_values_mut_ptr(),
             entry: 0,
             cursor: self.entries.first().map(|_| Cursor::Head),
+            remaining,
             lt: PhantomData,
         }
     }
@@ -2114,10 +2120,12 @@ impl<T> IntoIterator for HeaderMap<T> {
     /// assert!(iter.next().is_none());
     /// ```
     fn into_iter(self) -> IntoIter<T> {
+        let remaining = self.len();
         IntoIter {
             next: None,
             entries: self.entries.into_iter(),
             extra_values: self.cold.map(|cold| cold.extra_values).unwrap_or_default(),
+            remaining,
         }
     }
 }
@@ -2405,7 +2413,7 @@ impl<'a, T> Iterator for Iter<'a, T> {
 
         let entry = &self.map.entries[self.entry];
 
-        match self.cursor.unwrap() {
+        let item = match self.cursor.unwrap() {
             Head => {
                 self.cursor = entry.links.map(|l| Values(l.next));
                 Some((&entry.key, &entry.value))
@@ -2420,26 +2428,21 @@ impl<'a, T> Iterator for Iter<'a, T> {
 
                 Some((&entry.key, &extra.value))
             }
+        };
+
+        if item.is_some() {
+            self.remaining -= 1;
         }
+
+        item
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let map = self.map;
-        debug_assert!(map.entries.len() >= self.entry);
-
-        let mut lower = map.entries.len() - self.entry;
-        if self.cursor.is_none() {
-            // The current entry is exhausted. Saturate for an empty map.
-            lower = lower.saturating_sub(1);
-        }
-        // We could pessimistically guess at the upper bound, saying
-        // that its lower + map.extra_values.len(). That could be
-        // way over though, such as if we're near the end, and have
-        // already gone through several extra values...
-        (lower, None)
+        (self.remaining, Some(self.remaining))
     }
 }
 
+impl<'a, T> ExactSizeIterator for Iter<'a, T> {}
 impl<'a, T> FusedIterator for Iter<'a, T> {}
 
 unsafe impl<'a, T: Sync> Sync for Iter<'a, T> {}
@@ -2465,7 +2468,7 @@ impl<'a, T> IterMut<'a, T> {
         // allocation remains valid for the lifetime of the iterator.
         let entry = unsafe { self.entries.add(self.entry) };
 
-        match self.cursor.unwrap() {
+        let res = match self.cursor.unwrap() {
             Head => {
                 // SAFETY: `entry` points at a live bucket in `entries`.
                 self.cursor = unsafe { (*entry).links }.map(|l| Values(l.next));
@@ -2501,7 +2504,13 @@ impl<'a, T> IterMut<'a, T> {
                     )
                 })
             }
+        };
+
+        if res.is_some() {
+            self.remaining -= 1;
         }
+
+        res
     }
 }
 
@@ -2514,21 +2523,11 @@ impl<'a, T> Iterator for IterMut<'a, T> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        debug_assert!(self.entries_len >= self.entry);
-
-        let mut lower = self.entries_len - self.entry;
-        if self.cursor.is_none() {
-            // The current entry is exhausted. Saturate for an empty map.
-            lower = lower.saturating_sub(1);
-        }
-        // We could pessimistically guess at the upper bound, saying
-        // that its lower + map.extra_values.len(). That could be
-        // way over though, such as if we're near the end, and have
-        // already gone through several extra values...
-        (lower, None)
+        (self.remaining, Some(self.remaining))
     }
 }
 
+impl<'a, T> ExactSizeIterator for IterMut<'a, T> {}
 impl<'a, T> FusedIterator for IterMut<'a, T> {}
 
 unsafe impl<'a, T: Sync> Sync for IterMut<'a, T> {}
@@ -2577,6 +2576,7 @@ impl<'a, T> Iterator for Values<'a, T> {
     }
 }
 
+impl<'a, T> ExactSizeIterator for Values<'a, T> {}
 impl<'a, T> FusedIterator for Values<'a, T> {}
 
 // ===== impl ValuesMut ====
@@ -2593,6 +2593,7 @@ impl<'a, T> Iterator for ValuesMut<'a, T> {
     }
 }
 
+impl<'a, T> ExactSizeIterator for ValuesMut<'a, T> {}
 impl<'a, T> FusedIterator for ValuesMut<'a, T> {}
 
 // ===== impl Drain =====
@@ -3243,6 +3244,7 @@ impl<T> Iterator for IntoIter<T> {
             };
 
             let value = unsafe { ptr::read(&self.extra_values[next].value) };
+            self.remaining -= 1;
 
             return Some((None, value));
         }
@@ -3251,6 +3253,7 @@ impl<T> Iterator for IntoIter<T> {
             self.next = bucket.links.map(|l| l.next);
             let name = Some(bucket.key);
             let value = bucket.value;
+            self.remaining -= 1;
 
             return Some((name, value));
         }
@@ -3259,14 +3262,11 @@ impl<T> Iterator for IntoIter<T> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let (lower, _) = self.entries.size_hint();
-        // There could be more than just the entries upper, as there
-        // could be items in the `extra_values`. We could guess, saying
-        // `upper + extra_values.len()`, but that could overestimate by a lot.
-        (lower, None)
+        (self.remaining, Some(self.remaining))
     }
 }
 
+impl<T> ExactSizeIterator for IntoIter<T> {}
 impl<T> FusedIterator for IntoIter<T> {}
 
 impl<T> Drop for IntoIter<T> {

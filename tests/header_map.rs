@@ -803,3 +803,83 @@ fn into_iter_drop_panic_after_yielding_extra_value_double_drops() {
 
     let _ = catch_unwind(AssertUnwindSafe(|| drop(iter)));
 }
+
+#[test]
+fn exact_size_iterator() {
+    let mut map = HeaderMap::new();
+    assert_eq!(map.iter().len(), 0);
+    assert_eq!(map.iter_mut().len(), 0);
+    assert_eq!(map.values().len(), 0);
+    assert_eq!(map.values_mut().len(), 0);
+    assert_eq!(map.clone().into_iter().len(), 0);
+
+    map.insert(header::ACCEPT, "text/plain".parse().unwrap());
+    map.insert(header::HOST, "localhost".parse().unwrap());
+    map.append(header::HOST, "example.com".parse().unwrap());
+
+    assert_eq!(map.len(), 3);
+
+    // iter()
+    let mut iter = map.iter();
+    assert_eq!(iter.len(), 3);
+    assert_eq!(iter.size_hint(), (3, Some(3)));
+    assert!(iter.next().is_some());
+    assert_eq!(iter.len(), 2);
+    assert_eq!(iter.size_hint(), (2, Some(2)));
+    assert!(iter.next().is_some());
+    assert_eq!(iter.len(), 1);
+    assert_eq!(iter.size_hint(), (1, Some(1)));
+    assert!(iter.next().is_some());
+    assert_eq!(iter.len(), 0);
+    assert_eq!(iter.size_hint(), (0, Some(0)));
+    assert!(iter.next().is_none());
+    assert_eq!(iter.len(), 0);
+
+    // iter_mut()
+    let mut iter_mut = map.iter_mut();
+    assert_eq!(iter_mut.len(), 3);
+    assert_eq!(iter_mut.size_hint(), (3, Some(3)));
+    assert!(iter_mut.next().is_some());
+    assert_eq!(iter_mut.len(), 2);
+    assert!(iter_mut.next().is_some());
+    assert_eq!(iter_mut.len(), 1);
+    assert!(iter_mut.next().is_some());
+    assert_eq!(iter_mut.len(), 0);
+    assert!(iter_mut.next().is_none());
+
+    // values()
+    let mut values = map.values();
+    assert_eq!(values.len(), 3);
+    assert_eq!(values.size_hint(), (3, Some(3)));
+    assert!(values.next().is_some());
+    assert_eq!(values.len(), 2);
+    assert!(values.next().is_some());
+    assert_eq!(values.len(), 1);
+    assert!(values.next().is_some());
+    assert_eq!(values.len(), 0);
+    assert!(values.next().is_none());
+
+    // values_mut()
+    let mut values_mut = map.values_mut();
+    assert_eq!(values_mut.len(), 3);
+    assert_eq!(values_mut.size_hint(), (3, Some(3)));
+    assert!(values_mut.next().is_some());
+    assert_eq!(values_mut.len(), 2);
+    assert!(values_mut.next().is_some());
+    assert_eq!(values_mut.len(), 1);
+    assert!(values_mut.next().is_some());
+    assert_eq!(values_mut.len(), 0);
+    assert!(values_mut.next().is_none());
+
+    // into_iter()
+    let mut into_iter = map.into_iter();
+    assert_eq!(into_iter.len(), 3);
+    assert_eq!(into_iter.size_hint(), (3, Some(3)));
+    assert!(into_iter.next().is_some());
+    assert_eq!(into_iter.len(), 2);
+    assert!(into_iter.next().is_some());
+    assert_eq!(into_iter.len(), 1);
+    assert!(into_iter.next().is_some());
+    assert_eq!(into_iter.len(), 0);
+    assert!(into_iter.next().is_none());
+}
