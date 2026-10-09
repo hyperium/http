@@ -350,6 +350,12 @@ standard_headers! {
     /// See [RFC 9211](https://www.rfc-editor.org/rfc/rfc9211.html).
     (CacheStatus, CACHE_STATUS, b"cache-status");
 
+    /// Indicates whether the Capsule Protocol is in use for a request or
+    /// response.
+    ///
+    /// See [RFC 9297](https://www.rfc-editor.org/rfc/rfc9297.html).
+    (CapsuleProtocol, CAPSULE_PROTOCOL, b"capsule-protocol");
+
     /// Specifies directives that allow origin servers to control the behavior of CDN caches
     /// interposed between them and clients separately from other caches that might handle the
     /// response.
