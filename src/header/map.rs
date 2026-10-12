@@ -1430,21 +1430,17 @@ impl<T> HeaderMap<T> {
     }
 
     fn insert_occupied_mult(&mut self, index: usize, value: T) -> ValueDrain<'_, T> {
-        let old;
-        let links;
+        // Drain the extra values while the entry still holds its links, since
+        // unlinking them updates those links. Removing the last extra value
+        // clears them.
+        let next = self.entries[index].links.map(|l| {
+            let raw_links = self.raw_links();
+            let extra_values = self.extra_values_mut();
+            drain_all_extra_values(raw_links, extra_values, l.next).into_iter()
+        });
+        debug_assert!(self.entries[index].links.is_none());
 
-        {
-            let entry = &mut self.entries[index];
-
-            old = mem::replace(&mut entry.value, value);
-            links = entry.links.take();
-        }
-
-        let raw_links = self.raw_links();
-        let extra_values = self.extra_values_mut();
-
-        let next =
-            links.map(|l| drain_all_extra_values(raw_links, extra_values, l.next).into_iter());
+        let old = mem::replace(&mut self.entries[index].value, value);
 
         ValueDrain {
             first: Some(old),

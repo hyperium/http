@@ -235,6 +235,36 @@ fn drain_entry() {
 }
 
 #[test]
+fn insert_mult_with_more_than_two_values() {
+    let mut headers = HeaderMap::new();
+    for val in ["a", "b", "c", "d"] {
+        headers.append("hello", val.parse().unwrap());
+    }
+    headers.append("other", "x".parse().unwrap());
+    headers.append("other", "y".parse().unwrap());
+
+    {
+        let mut e = match headers.entry("hello") {
+            Entry::Occupied(e) => e,
+            _ => panic!(),
+        };
+
+        let vals: Vec<_> = e.insert_mult("new".parse().unwrap()).collect();
+        assert_eq!(vals, ["a", "b", "c", "d"]);
+    }
+
+    assert_eq!(3, headers.len());
+    let hello: Vec<_> = headers.get_all("hello").iter().collect();
+    assert_eq!(hello, ["new"]);
+    let other: Vec<_> = headers.get_all("other").iter().collect();
+    assert_eq!(other, ["x", "y"]);
+
+    headers.append("hello", "again".parse().unwrap());
+    let hello: Vec<_> = headers.get_all("hello").iter().collect();
+    assert_eq!(hello, ["new", "again"]);
+}
+
+#[test]
 fn eq() {
     let mut a = HeaderMap::new();
     let mut b = HeaderMap::new();
