@@ -172,17 +172,25 @@ impl HeaderValue {
         HeaderValue::from_bytes(src.as_ref())
     }
 
-    /// Convert a `Bytes` directly into a `HeaderValue` without validating.
+    /// Convert a buffer directly into a `HeaderValue` without validating (in
+    /// release builds).
     ///
-    /// This function does NOT validate that illegal bytes are not contained
-    /// within the buffer.
+    /// In debug builds, this performs the same validation as
+    /// [`from_maybe_shared`](Self::from_maybe_shared).
     ///
-    /// ## Panics
-    /// In a debug build this will panic if `src` is not valid UTF-8.
+    /// # Panics
     ///
-    /// ## Safety
-    /// `src` must contain valid UTF-8. In a release build it is undefined
-    /// behaviour to call this with `src` that is not valid UTF-8.
+    /// Panics in debug builds if `src` is not a valid HTTP header value.
+    ///
+    /// # Safety
+    ///
+    /// Constructing a `HeaderValue` with any byte sequence does not cause
+    /// undefined behavior, and `src` does not need to be valid UTF-8.
+    ///
+    /// This method is marked unsafe because using values that contain bytes
+    /// not permitted in HTTP header values can produce malformed messages. In
+    /// particular, serializing untrusted carriage return or line feed bytes may
+    /// allow [HTTP message splitting](https://en.wikipedia.org/wiki/HTTP_response_splitting).
     pub unsafe fn from_maybe_shared_unchecked<T>(src: T) -> HeaderValue
     where
         T: AsRef<[u8]> + 'static,
@@ -813,4 +821,28 @@ fn test_debug() {
     let mut sensitive = HeaderValue::from_static("password");
     sensitive.set_sensitive(true);
     assert_eq!("Sensitive", format!("{:?}", sensitive));
+}
+
+#[test]
+fn test_from_maybe_shared_unchecked_accepts_non_utf8() {
+    let value = unsafe { HeaderValue::from_maybe_shared_unchecked(&b"hello\xff"[..]) };
+
+    assert_eq!(value.as_bytes(), b"hello\xff");
+    assert!(value.to_str().is_err());
+    assert_eq!(format!("{:?}", value), "\"hello\\xff\"");
+}
+
+#[cfg(debug_assertions)]
+#[test]
+#[should_panic(expected = "HeaderValue::from_maybe_shared_unchecked() with invalid bytes")]
+fn test_from_maybe_shared_unchecked_rejects_invalid_header_value_in_debug_builds() {
+    let _ = unsafe { HeaderValue::from_maybe_shared_unchecked(&b"hello\r\n"[..]) };
+}
+
+#[cfg(not(debug_assertions))]
+#[test]
+fn test_from_maybe_shared_unchecked_accepts_invalid_header_value_in_release_builds() {
+    let value = unsafe { HeaderValue::from_maybe_shared_unchecked(&b"hello\r\n"[..]) };
+
+    assert_eq!(value.as_bytes(), b"hello\r\n");
 }
