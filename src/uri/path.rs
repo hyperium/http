@@ -292,7 +292,7 @@ impl fmt::Display for PathAndQuery {
 
 impl hash::Hash for PathAndQuery {
     fn hash<H: hash::Hasher>(&self, state: &mut H) {
-        self.data.hash(state);
+        self.as_str().hash(state);
     }
 }
 
@@ -301,7 +301,7 @@ impl hash::Hash for PathAndQuery {
 impl PartialEq for PathAndQuery {
     #[inline]
     fn eq(&self, other: &PathAndQuery) -> bool {
-        self.data == other.data
+        self.as_str() == other.as_str()
     }
 }
 
@@ -701,6 +701,33 @@ mod tests {
             r#"/{"bread":"baguette"}"#,
             pq(r#"/{"bread":"baguette"}"#).path()
         );
+    }
+
+    #[test]
+    fn empty_path_equals_slash() {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        let empty = PathAndQuery::empty();
+        let slash = PathAndQuery::slash();
+
+        assert_eq!(empty.as_str(), "/");
+        assert_eq!(slash.as_str(), "/");
+        assert_eq!(format!("{empty}"), "/");
+        assert_eq!(format!("{slash}"), "/");
+
+        // PartialOrd already compares via as_str(), so these are Equal.
+        assert!(empty <= slash && empty >= slash);
+
+        // PartialEq and Hash must agree with that, and with Uri equality.
+        assert_eq!(empty, slash);
+        assert_eq!(slash, empty);
+
+        let mut h1 = DefaultHasher::new();
+        let mut h2 = DefaultHasher::new();
+        empty.hash(&mut h1);
+        slash.hash(&mut h2);
+        assert_eq!(h1.finish(), h2.finish());
     }
 
     fn pq(s: &str) -> PathAndQuery {
