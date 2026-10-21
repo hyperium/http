@@ -1485,7 +1485,7 @@ impl fmt::Debug for InvalidHeaderName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("InvalidHeaderName")
             // skip _priv noise
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
