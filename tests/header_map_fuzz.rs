@@ -285,6 +285,8 @@ fn gen_header_name(g: &mut StdRng) -> HeaderName {
         header::CONTENT_SECURITY_POLICY_REPORT_ONLY,
         header::CONTENT_TYPE,
         header::COOKIE,
+        header::CROSS_ORIGIN_EMBEDDER_POLICY,
+        header::CROSS_ORIGIN_OPENER_POLICY,
         header::DNT,
         header::DATE,
         header::ETAG,
