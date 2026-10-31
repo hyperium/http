@@ -61,10 +61,10 @@ impl Authority {
     #[inline]
     pub const fn from_static(src: &'static str) -> Self {
         match validate_authority_bytes(src.as_bytes()) {
-            Ok(_) => Authority {
+            Ok(end) if end == src.len() => Authority {
                 data: ByteStr::from_static(src),
             },
-            Err(_) => panic!("static str is not valid authority"),
+            _ => panic!("static str is not valid authority"),
         }
     }
 
@@ -608,6 +608,14 @@ mod tests {
     fn from_static_equates_with_a_str() {
         let authority = Authority::from_static("example.com");
         assert_eq!(authority, "example.com");
+    }
+
+    #[test]
+    #[should_panic(expected = "static str is not valid authority")]
+    fn from_static_rejects_trailing_path() {
+        // `parse` rejects this, `from_static` must too.
+        assert!("https://127.0.0.1".parse::<Authority>().is_err());
+        Authority::from_static("https://127.0.0.1");
     }
 
     #[test]
