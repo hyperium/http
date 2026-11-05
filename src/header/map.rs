@@ -1846,7 +1846,10 @@ impl<T> HeaderMap<T> {
                 self.entries = Vec::with_capacity(usable_capacity(new_raw_cap));
             } else {
                 let raw_cap = self.indices.len();
-                self.try_grow(raw_cap << 1)?;
+                // Go from 6 to 24 usable slots in one step, so a header block of
+                // 7 to 24 entries is rehashed once instead of twice.
+                let new_raw_cap = if raw_cap == 8 { 32 } else { raw_cap << 1 };
+                self.try_grow(new_raw_cap)?;
             }
         }
 

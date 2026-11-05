@@ -36,6 +36,16 @@ fn smoke() {
 }
 
 #[test]
+fn first_grow_goes_to_24() {
+    let mut headers = HeaderMap::new();
+    for i in 0..7 {
+        let name = HeaderName::from_bytes(format!("x-{}", i).as_bytes()).unwrap();
+        headers.insert(name, HeaderValue::from_static("v"));
+    }
+    assert_eq!(headers.capacity(), 24);
+}
+
+#[test]
 #[should_panic]
 fn reserve_over_capacity() {
     // See https://github.com/hyperium/http/issues/352
