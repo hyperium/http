@@ -44,3 +44,8 @@ fn from_shared_unchecked_long(b: &mut Bencher) {
         HeaderValue::from_maybe_shared_unchecked(bytes.clone());
     });
 }
+
+#[bench]
+fn from_u64(b: &mut Bencher) {
+    b.iter(|| HeaderValue::from(test::black_box(1024u64)));
+}
