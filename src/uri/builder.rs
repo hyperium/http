@@ -257,5 +257,6 @@ mod tests {
         assert_eq!(uri.scheme(), Some(&Scheme::HTTPS));
         assert_eq!(uri.host(), Some("example.com"));
         assert_eq!(uri.path(), "*");
+        assert_eq!(uri.to_string(), "https://example.com");
     }
 }
