@@ -236,8 +236,8 @@ impl Scheme2<usize> {
     // Postcondition: On all Ok() returns, s is valid UTF-8
     fn parse_exact(s: &[u8]) -> Result<Scheme2<()>, InvalidUri> {
         match s {
-            b"http" => Ok(Protocol::Http.into()),
-            b"https" => Ok(Protocol::Https.into()),
+            _ if s.eq_ignore_ascii_case(b"http") => Ok(Protocol::Http.into()),
+            _ if s.eq_ignore_ascii_case(b"https") => Ok(Protocol::Https.into()),
             _ => {
                 if s.len() > MAX_SCHEME_LEN {
                     return Err(ErrorKind::SchemeTooLong.into());
@@ -345,6 +345,22 @@ mod test {
         assert_eq!(&scheme("https"), "https");
         assert_eq!(&scheme("ftp"), "ftp");
         assert_eq!(&scheme("my+funky+scheme"), "my+funky+scheme");
+    }
+
+    #[test]
+    fn standard_scheme_is_case_insensitive() {
+        use std::collections::HashSet;
+
+        for (s, expected) in [
+            ("HTTP", Scheme::HTTP),
+            ("hTtP", Scheme::HTTP),
+            ("HTTPS", Scheme::HTTPS),
+        ] {
+            let parsed = scheme(s);
+            assert_eq!(parsed, expected);
+            assert_eq!(parsed.as_str(), expected.as_str());
+            assert!(HashSet::from([expected]).contains(&parsed));
+        }
     }
 
     #[test]
