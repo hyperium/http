@@ -4125,3 +4125,33 @@ fn skip_duplicates_during_key_iteration() {
     map.try_append("a", HeaderValue::from_static("b")).unwrap();
     assert_eq!(map.keys().count(), map.keys_len());
 }
+#[test]
+fn test_headermap_adaptive_hashing() {
+    fn home_slot(name: &HeaderName, table_size: usize) -> usize {
+        (hash_elem_using(&Danger::Green, name).0 as usize) & (table_size - 1)
+    }
+    fn colliding_keys(count: usize, table_size: usize) -> Vec<HeaderName> {
+        (0usize..)
+            .map(|i| HeaderName::from_bytes(format!("x-header-{}", i).as_bytes()).unwrap())
+            .filter(|n| home_slot(n, table_size) == 0)
+            .take(count)
+            .collect()
+    }
+    let keys: Vec<HeaderName> = colliding_keys(520, 4096);
+
+    let mut map: HeaderMap<usize> = HeaderMap::with_capacity(2500);
+    assert_eq!(map.indices.len(), 4096);
+
+    for (i, k) in keys.iter().enumerate() {
+        map.entry(k.clone()).or_insert(i);
+    }
+    assert!(matches!(map.danger(), Danger::Red(_)));
+
+    for (i, k) in keys.iter().enumerate() {
+        assert_eq!(map.get(k), Some(&i));
+    }
+
+    for b in &map.entries {
+        assert_eq!(b.hash, hash_elem_using(map.danger(), &b.key));
+    }
+}
