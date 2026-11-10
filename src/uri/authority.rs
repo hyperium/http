@@ -48,8 +48,7 @@ impl Authority {
     ///
     /// # Panics
     ///
-    /// This function panics if the argument contains invalid characters or
-    /// is empty.
+    /// This function panics if the argument is not a valid authority.
     ///
     /// # Examples
     ///
@@ -61,10 +60,10 @@ impl Authority {
     #[inline]
     pub const fn from_static(src: &'static str) -> Self {
         match validate_authority_bytes(src.as_bytes()) {
-            Ok(_) => Authority {
+            Ok(end) if end == src.len() => Authority {
                 data: ByteStr::from_static(src),
             },
-            Err(_) => panic!("static str is not valid authority"),
+            _ => panic!("static str is not valid authority"),
         }
     }
 
@@ -721,5 +720,33 @@ mod tests {
         // reject tie-fighter
         let err = Authority::parse_non_empty(b"]o[").unwrap_err();
         assert_eq!(err.0, ErrorKind::InvalidAuthority);
+    }
+
+    #[test]
+    #[should_panic(expected = "static str is not valid authority")]
+    fn from_static_rejects_scheme_prefix() {
+        assert!("https://127.0.0.1".parse::<Authority>().is_err());
+        Authority::from_static("https://127.0.0.1");
+    }
+
+    #[test]
+    #[should_panic(expected = "static str is not valid authority")]
+    fn from_static_rejects_trailing_path() {
+        assert!("example.com/path".parse::<Authority>().is_err());
+        Authority::from_static("example.com/path");
+    }
+
+    #[test]
+    #[should_panic(expected = "static str is not valid authority")]
+    fn from_static_rejects_trailing_query() {
+        assert!("example.com?query=1".parse::<Authority>().is_err());
+        Authority::from_static("example.com?query=1");
+    }
+
+    #[test]
+    #[should_panic(expected = "static str is not valid authority")]
+    fn from_static_rejects_trailing_fragment() {
+        assert!("example.com#frag".parse::<Authority>().is_err());
+        Authority::from_static("example.com#frag");
     }
 }
