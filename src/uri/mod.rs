@@ -1040,7 +1040,11 @@ impl fmt::Display for Uri {
             f.write_str(authority.as_str())?;
         }
 
-        f.write_str(self.path())?;
+        // RFC 9112 3.2.4: the absolute-form of an asterisk-form target has an
+        // empty path. Writing the `*` would make it part of the authority.
+        if self.authority().is_none() || self.path() != "*" {
+            f.write_str(self.path())?;
+        }
 
         if let Some(query) = self.query() {
             f.write_str("?")?;
