@@ -21,11 +21,6 @@
 //! incur any allocation overhead, however longer strings will require an
 //! allocation for storage.
 //!
-//! ## Limitations
-//!
-//! `HeaderName` has a max length of 32,768 for header names. Attempting to
-//! parse longer names will result in a panic.
-//!
 //! # `HeaderMap`
 //!
 //! The [`HeaderMap`] type is a specialized
