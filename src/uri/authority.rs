@@ -469,6 +469,26 @@ where
     })
 }
 
+// Like URI_CHARS, but bytes that have no special meaning in an authority
+// map to PLAIN.
+const PLAIN: u8 = 1;
+
+const fn build_authority_map() -> [u8; 256] {
+    let mut t = [0; 256];
+    let mut i = 0;
+    while i < 256 {
+        t[i] = match URI_CHARS[i] {
+            0 => 0,
+            ch @ (b'/' | b'?' | b'#' | b':' | b'[' | b']' | b'@') => ch,
+            _ => PLAIN,
+        };
+        i += 1;
+    }
+    t
+}
+
+const AUTHORITY_MAP: [u8; 256] = build_authority_map();
+
 /// Shared validation logic for authority bytes.
 /// Returns the end position of valid authority bytes, or an error.
 const fn validate_authority_bytes(s: &[u8]) -> Result<usize, AuthorityError> {
@@ -491,7 +511,13 @@ const fn validate_authority_bytes(s: &[u8]) -> Result<usize, AuthorityError> {
     // code point.
     while i < s.len() {
         let b = s[i];
-        let ch = URI_CHARS[b as usize];
+        let ch = AUTHORITY_MAP[b as usize];
+
+        // Most bytes are plain host or userinfo characters.
+        if ch == PLAIN {
+            i += 1;
+            continue;
+        }
 
         if ch == b'/' || ch == b'?' || ch == b'#' {
             end = i;

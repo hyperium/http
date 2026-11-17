@@ -25,7 +25,7 @@
 use crate::byte_str::ByteStr;
 use std::convert::TryFrom;
 
-use bytes::Bytes;
+use bytes::{Buf, Bytes};
 
 use std::error::Error;
 use std::fmt;
@@ -825,16 +825,15 @@ fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUri> {
     let scheme = match Scheme2::parse(&s[..])? {
         Scheme2::None => Scheme2::None,
         Scheme2::Standard(p) => {
-            // TODO: use truncate
-            let _ = s.split_to(p.len() + 3);
+            s.advance(p.len() + 3);
             Scheme2::Standard(p)
         }
         Scheme2::Other(n) => {
             // Grab the protocol
             let mut scheme = s.split_to(n + 3);
 
-            // Strip ://, TODO: truncate
-            let _ = scheme.split_off(n);
+            // Strip ://
+            scheme.truncate(n);
 
             // Allocate the ByteStr
             let val = unsafe { ByteStr::from_utf8_unchecked(scheme) };
