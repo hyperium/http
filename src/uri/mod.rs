@@ -32,8 +32,6 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::str::{self, FromStr};
 
-use self::scheme::Scheme2;
-
 pub use self::authority::Authority;
 pub use self::builder::Builder;
 pub use self::path::PathAndQuery;
@@ -94,7 +92,7 @@ mod tests;
 /// ```
 #[derive(Clone)]
 pub struct Uri {
-    scheme: Scheme,
+    scheme: Option<Scheme>,
     authority: Authority,
     path_and_query: PathAndQuery,
 }
@@ -250,13 +248,6 @@ impl Uri {
             return Err(ErrorKind::SchemeMissing.into());
         }
 
-        let scheme = match src.scheme {
-            Some(scheme) => scheme,
-            None => Scheme {
-                inner: Scheme2::None,
-            },
-        };
-
         let authority = match src.authority {
             Some(authority) => authority,
             None => Authority::empty(),
@@ -268,7 +259,7 @@ impl Uri {
         };
 
         Ok(Uri {
-            scheme,
+            scheme: src.scheme,
             authority,
             path_and_query,
         })
@@ -304,24 +295,22 @@ impl Uri {
             1 => match s[0] {
                 b'/' => {
                     return Ok(Uri {
-                        scheme: Scheme::empty(),
+                        scheme: None,
                         authority: Authority::empty(),
                         path_and_query: PathAndQuery::slash(),
                     });
                 }
                 b'*' => {
                     return Ok(Uri {
-                        scheme: Scheme::empty(),
+                        scheme: None,
                         authority: Authority::empty(),
                         path_and_query: PathAndQuery::star(),
                     });
                 }
                 _ => {
-                    let authority = Authority::from_shared(s)?;
-
                     return Ok(Uri {
-                        scheme: Scheme::empty(),
-                        authority,
+                        scheme: None,
+                        authority: Authority::from_shared(s)?,
                         path_and_query: PathAndQuery::empty(),
                     });
                 }
@@ -331,7 +320,7 @@ impl Uri {
 
         if s[0] == b'/' {
             return Ok(Uri {
-                scheme: Scheme::empty(),
+                scheme: None,
                 authority: Authority::empty(),
                 path_and_query: PathAndQuery::from_shared(s)?,
             });
@@ -394,7 +383,7 @@ impl Uri {
     /// Returns the path & query components of the Uri
     #[inline]
     pub fn path_and_query(&self) -> Option<&PathAndQuery> {
-        if !self.scheme.inner.is_none() || self.authority.data.is_empty() {
+        if !self.scheme.is_none() || self.authority.data.is_empty() {
             Some(&self.path_and_query)
         } else {
             None
@@ -481,11 +470,7 @@ impl Uri {
     /// ```
     #[inline]
     pub fn scheme(&self) -> Option<&Scheme> {
-        if self.scheme.inner.is_none() {
-            None
-        } else {
-            Some(&self.scheme)
-        }
+        self.scheme.as_ref()
     }
 
     /// Get the scheme of this `Uri` as a `&str`.
@@ -500,11 +485,7 @@ impl Uri {
     /// ```
     #[inline]
     pub fn scheme_str(&self) -> Option<&str> {
-        if self.scheme.inner.is_none() {
-            None
-        } else {
-            Some(self.scheme.as_str())
-        }
+        self.scheme().map(Scheme::as_str)
     }
 
     /// Get the authority of this `Uri`.
@@ -702,7 +683,7 @@ impl Uri {
     }
 
     fn has_path(&self) -> bool {
-        !self.path_and_query.data.is_empty() || !self.scheme.inner.is_none()
+        !self.path_and_query.data.is_empty() || self.scheme.is_some()
     }
 }
 
@@ -773,7 +754,7 @@ impl TryFrom<&Uri> for Uri {
 impl From<Authority> for Uri {
     fn from(authority: Authority) -> Self {
         Self {
-            scheme: Scheme::empty(),
+            scheme: None,
             authority,
             path_and_query: PathAndQuery::empty(),
         }
@@ -784,7 +765,7 @@ impl From<Authority> for Uri {
 impl From<PathAndQuery> for Uri {
     fn from(path_and_query: PathAndQuery) -> Self {
         Self {
-            scheme: Scheme::empty(),
+            scheme: None,
             authority: Authority::empty(),
             path_and_query,
         }
@@ -800,11 +781,6 @@ impl From<Uri> for Parts {
             None
         };
 
-        let scheme = match src.scheme.inner {
-            Scheme2::None => None,
-            _ => Some(src.scheme),
-        };
-
         let authority = if src.authority.data.is_empty() {
             None
         } else {
@@ -812,7 +788,7 @@ impl From<Uri> for Parts {
         };
 
         Parts {
-            scheme,
+            scheme: src.scheme,
             authority,
             path_and_query,
             _priv: (),
@@ -822,26 +798,7 @@ impl From<Uri> for Parts {
 
 fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUri> {
     // Parse the scheme
-    let scheme = match Scheme2::parse(&s[..])? {
-        Scheme2::None => Scheme2::None,
-        Scheme2::Standard(p) => {
-            // TODO: use truncate
-            let _ = s.split_to(p.len() + 3);
-            Scheme2::Standard(p)
-        }
-        Scheme2::Other(n) => {
-            // Grab the protocol
-            let mut scheme = s.split_to(n + 3);
-
-            // Strip ://, TODO: truncate
-            let _ = scheme.split_off(n);
-
-            // Allocate the ByteStr
-            let val = unsafe { ByteStr::from_utf8_unchecked(scheme) };
-
-            Scheme2::Other(Box::new(val))
-        }
-    };
+    let scheme = Scheme::parse(&mut s)?;
 
     // Find the end of the authority. The scheme will already have been
     // extracted.
@@ -857,7 +814,7 @@ fn parse_full(mut s: Bytes) -> Result<Uri, InvalidUri> {
         };
 
         return Ok(Uri {
-            scheme: scheme.into(),
+            scheme,
             authority,
             path_and_query: PathAndQuery::empty(),
         });
@@ -1022,7 +979,7 @@ impl Default for Uri {
     #[inline]
     fn default() -> Uri {
         Uri {
-            scheme: Scheme::empty(),
+            scheme: None,
             authority: Authority::empty(),
             path_and_query: PathAndQuery::slash(),
         }
@@ -1117,7 +1074,7 @@ impl Hash for Uri {
     where
         H: Hasher,
     {
-        if !self.scheme.inner.is_none() {
+        if self.scheme.is_some() {
             self.scheme.hash(state);
             state.write_u8(0xff);
         }
