@@ -42,6 +42,20 @@ impl Version {
     pub const HTTP_3: Version = Version(Http::H3);
 }
 
+impl Version {
+    /// Returns a `&'static str` representation of the HTTP version.
+    pub fn as_str(&self) -> &'static str {
+        match self.0 {
+            Http::Http09 => "HTTP/0.9",
+            Http::Http10 => "HTTP/1.0",
+            Http::Http11 => "HTTP/1.1",
+            Http::H2 => "HTTP/2.0",
+            Http::H3 => "HTTP/3.0",
+            Http::__NonExhaustive => unreachable!(),
+        }
+    }
+}
+
 #[derive(PartialEq, PartialOrd, Copy, Clone, Eq, Ord, Hash)]
 enum Http {
     Http09,
@@ -61,15 +75,6 @@ impl Default for Version {
 
 impl fmt::Debug for Version {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use self::Http::*;
-
-        f.write_str(match self.0 {
-            Http09 => "HTTP/0.9",
-            Http10 => "HTTP/1.0",
-            Http11 => "HTTP/1.1",
-            H2 => "HTTP/2.0",
-            H3 => "HTTP/3.0",
-            __NonExhaustive => unreachable!(),
-        })
+        f.write_str(self.as_str())
     }
 }
