@@ -453,6 +453,27 @@ impl<T> Request<T> {
         Request { head: parts, body }
     }
 
+    /// Returns a reference to the request's component parts.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use http::*;
+    /// let request = Request::builder()
+    ///     .method(Method::POST)
+    ///     .uri("/hello")
+    ///     .body(())
+    ///     .unwrap();
+    ///
+    /// let parts = request.parts();
+    /// assert_eq!(parts.method, Method::POST);
+    /// assert_eq!(parts.uri, "/hello");
+    /// ```
+    #[inline]
+    pub fn parts(&self) -> &Parts {
+        &self.head
+    }
+
     /// Returns a reference to the associated HTTP method.
     ///
     /// # Examples
@@ -1059,6 +1080,20 @@ impl Default for Builder {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn it_can_borrow_parts() {
+        let request = Request::builder()
+            .method(Method::POST)
+            .uri("/hello")
+            .body("body")
+            .unwrap();
+
+        let parts = request.parts();
+        assert_eq!(parts.method, Method::POST);
+        assert_eq!(parts.uri, "/hello");
+        assert_eq!(request.body(), &"body");
+    }
 
     #[test]
     fn it_can_map_a_body_from_one_type_to_another() {
