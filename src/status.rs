@@ -131,7 +131,7 @@ impl StatusCode {
     /// assert_eq!(status.as_str(), "200");
     /// ```
     #[inline]
-    pub fn as_str(&self) -> &str {
+    pub fn as_str(&self) -> &'static str {
         let offset = (self.0.get() - 100) as usize;
         let offset = offset * 3;
 
