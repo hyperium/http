@@ -213,15 +213,43 @@ impl AsRef<str> for Authority {
     }
 }
 
+// The userinfo subcomponent is case-sensitive while the host subcomponent is
+// case-insensitive (RFC 3986 Section 6.2.2.1), so equality, ordering and
+// hashing all split the authority at the userinfo delimiter. A valid
+// authority cannot contain an unencoded '@' in its host, so the last '@' is
+// the delimiter.
+fn userinfo_end(s: &str) -> usize {
+    match s.rfind('@') {
+        Some(i) => i + 1,
+        None => 0,
+    }
+}
+
+fn authority_eq(a: &str, b: &str) -> bool {
+    let a_split = userinfo_end(a);
+    let b_split = userinfo_end(b);
+    a[..a_split] == b[..b_split] && a[a_split..].eq_ignore_ascii_case(&b[b_split..])
+}
+
+fn authority_cmp(a: &str, b: &str) -> cmp::Ordering {
+    let a_split = userinfo_end(a);
+    let b_split = userinfo_end(b);
+    a[..a_split].cmp(&b[..b_split]).then_with(|| {
+        let left = a[a_split..].bytes().map(|b| b.to_ascii_lowercase());
+        let right = b[b_split..].bytes().map(|b| b.to_ascii_lowercase());
+        left.cmp(right)
+    })
+}
+
 impl PartialEq for Authority {
     fn eq(&self, other: &Authority) -> bool {
-        self.data.eq_ignore_ascii_case(&other.data)
+        authority_eq(self.as_str(), other.as_str())
     }
 }
 
 impl Eq for Authority {}
 
-/// Case-insensitive equality
+/// Case-insensitive equality of the host, case-sensitive userinfo
 ///
 /// # Examples
 ///
@@ -233,41 +261,41 @@ impl Eq for Authority {}
 /// ```
 impl PartialEq<str> for Authority {
     fn eq(&self, other: &str) -> bool {
-        self.data.eq_ignore_ascii_case(other)
+        authority_eq(self.as_str(), other)
     }
 }
 
 impl PartialEq<Authority> for str {
     fn eq(&self, other: &Authority) -> bool {
-        self.eq_ignore_ascii_case(other.as_str())
+        authority_eq(self, other.as_str())
     }
 }
 
 impl PartialEq<Authority> for &str {
     fn eq(&self, other: &Authority) -> bool {
-        self.eq_ignore_ascii_case(other.as_str())
+        authority_eq(self, other.as_str())
     }
 }
 
 impl PartialEq<&str> for Authority {
     fn eq(&self, other: &&str) -> bool {
-        self.data.eq_ignore_ascii_case(other)
+        authority_eq(self.as_str(), other)
     }
 }
 
 impl PartialEq<String> for Authority {
     fn eq(&self, other: &String) -> bool {
-        self.data.eq_ignore_ascii_case(other.as_str())
+        authority_eq(self.as_str(), other.as_str())
     }
 }
 
 impl PartialEq<Authority> for String {
     fn eq(&self, other: &Authority) -> bool {
-        self.as_str().eq_ignore_ascii_case(other.as_str())
+        authority_eq(self.as_str(), other.as_str())
     }
 }
 
-/// Case-insensitive ordering
+/// Case-insensitive ordering of the host, case-sensitive userinfo
 ///
 /// # Examples
 ///
@@ -279,61 +307,47 @@ impl PartialEq<Authority> for String {
 /// ```
 impl PartialOrd for Authority {
     fn partial_cmp(&self, other: &Authority) -> Option<cmp::Ordering> {
-        let left = self.data.as_bytes().iter().map(|b| b.to_ascii_lowercase());
-        let right = other.data.as_bytes().iter().map(|b| b.to_ascii_lowercase());
-        left.partial_cmp(right)
+        Some(authority_cmp(self.as_str(), other.as_str()))
     }
 }
 
 impl PartialOrd<str> for Authority {
     fn partial_cmp(&self, other: &str) -> Option<cmp::Ordering> {
-        let left = self.data.as_bytes().iter().map(|b| b.to_ascii_lowercase());
-        let right = other.as_bytes().iter().map(|b| b.to_ascii_lowercase());
-        left.partial_cmp(right)
+        Some(authority_cmp(self.as_str(), other))
     }
 }
 
 impl PartialOrd<Authority> for str {
     fn partial_cmp(&self, other: &Authority) -> Option<cmp::Ordering> {
-        let left = self.as_bytes().iter().map(|b| b.to_ascii_lowercase());
-        let right = other.data.as_bytes().iter().map(|b| b.to_ascii_lowercase());
-        left.partial_cmp(right)
+        Some(authority_cmp(self, other.as_str()))
     }
 }
 
 impl PartialOrd<Authority> for &str {
     fn partial_cmp(&self, other: &Authority) -> Option<cmp::Ordering> {
-        let left = self.as_bytes().iter().map(|b| b.to_ascii_lowercase());
-        let right = other.data.as_bytes().iter().map(|b| b.to_ascii_lowercase());
-        left.partial_cmp(right)
+        Some(authority_cmp(self, other.as_str()))
     }
 }
 
 impl PartialOrd<&str> for Authority {
     fn partial_cmp(&self, other: &&str) -> Option<cmp::Ordering> {
-        let left = self.data.as_bytes().iter().map(|b| b.to_ascii_lowercase());
-        let right = other.as_bytes().iter().map(|b| b.to_ascii_lowercase());
-        left.partial_cmp(right)
+        Some(authority_cmp(self.as_str(), other))
     }
 }
 
 impl PartialOrd<String> for Authority {
     fn partial_cmp(&self, other: &String) -> Option<cmp::Ordering> {
-        let left = self.data.as_bytes().iter().map(|b| b.to_ascii_lowercase());
-        let right = other.as_bytes().iter().map(|b| b.to_ascii_lowercase());
-        left.partial_cmp(right)
+        Some(authority_cmp(self.as_str(), other.as_str()))
     }
 }
 
 impl PartialOrd<Authority> for String {
     fn partial_cmp(&self, other: &Authority) -> Option<cmp::Ordering> {
-        let left = self.as_bytes().iter().map(|b| b.to_ascii_lowercase());
-        let right = other.data.as_bytes().iter().map(|b| b.to_ascii_lowercase());
-        left.partial_cmp(right)
+        Some(authority_cmp(self.as_str(), other.as_str()))
     }
 }
 
-/// Case-insensitive hashing
+/// Case-insensitive hashing of the host, case-sensitive userinfo
 ///
 /// # Examples
 ///
@@ -361,7 +375,10 @@ impl Hash for Authority {
         H: Hasher,
     {
         self.data.len().hash(state);
-        for &b in self.data.as_bytes() {
+        let s = self.as_str();
+        let split = userinfo_end(s);
+        state.write(s[..split].as_bytes());
+        for &b in s[split..].as_bytes() {
             state.write_u8(b.to_ascii_lowercase());
         }
     }
@@ -592,6 +609,43 @@ mod tests {
         let authority2: Authority = "test.com".parse().unwrap();
         assert_ne!(authority1, authority2);
         assert_ne!(authority2, authority1);
+    }
+
+    #[test]
+    fn userinfo_is_case_sensitive() {
+        let lower: Authority = "alice:supersecurepassword@example.com".parse().unwrap();
+        let upper: Authority = "Alice:SuperSecurePassword@example.com".parse().unwrap();
+        assert_ne!(lower, upper);
+        assert_ne!(upper, lower);
+        assert_ne!(lower, "Alice:SuperSecurePassword@example.com");
+        assert_ne!("Alice:SuperSecurePassword@example.com", lower);
+        assert!(lower > upper);
+        assert!(upper < lower);
+    }
+
+    #[test]
+    fn host_stays_case_insensitive_with_userinfo() {
+        let lower: Authority = "alice:secret@example.com".parse().unwrap();
+        let upper: Authority = "alice:secret@EXAMPLE.COM".parse().unwrap();
+        assert_eq!(lower, upper);
+        assert_eq!(upper, lower);
+        assert_eq!(lower, "alice:secret@EXAMPLE.com");
+        assert_eq!("alice:secret@example.COM", upper);
+    }
+
+    #[test]
+    fn hash_matches_equality_with_userinfo() {
+        use std::collections::hash_map::DefaultHasher;
+
+        fn hash_of(a: &Authority) -> u64 {
+            let mut s = DefaultHasher::new();
+            a.hash(&mut s);
+            s.finish()
+        }
+
+        let lower: Authority = "alice:secret@example.com".parse().unwrap();
+        let upper_host: Authority = "alice:secret@EXAMPLE.COM".parse().unwrap();
+        assert_eq!(hash_of(&lower), hash_of(&upper_host));
     }
 
     #[test]
